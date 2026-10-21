@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(70);
+select plan(79);
 
 select tests.create_user('org@test.fr', 'Julie', true) as org \gset
 select tests.create_user('ana@test.fr', 'Ana') as ana \gset
@@ -11,9 +11,9 @@ update profiles set role = 'admin' where id = :'root';
 insert into categories (id, slug, name_fr, name_en, icon) values ('00000000-0000-0000-0000-0000000000c1', 'go', 'Jeu de go', 'Go', 'grid-3x3');
 insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time)
   values ('00000000-0000-0000-0000-0000000000f1', :'org', '00000000-0000-0000-0000-0000000000c1', 'Go le mardi', 'Café du Parc', 'POINT(4.85 45.77)', 'weekly', '2026-11-03', '19:00');
-insert into sessions (id, activity_id, starts_at) values ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000f1', '2026-11-03 19:00+01');
+insert into sessions (id, activity_id, starts_at) values ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000f1', '2026-01-06 19:00+01'), ('00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-0000000000f1', '2099-01-05 19:00+01');
 insert into activity_members (activity_id, user_id) values ('00000000-0000-0000-0000-0000000000f1', :'ana'), ('00000000-0000-0000-0000-0000000000f1', :'ben');
-insert into attendances (session_id, user_id, status) values ('00000000-0000-0000-0000-0000000000e1', :'ana', 'confirmed');
+insert into attendances (session_id, user_id, status) values ('00000000-0000-0000-0000-0000000000e1', :'ana', 'confirmed'), ('00000000-0000-0000-0000-0000000000e2', :'ana', 'confirmed');
 insert into messages (activity_id, sender_id, body) values ('00000000-0000-0000-0000-0000000000f1', :'ben', 'Salut !');
 insert into ambiance_words (id, slug, label_fr, label_en, sort_order) values
   ('00000000-0000-0000-0000-0000000000d1', 'chaleureux', 'Chaleureux', 'Warm', 1),
@@ -57,6 +57,9 @@ select throws_ok($$ insert into session_feedback (session_id, user_id, went_well
   array['00000000-0000-0000-0000-0000000000d1','00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000d3','00000000-0000-0000-0000-0000000000d4']::uuid[]) $$,
   '23514', null, 'more than 3 ambiance words rejected');
 
+select throws_ok($$ insert into session_feedback (session_id, user_id, went_well) values ('00000000-0000-0000-0000-0000000000e2', auth.uid(), true) $$,
+  '42501', null, 'feedback for a session not yet started is rejected');
+
 -- reports
 select lives_ok(format($$ insert into reports (reporter_id, target_type, target_id, reason) values (auth.uid(), 'user', %L, 'fake_or_spam') $$, :'ben'), 'ana files a report');
 select throws_ok(format($$ insert into reports (reporter_id, target_type, target_id, reason, status, statement_of_reasons) values (auth.uid(), 'user', %L, 'other', 'actioned', 'x') $$, :'ben'),
@@ -64,6 +67,8 @@ select throws_ok(format($$ insert into reports (reporter_id, target_type, target
 select throws_ok(format($$ insert into reports (reporter_id, target_type, target_id, reason) values (%L, 'user', %L, 'other') $$, :'cat', :'ben'),
   '42501', null, 'cannot report as someone else');
 select is((select count(*) from reports)::int, 1, 'user sees own report');
+update reports set status = 'actioned', statement_of_reasons = 'x';
+select is((select status from reports), 'open', 'user cannot update own report status');
 select throws_ok($$ insert into organiser_stats (user_id) values (auth.uid()) $$, '42501', null, 'user cannot write organiser_stats');
 select is((select count(*) from organiser_stats)::int, 1, 'user sees only own organiser_stats');
 select is((select count(*) from ambiance_words)::int, 4, 'authenticated reads ambiance words');
@@ -77,6 +82,7 @@ select throws_ok($$ insert into feedback (type, body, status) values ('idea', 'x
 
 select tests.act_as(:'org');
 select is((select count(*) from session_feedback)::int, 0, 'organiser cannot read feedback');
+select is(public.session_has_member('00000000-0000-0000-0000-0000000000e1', :'ana'), true, 'organiser can check membership');
 select is((select count(*) from reports)::int, 0, 'organiser cannot see others reports');
 select is((select count(*) from blocks)::int, 0, 'blocks are own-only');
 select is((select count(*) from safety_tips_seen)::int, 0, 'safety tips are own-only');
@@ -89,6 +95,11 @@ select throws_ok($$ insert into session_feedback (session_id, user_id, went_well
   '42501', null, 'unconfirmed member cannot give feedback');
 select throws_ok(format($$ insert into session_feedback (session_id, user_id, went_well) values ('00000000-0000-0000-0000-0000000000e1', %L, false) $$, :'ana'),
   '42501', null, 'cannot give feedback for someone else');
+select is(public.session_has_member('00000000-0000-0000-0000-0000000000e1', :'ana'), false, 'non-organiser gets false for another user');
+update messages set body = 'hack';
+select is((select count(*) from messages where body = 'hack')::int, 0, 'cannot update messages');
+delete from messages;
+select is((select count(*) from messages)::int, 2, 'cannot delete messages');
 select is((select count(*) from reports)::int, 0, 'ben does not see ana reports');
 select is((select count(*) from blocks)::int, 0, 'ben does not see ana blocks');
 select is((select count(*) from messages)::int, 2, 'ben still sees messages (block is one-way)');
@@ -104,6 +115,8 @@ select is((select count(*) from feedback)::int, 0, 'anon cannot read feedback');
 select throws_ok(format($$ insert into feedback (user_id, type, body) values (%L, 'idea', 'x') $$, :'ana'), '42501', null, 'anon cannot set user_id');
 select is((select count(*) from ambiance_words)::int, 4, 'anon reads ambiance words');
 select is((select count(*) from organiser_badges)::int, 2, 'anon reads organiser badges');
+select throws_ok($$ select public.has_confirmed_attendance('00000000-0000-0000-0000-0000000000e1') $$, '42501', null, 'anon cannot execute has_confirmed_attendance');
+select throws_ok($$ select public.session_has_member('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-000000000001') $$, '42501', null, 'anon cannot execute session_has_member');
 select throws_ok($$ select count(*) from organiser_stats $$, '42501', null, 'anon cannot read organiser_stats');
 select throws_ok($$ select count(*) from messages $$, '42501', null, 'anon cannot read messages');
 select throws_ok($$ select count(*) from reports $$, '42501', null, 'anon cannot read reports');
@@ -120,6 +133,8 @@ select is((select count(*) from blocks)::int, 1, 'admin reads blocks');
 select is((select count(*) from messages)::int, 2, 'admin reads messages');
 select throws_ok($$ update reports set status = 'dismissed', decided_by = auth.uid(), decided_at = now() $$,
   '23514', null, 'decided report needs a statement of reasons');
+select throws_ok($$ update reports set status = 'dismissed', statement_of_reasons = '', decided_by = auth.uid(), decided_at = now() $$,
+  '23514', null, 'empty statement of reasons rejected');
 select lives_ok($$ update reports set status = 'dismissed', statement_of_reasons = 'Rien à signaler', decided_by = auth.uid(), decided_at = now() $$, 'admin decides report');
 select lives_ok($$ insert into ambiance_words (slug, label_fr, label_en, sort_order) values ('x', 'x', 'x', 9) $$, 'admin writes ambiance words');
 select lives_ok($$ update organiser_stats set badge_status = 'active' $$, 'admin edits organiser_stats');

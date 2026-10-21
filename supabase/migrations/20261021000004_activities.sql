@@ -112,13 +112,14 @@ $$;
 
 create function public.session_has_member(p_session uuid, p_user uuid) returns boolean
 language sql stable security definer set search_path = public, pg_temp as $$
-  select exists (select 1 from public.sessions s
+  select (public.is_session_organiser(p_session) or public.is_admin())
+     and exists (select 1 from public.sessions s
                    join public.activity_members m on m.activity_id = s.activity_id
                   where s.id = p_session and m.user_id = p_user and m.status = 'member');
 $$;
 
-revoke all on function public.session_has_member(uuid, uuid) from public;
-grant execute on function public.session_has_member(uuid, uuid) to anon, authenticated;
+revoke all on function public.session_has_member(uuid, uuid) from public, anon;
+grant execute on function public.session_has_member(uuid, uuid) to authenticated;
 
 revoke all on function public.is_activity_member(uuid), public.is_activity_organiser(uuid),
   public.is_session_member(uuid), public.is_session_organiser(uuid) from public;

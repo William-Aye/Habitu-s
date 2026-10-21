@@ -37,7 +37,7 @@ create table public.reports (
   decided_by uuid references public.profiles on delete set null,
   created_at timestamptz not null default now(),
   decided_at timestamptz,
-  constraint reports_decision_has_reasons check (status = 'open' or statement_of_reasons is not null)
+  constraint reports_decision_has_reasons check (status = 'open' or coalesce(char_length(statement_of_reasons), 0) > 0)
 );
 create index reports_status_created on public.reports (status, created_at);
 create index reports_reporter on public.reports (reporter_id);
@@ -121,15 +121,16 @@ create table public.notification_log (
 );
 create index notification_log_user on public.notification_log (user_id, sent_at);
 
--- Feedback gate: caller must have a confirmed attendance. Security definer so it does not
--- depend on the caller's visibility of attendances.
-create function public.has_confirmed_attendance(p_session uuid, p_user uuid) returns boolean
+-- Feedback gate: the caller must have a confirmed attendance at a session that has started.
+-- Security definer, caller-only (no user parameter) so it cannot be used as an oracle.
+create function public.has_confirmed_attendance(p_session uuid) returns boolean
 language sql stable security definer set search_path = public, pg_temp as $$
-  select exists (select 1 from public.attendances a
-                  where a.session_id = p_session and a.user_id = p_user and a.status = 'confirmed');
+  select exists (select 1 from public.attendances a join public.sessions s on s.id = a.session_id
+                  where a.session_id = p_session and a.user_id = auth.uid()
+                    and a.status = 'confirmed' and s.starts_at < now());
 $$;
-revoke all on function public.has_confirmed_attendance(uuid, uuid) from public;
-grant execute on function public.has_confirmed_attendance(uuid, uuid) to anon, authenticated;
+revoke all on function public.has_confirmed_attendance(uuid) from public, anon;
+grant execute on function public.has_confirmed_attendance(uuid) to authenticated;
 
 alter table public.messages enable row level security;
 alter table public.blocks enable row level security;
@@ -157,7 +158,6 @@ grant select on public.organiser_badges to anon, authenticated;
 grant select on public.ambiance_words to anon;
 -- anon may submit feedback; select is granted but no policy matches, so it reads zero rows.
 grant select, insert on public.feedback to anon;
-grant usage on sequence public.search_misses_id_seq, public.notification_log_id_seq to authenticated;
 
 -- messages
 create policy messages_select_group on public.messages for select to authenticated
@@ -199,7 +199,7 @@ create policy ambiance_admin on public.ambiance_words for all to authenticated
 
 -- session_feedback: write-only for participants; only admins read
 create policy session_feedback_insert on public.session_feedback for insert to authenticated
-  with check (user_id = auth.uid() and public.has_confirmed_attendance(session_id, auth.uid()));
+  with check (user_id = auth.uid() and public.has_confirmed_attendance(session_id));
 create policy session_feedback_admin on public.session_feedback for select to authenticated
   using (public.is_admin());
 
