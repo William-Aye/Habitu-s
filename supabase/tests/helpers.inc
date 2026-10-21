@@ -1,6 +1,5 @@
 create schema if not exists tests;
 
--- Task 2 will add: update public.profiles set phone_verified = p_phone_verified (superuser).
 create or replace function tests.create_user(
   p_email text,
   p_first_name text default 'Test',
@@ -16,6 +15,7 @@ begin
     v_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
     p_email, '', '{}'::jsonb, jsonb_build_object('first_name', p_first_name), now(), now()
   );
+  update public.profiles set phone_verified = p_phone_verified where id = v_id;
   return v_id;
 end $$;
 
