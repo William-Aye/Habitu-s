@@ -6,16 +6,18 @@
 
 ## 1. Purpose
 
-Help adults in France make new friends by doing the same activity, with the same people, again and again. The core unit is a **recurring group** (weekly or every N days), not a one-off event: friendships come from repeated contact.
+Help adults in France make new friends by doing the same activity, with the same people, again and again. The core unit is a **recurring activity** (weekly or every N days), not a one-off event: friendships come from repeated contact.
 
-The biggest risk for an app like this is looking empty on day one. The answer is a **nationwide directory of associations**, imported from open data, so that every user in every town finds real, contactable activities immediately — even before any user has created a group.
+Anyone can create an activity. No association or registration is needed.
+
+The biggest risk for an app like this is looking empty on day one. The answer is a **nationwide directory of clubs and associations**, imported from open data, so that every user in every town finds real, contactable options immediately — even before any user has created an activity.
 
 ### Success criteria
 
 - A first-time user reaches useful results within one screen of opening the app, without creating an account.
-- A user with a niche interest (e.g. "jeu de go", "Arduino", "danse bretonne") finds the relevant associations near them as top results.
-- Users commit to concrete sessions ("I'll be there") and come back to the same groups.
-- The app runs on a budget of roughly €25/month at launch, built and maintained by one person with Claude.
+- A user with a niche interest (e.g. "jeu de go", "Arduino", "danse bretonne") finds the relevant activities and associations near them as top results.
+- Users commit to concrete sessions ("Je serai là") and come back to the same activities.
+- The app runs on a budget of roughly €25/month at launch, partly offset by unobtrusive ads, built and maintained by one person with Claude.
 
 ### Constraints
 
@@ -23,27 +25,40 @@ The biggest risk for an app like this is looking empty on day one. The answer is
 - **Platform order:** Android (Google Play) first; then website; then iOS — from one codebase.
 - **Team:** solo founder building with Claude. Simple stack, minimal operations, low hosting cost.
 - **Audience:** 18+ only at launch.
-- **Languages:** French UI, English included from the start.
+- **Language:** French by default (see section 7); English available.
 - **No emoji anywhere in the app UI.**
 
-## 2. Architecture
+## 2. Vocabulary
+
+| Term (FR UI / EN) | Meaning |
+|---|---|
+| **Activité / Activity** | A recurring meetup created by a user, e.g. "Échecs le jeudi au Café du Parc". Internal table: `activities`. |
+| **Séance / Session** | One concrete occurrence of an activity on a given date. |
+| **Organisateur / Organiser** | The user who created the activity. |
+| **Club ou association / Club or association** | An organisation listed in the directory (imported from open data, or added by the community). Optional "organised by" label on an activity. |
+| **Habitués / Regulars** | Two users who attended at least 3 sessions of the same activity together. |
+
+## 3. Architecture
 
 ```
 Android app (Expo)            ─┐
 Website (Expo web, later)     ─┼──►  Supabase
 Admin screens (same app,      ─┘      ├─ Postgres + PostGIS + pgvector (all data)
   admin role only)                    ├─ Auth (Google, email magic link, phone OTP)
-                                      ├─ Realtime (group chat)
+                                      ├─ Realtime (activity chat)
                                       ├─ Storage (photos, logos)
                                       └─ Edge Functions (notifications, share previews)
 
 GitHub Actions (monthly cron) ──► import pipeline ──► Postgres (associations)
+Google AdMob ◄── native ads in Explore list only
 ```
 
-- **App:** React Native with Expo (TypeScript). One codebase for Android now, web and iOS later.
+- **App:** React Native with Expo (TypeScript), using a custom development build (required for AdMob and push notifications; Expo Go is not used). One codebase for Android now, web and iOS later.
 - **Backend:** Supabase. No custom server. Access rules are enforced in the database with Row Level Security (RLS).
 - **Import pipeline:** a script (Python) run monthly by GitHub Actions, which loads data into Supabase.
 - **Push notifications:** Expo Push, triggered from Supabase Edge Functions and scheduled jobs (pg_cron).
+- **Ads:** Google AdMob native ads via `react-native-google-mobile-ads`, with Google's UMP consent form (see section 10).
+- **Translations:** all UI text in translation files (i18next), French as source, English kept in sync. No hard-coded strings.
 - **Icons:** Lucide (open source line icons). No emoji.
 
 ### Cost
@@ -52,40 +67,43 @@ GitHub Actions (monthly cron) ──► import pipeline ──► Postgres (asso
 |---|---|
 | Google Play developer account | $25 one-time |
 | Supabase Pro (8 GB DB, needed for ~1–1.5M associations + embeddings) | ~€25/month from launch |
-| GitHub Actions, Expo, embedding model, BAN geocoder, open data | Free |
+| GitHub Actions, Expo, embedding model, BAN geocoder, open data, AdMob | Free |
 | Optional: Claude Haiku batch for unclassified associations | A few euros per run, optional |
 
-## 3. Data model
+Expected offset from ads: see section 10.
+
+## 4. Data model
 
 | Table | Purpose / key fields |
 |---|---|
-| `profiles` | first name, optional photo, optional bio, approximate home area (never exact address), languages, age confirmed (18+), phone verified flag, role (user/admin) |
+| `profiles` | first name, optional photo, optional bio, approximate home area (never exact address), UI language (`fr`/`en`), age confirmed (18+), phone verified flag, role (user/admin), supporter flag (reserved for later ad-free option) |
 | `categories` | tree (parent_id), name FR/EN, Lucide icon name. Admin-managed |
-| `tags` / `association_tags` / `group_tags` | free-form tags; associations and groups can carry many. Categories are a browsable layer over tags |
+| `tags` / `association_tags` / `activity_tags` | free-form tags; associations and activities can carry many. Categories are a browsable layer over tags |
 | `user_interests` | user + category + level: `like`, `love`, `curious` |
 | `category_requests` | user, requested name, status (pending/approved/merged/rejected), admin note |
-| `groups` | title, description, category, tags, meeting place (point + label), recurrence rule (weekly / every N days / specific weekdays), time, max size, newcomer-friendly flag, approval mode (open / approve members), organiser, optional linked association, embedding |
-| `group_members` | group + user + status (member / pending / removed) |
-| `sessions` | concrete occurrences generated from the group's recurrence rule; can be individually cancelled or moved |
+| `activities` | title, description, category, tags, meeting place (point + label), recurrence rule (weekly / every N days / specific weekdays), time, max size, newcomer-friendly flag, approval mode (open / approve members), organiser, optional `organised_by_association_id`, embedding |
+| `activity_members` | activity + user + status (member / pending / removed) |
+| `sessions` | concrete occurrences generated from the activity's recurrence rule; can be individually cancelled or moved |
 | `attendances` | session + user + status: `confirmed`, `cancelled`, `cancelled_late`, `no_show` |
-| `messages` | group chat messages; private messages between users who are "regulars" together |
-| `associations` | name, purpose text, RNA id, OSM id, address, location point, website, phone, opening hours, tags, embedding, confidence score, `likely_not_public` flag, claimed_by, verified, user-edited fields lock, source attribution |
+| `messages` | activity chat messages; private messages between regulars |
+| `associations` | name, purpose text, RNA id, OSM id, address, location point, website, phone, opening hours, tags, embedding, confidence score, `likely_not_public` flag, `source` (`rna`, `osm`, `rna+osm`, `community`), claimed_by, verified, user-edited fields lock, source attribution |
 | `association_claims` | association, claimant, proof method, status |
 | `saved_searches` | user, query text, filters, location, radius, alert on/off |
 | `search_misses` | anonymised queries returning no strong nearby results (for admin) |
-| `reports` | reporter, target (user/group/message/association), reason, status, moderator decision + statement of reasons |
+| `reports` | reporter, target (user/activity/message/association), reason, status, moderator decision + statement of reasons |
 | `blocks` | blocker, blocked |
 | `safety_tips_seen` | user + tip id (so each contextual tip shows once) |
 
-"Regulars": two users who both attended (confirmed and not marked no-show) at least **3** sessions of the same group. Being regulars unlocks private messages between them.
+"Regulars": two users who both attended (confirmed and not marked no-show) at least **3** sessions of the same activity. Being regulars unlocks private messages between them.
 
-## 4. Association directory (nationwide)
+## 5. Club and association directory (nationwide)
 
 ### Sources
 
 1. **RNA** (Répertoire National des Associations, data.gouv.fr, monthly): name, purpose text, purpose codes, address, website, status (active/dissolved).
 2. **OpenStreetMap France extract** (Geofabrik): clubs, sports centres, community centres with exact position, often phone, website, opening hours.
 3. **Base Adresse Nationale** geocoder: turns RNA addresses into coordinates.
+4. **Community:** clubs named by users while creating an activity (see section 8, "Who organises it?").
 
 ### Pipeline (monthly, GitHub Actions)
 
@@ -93,185 +111,239 @@ GitHub Actions (monthly cron) ──► import pipeline ──► Postgres (asso
 2. **Keep every association except those officially dissolved.** No thematic filtering: niche associations are the point. Types unlikely to be open to the public (co-ownership associations, company staff clubs, etc.) get the `likely_not_public` flag and rank lower — they are not deleted.
 3. **Geocode** RNA addresses via BAN.
 4. **Match RNA ↔ OSM:** similar name and within ~300 m → merge into one listing (OSM contact details + RNA official id).
-5. **Tag:** map RNA purpose codes to tags, then keyword rules on purpose text. Optionally, a Claude Haiku batch tags what remains unclassified. Associations get multiple tags.
-6. **Embed:** compute a semantic embedding of name + purpose with a free open-source multilingual model, run inside the job. Stored with pgvector.
-7. **Confidence score** from: recent official publication, has website, found in OSM, claimed/verified. Low-confidence listings are labelled "unverified" or hidden.
-8. **Upsert** into Supabase. Never overwrite fields an association edited after claiming.
-9. **Report** counts and errors to the admin "Import health" screen. On failure, the previous data stays live.
+5. **Match community-added clubs** to RNA/OSM entries by RNA number if given, otherwise by similar name nearby → merge into one listing, keeping links to existing activities.
+6. **Tag:** map RNA purpose codes to tags, then keyword rules on purpose text. Optionally, a Claude Haiku batch tags what remains unclassified. Associations get multiple tags.
+7. **Embed:** compute a semantic embedding of name + purpose with a free open-source multilingual model, run inside the job. Stored with pgvector.
+8. **Confidence score** from: recent official publication, has website, found in OSM, claimed/verified. Low-confidence listings are labelled "non vérifié" or hidden.
+9. **Upsert** into Supabase. Never overwrite fields an association edited after claiming.
+10. **Report** counts and errors to the admin "Import health" screen. On failure, the previous data stays live.
 
 ### Claiming a listing
 
-"This is my association" button. Proof: email to an address on the association's own website domain, or an admin checks a document. A claimed association can edit its description and contacts, add a logo, and **publish its recurring sessions as groups** (shown with an "Association" badge).
+"C'est mon association" button. Proof: email to an address on the association's own website domain, or an admin checks a document. A claimed association can edit its description and contacts, add a logo, and create activities shown as "organised by" it (with an "Association" badge).
 
 ### Legal / GDPR
 
 - Only organisation contacts are displayed, never named individuals (the open RNA contains no directors' names).
 - No scraping of websites for personal emails.
-- Every listing has a "Remove / correct this listing" link.
+- Every listing has a "Signaler une erreur / Retirer cette fiche" link.
 - Source attribution recorded per field (Etalab Open Licence, ODbL for OSM).
 
-## 5. Search and ranking
+## 6. Search and ranking
 
-Applies to both associations and user-created groups.
+Applies to both activities and clubs/associations.
 
 ### Understanding meaning
 
 - **Semantic search:** the query (or interest) is embedded with the same model and compared to stored embeddings (pgvector). "coder" finds "Club informatique", "Atelier Arduino", "Python Lyon".
 - **Full-text search** in French alongside it: stemming, accent-insensitive (unaccent), typo-tolerant (pg_trgm).
-- **Interests feed search:** each selected interest runs a semantic search near the user, so matching associations appear before any group exists.
+- **Interests feed search:** each selected interest runs a semantic search near the user, so matching associations appear before any activity exists.
 
 ### Ranking
 
 1. **Distance is a filter, not a ranking factor.** The user picks a radius (5 / 10 / 25 / 50 km); results outside are excluded.
 2. **Sort by semantic match score, highest first** (0–100%). An exact keyword match from full-text search adds a small boost.
 3. **Distance breaks ties** between near-equal scores.
-4. **Weak matches** below a threshold are shown after a "Less related" divider.
-5. **Few strong matches?** Offer to widen the radius ("3 strong matches within 10 km — 11 within 50 km").
-6. **Sort switch:** *Best match* (default) or *Nearest*.
-7. `likely_not_public` and low-confidence associations are ranked down.
+4. **Weak matches** below a threshold are shown after a "Moins proche de votre recherche" divider.
+5. **Few strong matches?** Offer to widen the radius ("3 résultats pertinents à 10 km — 11 à 50 km").
+6. **Sort switch:** *Meilleure correspondance* (default) or *Plus proche*.
+7. `likely_not_public`, low-confidence and unchecked community-added associations are ranked down.
 
-Each result card shows a match label (e.g. "Strong match") and the distance.
+Each result card shows a match label (e.g. "Très pertinent") and the distance.
 
 ### Supporting features
 
-- **Saved searches with alerts:** notify when a new association or group matching a saved search appears nearby.
-- **Search misses:** the admin sees the most frequent searches with no strong nearby results — candidates for new categories or for prompting someone to create a group.
+- **Saved searches with alerts:** notify when a new activity or association matching a saved search appears nearby.
+- **Search misses:** the admin sees the most frequent searches with no strong nearby results — candidates for new categories or for prompting someone to create an activity.
 
-## 6. App screens and flows
+## 7. Language
+
+- **French is the default for everyone in France**, regardless of phone settings: all screens, notifications, safety tips, category names and the Play Store listing.
+- **If the phone's language is English**, the first screen shows a small one-time choice "Français / English" with French pre-selected.
+- **Changeable anytime** in Profil → Paramètres. Stored in `profiles.language` once signed in, locally before.
+- **No hard-coded text:** all wording in translation files (French source, English in sync), so other languages/countries can be added later.
+- **User content** (activity and association names, descriptions) is shown as written, never machine-translated.
+
+## 8. App screens and flows
+
+UI labels below are given in English for readability; the app shows them in French by default.
 
 ### First launch (no account)
 
-1. One screen: **"Where are you?"** (allow GPS, or type a town) and **"What are you into?"** (tap a few interest tiles, or skip).
-2. The user lands in **Explore** immediately.
-3. Browsing, searching, viewing groups and contacting associations require **no account**.
+1. One screen: **"Where are you?"** (allow GPS, or type a town) and **"What are you into?"** (tap a few interest tiles, or skip). If the phone is in English, the language choice appears here too.
+2. If ads are enabled, Google's consent form appears **after** this screen, never before.
+3. The user lands in **Explore** immediately.
+4. Browsing, searching, viewing activities and contacting associations require **no account**.
 
 ### Sign-up (only when needed)
 
-Triggered when the user joins a group, sends a message, or creates a group. A short sheet offers:
+Triggered when the user joins an activity, sends a message, or creates an activity. A short sheet offers:
 
 - **Continue with Google** (one tap), or
 - **Email** with a sign-in link (no password).
 
-Then: first name and 18+ confirmation. Photo and bio are optional and suggested later. Interests chosen before sign-up are kept. **Phone verification** is required only to create a group.
+Then: first name and 18+ confirmation. Photo and bio are optional and suggested later. Interests and language chosen before sign-up are kept. **Phone verification** is required only to create an activity.
 
 Interest picking: tap once = *like*, tap twice = *love*, long-press = *curious*. A search field inside the picker uses semantic search. A "Can't find it? Ask for a category" link creates a category request.
 
 ### Navigation: four tabs, each with icon and text label
 
-- **Explore** — large search bar always at the top ("Search an activity, a club, an association…"); filter chips (Groups / Associations / Day / Distance / Newcomer-friendly); interest-based suggestions; list/map toggle.
-- **My groups** — joined groups, next session of each, "I'll be there" / "Not this time".
-- **Messages** — one chat per group; private messages with regulars.
-- **Profile** — interests, groups, regular badges, Safety tips page, settings.
+- **Explorer** — large search bar always at the top ("Rechercher une activité, un club, une association…"); filter chips (Activités / Clubs et associations / Jour / Distance / Débutants bienvenus); interest-based suggestions; list/map toggle.
+- **Mes activités** — joined activities, next session of each, "Je serai là" / "Pas cette fois".
+- **Messages** — one chat per activity; private messages with regulars.
+- **Profil** — interests, activities, regular badges, Safety tips page, settings (language, notifications, ads consent).
 
 No icon-only buttons for important actions. One clear primary button per screen.
 
-### Group page
+### Activity page
 
-Description, category, tags, meeting place on a map, recurrence, next session date, confirmed attendees for the next session (count + first names + photos, e.g. "6 confirmed"), organiser, linked association (if any), **Join** button, share button.
+Description, category, tags, meeting place on a map, recurrence, next session date, confirmed attendees for the next session (count + first names + photos, e.g. "6 confirmés"), organiser, "Organisé par" club/association (if any), **Rejoindre** button, share button.
 
-Shared links carry a preview card (WhatsApp/Instagram). Opening a link without the app shows a web preview with "Get the app".
+Shared links carry a preview card (WhatsApp/Instagram). Opening a link without the app shows a web preview with "Télécharger l'app".
 
-### "I'll be there"
+### Club / association page
 
-- Joining a group does not commit to every session. Each upcoming session has an **"I'll be there"** button → shows *Confirmed* with a *Cancel* option.
-- **Day-before reminder** to group members: "Tomorrow 19:00, Running Tête d'Or — will you be there?" with *Yes* / *Not this time* actions directly in the notification.
+Name, purpose, tags, address on a map, contact (website, phone, email if public), source and confidence label ("Ajouté par la communauté" / "non vérifié" where applicable), activities organised by it in the app, "C'est mon association" claim button, report/correct link.
+
+### "Je serai là" (I'll be there)
+
+- Joining an activity does not commit to every session. Each upcoming session has a **"Je serai là"** button → shows *Confirmé* with an *Annuler* option.
+- **Day-before reminder** to members: "Demain 19h, Course au Parc de la Tête d'Or — vous serez là ?" with *Oui* / *Pas cette fois* actions directly in the notification.
 - The organiser sees the confirmed list and can mark **no-shows** after the session.
 - Cancelling **less than 2 hours before** is allowed, recorded as `cancelled_late`, and notifies the organiser immediately.
 - Confirmed attendances not marked no-show count toward the "regulars" threshold.
 
-### Creating a group (4 steps)
+### Creating an activity
 
-1. **What:** category, title, description (templates offered, e.g. "Weekly board-game evening").
-2. **Where:** meeting place on a map, public place recommended (see safety tips).
-3. **When:** start date, time, recurrence (weekly / every N days / specific weekdays).
-4. **Settings:** max size, newcomer-friendly flag, open or approval-required.
+One button everywhere: **"Créer une activité"** — in Explore, on empty search results, and on the "Start one yourself" prompt. There is no separate "add an association" button.
 
-When a user's interest has no group nearby, Explore shows nearby associations plus a **"Start one yourself"** prompt leading to this flow.
+1. **Who organises it?** (optional)
+   - **Just me / friends** — default, nothing else to fill.
+   - **A club or association** — search the directory and pick it. If not listed, type its name and optionally a website/contact: this creates a directory listing as a side effect (`source = community`, labelled "Ajouté par la communauté", sent to the admin queue, ranked lower until checked). The creator may claim it with the normal claim proof.
+2. **What:** category, title, description (templates offered, e.g. "Soirée jeux de société hebdomadaire").
+3. **Where:** meeting place on a map, public place recommended (see safety tips).
+4. **When:** start date, time, recurrence (weekly / every N days / specific weekdays).
+5. **Settings:** max size, newcomer-friendly flag, open or approval-required.
+
+When a user's interest has no activity nearby, Explore shows nearby associations plus a **"Lancez-la vous-même"** prompt leading to this flow.
 
 ### Notifications
 
-- Day-before session reminder with "I'll be there" actions.
-- New member joined your group (organiser).
+- Day-before session reminder with "Je serai là" actions.
+- New member joined your activity (organiser).
 - Late cancellation (organiser).
 - Saved-search alerts.
-- Chat messages (mutable per group).
-- Weekly digest "N new groups match your interests" — at most once per week.
+- Chat messages (mutable per activity).
+- Weekly digest "N nouvelles activités correspondent à vos centres d'intérêt" — at most once per week.
+
+Notifications never contain ads.
 
 ### Visual style
 
 - No emoji anywhere. Category and UI icons from Lucide, always paired with text.
 - Calm design, one accent colour, readable sizes, high contrast, screen-reader labels on all controls.
 
-## 7. Safety
+## 9. Safety
 
 - **18+ only** at launch.
 - **Privacy by default:** exact location never shown (distance only); first names only; private messages only between regulars.
-- **Report and block** on every profile, group, message and association. Blocking hides both users from each other everywhere.
-- **Share my plans:** one tap sends session time and place to a trusted contact via the system share sheet.
-- **Phone verification** before creating a group.
+- **Report and block** on every profile, activity, message and association. Blocking hides both users from each other everywhere.
+- **Partager mon programme (Share my plans):** one tap sends session time and place to a trusted contact via the system share sheet.
+- **Phone verification** before creating an activity.
 - **No-show reliability** visible only to organisers, never public.
 
 ### Contextual safety tips
 
-Short plain-text tips shown once at the relevant moment, dismissible, and all collected on a **Safety tips** page in Profile:
+Short plain-text tips shown once at the relevant moment, dismissible, and all collected on a **Conseils de sécurité** page in Profil. Shown in French by default (English versions in the translation files):
 
-| Moment | Tip |
+| Moment | Tip (EN meaning) |
 |---|---|
-| Creating a group, "Where" step | "Do not meet at your home: the group would know where you live. Choose a public place (café, park, sports hall, association premises)." If the chosen point has no public place/business nearby, the warning is repeated more prominently before publishing. |
+| Creating an activity, "Where" step | "Do not meet at your home: the group would know where you live. Choose a public place (café, park, sports hall, association premises)." If the chosen point has no public place/business nearby, the warning is repeated more prominently before publishing. |
 | Before a user's first session | "For a first meeting, stay in the public place and arrange your own transport." and "Tell someone where you are going" with a link to Share my plans. |
 | First private message | "Never send money, ID documents or your home address to someone you have just met." |
-| A session is moved to a non-public place | Reminder that groups should meet in public places, with a report link. |
+| A session is moved to a non-public place | Reminder that activities should meet in public places, with a report link. |
 
-## 8. Moderation and admin
+## 10. Ads
+
+Goal: offset hosting costs with the least possible intrusion.
+
+### Placement rules
+
+- **Only in the Explore results list:** first ad after the 6th result, then at most one every 12 results.
+- **Native ads** styled like a result card, clearly labelled **"Sponsorisé"**, never imitating an activity.
+- **Never:** interstitial/full-screen ads, video ads, ads in chat, sign-up, onboarding, safety tips, activity pages, association pages, notifications, or admin screens.
+
+### Provider and consent
+
+- **Google AdMob** native ads (`react-native-google-mobile-ads`).
+- **GDPR/ePrivacy consent** via Google's UMP consent form, shown **after** the first onboarding screen, never before. If declined, only non-personalised ads are shown. Consent can be changed in Profil → Paramètres.
+- Play Store listing declares "Contient des annonces".
+
+### Expected revenue (order of magnitude)
+
+Native ads in France earn roughly €1–3 per 1,000 impressions. Covering €25/month needs ~10–25k impressions per month — roughly a few hundred regularly active users.
+
+### Later (not in first release)
+
+- **Local sponsored listings:** relevant local businesses (climbing gym, café hosting game nights, sports shop) pay a small monthly fee to appear as "Sponsorisé" in matching nearby searches. No tracking needed.
+- **"Soutenir l'app":** ~€1–2/month subscription that removes ads (`profiles.supporter` reserved for this).
+
+## 11. Moderation and admin
 
 Admin screens live inside the app, visible only to `role = admin`:
 
 - **Reports queue:** view item → dismiss / warn / remove / ban, with a mandatory short statement of reasons (EU Digital Services Act).
 - **Category requests:** approve / merge / reject.
+- **Community-added clubs:** approve / merge with an existing listing / reject.
 - **Association claims:** verify / approve / reject.
 - **Search misses:** most frequent unanswered searches.
 - **Import health:** last run, counts, errors.
-- **Automatic first filter:** banned-word and spam checks on group titles, descriptions and chat before human review.
+- **Automatic first filter:** banned-word and spam checks on activity titles, descriptions, community-added clubs and chat before human review.
 
-## 9. Error handling
+## 12. Error handling
 
-- **Offline:** cached "My groups" and next sessions remain visible; "I'll be there" and messages are queued and sent on reconnect.
+- **Offline:** cached "Mes activités" and next sessions remain visible; "Je serai là" and messages are queued and sent on reconnect.
 - **Import failure:** previous data stays live; error shown in Import health.
 - **Location permission refused:** fall back to typing a town.
 - **Session moved/cancelled:** confirmed attendees are notified.
+- **Ads fail to load or consent declined:** the list renders normally without ad slots; no empty gaps.
 
-## 10. Testing
+## 13. Testing
 
-- **RLS tests:** automated checks that a user can never read another user's private data, non-members cannot read group chat, and only admins reach admin data.
+- **RLS tests:** automated checks that a user can never read another user's private data, non-members cannot read activity chat, and only admins reach admin data.
 - **Search ranking tests:** a fixed set of queries ("coder", "jeu de go", "danse bretonne", "escalade") with expected top results, re-run after any ranking or embedding change.
-- **Import tests:** run on a small RNA + OSM sample before every full run; check dissolved associations excluded, RNA↔OSM merge, claimed fields not overwritten.
+- **Import tests:** run on a small RNA + OSM sample before every full run; check dissolved associations excluded, RNA↔OSM merge, community-club merge, claimed fields not overwritten.
 - **Recurrence tests:** session generation for weekly, every-N-days and specific-weekday rules, including cancellations and moves.
-- **End-to-end journeys** on an Android emulator: browse → sign up → join → "I'll be there"; create a group (with home-address warning); report.
+- **Translation check:** automated test that every French key has an English equivalent and no UI text is hard-coded.
+- **Ad placement test:** ads appear only at the allowed positions in Explore and nowhere else.
+- **End-to-end journeys** on an Android emulator: browse → sign up → join → "Je serai là"; create an activity with and without "organised by" (including a new community club and the home-address warning); report.
 
-## 11. Build order (sub-projects)
+## 14. Build order (sub-projects)
 
 Each gets its own implementation plan.
 
-1. **Foundation:** Supabase project, schema, RLS, categories seed, Expo app skeleton with the four tabs.
+1. **Foundation:** Supabase project, schema, RLS, categories seed, Expo app skeleton (custom dev build) with the four tabs and French/English translation setup.
 2. **Association directory:** import pipeline, tagging, embeddings, confidence score, GitHub Actions schedule.
 3. **Explore and search:** semantic + full-text search, ranking, filters, list/map, association pages.
-4. **Accounts and interests:** browse-first onboarding, deferred sign-up, interests picker, category requests.
-5. **Groups and sessions:** create group, recurrence, join, "I'll be there", reminders, no-shows, share links.
-6. **Chat and regulars:** group chat, regulars computation, private messages.
-7. **Safety and admin:** reports, blocks, contextual tips, Share my plans, admin screens, association claims.
-8. **Launch:** closed test (12+ testers for 14 days, Google Play requirement), store listing, public release.
-9. **Later:** website (Expo web), iOS.
+4. **Accounts and interests:** browse-first onboarding, language choice, deferred sign-up, interests picker, category requests.
+5. **Activities and sessions:** create activity (incl. "Who organises it?"), recurrence, join, "Je serai là", reminders, no-shows, share links.
+6. **Chat and regulars:** activity chat, regulars computation, private messages.
+7. **Safety and admin:** reports, blocks, contextual tips, Share my plans, admin screens, claims, community-club review.
+8. **Ads:** AdMob native ads in Explore, UMP consent, placement rules.
+9. **Launch:** closed test (12+ testers for 14 days, Google Play requirement), French store listing, public release.
+10. **Later:** website (Expo web), iOS, local sponsored listings, "Soutenir l'app".
 
-## 12. Launch and growth (non-code)
+## 15. Launch and growth (non-code)
 
-- Invite high-confidence associations to claim their listing and publish their sessions.
-- Every group page is shareable, so each organiser brings their own circle.
-- One partner association per large city to seed the first groups.
+- Invite high-confidence associations to claim their listing and create their activities.
+- Every activity page is shareable, so each organiser brings their own circle.
+- One partner association per large city to seed the first activities.
 - Recruit closed-test testers early (friends + one or two friendly associations); they become the first users.
 
-## 13. Out of scope for the first release
+## 16. Out of scope for the first release
 
 - iOS and website (planned next).
 - Users under 18.
-- Payments or paid events.
+- Payments, paid events, sponsored listings, ad-free subscription.
 - One-off (non-recurring) events.
+- Machine translation of user content.
