@@ -2,6 +2,9 @@
 // default client can be built when no .env exists (e.g. CI).
 try {
   require('@expo/env').load(__dirname);
-} catch {}
+} catch (e) {
+  // Only a missing .env is acceptable; anything else is a real problem.
+  if (!/\.env|ENOENT/.test(String(e && e.message))) throw e;
+}
 process.env.EXPO_PUBLIC_SUPABASE_URL ||= 'http://127.0.0.1:55321';
 process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||= 'test-anon-key';
