@@ -37,6 +37,8 @@ The biggest risk for an app like this is looking empty on day one. The answer is
 | **Organisateur / Organiser** | The user who created the activity. |
 | **Club ou association / Club or association** | An organisation listed in the directory (imported from open data, or added by the community). Optional "organised by" label on an activity. |
 | **Habitués / Regulars** | Two users who attended at least 3 sessions of the same activity together. |
+| **Organisateur de confiance / Trusted organiser** | Pass/fail safety badge earned by organisers (section 9). Not a rating. |
+| **Ambiance** | Descriptive words chosen by participants after a session, shown on the activity page (section 9). |
 
 ## 3. Architecture
 
@@ -81,9 +83,15 @@ Expected offset from ads: see section 10.
 | `tags` / `association_tags` / `activity_tags` | free-form tags; associations and activities can carry many. Categories are a browsable layer over tags |
 | `user_interests` | user + category + level: `like`, `love`, `curious` |
 | `category_requests` | user, requested name, status (pending/approved/merged/rejected), admin note |
-| `activities` | title, description, category, tags, meeting place (point + label), recurrence rule (weekly / every N days / specific weekdays), time, max size, newcomer-friendly flag, approval mode (open / approve members), organiser, optional `organised_by_association_id`, embedding |
+| `activities` | title, description, category, tags, meeting place (point + label), recurrence rule (weekly / every N days / specific weekdays), time, max size, optional minimum participants, newcomer-friendly flag, approval mode (open by default / approve members), organiser, optional `organised_by_association_id`, published_at (drives the "Nouvelle" label), embedding |
 | `activity_members` | activity + user + status (member / pending / removed) |
-| `sessions` | concrete occurrences generated from the activity's recurrence rule; can be individually cancelled or moved |
+| `activity_interests` | user + activity ("Ça m'intéresse": lighter than joining, no commitment) |
+| `sessions` | concrete occurrences generated from the activity's recurrence rule; can be individually cancelled or moved; status (`scheduled`, `held`, `cancelled_by_organiser`, `cancelled_min_not_reached`) |
+| `session_feedback` | session + participant + `went_well` (yes/no) + up to 3 ambiance words. Never shown individually; anonymous to the organiser |
+| `ambiance_words` | fixed admin-managed list, FR/EN (e.g. Accueillant, Détendu, Bavard, Sportif, Concentré, Débutants bienvenus, Bon niveau requis, Petit groupe, Grand groupe, Jeunes adultes, Tous âges) |
+| `organiser_stats` | per user, recomputed nightly: sessions held, distinct participants, positive feedback rate and count, organiser late-cancellation rate, trusted badge status (`none`, `active`, `suspended`, `revoked`) |
+| `feedback` | "Une idée ? Un problème ?" submissions: user (optional), type (`idea`, `problem`, `other`), text, optional screenshot, app version, device model, status (`new`, `planned`, `done`, `wont_do`) |
+| `notification_log` | per user, instant new-activity alerts sent (enforces the weekly cap) |
 | `attendances` | session + user + status: `confirmed`, `cancelled`, `cancelled_late`, `no_show` |
 | `messages` | activity chat messages; private messages between regulars |
 | `associations` | name, purpose text, RNA id, OSM id, address, location point, website, phone, opening hours, tags, embedding, confidence score, `likely_not_public` flag, `source` (`rna`, `osm`, `rna+osm`, `community`), claimed_by, verified, user-edited fields lock, source attribution |
@@ -148,6 +156,7 @@ Applies to both activities and clubs/associations.
 5. **Few strong matches?** Offer to widen the radius ("3 résultats pertinents à 10 km — 11 à 50 km").
 6. **Sort switch:** *Meilleure correspondance* (default) or *Plus proche*.
 7. `likely_not_public`, low-confidence and unchecked community-added associations are ranked down.
+8. **New activities** (published in the last 14 days) get a small score boost and a "Nouvelle" label, so they are not buried under associations.
 
 Each result card shows a match label (e.g. "Très pertinent") and the distance.
 
@@ -191,13 +200,19 @@ Interest picking: tap once = *like*, tap twice = *love*, long-press = *curious*.
 - **Explorer** — large search bar always at the top ("Rechercher une activité, un club, une association…"); filter chips (Activités / Clubs et associations / Jour / Distance / Débutants bienvenus); interest-based suggestions; list/map toggle.
 - **Mes activités** — joined activities, next session of each, "Je serai là" / "Pas cette fois".
 - **Messages** — one chat per activity; private messages with regulars.
-- **Profil** — interests, activities, regular badges, Safety tips page, settings (language, notifications, ads consent).
+- **Profil** — interests, activities, regular badges, Safety tips page, "Une idée ? Un problème ?", settings (language, notifications, ads consent).
 
 No icon-only buttons for important actions. One clear primary button per screen.
 
 ### Activity page
 
-Description, category, tags, meeting place on a map, recurrence, next session date, confirmed attendees for the next session (count + first names + photos, e.g. "6 confirmés"), organiser, "Organisé par" club/association (if any), **Rejoindre** button, share button.
+Description, category, tags, meeting place on a map, recurrence, next session date, confirmed attendees for the next session (count + first names + photos, e.g. "6 confirmés"), interested count ("9 intéressés"), "Organisé par" club/association (if any), **Rejoindre** button, **Ça m'intéresse** button, share button, and a visible **Signaler cette activité** link.
+
+Organiser block: first name, photo, factual stats ("Organisé par Julie · 8 séances organisées · 14 participants différents") and badge: **Organisateur de confiance**, **Association vérifiée**, or **Nouvel organisateur** (neutral, shown until the trusted conditions are met).
+
+Ambiance line (once at least 3 participants answered): the most chosen words, e.g. "Ambiance : Accueillant · Détendu · Débutants bienvenus". "Nouvelle" label during the first 14 days.
+
+Report reasons for an activity: unsafe place, inappropriate behaviour, fake or spam, did not happen, other.
 
 Shared links carry a preview card (WhatsApp/Instagram). Opening a link without the app shows a web preview with "Télécharger l'app".
 
@@ -212,6 +227,20 @@ Name, purpose, tags, address on a map, contact (website, phone, email if public)
 - The organiser sees the confirmed list and can mark **no-shows** after the session.
 - Cancelling **less than 2 hours before** is allowed, recorded as `cancelled_late`, and notifies the organiser immediately.
 - Confirmed attendances not marked no-show count toward the "regulars" threshold.
+- **Minimum participants (optional):** if the organiser set a minimum and fewer people have confirmed by the evening before (20:00), the session is automatically cancelled (`cancelled_min_not_reached`) and everyone confirmed or interested is told. This does not count against the organiser.
+
+### After a session
+
+The morning after a held session, each confirmed participant gets one optional question:
+*"La séance s'est bien passée ? Vous vous êtes senti(e) en sécurité ?"* **Oui / Non**.
+
+- **Non** → offers to explain or open a report.
+- Then optionally: "Décrivez l'ambiance" — tap up to 3 words from the fixed ambiance list.
+- Answers are anonymous to the organiser and only used in aggregate (trusted badge, ambiance line).
+
+### Feedback to the team: "Une idée ? Un problème ?"
+
+Reachable from Profil and from empty search results. Short form: type (Idée / Problème / Autre), text, optional screenshot. App version and device model attached automatically. Signing in is not required. Lands in the admin Feedback queue.
 
 ### Creating an activity
 
@@ -223,13 +252,25 @@ One button everywhere: **"Créer une activité"** — in Explore, on empty searc
 2. **What:** category, title, description (templates offered, e.g. "Soirée jeux de société hebdomadaire").
 3. **Where:** meeting place on a map, public place recommended (see safety tips).
 4. **When:** start date, time, recurrence (weekly / every N days / specific weekdays).
-5. **Settings:** max size, newcomer-friendly flag, open or approval-required.
+5. **Settings:** max size, optional minimum participants, newcomer-friendly flag, **open to all (default)** or approval-required.
+
+After publishing: a **"Partagez-la avec vos amis"** screen with the share link, and matching nearby users are alerted (see Notifications).
 
 When a user's interest has no activity nearby, Explore shows nearby associations plus a **"Lancez-la vous-même"** prompt leading to this flow.
 
+### Joining an approval-required activity
+
+The organiser sees only neutral facts about the requester: first name, photo, bio, "Membre depuis …". There is no participant score. A user joining an activity for the first time is shown to the group with a positive label: *"Première fois dans cette activité — accueillez-le/la"*.
+
 ### Notifications
 
-- Day-before session reminder with "Je serai là" actions.
+- Day-before session reminder with "Je serai là" actions (members and interested users).
+- **New activity nearby:** when an activity is published, users within their chosen radius whose interests or saved searches match it are alerted: "Nouvelle activité près de chez vous : Jeu de go le mardi, 3 km".
+  - Interests marked *love* and saved searches → instant alert.
+  - Interests marked *like* or *curious* → included in the weekly digest.
+  - At most **2 instant new-activity alerts per user per week**; can be turned off in settings.
+- Session cancelled because the minimum was not reached.
+- Morning-after "La séance s'est bien passée ?" question.
 - New member joined your activity (organiser).
 - Late cancellation (organiser).
 - Saved-search alerts.
@@ -251,6 +292,27 @@ Notifications never contain ads.
 - **Partager mon programme (Share my plans):** one tap sends session time and place to a trusted contact via the system share sheet.
 - **Phone verification** before creating an activity.
 - **No-show reliability** visible only to organisers, never public.
+
+### Trust without rating people
+
+**Participants are never graded.** No stars, scores or public comments are attached to participants. A newcomer looks exactly like anyone else; organisers see only neutral facts. Bad behaviour is handled through reports and moderation.
+
+**No free-text reviews on activities.** The mood of an activity is shown through the fixed, descriptive ambiance words only (no insults possible, nothing to moderate).
+
+**Organisateur de confiance** — a pass/fail badge, not a rating. Recomputed nightly. All conditions required:
+
+- Phone verified, profile photo and first name set.
+- At least **3 sessions held**, each with at least 2 participants.
+- At least **5 distinct participants** across their activities.
+- At least **90% "Oui"** answers to "La séance s'est bien passée ?", with at least **5 answers**.
+- **No upheld report** against them in the last 6 months.
+- At most **1 in 5** of their own sessions cancelled late (less than 2 hours before) by them.
+
+Losing it: an upheld report **revokes** the badge immediately (it can be re-earned after 6 months). If the positive rate drops below 90%, the badge is **suspended** until it recovers.
+
+**Association vérifiée** — given automatically to activities organised by a claimed and verified association.
+
+**Nouvel organisateur** — neutral label shown until the trusted conditions are met.
 
 ### Contextual safety tips
 
@@ -297,6 +359,9 @@ Admin screens live inside the app, visible only to `role = admin`:
 - **Community-added clubs:** approve / merge with an existing listing / reject.
 - **Association claims:** verify / approve / reject.
 - **Search misses:** most frequent unanswered searches.
+- **Feedback queue:** ideas and problems from users → new / planned / done / won't do.
+- **Trusted badges:** see who holds, lost or is close to the badge; manual revoke.
+- **Ambiance words:** manage the fixed list.
 - **Import health:** last run, counts, errors.
 - **Automatic first filter:** banned-word and spam checks on activity titles, descriptions, community-added clubs and chat before human review.
 
@@ -316,6 +381,10 @@ Admin screens live inside the app, visible only to `role = admin`:
 - **Recurrence tests:** session generation for weekly, every-N-days and specific-weekday rules, including cancellations and moves.
 - **Translation check:** automated test that every French key has an English equivalent and no UI text is hard-coded.
 - **Ad placement test:** ads appear only at the allowed positions in Explore and nowhere else.
+- **Trusted badge tests:** each condition individually blocks the badge; suspension below 90%; revocation on upheld report; no participant score exists anywhere in the API.
+- **Feedback privacy test:** an organiser can never read individual session feedback rows; ambiance hidden below 3 answers.
+- **Alert cap test:** a user never receives more than 2 instant new-activity alerts per week.
+- **Minimum participants test:** session auto-cancelled at 20:00 the evening before when below minimum, not otherwise.
 - **End-to-end journeys** on an Android emulator: browse → sign up → join → "Je serai là"; create an activity with and without "organised by" (including a new community club and the home-address warning); report.
 
 ## 14. Build order (sub-projects)
@@ -326,9 +395,9 @@ Each gets its own implementation plan.
 2. **Association directory:** import pipeline, tagging, embeddings, confidence score, GitHub Actions schedule.
 3. **Explore and search:** semantic + full-text search, ranking, filters, list/map, association pages.
 4. **Accounts and interests:** browse-first onboarding, language choice, deferred sign-up, interests picker, category requests.
-5. **Activities and sessions:** create activity (incl. "Who organises it?"), recurrence, join, "Je serai là", reminders, no-shows, share links.
+5. **Activities and sessions:** create activity (incl. "Who organises it?"), recurrence, join, "Ça m'intéresse", "Je serai là", minimum participants, reminders, no-shows, share links, new-activity alerts.
 6. **Chat and regulars:** activity chat, regulars computation, private messages.
-7. **Safety and admin:** reports, blocks, contextual tips, Share my plans, admin screens, claims, community-club review.
+7. **Safety, trust and admin:** reports, blocks, contextual tips, Share my plans, morning-after feedback, ambiance words, trusted organiser badge, "Une idée ? Un problème ?", admin screens, claims, community-club review.
 8. **Ads:** AdMob native ads in Explore, UMP consent, placement rules.
 9. **Launch:** closed test (12+ testers for 14 days, Google Play requirement), French store listing, public release.
 10. **Later:** website (Expo web), iOS, local sponsored listings, "Soutenir l'app".
@@ -347,3 +416,5 @@ Each gets its own implementation plan.
 - Payments, paid events, sponsored listings, ad-free subscription.
 - One-off (non-recurring) events.
 - Machine translation of user content.
+- Ratings or reviews of participants; free-text reviews of activities.
+- Identity-document verification for organisers.
