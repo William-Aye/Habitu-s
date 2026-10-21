@@ -55,22 +55,24 @@ revoke truncate, references, trigger on
   public.associations, public.association_tags, public.association_claims
   from anon, authenticated;
 
--- Users may only insert the descriptive columns; flags/embedding/confidence stay server-side.
-revoke insert on public.associations from authenticated;
-grant insert (name, purpose, address, location, website, phone, email, opening_hours, source, created_by)
-  on public.associations to authenticated;
-revoke insert, update, delete on public.association_tags from authenticated;
-grant select on public.association_tags to authenticated;
-revoke update, delete on public.association_claims from authenticated;
+-- Normal DML privileges for API roles; RLS policies and the guard trigger gate who may do what.
+grant select, insert, update, delete on
+  public.associations, public.association_tags, public.association_claims to authenticated;
 
--- Column restriction for non-admin API users on update (admins need every column, so a trigger
--- rather than column grants). Service role / postgres are not restricted.
+-- Column restriction for non-admin API users on insert/update (admins need every column, so a
+-- trigger rather than column grants). Service role / postgres are not restricted.
 create function public.associations_guard_update() returns trigger
 language plpgsql set search_path = public, pg_temp as $$
 begin
   new.updated_at := now();
   if current_user in ('anon', 'authenticated') and not public.is_admin() then
-    if (new.id, new.name, new.rna_id, new.osm_id, new.address, new.location, new.embedding::text,
+    if tg_op = 'INSERT' then
+      if new.rna_id is not null or new.osm_id is not null or new.embedding is not null
+         or new.claimed_by is not null or new.verified or new.confidence <> 0
+         or new.likely_not_public or new.locked_fields <> '{}' or new.attribution <> '{}'::jsonb then
+        raise exception 'column not settable' using errcode = '42501';
+      end if;
+    elsif (new.id, new.name, new.rna_id, new.osm_id, new.address, new.location, new.embedding::text,
         new.confidence, new.likely_not_public, new.source, new.claimed_by, new.verified,
         new.attribution, new.created_by, new.created_at)
        is distinct from
@@ -82,7 +84,7 @@ begin
   end if;
   return new;
 end $$;
-create trigger associations_guard_update before update on public.associations
+create trigger associations_guard_update before insert or update on public.associations
   for each row execute function public.associations_guard_update();
 
 -- associations

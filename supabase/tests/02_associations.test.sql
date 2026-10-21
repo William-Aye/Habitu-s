@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(28);
+select plan(40);
 select tests.create_user('carol@test.fr', 'Carol') as carol \gset
 select tests.create_user('dave@test.fr', 'Dave') as dave \gset
 select tests.create_user('root@test.fr', 'Root') as root \gset
@@ -50,6 +50,12 @@ select throws_ok($$ update associations set name = 'Hijack' where id = '00000000
 select throws_ok($$ update associations set verified = true where id = '00000000-0000-0000-0000-0000000000a1' $$, '42501', null, 'claimant cannot verify');
 select throws_ok($$ update associations set rna_id = 'W000' where id = '00000000-0000-0000-0000-0000000000a1' $$, '42501', null, 'claimant cannot change rna_id');
 select throws_ok($$ update associations set claimed_by = null where id = '00000000-0000-0000-0000-0000000000a1' $$, '42501', null, 'claimant cannot change claimed_by');
+select throws_ok($$ update associations set embedding = array_fill(0, array[384])::vector where id = '00000000-0000-0000-0000-0000000000a1' $$, '42501', null, 'claimant cannot set embedding');
+select throws_ok($$ update associations set location = 'SRID=4326;POINT(4.83 45.76)'::geography where id = '00000000-0000-0000-0000-0000000000a1' $$, '42501', null, 'claimant cannot set location');
+select throws_ok($$ update associations set confidence = 100 where id = '00000000-0000-0000-0000-0000000000a1' $$, '42501', null, 'claimant cannot set confidence');
+select lives_ok($$ update associations set locked_fields = '{purpose,website}' where id = '00000000-0000-0000-0000-0000000000a1' $$, 'claimant can write locked_fields');
+select throws_ok($$ insert into associations (name, source, created_by, rna_id) values ('X', 'community', auth.uid(), 'W1') $$, '42501', null, 'non-admin cannot insert rna_id');
+select throws_ok($$ insert into associations (name, source, created_by, confidence) values ('X', 'community', auth.uid(), 90) $$, '42501', null, 'non-admin cannot insert confidence');
 
 -- admin
 select tests.act_as_superuser();
@@ -57,6 +63,12 @@ update profiles set role = 'admin' where id = :'root';
 select tests.act_as(:'root');
 select lives_ok($$ update associations set verified = true, name = 'Club de Go' where id = '00000000-0000-0000-0000-0000000000a2' $$, 'admin can update/verify');
 select is((select count(*) from association_claims)::int, 2, 'admin reads all claims');
+select lives_ok($$ update association_claims set status = 'approved' where id = '00000000-0000-0000-0000-0000000000c1' $$, 'admin approves claim');
+select is((select status from association_claims where id = '00000000-0000-0000-0000-0000000000c1'), 'approved', 'claim status changed');
+select lives_ok($$ insert into association_tags (association_id, tag_id) values ('00000000-0000-0000-0000-0000000000a2', '00000000-0000-0000-0000-0000000000b1') $$, 'admin inserts association_tags');
+select lives_ok($$ delete from association_tags where association_id = '00000000-0000-0000-0000-0000000000a2' $$, 'admin deletes association_tags');
+select lives_ok($$ insert into associations (id, name, source, verified, rna_id) values ('00000000-0000-0000-0000-0000000000a3', 'Admin Club', 'rna', true, 'W3') $$, 'admin inserts rna verified association');
+select lives_ok($$ delete from associations where id = '00000000-0000-0000-0000-0000000000a3' $$, 'admin deletes association');
 
 select * from finish();
 rollback;
