@@ -21,7 +21,8 @@ it('shows the four tabs with French labels by default', async () => {
 
 it('shows the search bar at the top of Explorer', async () => {
   await renderRouter('./src/app', { initialUrl: '/' });
-  expect(
-    await screen.findByPlaceholderText('Rechercher une activité, un club, une association…'),
-  ).toBeTruthy();
+  const placeholder = 'Rechercher une activité, un club, une association…';
+  expect(await screen.findByPlaceholderText(placeholder)).toBeTruthy();
+  const field = await screen.findByLabelText(placeholder);
+  expect(field.props.editable).toBe(false);
 });

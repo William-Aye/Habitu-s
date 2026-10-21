@@ -7,12 +7,21 @@ jest.mock('../src/i18n', () => {
 
 jest.setTimeout(60000);
 
+let warn: jest.SpyInstance;
+
+beforeEach(() => {
+  warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  warn.mockRestore();
+});
+
 it('still renders the tabs when i18n initialisation fails', async () => {
+  // Initialise the real i18n directly (the mocked initI18n rejects) so French labels still resolve.
   const { initI18n: realInit } = jest.requireActual('../src/i18n');
   await realInit();
-  const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
   await renderRouter('./src/app', { initialUrl: '/' });
   expect(await screen.findByText('Explorer')).toBeTruthy();
   expect(warn).toHaveBeenCalledWith('i18n initialisation failed', expect.any(Error));
-  warn.mockRestore();
 });
