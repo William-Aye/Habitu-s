@@ -16,7 +16,7 @@ create table public.profiles (
 );
 
 create function public.is_admin() returns boolean
-language sql stable security definer set search_path = public as $$
+language sql stable security definer set search_path = public, pg_temp as $$
   select coalesce(
     (select role = 'admin' from public.profiles where id = auth.uid()),
     false);
@@ -25,7 +25,7 @@ revoke all on function public.is_admin() from public;
 grant execute on function public.is_admin() to anon, authenticated;
 
 create function public.handle_new_user() returns trigger
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, pg_temp as $$
 begin
   insert into public.profiles (id, first_name)
   values (new.id, coalesce(new.raw_user_meta_data->>'first_name', ''));
@@ -86,6 +86,13 @@ revoke update on public.profiles from authenticated;
 revoke insert, delete on public.profiles from authenticated;
 grant update (first_name, photo_url, bio, home_area, home_area_label, language, age_confirmed)
   on public.profiles to authenticated;
+
+-- TRUNCATE bypasses RLS: strip it (and REFERENCES/TRIGGER) from API roles, now and for future tables.
+revoke truncate, references, trigger on
+  public.profiles, public.categories, public.tags, public.user_interests, public.category_requests
+  from anon, authenticated;
+alter default privileges in schema public
+  revoke truncate, references, trigger on tables from anon, authenticated;
 
 -- profiles
 create policy profiles_select on public.profiles for select to authenticated
