@@ -18,3 +18,17 @@ npm run db:reset   # apply migrations
 npm run db:test    # run pgTAP tests
 npm run db:types   # generate TypeScript types
 ```
+
+## Local ports
+
+The local Supabase stack uses ports in the 553xx range instead of the 543xx defaults, because Windows reserves TCP 54190-54589 (Hyper-V/WSL) and `supabase start` fails to bind there.
+
+| Service | Port |
+| --- | --- |
+| API (use `http://127.0.0.1:55321`) | 55321 |
+| Database | 55322 |
+| Studio | 55323 |
+| Inbucket (mail) | 55324 |
+| Analytics | 55327 |
+| Pooler | 55329 |
+| Shadow database | 55320 |

@@ -36,3 +36,6 @@ create or replace function tests.act_as_superuser() returns void language plpgsq
 begin
   reset role;
 end $$;
+
+grant usage on schema tests to anon, authenticated;
+grant execute on all functions in schema tests to anon, authenticated;
