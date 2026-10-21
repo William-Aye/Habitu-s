@@ -25,8 +25,10 @@ create table public.activities (
   created_at timestamptz not null default now(),
   constraint activities_recurrence_valid check (
     case recurrence_kind
-      when 'every_n_days' then recurrence_interval_days is not null
-      when 'weekdays' then recurrence_weekdays is not null and cardinality(recurrence_weekdays) > 0
+      when 'every_n_days' then recurrence_interval_days is not null and recurrence_weekdays is null
+      when 'weekdays' then recurrence_interval_days is null and recurrence_weekdays is not null
+        and cardinality(recurrence_weekdays) > 0
+        and recurrence_weekdays <@ '{1,2,3,4,5,6,7}'::smallint[]
       when 'weekly' then recurrence_interval_days is null and recurrence_weekdays is null
       else false
     end),
@@ -108,6 +110,16 @@ language sql stable security definer set search_path = public, pg_temp as $$
                   where s.id = p_session and public.is_activity_organiser(s.activity_id));
 $$;
 
+create function public.session_has_member(p_session uuid, p_user uuid) returns boolean
+language sql stable security definer set search_path = public, pg_temp as $$
+  select exists (select 1 from public.sessions s
+                   join public.activity_members m on m.activity_id = s.activity_id
+                  where s.id = p_session and m.user_id = p_user and m.status = 'member');
+$$;
+
+revoke all on function public.session_has_member(uuid, uuid) from public;
+grant execute on function public.session_has_member(uuid, uuid) to anon, authenticated;
+
 revoke all on function public.is_activity_member(uuid), public.is_activity_organiser(uuid),
   public.is_session_member(uuid), public.is_session_organiser(uuid) from public;
 grant execute on function public.is_activity_member(uuid), public.is_activity_organiser(uuid),
@@ -125,6 +137,37 @@ begin
 end $$;
 create trigger activity_members_set_status before insert on public.activity_members
   for each row execute function public.activity_members_set_status();
+
+-- Organiser may change a membership's status only, never re-point the row.
+create function public.activity_members_guard_update() returns trigger
+language plpgsql set search_path = public, pg_temp as $$
+begin
+  if current_user in ('anon', 'authenticated') and not public.is_admin()
+     and (new.activity_id, new.user_id) is distinct from (old.activity_id, old.user_id) then
+    raise exception 'membership key not editable' using errcode = '42501';
+  end if;
+  return new;
+end $$;
+create trigger activity_members_guard_update before update on public.activity_members
+  for each row execute function public.activity_members_guard_update();
+
+-- A non-admin may link an activity to an unverified association, or to one they claimed.
+create function public.activities_guard_association() returns trigger
+language plpgsql set search_path = public, pg_temp as $$
+begin
+  if current_user in ('anon', 'authenticated') and not public.is_admin()
+     and new.organised_by_association_id is not null
+     and (tg_op = 'INSERT'
+          or new.organised_by_association_id is distinct from old.organised_by_association_id)
+     and exists (select 1 from public.associations a
+                  where a.id = new.organised_by_association_id and a.verified
+                    and a.claimed_by is distinct from auth.uid()) then
+    raise exception 'association not linkable' using errcode = '42501';
+  end if;
+  return new;
+end $$;
+create trigger activities_guard_association before insert or update on public.activities
+  for each row execute function public.activities_guard_association();
 
 create function public.attendances_touch() returns trigger
 language plpgsql set search_path = public, pg_temp as $$
@@ -174,7 +217,8 @@ create policy activity_tags_admin on public.activity_tags for all to authenticat
 
 -- activity_members (users also see their own row so a pending applicant sees their status)
 create policy members_select on public.activity_members for select to authenticated
-  using (public.is_activity_member(activity_id) or user_id = auth.uid());
+  using (user_id = auth.uid() or public.is_activity_organiser(activity_id)
+         or (status = 'member' and public.is_activity_member(activity_id)));
 create policy members_insert on public.activity_members for insert to authenticated
   with check (user_id = auth.uid()
     and status = (select case a.approval_mode when 'open' then 'member' else 'pending' end
@@ -214,7 +258,9 @@ create policy attendances_update_own on public.attendances for update to authent
   using (user_id = auth.uid() and status <> 'no_show' and public.is_session_member(session_id))
   with check (user_id = auth.uid() and status in ('confirmed', 'cancelled', 'cancelled_late')
     and public.is_session_member(session_id));
-create policy attendances_organiser on public.attendances for all to authenticated
-  using (public.is_session_organiser(session_id)) with check (public.is_session_organiser(session_id));
+create policy attendances_organiser_no_show on public.attendances for update to authenticated
+  using (public.is_session_organiser(session_id))
+  with check (public.is_session_organiser(session_id) and status = 'no_show'
+    and public.session_has_member(session_id, user_id));
 create policy attendances_admin on public.attendances for all to authenticated
   using (public.is_admin()) with check (public.is_admin());

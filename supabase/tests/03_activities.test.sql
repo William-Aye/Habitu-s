@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(44);
+select plan(57);
 select tests.create_user('org@test.fr', 'Julie', true) as org \gset
 select tests.create_user('newbie@test.fr', 'Sam', false) as newbie \gset
 select tests.create_user('other@test.fr', 'Max', true) as other \gset
@@ -14,6 +14,11 @@ insert into activities (id, organiser_id, category_id, title, place_label, place
   ('00000000-0000-0000-0000-0000000000f2', :'org', '00000000-0000-0000-0000-0000000000c1', 'Go sur invitation', 'Chez Julie', 'POINT(4.85 45.77)', 'weekly', '2026-11-04', '19:00', 'approval'),
   ('00000000-0000-0000-0000-0000000000f3', :'other', '00000000-0000-0000-0000-0000000000c1', 'Echecs du jeudi', 'Bar', 'POINT(4.85 45.77)', 'weekly', '2026-11-05', '19:00', 'open');
 insert into activity_tags (activity_id, tag_id) values ('00000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-0000000000b1');
+
+insert into associations (id, name, source, verified, claimed_by) values
+  ('00000000-0000-0000-0000-0000000000a1', 'Club verifie autre', 'rna', true, :'other'),
+  ('00000000-0000-0000-0000-0000000000a2', 'Club libre', 'community', false, null),
+  ('00000000-0000-0000-0000-0000000000a3', 'Club de Julie', 'rna', true, :'org');
 
 -- structure
 select is(has_table_privilege('authenticated', 'public.activities', 'TRUNCATE'), false, 'authenticated cannot truncate activities');
@@ -31,6 +36,9 @@ select tests.act_as(:'org');
 select lives_ok($$ insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time)
   values ('00000000-0000-0000-0000-0000000000f1', auth.uid(), '00000000-0000-0000-0000-0000000000c1', 'Go le mardi', 'Café du Parc', 'POINT(4.85 45.77)', 'weekly', '2026-11-03', '19:00') $$,
   'verified organiser creates activity');
+select lives_ok($$ update activities set organised_by_association_id = '00000000-0000-0000-0000-0000000000a2' where id = '00000000-0000-0000-0000-0000000000f1' $$, 'link unverified association');
+select throws_ok($$ update activities set organised_by_association_id = '00000000-0000-0000-0000-0000000000a1' where id = '00000000-0000-0000-0000-0000000000f1' $$, '42501', null, 'cannot link verified association claimed by someone else');
+select lives_ok($$ update activities set organised_by_association_id = '00000000-0000-0000-0000-0000000000a3' where id = '00000000-0000-0000-0000-0000000000f1' $$, 'claimant links own verified association');
 select is((select approval_mode from activities where id = '00000000-0000-0000-0000-0000000000f1'), 'open', 'open to all by default');
 select throws_ok($$ insert into activities (organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time)
   values (auth.uid(), '00000000-0000-0000-0000-0000000000c1', 'Bad', 'X', 'POINT(4.85 45.77)', 'every_n_days', '2026-11-03', '19:00') $$,
@@ -41,6 +49,15 @@ select throws_ok($$ insert into activities (organiser_id, category_id, title, pl
 select throws_ok($$ insert into activities (organiser_id, category_id, title, place_label, place, recurrence_kind, recurrence_interval_days, start_date, start_time)
   values (auth.uid(), '00000000-0000-0000-0000-0000000000c1', 'Bad', 'X', 'POINT(4.85 45.77)', 'weekly', 7, '2026-11-03', '19:00') $$,
   '23514', null, 'weekly with interval rejected');
+select throws_ok($$ insert into activities (organiser_id, category_id, title, place_label, place, recurrence_kind, recurrence_weekdays, start_date, start_time)
+  values (auth.uid(), '00000000-0000-0000-0000-0000000000c1', 'Bad', 'X', 'POINT(4.85 45.77)', 'weekdays', '{0,8}', '2026-11-03', '19:00') $$,
+  '23514', null, 'weekdays outside 1..7 rejected');
+select throws_ok($$ insert into activities (organiser_id, category_id, title, place_label, place, recurrence_kind, recurrence_interval_days, recurrence_weekdays, start_date, start_time)
+  values (auth.uid(), '00000000-0000-0000-0000-0000000000c1', 'Bad', 'X', 'POINT(4.85 45.77)', 'every_n_days', 3, '{1}', '2026-11-03', '19:00') $$,
+  '23514', null, 'every_n_days with weekdays rejected');
+select throws_ok($$ insert into activities (organiser_id, category_id, title, place_label, place, recurrence_kind, recurrence_interval_days, recurrence_weekdays, start_date, start_time)
+  values (auth.uid(), '00000000-0000-0000-0000-0000000000c1', 'Bad', 'X', 'POINT(4.85 45.77)', 'weekdays', 3, '{1}', '2026-11-03', '19:00') $$,
+  '23514', null, 'weekdays with interval rejected');
 select throws_ok($$ insert into activities (organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time, min_participants, max_size)
   values (auth.uid(), '00000000-0000-0000-0000-0000000000c1', 'Bad', 'X', 'POINT(4.85 45.77)', 'weekly', '2026-11-03', '19:00', 10, 5) $$,
   '23514', null, 'min_participants > max_size rejected');
@@ -79,6 +96,10 @@ select throws_ok(format($$ insert into activity_members (activity_id, user_id) v
   '42501', null, 'cannot insert membership for someone else');
 insert into activity_members (activity_id, user_id) values ('00000000-0000-0000-0000-0000000000f1', :'newbie');
 insert into activity_members (activity_id, user_id) values ('00000000-0000-0000-0000-0000000000f2', :'newbie');
+select tests.act_as(:'other');
+insert into activity_members (activity_id, user_id) values ('00000000-0000-0000-0000-0000000000f1', :'other');
+select is((select count(*) from activity_members where activity_id = '00000000-0000-0000-0000-0000000000f2')::int, 0, 'member does not see others pending rows');
+select tests.act_as(:'newbie');
 select is((select status from activity_members where activity_id = '00000000-0000-0000-0000-0000000000f1' and user_id = :'newbie'), 'member', 'open activity: member');
 select is((select status from activity_members where activity_id = '00000000-0000-0000-0000-0000000000f2' and user_id = :'newbie'), 'pending', 'approval activity: pending');
 update activity_members set status = 'member' where activity_id = '00000000-0000-0000-0000-0000000000f2';
@@ -86,12 +107,16 @@ select is((select status from activity_members where activity_id = '00000000-000
 select lives_ok($$ insert into attendances (session_id, user_id, status) values ('00000000-0000-0000-0000-0000000000e1', auth.uid(), 'confirmed') $$,
   'member confirms attendance');
 select throws_ok($$ update attendances set status = 'no_show' where user_id = auth.uid() $$, '42501', null, 'participant cannot set no_show');
-select is((select count(*) from activity_members where activity_id = '00000000-0000-0000-0000-0000000000f1')::int, 1, 'member sees co-members');
+select is((select count(*) from activity_members where activity_id = '00000000-0000-0000-0000-0000000000f1')::int, 2, 'member sees co-members');
 
 -- stranger: non-member
 select tests.act_as(:'stranger');
 select is((select count(*) from activity_members)::int, 0, 'non-member sees 0 memberships');
 select is((select count(*) from attendances)::int, 0, 'non-member sees 0 attendances');
+
+select tests.act_as(:'stranger');
+insert into activity_members (activity_id, user_id) values ('00000000-0000-0000-0000-0000000000f2', :'stranger');
+select is((select count(*) from activity_members)::int, 1, 'pending applicant sees only own row');
 
 -- interests
 select tests.act_as(:'newbie');
@@ -105,9 +130,22 @@ select is((select count(*) from activity_interests)::int, 1, 'organiser reads in
 
 -- organiser manages members and no_show
 select lives_ok($$ update activity_members set status = 'member' where activity_id = '00000000-0000-0000-0000-0000000000f2' $$, 'organiser approves pending');
-select is((select status from activity_members where activity_id = '00000000-0000-0000-0000-0000000000f2'), 'member', 'approval applied');
-select lives_ok($$ update attendances set status = 'no_show' where session_id = '00000000-0000-0000-0000-0000000000e1' $$, 'organiser marks no_show');
-select is((select status from attendances where session_id = '00000000-0000-0000-0000-0000000000e1'), 'no_show', 'no_show applied');
+select is((select status from activity_members where activity_id = '00000000-0000-0000-0000-0000000000f2' and user_id = :'newbie'), 'member', 'approval applied');
+select tests.act_as_superuser();
+insert into attendances (session_id, user_id, status) values ('00000000-0000-0000-0000-0000000000e1', :'stranger', 'confirmed');
+select tests.act_as(:'org');
+select throws_ok(format($$ insert into attendances (session_id, user_id, status) values ('00000000-0000-0000-0000-0000000000e1', %L, 'no_show') $$, :'other'),
+  '42501', null, 'organiser cannot insert attendance');
+select throws_ok(format($$ update attendances set status = 'no_show' where user_id = %L $$, :'stranger'),
+  '42501', null, 'organiser cannot mark non-member no_show');
+select throws_ok(format($$ update attendances set status = 'confirmed' where user_id = %L $$, :'newbie'),
+  '42501', null, 'organiser cannot set member to confirmed');
+select throws_ok(format($$ update activity_members set user_id = %L where user_id = %L and activity_id = '00000000-0000-0000-0000-0000000000f2' $$, :'other', :'stranger'),
+  '42501', null, 'organiser cannot re-point membership user_id');
+select throws_ok($$ update activity_members set activity_id = '00000000-0000-0000-0000-0000000000f1' where activity_id = '00000000-0000-0000-0000-0000000000f2' $$,
+  '42501', null, 'organiser cannot re-point membership activity_id');
+select lives_ok(format($$ update attendances set status = 'no_show' where session_id = '00000000-0000-0000-0000-0000000000e1' and user_id = %L $$, :'newbie'), 'organiser marks member no_show');
+select is((select status from attendances where session_id = '00000000-0000-0000-0000-0000000000e1' and user_id = :'newbie'), 'no_show', 'no_show applied');
 
 -- admin
 select tests.act_as(:'root');
