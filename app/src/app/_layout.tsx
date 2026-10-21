@@ -9,9 +9,13 @@ export default function RootLayout() {
 
   useEffect(() => {
     let active = true;
-    initI18n().finally(() => {
-      if (active) setReady(true);
-    });
+    initI18n()
+      .catch((error: unknown) => {
+        console.warn('i18n initialisation failed', error);
+      })
+      .finally(() => {
+        if (active) setReady(true);
+      });
     return () => {
       active = false;
     };
