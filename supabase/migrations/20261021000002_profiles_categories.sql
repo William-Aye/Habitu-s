@@ -93,6 +93,8 @@ revoke truncate, references, trigger on
   from anon, authenticated;
 alter default privileges in schema public
   revoke truncate, references, trigger on tables from anon, authenticated;
+-- Functions are not executable by PUBLIC unless explicitly granted.
+alter default privileges in schema public revoke execute on functions from public;
 
 -- profiles
 create policy profiles_select on public.profiles for select to authenticated
@@ -101,7 +103,9 @@ create policy profiles_update on public.profiles for update to authenticated
   using (id = auth.uid() or public.is_admin())
   with check (id = auth.uid() or public.is_admin());
 
--- public view: owner-privileged, bypasses base-table RLS, limited columns
+-- public view: intentionally owner-privileged (security_invoker = false) so it bypasses
+-- base-table RLS and exposes only the public columns. The Supabase advisor warning about
+-- security-definer views is expected here.
 create view public.public_profiles with (security_invoker = false) as
   select id, first_name, photo_url, bio, created_at from public.profiles;
 alter view public.public_profiles owner to postgres;

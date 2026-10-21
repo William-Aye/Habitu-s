@@ -22,6 +22,7 @@ create table public.activities (
   approval_mode text not null default 'open' check (approval_mode in ('open', 'approval')),
   published_at timestamptz not null default now(),
   embedding vector(384),
+  archived_at timestamptz,  -- soft delete: history of past sessions is never hard-deleted
   created_at timestamptz not null default now(),
   constraint activities_recurrence_valid check (
     case recurrence_kind
@@ -69,6 +70,7 @@ create table public.sessions (
   place geography(Point, 4326),  -- override; null = the activity's place
   status text not null default 'scheduled'
     check (status in ('scheduled', 'held', 'cancelled_by_organiser', 'cancelled_min_not_reached')),
+  cancelled_at timestamptz,  -- set by trigger when the session gets cancelled
   unique (activity_id, starts_at)
 );
 create index sessions_activity_starts on public.sessions (activity_id, starts_at);
@@ -170,6 +172,78 @@ end $$;
 create trigger activities_guard_association before insert or update on public.activities
   for each row execute function public.activities_guard_association();
 
+-- Organisers cannot hard-delete an activity that already has past sessions (use archived_at).
+-- GDPR erasure cascades from auth.users run as a privileged role and are unaffected.
+create function public.activities_guard_delete() returns trigger
+language plpgsql set search_path = public, pg_temp as $$
+begin
+  if current_user in ('anon', 'authenticated') and not public.is_admin()
+     and exists (select 1 from public.sessions s
+                  where s.activity_id = old.id and s.starts_at <= now()) then
+    raise exception 'activity has past sessions; archive it instead' using errcode = '42501';
+  end if;
+  return old;
+end $$;
+create trigger activities_guard_delete before delete on public.activities
+  for each row execute function public.activities_guard_delete();
+
+-- Sessions: organisers may only schedule or cancel; 'held' and 'cancelled_min_not_reached'
+-- belong to the service role / admin. A started session cannot be rescheduled, and a
+-- finished status is final for API roles. cancelled_at is maintained here.
+create function public.sessions_guard() returns trigger
+language plpgsql set search_path = public, pg_temp as $$
+begin
+  if current_user in ('anon', 'authenticated') and not public.is_admin() then
+    if new.status not in ('scheduled', 'cancelled_by_organiser') then
+      raise exception 'session status reserved to the platform' using errcode = '42501';
+    end if;
+    if tg_op = 'UPDATE' then
+      if old.starts_at <= now() and new.starts_at is distinct from old.starts_at then
+        raise exception 'session already started' using errcode = '42501';
+      end if;
+      if old.status in ('held', 'cancelled_min_not_reached') and new.status is distinct from old.status then
+        raise exception 'session status is final' using errcode = '42501';
+      end if;
+    end if;
+  end if;
+  if tg_op = 'INSERT' then
+    new.cancelled_at := case when new.status in ('cancelled_by_organiser', 'cancelled_min_not_reached')
+                             then now() end;
+  elsif new.status is distinct from old.status then
+    new.cancelled_at := case when new.status in ('cancelled_by_organiser', 'cancelled_min_not_reached')
+                             then now() end;
+  elsif current_user in ('anon', 'authenticated') and not public.is_admin() then
+    new.cancelled_at := old.cancelled_at;
+  end if;
+  return new;
+end $$;
+create trigger sessions_guard before insert or update on public.sessions
+  for each row execute function public.sessions_guard();
+
+-- Attendances: the key is immutable for API roles, and a participant cancelling less than
+-- 2 hours before the start is recorded as cancelled_late.
+create function public.attendances_guard() returns trigger
+language plpgsql set search_path = public, pg_temp as $$
+declare
+  v_starts timestamptz;
+begin
+  if current_user in ('anon', 'authenticated') and not public.is_admin() then
+    if tg_op = 'UPDATE'
+       and (new.session_id, new.user_id) is distinct from (old.session_id, old.user_id) then
+      raise exception 'attendance key not editable' using errcode = '42501';
+    end if;
+    if new.status = 'cancelled' and new.user_id = auth.uid() then
+      select s.starts_at into v_starts from public.sessions s where s.id = new.session_id;
+      if v_starts is not null and v_starts - now() < interval '2 hours' then
+        new.status := 'cancelled_late';
+      end if;
+    end if;
+  end if;
+  return new;
+end $$;
+create trigger attendances_guard before insert or update on public.attendances
+  for each row execute function public.attendances_guard();
+
 create function public.attendances_touch() returns trigger
 language plpgsql set search_path = public, pg_temp as $$
 begin
@@ -248,17 +322,23 @@ create policy sessions_update on public.sessions for update to authenticated
 create policy sessions_admin on public.sessions for all to authenticated
   using (public.is_admin()) with check (public.is_admin());
 
--- attendances: participants set confirmed/cancelled/cancelled_late on their own row (members only);
--- no_show is organiser-only and a participant cannot overwrite it.
+-- attendances: participants set confirmed/cancelled/cancelled_late on their own row (members only,
+-- and only before the session starts); no_show is organiser-only and a participant cannot
+-- overwrite it. Co-members see only 'confirmed' rows: no-show / late-cancel history stays
+-- private to the person and the organiser.
 create policy attendances_select on public.attendances for select to authenticated
-  using (public.is_session_member(session_id));
+  using (user_id = auth.uid() or public.is_session_organiser(session_id)
+         or (status = 'confirmed' and public.is_session_member(session_id)));
 create policy attendances_insert_own on public.attendances for insert to authenticated
   with check (user_id = auth.uid() and status in ('confirmed', 'cancelled', 'cancelled_late')
-    and public.is_session_member(session_id));
+    and public.is_session_member(session_id)
+    and exists (select 1 from public.sessions s where s.id = session_id and s.starts_at > now()));
 create policy attendances_update_own on public.attendances for update to authenticated
-  using (user_id = auth.uid() and status <> 'no_show' and public.is_session_member(session_id))
+  using (user_id = auth.uid() and status <> 'no_show' and public.is_session_member(session_id)
+    and exists (select 1 from public.sessions s where s.id = session_id and s.starts_at > now()))
   with check (user_id = auth.uid() and status in ('confirmed', 'cancelled', 'cancelled_late')
-    and public.is_session_member(session_id));
+    and public.is_session_member(session_id)
+    and exists (select 1 from public.sessions s where s.id = session_id and s.starts_at > now()));
 create policy attendances_organiser_no_show on public.attendances for update to authenticated
   using (public.is_session_organiser(session_id))
   with check (public.is_session_organiser(session_id) and status = 'no_show'

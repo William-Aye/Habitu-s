@@ -78,7 +78,8 @@ create table public.organiser_stats (
   updated_at timestamptz not null default now()
 );
 
--- Owner-privileged on purpose: exposes only the public trust fields, never feedback counts.
+-- Owner-privileged on purpose (no security_invoker): exposes only the public trust fields,
+-- never feedback counts. The Supabase advisor warning about security-definer views is expected.
 create view public.organiser_badges as
   select user_id, sessions_held, distinct_participants, badge_status from public.organiser_stats;
 
@@ -121,16 +122,28 @@ create table public.notification_log (
 );
 create index notification_log_user on public.notification_log (user_id, sent_at);
 
--- Feedback gate: the caller must have a confirmed attendance at a session that has started.
+-- Feedback gate: the caller must have a confirmed attendance at a session that has started
+-- and was not cancelled.
 -- Security definer, caller-only (no user parameter) so it cannot be used as an oracle.
 create function public.has_confirmed_attendance(p_session uuid) returns boolean
 language sql stable security definer set search_path = public, pg_temp as $$
   select exists (select 1 from public.attendances a join public.sessions s on s.id = a.session_id
                   where a.session_id = p_session and a.user_id = auth.uid()
-                    and a.status = 'confirmed' and s.starts_at < now());
+                    and a.status = 'confirmed' and s.starts_at < now()
+                    and s.status in ('scheduled', 'held'));
 $$;
 revoke all on function public.has_confirmed_attendance(uuid) from public, anon;
 grant execute on function public.has_confirmed_attendance(uuid) to authenticated;
+
+-- Blocking hides both users from each other. Caller-scoped (auth.uid()), no user-pair oracle.
+create function public.is_blocked_between(p_other uuid) returns boolean
+language sql stable security definer set search_path = public, pg_temp as $$
+  select exists (select 1 from public.blocks b
+                  where (b.blocker_id = auth.uid() and b.blocked_id = p_other)
+                     or (b.blocker_id = p_other and b.blocked_id = auth.uid()));
+$$;
+revoke all on function public.is_blocked_between(uuid) from public, anon;
+grant execute on function public.is_blocked_between(uuid) to authenticated;
 
 alter table public.messages enable row level security;
 alter table public.blocks enable row level security;
@@ -162,15 +175,18 @@ grant select, insert on public.feedback to anon;
 -- messages
 create policy messages_select_group on public.messages for select to authenticated
   using (activity_id is not null and public.is_activity_member(activity_id)
-    and not exists (select 1 from public.blocks b
-                     where b.blocker_id = auth.uid() and b.blocked_id = messages.sender_id));
+    and not public.is_blocked_between(sender_id));
 create policy messages_select_private on public.messages for select to authenticated
-  using (recipient_id is not null and (sender_id = auth.uid() or recipient_id = auth.uid()));
+  using (recipient_id is not null and (sender_id = auth.uid() or recipient_id = auth.uid())
+    and not public.is_blocked_between(case when sender_id = auth.uid() then recipient_id else sender_id end));
 create policy messages_insert_group on public.messages for insert to authenticated
   with check (activity_id is not null and recipient_id is null and sender_id = auth.uid()
     and public.is_activity_member(activity_id));
-create policy messages_admin on public.messages for all to authenticated
-  using (public.is_admin()) with check (public.is_admin());
+-- admins moderate: read and delete only, never post
+create policy messages_admin_select on public.messages for select to authenticated
+  using (public.is_admin());
+create policy messages_admin_delete on public.messages for delete to authenticated
+  using (public.is_admin());
 
 -- blocks, safety_tips_seen, saved_searches: own rows; admin may read
 create policy blocks_own on public.blocks for all to authenticated
@@ -199,7 +215,8 @@ create policy ambiance_admin on public.ambiance_words for all to authenticated
 
 -- session_feedback: write-only for participants; only admins read
 create policy session_feedback_insert on public.session_feedback for insert to authenticated
-  with check (user_id = auth.uid() and public.has_confirmed_attendance(session_id));
+  with check (user_id = auth.uid() and public.has_confirmed_attendance(session_id)
+    and not public.is_session_organiser(session_id));
 create policy session_feedback_admin on public.session_feedback for select to authenticated
   using (public.is_admin());
 

@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(57);
+select plan(80);
 select tests.create_user('org@test.fr', 'Julie', true) as org \gset
 select tests.create_user('newbie@test.fr', 'Sam', false) as newbie \gset
 select tests.create_user('other@test.fr', 'Max', true) as other \gset
@@ -146,6 +146,75 @@ select throws_ok($$ update activity_members set activity_id = '00000000-0000-000
   '42501', null, 'organiser cannot re-point membership activity_id');
 select lives_ok(format($$ update attendances set status = 'no_show' where session_id = '00000000-0000-0000-0000-0000000000e1' and user_id = %L $$, :'newbie'), 'organiser marks member no_show');
 select is((select status from attendances where session_id = '00000000-0000-0000-0000-0000000000e1' and user_id = :'newbie'), 'no_show', 'no_show applied');
+
+-- attendance time rules, visibility, key immutability
+select tests.act_as_superuser();
+insert into sessions (id, activity_id, starts_at) values
+  ('00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-0000000000f1', now() - interval '1 day'),
+  ('00000000-0000-0000-0000-0000000000e3', '00000000-0000-0000-0000-0000000000f1', now() + interval '1 hour');
+select tests.act_as(:'newbie');
+select throws_ok($$ insert into attendances (session_id, user_id, status) values ('00000000-0000-0000-0000-0000000000e2', auth.uid(), 'confirmed') $$,
+  '42501', null, 'cannot confirm a session that already started');
+select lives_ok($$ insert into attendances (session_id, user_id, status) values ('00000000-0000-0000-0000-0000000000e3', auth.uid(), 'confirmed') $$,
+  'member confirms a session starting in 1h');
+select tests.act_as(:'other');
+select lives_ok($$ insert into attendances (session_id, user_id, status) values ('00000000-0000-0000-0000-0000000000e1', auth.uid(), 'confirmed') $$,
+  'other confirms the far session');
+select is((select count(*) from attendances where user_id = :'newbie' and session_id = '00000000-0000-0000-0000-0000000000e3')::int, 1,
+  'member sees a co-member confirmed row');
+select is((select count(*) from attendances where user_id = :'newbie' and session_id = '00000000-0000-0000-0000-0000000000e1')::int, 0,
+  'member cannot see a co-member no_show row');
+select throws_ok($$ update attendances set session_id = '00000000-0000-0000-0000-0000000000e3' where session_id = '00000000-0000-0000-0000-0000000000e1' and user_id = auth.uid() $$,
+  '42501', null, 'participant cannot move own row to another session');
+select lives_ok($$ update attendances set status = 'cancelled' where session_id = '00000000-0000-0000-0000-0000000000e1' and user_id = auth.uid() $$,
+  'participant cancels far session');
+select is((select status from attendances where session_id = '00000000-0000-0000-0000-0000000000e1' and user_id = auth.uid()), 'cancelled',
+  'cancel more than 2h ahead stays cancelled');
+select tests.act_as(:'newbie');
+select lives_ok($$ update attendances set status = 'cancelled' where session_id = '00000000-0000-0000-0000-0000000000e3' and user_id = auth.uid() $$,
+  'participant cancels 1h before');
+select is((select status from attendances where session_id = '00000000-0000-0000-0000-0000000000e3' and user_id = auth.uid()), 'cancelled_late',
+  'cancel within 2h is stored as cancelled_late');
+select tests.act_as(:'other');
+select is((select count(*) from attendances where user_id = :'newbie' and session_id = '00000000-0000-0000-0000-0000000000e3')::int, 0,
+  'member cannot see a co-member cancelled_late row');
+select tests.act_as_superuser();
+insert into attendances (session_id, user_id, status) values ('00000000-0000-0000-0000-0000000000e2', :'newbie', 'confirmed');
+select tests.act_as(:'newbie');
+update attendances set status = 'cancelled' where session_id = '00000000-0000-0000-0000-0000000000e2' and user_id = auth.uid();
+select is((select status from attendances where session_id = '00000000-0000-0000-0000-0000000000e2' and user_id = auth.uid()), 'confirmed',
+  'cannot rewrite attendance of a past session');
+select tests.act_as(:'org');
+select throws_ok(format($$ update attendances set user_id = %L where session_id = '00000000-0000-0000-0000-0000000000e1' and user_id = %L $$, :'other', :'newbie'),
+  '42501', null, 'organiser cannot re-point attendance to another user');
+
+-- sessions: organiser status limits, started sessions, cancelled_at
+select throws_ok($$ update sessions set status = 'held' where id = '00000000-0000-0000-0000-0000000000e3' $$,
+  '42501', null, 'organiser cannot mark a session held');
+select throws_ok($$ update sessions set status = 'cancelled_min_not_reached' where id = '00000000-0000-0000-0000-0000000000e3' $$,
+  '42501', null, 'organiser cannot set cancelled_min_not_reached');
+select throws_ok($$ insert into sessions (activity_id, starts_at, status) values ('00000000-0000-0000-0000-0000000000f1', now() + interval '3 days', 'held') $$,
+  '42501', null, 'organiser cannot insert a held session');
+select throws_ok($$ update sessions set starts_at = now() + interval '1 day' where id = '00000000-0000-0000-0000-0000000000e2' $$,
+  '42501', null, 'organiser cannot reschedule a session that has started');
+select is((select cancelled_at from sessions where id = '00000000-0000-0000-0000-0000000000e3'), null, 'cancelled_at null while scheduled');
+select lives_ok($$ update sessions set status = 'cancelled_by_organiser' where id = '00000000-0000-0000-0000-0000000000e3' $$,
+  'organiser cancels a session');
+select isnt((select cancelled_at from sessions where id = '00000000-0000-0000-0000-0000000000e3'), null, 'cancelled_at set by trigger');
+
+-- activity history cannot be deleted; soft-delete instead
+select tests.act_as_superuser();
+insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time) values
+  ('00000000-0000-0000-0000-0000000000f4', :'org', '00000000-0000-0000-0000-0000000000c1', 'Go historique', 'X', 'POINT(4.85 45.77)', 'weekly', '2026-01-06', '19:00'),
+  ('00000000-0000-0000-0000-0000000000f5', :'org', '00000000-0000-0000-0000-0000000000c1', 'Go sans passe', 'X', 'POINT(4.85 45.77)', 'weekly', '2026-11-06', '19:00');
+insert into sessions (activity_id, starts_at) values
+  ('00000000-0000-0000-0000-0000000000f4', now() - interval '10 days'),
+  ('00000000-0000-0000-0000-0000000000f5', now() + interval '10 days');
+select tests.act_as(:'org');
+select throws_ok($$ delete from activities where id = '00000000-0000-0000-0000-0000000000f4' $$,
+  '42501', null, 'cannot delete an activity that has past sessions');
+select lives_ok($$ update activities set archived_at = now() where id = '00000000-0000-0000-0000-0000000000f4' $$, 'organiser archives instead');
+select lives_ok($$ delete from activities where id = '00000000-0000-0000-0000-0000000000f5' $$, 'can delete an activity with no past sessions');
 
 -- admin
 select tests.act_as(:'root');

@@ -1,3 +1,5 @@
+-- pgTAP is a test-only dependency: installed per test transaction, never by a migration.
+create extension if not exists pgtap with schema extensions;
 create schema if not exists tests;
 
 create or replace function tests.create_user(
