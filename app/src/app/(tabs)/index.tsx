@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { useTranslation } from 'react-i18next';
 import { FilterChips, effectiveKinds, type FilterState } from '../../features/explore/components/FilterChips';
 import { LocationPicker } from '../../features/explore/components/LocationPicker';
+import { ResultsMap } from '../../features/explore/components/ResultsMap';
 import { ResultsList } from '../../features/explore/components/ResultsList';
 import { SearchBar } from '../../features/explore/components/SearchBar';
 import type { ExploreParams, ExploreResult } from '../../features/explore/types';
@@ -79,7 +80,14 @@ export default function Explore() {
       />
     );
   } else if (view === 'map') {
-    body = null; // map view arrives with the map task
+    body = location ? (
+      <ResultsMap
+        results={results}
+        center={{ lon: location.lon, lat: location.lat }}
+        radiusKm={filters.radiusKm}
+        onOpen={open}
+      />
+    ) : null;
   } else if (error) {
     body = <Text>{t('explore.error')}</Text>;
   } else if (loading && !response) {

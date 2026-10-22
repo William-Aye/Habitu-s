@@ -40,7 +40,8 @@
         {
           "locationWhenInUsePermission": "Pour vous montrer les activités et associations près de chez vous."
         }
-      ]
+      ],
+      "@maplibre/maplibre-react-native"
     ],
     "experiments": {
       "typedRoutes": true,
