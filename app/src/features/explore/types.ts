@@ -1,0 +1,81 @@
+export type Radius = 5 | 10 | 25 | 50;
+export type ExploreKind = 'activity' | 'association';
+export type Weekday = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+export interface ExploreParams {
+  query: string;
+  center: { lon: number; lat: number };
+  radiusKm: Radius;
+  kinds: ExploreKind[];
+  weekday: Weekday | null;
+  newcomerFriendly: boolean;
+  interestCategoryIds: string[];
+  sort: 'best' | 'nearest';
+}
+
+export interface ExploreResult {
+  kind: ExploreKind;
+  id: string;
+  title: string;
+  subtitle: string | null;
+  snippet: string | null;
+  lon: number;
+  lat: number;
+  distanceKm: number;
+  score: number;
+  label: 'very_relevant' | 'relevant' | 'weak' | null;
+  isWeak: boolean;
+  isNew: boolean;
+  sourceLabel: 'community' | 'unverified' | null;
+  tagSlugs: string[];
+}
+
+export interface ExploreResponse {
+  mode: 'search' | 'keyword_only' | 'browse';
+  results: ExploreResult[];
+  strongCount: number;
+  strongCount50km: number;
+  suggestRadiusKm: 50 | null;
+  hasMore: boolean;
+}
+
+export interface AssociationDetail {
+  id: string;
+  name: string;
+  purpose: string | null;
+  city: string | null;
+  postcode: string | null;
+  lon: number | null;
+  lat: number | null;
+  website: string | null;
+  phone: string | null;
+  email: string | null;
+  openingHours: string | null;
+  source: string;
+  verified: boolean;
+  claimed: boolean;
+  sourceLabel: 'community' | 'unverified' | null;
+  attributionKeys: string[];
+  tags: { slug: string; labelFr: string; labelEn: string }[];
+  activities: { id: string; title: string }[];
+  canWait: boolean;
+  isWaiting: boolean;
+}
+
+export interface Town {
+  label: string;
+  lon: number;
+  lat: number;
+}
+
+export interface StoredLocation {
+  label: string;
+  lon: number;
+  lat: number;
+  source: 'gps' | 'town';
+}
+
+/** Unicode NFC, trim, collapse whitespace, lower-case, cut to 200 chars. */
+export function normaliseQuery(text: string): string {
+  return text.normalize('NFC').trim().replace(/\s+/g, ' ').toLowerCase().slice(0, 200);
+}

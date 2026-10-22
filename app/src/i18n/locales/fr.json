@@ -6,7 +6,10 @@
     "profile": "Profil"
   },
   "explore": {
-    "searchPlaceholder": "Rechercher une activité, un club, une association…"
+    "searchPlaceholder": "Rechercher une activité, un club, une association…",
+    "location": {
+      "myPosition": "Ma position"
+    }
   },
   "common": {
     "comingSoon": "Bientôt disponible"
