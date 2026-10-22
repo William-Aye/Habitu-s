@@ -226,7 +226,7 @@ insert into associations (id, name, source, confidence, rna_published_on, city, 
 select ('00000000-0000-0000-0000-0000000c00' || lpad(i::text, 2, '0'))::uuid, 'Grenoble ' || i, 'rna', 85, '2020-01-01',
        'Grenoble', tests.pt(case when i = 1 then 3 else 30 end, 0, 5.72, 45.19), tests.vec(0.9)
 from generate_series(1, 3) i;
-select is(r - 'results' - 'has_more' - 'mode',
+select is(r - 'results' - 'has_more' - 'mode' - 'query_match',
           '{"strong_count": 1, "strong_count_50km": 3, "suggest_radius_km": 50}'::jsonb,
           'widen: 1 strong in 10 km, 3 in 50 km')
   from public.search_explore(5.72, 45.19, 10, 'zorglub', tests.vec(1.0)) r;
@@ -234,7 +234,7 @@ insert into associations (id, name, source, confidence, rna_published_on, city, 
 select ('00000000-0000-0000-0000-0000000c00' || lpad(i::text, 2, '0'))::uuid, 'Grenoble ' || i, 'rna', 85, '2020-01-01',
        'Grenoble', tests.pt(i * 0.5, 0, 5.72, 45.19), tests.vec(0.9)
 from generate_series(4, 8) i;
-select is(r - 'results' - 'has_more' - 'mode',
+select is(r - 'results' - 'has_more' - 'mode' - 'query_match',
           '{"strong_count": 6, "strong_count_50km": null, "suggest_radius_km": null}'::jsonb,
           'widen: 6 strong in 10 km, no suggestion')
   from public.search_explore(5.72, 45.19, 10, 'zorglub', tests.vec(1.0)) r;
