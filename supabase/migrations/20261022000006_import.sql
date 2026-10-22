@@ -109,21 +109,22 @@ revoke all on function importer.confidence(date, boolean, boolean, boolean, date
 -- rolls back every change to live data.
 
 -- Département of an INSEE commune code ('69123' -> '69', '2A004' -> '2A', '97105' -> '971').
+-- departement and in_scope run once per listing (~1.5M rows), so they are inlinable: no
+-- `set search_path` (it blocks inlining); every name is schema-qualified instead.
 create function importer.departement(p_insee text) returns text
 language sql immutable
-set search_path = pg_catalog, pg_temp
 as $$
   select case when p_insee is null then null
-              when p_insee like '97%' then left(p_insee, 3)
-              else left(p_insee, 2) end
+              when p_insee operator(pg_catalog.~~) '97%' then pg_catalog.left(p_insee, 3)
+              else pg_catalog.left(p_insee, 2) end
 $$;
 
 -- null scope = all of France; otherwise a listing without a known département is out of scope.
 create function importer.in_scope(p_insee text, p_scope text[]) returns boolean
 language sql immutable
-set search_path = pg_catalog, importer, pg_temp
 as $$
-  select p_scope is null or coalesce(importer.departement(p_insee) = any(p_scope), false)
+  select p_scope is null
+      or coalesce(importer.departement(p_insee) operator(pg_catalog.=) any (p_scope), false)
 $$;
 
 -- Greedy one-to-one pairing over pg_temp._ar_cand(l, r, sim, dist) into pg_temp._ar_pairs(l, r):
@@ -205,6 +206,10 @@ declare
   v_community int := 0;
   v_removed int := 0;
   v_kept int := 0;
+  v_unlinked int := 0;
+  v_downgraded int := 0;
+  v_osm_staged boolean;
+  v_missing text;
   v_counts jsonb;
   m record;
 begin
@@ -215,8 +220,24 @@ begin
   if not found then
     raise exception 'import run % not found or not running', p_run;
   end if;
-  if not exists (select 1 from staged_rna where run_id = p_run) then
-    raise exception 'import run % has no staged RNA rows; refusing to merge', p_run;
+  -- Every département of the scope must have staged RNA rows: a département whose download
+  -- failed would otherwise read as "every listing there was dissolved".
+  if p_scope is not null and cardinality(p_scope) = 0 then
+    raise exception 'import run %: empty scope array (use null for all of France)', p_run;
+  end if;
+  if p_scope is null then
+    if not exists (select 1 from staged_rna where run_id = p_run) then
+      raise exception 'import run % has no staged RNA rows; refusing to merge', p_run;
+    end if;
+  else
+    select d into v_missing
+    from unnest(p_scope) d
+    where not exists (select 1 from staged_rna s
+                      where s.run_id = p_run and importer.departement(s.insee_code) = d)
+    limit 1;
+    if found then
+      raise exception 'import run %: no staged RNA rows for département %; refusing to merge', p_run, v_missing;
+    end if;
   end if;
 
   drop table if exists pg_temp._ar_osm, pg_temp._ar_match, pg_temp._ar_cand, pg_temp._ar_pairs,
@@ -280,6 +301,17 @@ begin
   create temp table _ar_osm on commit drop as
   select * from staged_osm o
   where o.run_id = p_run and importer.in_scope(o.insee_code, p_scope);
+  -- No OSM staged for the scope (e.g. a failed Overpass extract): never unlink or remove
+  -- anything on the OSM side.
+  v_osm_staged := exists (select 1 from _ar_osm);
+
+  -- Stale links: an RNA row of this run whose OSM feature is no longer mapped loses the link.
+  if v_osm_staged then
+    update associations a set osm_id = null, source = 'rna', attribution = a.attribution - 'osm'
+    where a.last_import_run = p_run and a.source = 'rna+osm'
+      and not exists (select 1 from staged_osm s where s.run_id = p_run and s.osm_id = a.osm_id);
+    get diagnostics v_unlinked = row_count;
+  end if;
 
   -- 3. Match OSM -> RNA rows of this run. A feature already linked to such a row stays linked.
   create temp table _ar_match (osm_id text primary key, assoc_id uuid not null unique) on commit drop;
@@ -310,7 +342,10 @@ begin
     if not importer.in_scope(m.holder_insee, p_scope) then
       delete from _ar_match where osm_id = m.osm_id;
     elsif m.holder_source in ('rna', 'rna+osm') then
-      update associations set osm_id = null, source = 'rna' where id = m.holder_id;
+      update associations a set osm_id = null, source = 'rna', attribution = a.attribution - 'osm',
+        confidence = importer.confidence(a.rna_published_on, a.website is not null, false,
+                                         a.claimed_by is not null and a.verified, current_date)
+      where a.id = m.holder_id;
     elsif m.holder_source <> 'osm' or not importer.merge_into(m.holder_id, m.assoc_id) then
       delete from _ar_match where osm_id = m.osm_id;
     end if;
@@ -332,6 +367,16 @@ begin
   from _ar_match x join _ar_osm o on o.osm_id = x.osm_id
   where a.id = x.assoc_id;
   get diagnostics v_osm_matched = row_count;
+
+  -- An in-scope rna+osm listing whose RNA record disappeared but whose OSM feature is still
+  -- mapped (and unmatched) lives on as an OSM listing; step 4 then refreshes it.
+  update associations a set source = 'osm', rna_id = null, rna_published_on = null,
+         attribution = a.attribution - 'rna'
+  from _ar_osm o
+  where a.osm_id = o.osm_id and a.source = 'rna+osm' and importer.in_scope(a.insee_code, p_scope)
+    and not exists (select 1 from staged_rna s where s.run_id = p_run and s.rna_id = a.rna_id)
+    and not exists (select 1 from _ar_match x where x.osm_id = o.osm_id);
+  get diagnostics v_downgraded = row_count;
 
   -- 4. OSM-only features. An existing row with the same osm_id is refreshed only if it is an
   -- in-scope OSM-only listing.
@@ -388,7 +433,8 @@ begin
   end loop;
 
   -- 6. Imported listings in scope that are no longer published: delete, unless claimed or
-  -- referenced by an activity (then confidence 0).
+  -- referenced by an activity (then confidence 0). OSM-only rows are only considered when OSM
+  -- data was staged for the scope.
   create temp table _ar_gone on commit drop as
   select a.id,
          (a.claimed_by is not null
@@ -397,7 +443,7 @@ begin
   where importer.in_scope(a.insee_code, p_scope)
     and ((a.source in ('rna', 'rna+osm')
           and not exists (select 1 from staged_rna s where s.run_id = p_run and s.rna_id = a.rna_id))
-      or (a.source = 'osm'
+      or (v_osm_staged and a.source = 'osm'
           and not exists (select 1 from staged_osm s where s.run_id = p_run and s.osm_id = a.osm_id)));
   delete from associations a using _ar_gone g where a.id = g.id and not g.keep;
   get diagnostics v_removed = row_count;
@@ -428,7 +474,8 @@ begin
   delete from staged_osm where run_id = p_run;
   v_counts := jsonb_build_object(
     'inserted', v_inserted, 'updated', v_updated, 'osm_matched', v_osm_matched, 'osm_only', v_osm_only,
-    'community_merged', v_community, 'removed', v_removed, 'kept_dissolved', v_kept);
+    'community_merged', v_community, 'removed', v_removed, 'kept_dissolved', v_kept,
+    'osm_unlinked', v_unlinked, 'downgraded_to_osm', v_downgraded, 'osm_removal_skipped', not v_osm_staged);
   update import_runs set status = 'succeeded', finished_at = now(), counts = v_counts where id = p_run;
   return v_counts;
 end $$;

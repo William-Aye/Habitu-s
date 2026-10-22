@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(48);
+select plan(78);
 select has_schema('importer');
 select has_table('public', 'import_runs', 'import_runs exists');
 select has_column('public', 'associations', 'embedding_hash', 'associations.embedding_hash');
@@ -160,7 +160,8 @@ select is((select confidence from associations where rna_id = 'W692660001'), 75:
 select is((select status from import_runs where id = :'run'), 'succeeded', 'run succeeded');
 select is((select counts from import_runs where id = :'run'), :'counts'::jsonb, 'counts stored on the run');
 select is(:'counts'::jsonb,
-  '{"inserted":4,"updated":1,"osm_matched":2,"osm_only":1,"community_merged":1,"removed":1,"kept_dissolved":2}'::jsonb,
+  '{"inserted":4,"updated":1,"osm_matched":2,"osm_only":1,"community_merged":1,"removed":1,"kept_dissolved":2,
+    "osm_unlinked":0,"downgraded_to_osm":0,"osm_removal_skipped":false}'::jsonb,
   'counts');
 select is((select count(*) from importer.staged_rna where run_id = :'run')
         + (select count(*) from importer.staged_osm where run_id = :'run'), 0::bigint, 'staging rows removed');
@@ -171,5 +172,201 @@ select tests.act_as(:'claimant');
 select throws_ok($$ select importer.apply_run(gen_random_uuid(), null) $$, '42501', null,
   'authenticated cannot execute apply_run');
 select tests.act_as_superuser();
+-- ---------------------------------------------------------------------------------------------
+-- Run 2, scope {'38'} (Isère): pairing ties, competing RNA rows, locked location, osm_id holder
+-- conflicts (fold / release / cancel), stale OSM links, RNA dissolved but OSM still mapped.
+insert into import_runs (scope) values (array['38']) returning id as run2 \gset
+insert into pg_temp.pts values
+  ('gre', 'SRID=4326;POINT(5.724 45.188)'),      -- Grenoble centre
+  ('echi', 'SRID=4326;POINT(5.716 45.146)'),     -- Échirolles
+  ('smh', 'SRID=4326;POINT(5.765 45.167)'),      -- Saint-Martin-d'Hères
+  ('meylan', 'SRID=4326;POINT(5.780 45.210)'),   -- Meylan
+  ('voiron', 'SRID=4326;POINT(5.590 45.364)'),   -- Voiron
+  ('vienne', 'SRID=4326;POINT(4.874 45.525)'),   -- Vienne
+  ('pontch', 'SRID=4326;POINT(6.015 45.433)'),   -- Pontcharra (Isère, next to Savoie)
+  ('bourgoin', 'SRID=4326;POINT(5.274 45.586)'), -- Bourgoin-Jallieu
+  ('fontaine', 'SRID=4326;POINT(5.668 45.193)'); -- Fontaine
+
+insert into associations (rna_id, osm_id, name, insee_code, location, geocode_precision, website,
+                          rna_published_on, source, locked_fields, attribution, confidence)
+values
+  -- locked location, will be matched to an OSM feature 100 m away
+  ('W381000004', null, 'Chorale de Saint-Martin-d''Hères', '38421', pg_temp.pt('smh'), 'address', null,
+   null, 'rna', '{location}', '{"rna": "Licence Ouverte / Etalab 2.0"}', 40),
+  -- fold: OSM-only listing, claimed, with an activity and a claim
+  (null, 'node/3805', 'Atelier vélo de Meylan', '38229', pg_temp.pt('meylan'), 'osm', null,
+   null, 'osm', '{}', '{"osm": "© OpenStreetMap contributors, ODbL 1.0"}', 45),
+  -- release: RNA record gone, its OSM feature now matches a new RNA registration
+  ('W381999001', 'node/3806', 'Club photo de Voiron', '38563', pg_temp.pt('voiron'), 'osm', null,
+   current_date - 3000, 'rna+osm', '{}',
+   '{"rna": "Licence Ouverte / Etalab 2.0", "osm": "© OpenStreetMap contributors, ODbL 1.0"}', 45),
+  -- cancel (conflicting claims): OSM-only listing claimed by Claire ...
+  (null, 'node/3807', 'Club de judo de Vienne', '38544', pg_temp.pt('vienne'), 'osm', null,
+   null, 'osm', '{}', '{"osm": "© OpenStreetMap contributors, ODbL 1.0"}', 45),
+  -- ... and the RNA listing claimed by Omar
+  ('W381000007', null, 'Judo Club Vienne', '38544', pg_temp.pt('vienne', 100), 'address', null,
+   null, 'rna', '{}', '{"rna": "Licence Ouverte / Etalab 2.0"}', 40),
+  -- cancel (out of scope): OSM-only listing in Savoie holding the feature id
+  (null, 'node/3808', 'Club Alpin Pontcharra', '73215', pg_temp.pt('pontch', 2000), 'osm', null,
+   null, 'osm', '{}', '{"osm": "© OpenStreetMap contributors, ODbL 1.0"}', 45),
+  -- stale link: the OSM feature is no longer mapped
+  ('W381000009', 'node/3899', 'Harmonie de Bourgoin', '38053', pg_temp.pt('bourgoin'), 'osm', null,
+   current_date - 400, 'rna+osm', '{}',
+   '{"rna": "Licence Ouverte / Etalab 2.0", "osm": "© OpenStreetMap contributors, ODbL 1.0"}', 65),
+  -- RNA record gone, OSM feature still mapped
+  ('W381999002', 'node/3810', 'Fablab de Fontaine', '38169', pg_temp.pt('fontaine'), 'osm',
+   'https://fablab-fontaine.example', current_date - 400, 'rna+osm', '{}',
+   '{"rna": "Licence Ouverte / Etalab 2.0", "osm": "© OpenStreetMap contributors, ODbL 1.0"}', 85);
+update associations set claimed_by = :'claimant', verified = true where osm_id in ('node/3805', 'node/3807');
+update associations set claimed_by = :'claimant' where rna_id = 'W381999001';
+update associations set claimed_by = :'organiser' where rna_id = 'W381000007';
+insert into association_claims (association_id, claimant_id, proof_method, status)
+select id, :'claimant', 'document', 'approved' from associations where osm_id = 'node/3805';
+insert into activities (organiser_id, organised_by_association_id, category_id, title, place_label, place,
+                        recurrence_kind, start_date, start_time)
+select :'organiser', id, (select id from categories where slug = 'games'), 'Réparation vélo', 'Meylan',
+       pg_temp.pt('meylan'), 'weekly', current_date, '18:30'
+from associations where osm_id = 'node/3805';
+
+insert into importer.staged_rna (run_id, rna_id, name, insee_code, location, geocode_precision,
+                                 website, published_on, likely_not_public, embedding_hash)
+values
+  (:'run2', 'W381000001', 'Cercle d''échecs de Grenoble', '38185', pg_temp.pt('gre'), 'address',
+   null, current_date - 100, false, 'g1'),
+  (:'run2', 'W381000002', 'Tennis de Table Échirolles', '38151', pg_temp.pt('echi'), 'address',
+   null, current_date - 100, false, 'g2'),
+  (:'run2', 'W381000003', 'Tennis de Table Échirolles Jeunes', '38151', pg_temp.pt('echi', 250, 0), 'address',
+   null, current_date - 100, false, 'g3'),
+  (:'run2', 'W381000004', 'Chorale de Saint-Martin-d''Hères', '38421', pg_temp.pt('smh', 30), 'address',
+   null, current_date - 100, false, 'g4'),
+  (:'run2', 'W381000005', 'Atelier Vélo Meylan', '38229', pg_temp.pt('meylan', 100), 'address',
+   null, current_date - 100, false, 'g5'),
+  (:'run2', 'W381000006', 'Club Photo Voiron', '38563', pg_temp.pt('voiron', 100), 'address',
+   null, current_date - 100, false, 'g6'),
+  (:'run2', 'W381000007', 'Judo Club Vienne', '38544', pg_temp.pt('vienne', 100), 'address',
+   null, current_date - 100, false, 'g7'),
+  (:'run2', 'W381000008', 'Club alpin de Pontcharra', '38314', pg_temp.pt('pontch'), 'address',
+   null, current_date - 100, false, 'g8'),
+  (:'run2', 'W381000009', 'Harmonie de Bourgoin', '38053', pg_temp.pt('bourgoin'), 'address',
+   null, current_date - 100, false, 'g9');
+insert into importer.staged_osm (run_id, osm_id, name, location, website, embedding_hash)
+values
+  (:'run2', 'node/3801', 'Cercle d''Échecs de Grenoble', pg_temp.pt('gre', 50), null, 'p1'),
+  (:'run2', 'node/3802', 'Cercle échecs Grenoble', pg_temp.pt('gre', 250, 180), null, 'p2'),
+  (:'run2', 'node/3803', 'Tennis de table Échirolles', pg_temp.pt('echi', 200, 0), null, 'p3'),
+  (:'run2', 'node/3804', 'Chorale de Saint-Martin-d''Hères', pg_temp.pt('smh', 130), null, 'p4'),
+  (:'run2', 'node/3805', 'Atelier vélo de Meylan', pg_temp.pt('meylan'), null, 'p5'),
+  (:'run2', 'node/3806', 'Club photo de Voiron', pg_temp.pt('voiron'), null, 'p6'),
+  (:'run2', 'node/3807', 'Club de judo de Vienne', pg_temp.pt('vienne'), null, 'p7'),
+  (:'run2', 'node/3808', 'Club Alpin Pontcharra', pg_temp.pt('pontch', 100), null, 'p8'),
+  (:'run2', 'node/3810', 'Fablab de Fontaine', pg_temp.pt('fontaine'), 'https://fablab-fontaine.example', 'p10');
+
+select importer.apply_run(:'run2', array['38']) as counts2 \gset
+
+-- Equal normalised names: distance decides.
+select is((select osm_id from associations where rna_id = 'W381000001'), 'node/3801',
+  'equal names: the 50 m OSM candidate wins');
+select is((select source from associations where osm_id = 'node/3802'), 'osm',
+  'equal names: the 250 m candidate becomes an OSM-only row');
+-- Two RNA rows competing for one OSM feature: higher similarity wins even when farther (200 m vs 50 m).
+select is((select osm_id from associations where rna_id = 'W381000002'), 'node/3803',
+  'competing RNA rows: the better name match gets the OSM feature');
+select ok((select osm_id is null and source = 'rna' from associations where rna_id = 'W381000003'),
+  'competing RNA rows: the other one stays RNA-only');
+-- Locked location on the OSM match path.
+select is((select osm_id from associations where rna_id = 'W381000004'), 'node/3804', 'locked-location row still matched');
+select ok((select extensions.st_distance(location, pg_temp.pt('smh')) < 1 and geocode_precision = 'address'
+           from associations where rna_id = 'W381000004'), 'locked location not replaced by the OSM point');
+-- Holder conflict, fold path.
+select ok((select osm_id = 'node/3805' and source = 'rna+osm' and claimed_by = :'claimant'::uuid and verified
+           from associations where rna_id = 'W381000005'), 'fold: RNA row takes the feature and the claim');
+select is((select organised_by_association_id from activities where title = 'Réparation vélo'),
+  (select id from associations where rna_id = 'W381000005'), 'fold: activity repointed');
+select is((select count(*) from association_claims c join associations a on a.id = c.association_id
+           where a.rna_id = 'W381000005')::int, 1, 'fold: claim repointed');
+select is((select count(*) from associations where name = 'Atelier vélo de Meylan')::int, 0,
+  'fold: OSM-only row deleted');
+-- Holder conflict, release path.
+select is((select osm_id from associations where rna_id = 'W381000006'), 'node/3806', 'release: new RNA row takes the feature');
+select ok((select osm_id is null and source = 'rna' and not attribution ? 'osm' and confidence = 0
+           from associations where rna_id = 'W381999001'),
+  'release: dissolved holder loses osm_id and osm attribution, kept at 0 (claimed)');
+-- Holder conflict, cancel paths.
+select ok((select osm_id is null and source = 'rna' from associations where rna_id = 'W381000007'),
+  'cancel (claims differ): RNA row not linked');
+select ok((select claimed_by = :'claimant'::uuid and source = 'osm' from associations where osm_id = 'node/3807'),
+  'cancel (claims differ): OSM-only row kept with its claim');
+select ok((select osm_id is null and source = 'rna' from associations where rna_id = 'W381000008'),
+  'cancel (holder out of scope): RNA row not linked');
+select ok((select last_import_run is null and insee_code = '73215' and confidence = 45
+           from associations where osm_id = 'node/3808'), 'cancel (holder out of scope): holder untouched');
+-- Stale OSM link.
+select ok((select osm_id is null and source = 'rna' and not attribution ? 'osm' and attribution ? 'rna'
+           from associations where rna_id = 'W381000009'), 'stale link: osm_id and osm attribution removed');
+select is((select confidence from associations where rna_id = 'W381000009'), 40::smallint,
+  'stale link: confidence recomputed without OSM');
+-- RNA dissolved, OSM still mapped.
+select ok((select source = 'osm' and rna_id is null and rna_published_on is null
+                  and attribution ? 'osm' and not attribution ? 'rna'
+           from associations where osm_id = 'node/3810'), 'RNA gone, OSM mapped: downgraded to an OSM listing');
+select is((select confidence from associations where osm_id = 'node/3810'), 65::smallint,
+  'downgraded listing confidence recomputed (website + OSM)');
+select ok((:'counts2'::jsonb)->>'osm_unlinked' = '1' and (:'counts2'::jsonb)->>'downgraded_to_osm' = '1'
+          and (:'counts2'::jsonb)->>'osm_removal_skipped' = 'false', 'run 2 counts');
+
+-- ---------------------------------------------------------------------------------------------
+-- Run 3, scope {'13'}: RNA staged, no OSM staged -> OSM-only listings must survive.
+insert into import_runs (scope) values (array['13']) returning id as run3 \gset
+insert into associations (osm_id, name, insee_code, location, geocode_precision, source, attribution, confidence)
+values ('node/1301', 'Club de pétanque du Vieux-Port', '13201', 'SRID=4326;POINT(5.370 43.295)', 'osm', 'osm',
+        '{"osm": "© OpenStreetMap contributors, ODbL 1.0"}', 45);
+insert into importer.staged_rna (run_id, rna_id, name, insee_code, location, geocode_precision,
+                                 published_on, likely_not_public, embedding_hash)
+values (:'run3', 'W131000001', 'Chorale du Panier', '13202', 'SRID=4326;POINT(5.366 43.299)', 'address',
+        current_date - 100, false, 'm1');
+select importer.apply_run(:'run3', array['13']) as counts3 \gset
+select is((select count(*) from associations where osm_id = 'node/1301')::int, 1,
+  'no OSM staged: OSM-only listing survives');
+select ok((:'counts3'::jsonb)->>'osm_removal_skipped' = 'true' and (:'counts3'::jsonb)->>'removed' = '0',
+  'no OSM staged: removal skipped and counted');
+
+-- ---------------------------------------------------------------------------------------------
+-- Scope guards: each must raise and leave everything unchanged.
+insert into import_runs (scope) values (array['69', '75']) returning id as run4 \gset
+insert into importer.staged_rna (run_id, rna_id, name, insee_code, location, geocode_precision,
+                                 published_on, likely_not_public, embedding_hash)
+values (:'run4', 'W691000012', 'Les Amis du Jardin Partagé', '69388', pg_temp.pt('jardin'), 'municipality',
+        current_date - 100, false, 'h12');
+select count(*) as before4 from associations \gset
+select throws_like(format('select importer.apply_run(%L, array[''69'', ''75''])', :'run4'),
+  '%no staged RNA rows for département 75%', 'a département of the scope without staged RNA aborts the run');
+select ok((select count(*) from associations) = :before4
+          and (select last_import_run from associations where rna_id = 'W691000012') = :'run'::uuid
+          and (select status from import_runs where id = :'run4') = 'running'
+          and (select count(*) from associations where rna_id = 'W751000001') = 1,
+  'aborted run changed nothing (Paris listing absent from staging still there)');
+insert into import_runs (scope) values ('{}') returning id as run5 \gset
+select throws_like(format('select importer.apply_run(%L, ''{}''::text[])', :'run5'),
+  '%empty scope%', 'empty scope array aborts the run');
+
+-- ---------------------------------------------------------------------------------------------
+-- Run 6, scope null (all of France): everything absent from staging is in scope.
+insert into import_runs (scope) values (null) returning id as run6 \gset
+insert into importer.staged_rna (run_id, rna_id, name, insee_code, location, geocode_precision,
+                                 published_on, likely_not_public, embedding_hash)
+values (:'run6', 'W331000001', 'Club de Go de Bordeaux', '33063', 'SRID=4326;POINT(-0.580 44.840)', 'address',
+        current_date - 100, false, 'b1');
+insert into importer.staged_osm (run_id, osm_id, name, location, embedding_hash)
+values (:'run6', 'node/3301', 'Fablab de Bordeaux', 'SRID=4326;POINT(-0.570 44.850)', 'b2');
+select importer.apply_run(:'run6', null) as counts6 \gset
+select ok((select source = 'rna' and last_import_run = :'run6'::uuid from associations where rna_id = 'W331000001'),
+  'null scope: RNA row inserted');
+select is((select insee_code from associations where osm_id = 'node/3301'), '33063',
+  'null scope: OSM-only row inserted and placed');
+select is((select count(*) from associations
+           where rna_id in ('W691000012', 'W751000001', 'W131000001') or osm_id in ('way/1003', 'node/1301'))::int, 0,
+  'null scope: unclaimed listings of every département absent from staging are removed');
+select is((select confidence from associations where rna_id = 'W691000003'), 0::smallint,
+  'null scope: claimed listing absent from staging kept at 0');
 select * from finish();
 rollback;
