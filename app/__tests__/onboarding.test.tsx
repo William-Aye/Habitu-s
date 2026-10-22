@@ -14,16 +14,37 @@ jest.mock('expo-location', () => ({
   getCurrentPositionAsync: jest.fn(),
 }));
 
-const mockSession: { status: string; error: boolean } = { status: 'signed_out', error: false };
+const mockSession: { status: string; error: boolean; listeners: Set<() => void>; version: number } = {
+  status: 'signed_out',
+  error: false,
+  listeners: new Set(),
+  version: 0,
+};
+function mockSetStatus(status: string) {
+  mockSession.status = status;
+  mockSession.version += 1;
+  mockSession.listeners.forEach((l) => l());
+}
 jest.mock('../src/features/account/useSession', () => ({
   SessionProvider: ({ children }: { children: React.ReactNode }) => children,
-  useSession: () => ({
+  useSession: () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const React = require('react');
+    React.useSyncExternalStore(
+      (cb: () => void) => {
+        mockSession.listeners.add(cb);
+        return () => mockSession.listeners.delete(cb);
+      },
+      () => mockSession.version,
+    );
+    return {
     status: mockSession.status,
     userId: mockSession.status === 'ready' ? 'u1' : null,
     profile: null,
     error: mockSession.error,
     refresh: jest.fn(),
-  }),
+    };
+  },
 }));
 jest.mock('../src/features/account/AccountGate', () => ({
   AccountGateProvider: ({ children }: { children: React.ReactNode }) => children,
@@ -113,15 +134,62 @@ it('gives up waiting for the session after about 3 seconds and shows the app', a
   expect(screen.queryByText(WHERE)).toBeNull();
 });
 
-it('remembers a signed-in user, so a later signed-out start skips onboarding', async () => {
+it('writes the onboarding flag once the session is ready', async () => {
   mockSession.status = 'ready';
   await renderRouter('./src/app', { initialUrl: '/' });
   expect(await screen.findByText('Explorer')).toBeTruthy();
   await act(async () => {
     await jest.advanceTimersByTimeAsync(50);
   });
-  // The flag outlives the session: a signed-out cold start then opens Explorer (see the "done" test).
   expect(await AsyncStorage.getItem('onboarding.done')).toBe('1');
+});
+
+it('does not redirect when a signed-in user signs out in the same run', async () => {
+  mockSetStatus('ready');
+  await renderRouter('./src/app', { initialUrl: '/' });
+  expect(await screen.findByText('Explorer')).toBeTruthy();
+  await act(async () => {
+    mockSetStatus('signed_out');
+    await jest.advanceTimersByTimeAsync(500);
+  });
+  expect(screen.queryByText(WHERE)).toBeNull();
+  expect(screen.getByText('Explorer')).toBeTruthy();
+});
+
+it('lifts the cover after 3 seconds when the flag read never resolves', async () => {
+  const real = AsyncStorage.getItem;
+  AsyncStorage.getItem = ((key: string) =>
+    key === 'onboarding.done' ? new Promise(() => {}) : real(key)) as typeof real;
+  try {
+    await renderRouter('./src/app', { initialUrl: '/' });
+    expect(screen.getByTestId('startup-cover')).toBeTruthy();
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(3500);
+    });
+    expect(screen.queryByTestId('startup-cover')).toBeNull();
+    expect(screen.queryByText(WHERE)).toBeNull();
+  } finally {
+    AsyncStorage.getItem = real;
+  }
+});
+
+it('warns without user data when the flag cannot be written', async () => {
+  const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  const realSet = AsyncStorage.setItem;
+  AsyncStorage.setItem = (async () => {
+    throw new Error('disk full');
+  }) as typeof realSet;
+  try {
+    mockSetStatus('ready');
+    await renderRouter('./src/app', { initialUrl: '/' });
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(50);
+    });
+    expect(warn).toHaveBeenCalledWith('onboarding flag write failed');
+  } finally {
+    AsyncStorage.setItem = realSet;
+    warn.mockRestore();
+  }
 });
 
 it('does not redirect a first launch that opens a deep link', async () => {

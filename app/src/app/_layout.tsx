@@ -59,12 +59,17 @@ function OnboardingGate() {
   // A returning user (ever signed in) never sees the first-launch screen again.
   useEffect(() => {
     if (status === 'ready') {
-      AsyncStorage.setItem(ONBOARDING_KEY, '1').catch(() => {});
+      AsyncStorage.setItem(ONBOARDING_KEY, '1').catch(() => {
+        console.warn('onboarding flag write failed');
+      });
     }
   }, [status]);
 
   // A failing or slow session fetch must not hold the app behind the cover forever.
-  const known = status === 'ready' ? true : done;
+  // Remembered for the rest of the run: once ready, a later sign-out must not trigger onboarding.
+  if (status === 'ready' && done !== true) setDone(true);
+  // If the flag read never resolves, the fallback wait treats the user as done.
+  const known = done ?? (waited ? true : null);
   const settled = known !== null && (status !== 'loading' || error || waited);
   const needsOnboarding = settled && !known && status === 'signed_out' && startedOnHome;
 
