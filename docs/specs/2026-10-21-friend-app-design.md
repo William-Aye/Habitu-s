@@ -450,6 +450,7 @@ Protection is applied at each layer where it actually works (the app talks direc
 - **Alert cap test:** a user never receives more than 2 instant new-activity alerts per week.
 - **Minimum participants test:** session auto-cancelled at 20:00 the evening before when below minimum, not otherwise.
 - **Rate limit tests:** each write limit allows the last permitted action and refuses the next one; admins and the service role are not limited.
+- **Privacy and security tests:** stored home areas are commune centres; uploaded photos have no EXIF; retention jobs delete exactly the expired rows; `is_admin()` is false without 2FA; data export contains every personal table and nothing about other people; no API path lists users.
 - **Dashboard tests:** the dashboard function is callable only by admins; figures match a known fixture; no per-person data is returned.
 - **Co-organiser tests:** every row of the organiser/co-organiser rights table; an invited (not yet accepted), declined, removed or expired (`ends_at` passed) co-organiser has no rights; only members with a verified phone can be invited; a co-organiser cannot add co-organisers or give feedback on the activity's sessions; sessions they run count toward the organiser's stats.
 - **End-to-end journeys** on an Android emulator: browse → sign up → join → "Je serai là"; create an activity with and without "organised by" (including a new community club and the home-address warning); report.
@@ -463,12 +464,12 @@ Each gets its own implementation plan. The work is split into **Release 1 (MVP)*
 1. **Foundation** (done): Supabase project, schema, RLS, categories seed, Expo app skeleton with the four tabs and French/English translations.
 2. **Association directory:** import pipeline, tagging, embeddings, confidence score, GitHub Actions schedule; dormant-listing rule (section 17).
 3. **Explore and search:** semantic + full-text search, ranking, filters, list/map, association pages, "Me prévenir quand ce club arrive" (section 17).
-4. **Accounts and interests:** browse-first onboarding, language choice, deferred sign-up (Cloudflare Turnstile, tuned Auth rate limits), interests picker, category requests, `last_seen_at`.
+4. **Accounts and interests:** browse-first onboarding, language choice, deferred sign-up (Cloudflare Turnstile, tuned Auth rate limits), interests picker, category requests, `last_seen_at`; session in secure storage, home area snapped to commune, photo EXIF stripping, "Mes données" (export, correct, delete), privacy policy (section 18).
 5. **Activities and sessions (core):** create activity (incl. "Who organises it?"), recurrence, join, "Je serai là" with add-to-calendar, reminders, share links, séance découverte, "Je viens avec quelqu'un", welcome person (section 17).
 6. **Group chat:** one chat per activity (private messages come in Release 2).
-7. **Safety essentials:** reports, blocks, contextual safety tips, Share my plans, "Une idée ? Un problème ?", minimal admin screens (reports queue, claims, community clubs, category requests, feedback), database write limits.
+7. **Safety essentials:** reports, blocks, contextual safety tips, Share my plans, "Une idée ? Un problème ?", minimal admin screens (reports queue, claims, community clubs, category requests, feedback), database write limits; admin 2FA and admin audit log, retention jobs (section 18).
 8. **Public web pages:** association and activity pages on the web (Expo web on Cloudflare Pages), indexable by search engines, with "Je serai là" from the browser after a light sign-up (section 17). Comes before launch because shared links must work for iPhone friends.
-9. **Launch:** closed test (12+ testers for 14 days, Google Play requirement), French store listing, public release — timed with the September "Forums des associations" if the date allows (section 15).
+9. **Security and launch:** RGPD paperwork, Cloudflare setup, GitHub security features, backup restore test and pre-launch security review (section 18); then closed test (12+ testers for 14 days, Google Play requirement), French store listing, public release — timed with the September "Forums des associations" if the date allows (section 15).
 
 ### Release 2 — first months after launch
 
@@ -537,3 +538,89 @@ Each gets its own implementation plan. The work is split into **Release 1 (MVP)*
 | `activities.welcome_member_id` | Welcome person (must be the organiser, a co-organiser or a member) |
 | `association_waiters` (association + user, created_at) | "Me prévenir quand ce club arrive" |
 | `activity_members.last_reminded_at` | Gentle-return frequency cap |
+| `admin_audit_log` (admin, action, target, created_at) | Admin actions record (section 18) |
+
+## 18. Security and privacy (RGPD)
+
+Goal: users and the service are hard to attack, and **if the database ever leaked, almost nothing harmful about a person could be learned**. The app follows the RGPD (GDPR) and the CNIL's guidance: collect little, keep it briefly, protect what remains, and let people see and delete their data.
+
+### 18.1 Collect as little as possible (data minimisation)
+
+| Data | Rule |
+|---|---|
+| Identity | First name only (no last name). No date of birth: a single "I am 18 or over" confirmation. No gender. |
+| Contact | Email (sign-in). Phone number **only** for organisers (verification), held by Supabase Auth, never shown, never copied into app tables. |
+| Passwords | None: Google sign-in or email links. Nothing to steal or reuse. |
+| Location | Never a precise position. `profiles.home_area` is snapped to its **commune centre** before saving (≈ town level). The phone's GPS is used on the device for distance sorting and sent to search queries rounded to **~1 km**, never stored. Meeting places are public places by design (section 9). |
+| Photos | Optional. **Metadata (EXIF, including GPS) is stripped** before upload; images re-encoded and size-limited. |
+| Interests, memberships | Can reveal sensitive information (religion, health, sexual orientation, politics — RGPD article 9) through the clubs someone follows. Treated as sensitive: never public, visible only to co-members of the same activity, never sent to advertisers, never used to personalise ads (ads in the Explore list are targeted, if at all, by the content of the screen, not by the person). |
+| Analytics | No third-party trackers. The dashboard stores totals only (section 11). `search_misses` holds no user id. |
+
+### 18.2 Keep it briefly (retention)
+
+| Data | Kept |
+|---|---|
+| Group chat messages | 12 months, then deleted automatically |
+| Private messages | 12 months, then deleted automatically |
+| Session feedback answers | Aggregated into stats, then raw rows deleted after 6 months |
+| Reports and moderation decisions | 3 years (legal defence, DSA), then deleted |
+| Accounts inactive for 3 years | Warning email, then deletion 30 days later |
+| Server and auth logs (incl. IP addresses) | Supabase default retention (≤ 90 days); never copied elsewhere |
+| Geocode cache, import logs | Contain no personal data |
+
+Deletions run as a nightly scheduled job (pg_cron). Account deletion by the user is immediate and cascades (already implemented and tested).
+
+### 18.3 People's rights
+
+- **"Mes données" in Profil → Paramètres:** download all my data as a file (JSON), correct my profile, delete my account (immediate, with confirmation).
+- **Privacy policy in plain French** (and English), shown at sign-up and in Profil: what is collected, why (legal basis: contract for the service, consent for personalised ads, legitimate interest for safety/moderation), how long, who processes it, how to complain to the CNIL.
+- A contact address for privacy requests, answered within one month.
+
+### 18.4 Protecting the data
+
+**Database and backend (Supabase, EU – Paris region)**
+- Row-level security on every table, each rule covered by automated tests (done for the foundation; required for every new table).
+- The secret service key is never in the app or the repository; only in GitHub secrets / Supabase.
+- **Admins must use two-factor authentication** (Supabase Auth MFA): `is_admin()` returns true only for a session that passed 2FA (`aal2`). Every admin action is recorded in an **admin audit log** (who, what, when).
+- Encryption: disks encrypted at rest (Supabase default) and TLS for every connection (SSL enforced on the database).
+- Strong, unique database password stored only in a password manager; database access restricted to the app API and the import job.
+- **Daily backups** (Supabase Pro), restore tested once before launch.
+- Supabase **security advisor** checks run in CI; any new warning fails the build.
+
+**App**
+- The sign-in session is stored in the phone's **secure storage** (Android Keystore via `expo-secure-store`, with an encrypted wrapper for the larger Supabase session), not in plain app storage.
+- No secrets in the app; only the public API key, which grants nothing beyond what row-level security allows.
+- Uploads checked server-side: file type, size, EXIF removal.
+
+**Code and supply chain (GitHub)**
+- Dependabot security updates, secret scanning and push protection, and code scanning (CodeQL) enabled on the repository.
+- `npm audit` / `pip-audit` in CI; high-severity findings fail the build.
+- Branch protection on `main`: changes arrive through reviewed merges; CI must pass.
+- GitHub account of the owner protected with 2FA (passkey or authenticator app).
+
+### 18.5 Protecting the service from attacks (Cloudflare and others)
+
+- **Website on Cloudflare Pages** with the domain's DNS on Cloudflare: free DDoS protection, **WAF managed rules**, **Bot Fight Mode**, **rate-limiting rules** on sign-up and form pages, **DNSSEC**, always-HTTPS.
+- **Security headers** on every web page: HTTPS-only (HSTS), Content-Security-Policy, no framing, strict referrer policy.
+- **Cloudflare Turnstile** on sign-up and on the anonymous feedback form (section 11).
+- **Supabase Auth protections:** tuned rate limits, email-link expiry of 1 hour, refresh-token rotation, no account-existence leaks on sign-in.
+- **Database write limits per user** (section 11) stop spam and scraping through the app.
+- **Anti-scraping of people:** profiles are only readable through the limited public view; no endpoint lists users; search returns associations and activities, never people.
+- Later, if attacks target the API directly: put the Supabase API behind a Cloudflare-proxied custom domain (Supabase custom-domain add-on).
+
+### 18.6 If something goes wrong (breach plan)
+
+1. Contain: rotate keys and passwords, revoke sessions, block the attack path.
+2. Assess within 24 h what data and how many people are affected (the admin audit log and Supabase logs help).
+3. **Notify the CNIL within 72 hours** if personal data is affected (online notification form), and **inform affected users** without delay when the risk is high, in plain French.
+4. Record every incident (even minor) in an internal incident log.
+
+Thanks to 18.1, a full database leak would expose first names, email addresses, town-level areas and (for organisers' activities) public meeting places — no passwords, no exact addresses, no birth dates, and phone numbers only inside Supabase Auth.
+
+### 18.7 Paperwork (non-code, before launch)
+
+- **Registre des traitements** (record of processing activities): one page per purpose (accounts, activities, chat, moderation, ads, import of public association data).
+- **AIPD / DPIA** (privacy impact assessment): recommended because the app combines location and meetings between strangers; a short CNIL-template version (the CNIL's free PIA tool).
+- **Processor agreements (DPA)** accepted with Supabase, Google (sign-in, AdMob), Cloudflare, Expo (push notifications) and GitHub; transfers outside the EU covered by the EU–US Data Privacy Framework or standard contractual clauses.
+- Terms of use (CGU), privacy policy and legal notices (mentions légales) published in the app and on the website.
+- **Security review before public launch:** an independent review (or at least a thorough automated and manual check) of the access rules, authentication and web pages.
