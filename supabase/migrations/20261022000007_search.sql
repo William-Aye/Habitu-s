@@ -24,14 +24,26 @@ set search_path = pg_catalog, pg_temp
 as $$ select importer.normalise_name(x) $$;
 
 -- Every threshold of the ranking lives here and nowhere else.
-create function search.params(
-  out sim_floor float8, out sim_ceil float8, out keyword_boost int, out strong int, out weak int,
-  out min_score int, out tie_window int, out name_sim real, out penalty_not_public int,
-  out penalty_low_confidence int, out penalty_community int, out new_boost int, out new_days int,
-  out hidden_below int, out low_confidence int, out dormant_years int, out widen_min int,
-  out max_limit int, out max_offset int
-) language sql immutable
-as $$ select 0.75::float8, 0.88::float8, 8, 70, 50, 15, 5, 0.6::real, 15, 10, 10, 5, 14, 20, 50, 10, 5, 50, 500 $$;
+-- It returns a named row type rather than OUT parameters: the planner folds an immutable,
+-- argument-less function to a constant only when it does not return `record`, so
+-- (search.params()).strong costs nothing per row.
+create type search.param_set as (
+  sim_floor float8, sim_ceil float8, keyword_boost int, strong int, weak int,
+  min_score int, tie_window int, name_sim real, penalty_not_public int,
+  penalty_low_confidence int, penalty_community int, new_boost int, new_days int,
+  hidden_below int, low_confidence int, dormant_years int, widen_min int,
+  max_limit int, max_offset int
+);
+create function search.params() returns search.param_set
+language sql immutable
+as $$
+  select row(0.75::float8, 0.88::float8, 8, 70, 50, 15, 5, 0.6::real, 15, 10, 10, 5, 14, 20, 50, 10, 5,
+             50, 500)::search.param_set
+$$;
+
+-- The per-row helpers below run on every search candidate (up to ~150k rows), so their bodies are
+-- a single expression with no FROM: the planner inlines them, and search.params() (immutable, no
+-- arguments) folds to a constant.
 
 -- Score before penalty and Nouvelle boost; unclamped above (similarity 1 + keyword gives 108).
 create function search.base_score(p_sim float8, p_keyword boolean, p_name_sim real) returns float8
@@ -39,11 +51,11 @@ language sql immutable
 as $$
   select case
     when p_sim is not null then
-      least(greatest((p_sim - p.sim_floor) / (p.sim_ceil - p.sim_floor), 0), 1) * 100
-        + case when p_keyword then p.keyword_boost else 0 end
+      least(greatest((p_sim - (search.params()).sim_floor)
+                     / ((search.params()).sim_ceil - (search.params()).sim_floor), 0), 1) * 100
+        + case when p_keyword then (search.params()).keyword_boost else 0 end
     when p_keyword then 60 + 30 * p_name_sim
     else 0 end
-  from search.params() p
 $$;
 
 create function search.score(
@@ -53,8 +65,7 @@ language sql immutable
 as $$
   select round(least(greatest(
     search.base_score(p_sim, p_keyword, p_name_sim) - p_penalty
-      + case when p_is_new then p.new_boost else 0 end, 0), 100)::numeric)::smallint
-  from search.params() p
+      + case when p_is_new then (search.params()).new_boost else 0 end, 0), 100)::numeric)::smallint
 $$;
 
 create function search.penalty(
@@ -62,16 +73,16 @@ create function search.penalty(
 ) returns int
 language sql immutable
 as $$
-  select case when p_likely_not_public then p.penalty_not_public else 0 end
-    + case when p_source = 'community' and not coalesce(p_verified, false) then p.penalty_community
-           when p_confidence < p.low_confidence then p.penalty_low_confidence
+  select case when p_likely_not_public then (search.params()).penalty_not_public else 0 end
+    + case when p_source = 'community' and not coalesce(p_verified, false)
+             then (search.params()).penalty_community
+           when p_confidence < (search.params()).low_confidence then (search.params()).penalty_low_confidence
            else 0 end
-  from search.params() p
 $$;
 
 create function search.is_hidden(p_confidence smallint, p_source text) returns boolean
 language sql immutable
-as $$ select p_source <> 'community' and p_confidence < p.hidden_below from search.params() p $$;
+as $$ select p_source <> 'community' and p_confidence < (search.params()).hidden_below $$;
 
 create function search.is_dormant(
   p_website text, p_osm_id text, p_claimed_by uuid, p_rna_published_on date, p_source text, p_today date
@@ -80,8 +91,7 @@ language sql immutable
 as $$
   select p_website is null and p_osm_id is null and p_claimed_by is null and p_source <> 'community'
     and (p_rna_published_on is null
-         or p_rna_published_on < (p_today - make_interval(years => p.dormant_years))::date)
-  from search.params() p
+         or p_rna_published_on < (p_today - make_interval(years => (search.params()).dormant_years))::date)
 $$;
 
 -- Query normalisation (NFC, trim, single spaces, lower case, 200 chars) as in the app, then
@@ -184,3 +194,234 @@ revoke all on public.query_embedding_cache from anon, authenticated;
 create extension if not exists pg_cron;
 select cron.schedule('prune-query-embedding-cache', '10 4 * * *',
   $$ delete from public.query_embedding_cache where created_at < now() - interval '60 days' $$);
+
+-- ---------------------------------------------------------------------------------------------
+-- Explore and search
+
+-- Visible rows within p_radius_m of p_point after the filters, with their score. Search modes
+-- (p_query not null) score and drop; browse (p_query null) returns score null and applies the
+-- interest slugs. Candidates come from the GiST indexes first; similarity is only computed for
+-- them (never the HNSW index: post-filtering by distance would lose results).
+create function search.explore_rows(
+  p_point geography, p_radius_m float8, p_query text, p_query_embedding extensions.vector,
+  p_kinds text[], p_weekday smallint, p_newcomer_friendly boolean, p_interest_slugs text[]
+) returns table (
+  kind text, id uuid, distance_m float8, score smallint, keyword boolean, penalty int, is_new boolean,
+  source_label text
+)
+language sql stable
+set search_path = public, search, extensions, pg_temp
+as $$
+  with p as (
+    select prm.*, search.normalise_name(p_query) as q_norm,
+           case when p_query is not null
+             then websearch_to_tsquery('french', search.unaccent(p_query)) end as tsq
+    from search.params() prm
+  ),
+  assoc as (
+    select 'association'::text as kind, a.id, ST_Distance(a.town_point, p_point) as distance_m,
+           search.penalty(a.likely_not_public, a.confidence, a.source, a.verified) as penalty,
+           false as is_new,
+           search.is_dormant(a.website, a.osm_id, a.claimed_by, a.rna_published_on, a.source, current_date)
+             as dormant,
+           case when a.source = 'community' and not a.verified then 'community'
+                when a.confidence < p.low_confidence then 'unverified' end as source_label,
+           case when p_query is not null then word_similarity(p.q_norm, a.name_norm) end as name_sim,
+           case when p_query is not null then a.search_tsv @@ p.tsq end as fts,
+           case when p_query is not null then 1 - (a.embedding <=> p_query_embedding) end as sim
+    from associations a, p
+    where 'association' = any(p_kinds) and p_weekday is null and not p_newcomer_friendly
+      and ST_DWithin(a.town_point, p_point, p_radius_m)
+      and not search.is_hidden(a.confidence, a.source)
+      and (p_query is not null or cardinality(p_interest_slugs) = 0
+           or exists (select 1 from association_tags at join tags t on t.id = at.tag_id
+                      where at.association_id = a.id and t.slug = any(p_interest_slugs)))
+  ),
+  act as (
+    select 'activity'::text, x.id, ST_Distance(x.place, p_point), 0,
+           x.published_at > now() - make_interval(days => p.new_days),
+           false, null::text,
+           case when p_query is not null then word_similarity(p.q_norm, search.normalise_name(x.title)) end,
+           case when p_query is not null then x.search_tsv @@ p.tsq end,
+           case when p_query is not null then 1 - (x.embedding <=> p_query_embedding) end
+    from activities x, p
+    where 'activity' = any(p_kinds)
+      and ST_DWithin(x.place, p_point, p_radius_m)
+      and x.archived_at is null and x.published_at <= now()
+      and (auth.uid() is null or not public.is_blocked_between(x.organiser_id))
+      and (not p_newcomer_friendly or x.newcomer_friendly)
+      and (p_query is not null or cardinality(p_interest_slugs) = 0
+           or exists (select 1 from activity_tags at join tags t on t.id = at.tag_id
+                      where at.activity_id = x.id and t.slug = any(p_interest_slugs)))
+      and (p_weekday is null or case x.recurrence_kind
+             when 'weekly' then extract(isodow from x.start_date) = p_weekday
+             when 'weekdays' then p_weekday = any(x.recurrence_weekdays)
+             else true end)
+  ),
+  scored as (
+    select c.*, k.keyword,
+           case when p_query is not null then
+             search.score(c.sim, k.keyword, coalesce(c.name_sim, 0), c.penalty, c.is_new) end as score,
+           p.min_score, p.strong, p.name_sim as name_sim_min
+    from (select * from assoc union all select * from act) c
+    cross join p
+    cross join lateral (select coalesce(c.fts, false) or coalesce(c.name_sim, 0) >= p.name_sim as keyword) k
+  )
+  select s.kind, s.id, s.distance_m, s.score, s.keyword, s.penalty, s.is_new, s.source_label
+  from scored s
+  where case
+    when p_query is null then not s.dormant
+    else
+      (s.score >= s.min_score or s.keyword)
+      and (not s.dormant or coalesce(s.name_sim, 0) >= s.name_sim_min
+           or search.base_score(s.sim, s.keyword, coalesce(s.name_sim, 0)) >= s.strong)
+    end
+$$;
+revoke all on function search.explore_rows(geography, float8, text, extensions.vector, text[], smallint,
+  boolean, text[]) from public, anon, authenticated;
+
+create function public.search_explore(
+  p_lon float8, p_lat float8,
+  p_radius_km int default 10,
+  p_query text default null,
+  p_query_embedding extensions.vector default null,
+  p_kinds text[] default '{activity,association}',
+  p_weekday smallint default null,
+  p_newcomer_friendly boolean default false,
+  p_interest_category_ids uuid[] default '{}',
+  p_sort text default 'best',
+  p_limit int default 20, p_offset int default 0
+) returns jsonb
+language plpgsql volatile security definer
+set search_path = public, search, extensions, pg_temp
+as $$
+declare
+  prm record;
+  v_point geography;
+  v_query text := nullif(btrim(p_query), '');
+  v_mode text;
+  v_slugs text[] := '{}';
+  v_results jsonb;
+  v_strong int;
+  v_has_more boolean;
+  v_strong_50 int;
+  v_suggest int;
+  v_miss text;
+begin
+  select * into prm from search.params();
+  if p_radius_km is null or p_radius_km not in (5, 10, 25, 50) then
+    raise exception 'radius must be 5, 10, 25 or 50 km' using errcode = '22023';
+  end if;
+  if p_lon is null or p_lat is null or p_lon not between -180 and 180 or p_lat not between -90 and 90 then
+    raise exception 'invalid coordinates' using errcode = '22023';
+  end if;
+  if p_limit is null or p_limit not between 1 and prm.max_limit then
+    raise exception 'limit must be between 1 and %', prm.max_limit using errcode = '22023';
+  end if;
+  if p_offset is null or p_offset not between 0 and prm.max_offset then
+    raise exception 'offset must be between 0 and %', prm.max_offset using errcode = '22023';
+  end if;
+  if char_length(p_query) > 200 then
+    raise exception 'query too long' using errcode = '22023';
+  end if;
+  if p_query_embedding is not null and vector_dims(p_query_embedding) <> 384 then
+    raise exception 'query embedding must have 384 dimensions' using errcode = '22023';
+  end if;
+  if p_sort is null or p_sort not in ('best', 'nearest') then
+    raise exception 'sort must be best or nearest' using errcode = '22023';
+  end if;
+  if coalesce(cardinality(p_kinds), 0) = 0 or not p_kinds <@ '{activity,association}'::text[]
+     or array_position(p_kinds, null) is not null then
+    raise exception 'kinds must be activity and/or association' using errcode = '22023';
+  end if;
+  if p_weekday is not null and p_weekday not between 1 and 7 then
+    raise exception 'weekday must be between 1 and 7' using errcode = '22023';
+  end if;
+
+  v_point := ST_SetSRID(ST_MakePoint(p_lon, p_lat), 4326)::geography;
+  v_mode := case when v_query is null then 'browse'
+                 when p_query_embedding is not null then 'search' else 'keyword_only' end;
+  if v_mode = 'browse' and cardinality(p_interest_category_ids) > 0 then
+    select coalesce(array_agg(c.slug), '{}') into v_slugs
+    from categories c
+    where c.id = any(p_interest_category_ids) or c.parent_id = any(p_interest_category_ids);
+    if cardinality(v_slugs) = 0 then v_slugs := '{""}'; end if;  -- unknown ids match nothing
+  end if;
+
+  with r as (
+    select e.*, coalesce(e.score < prm.weak, false) as is_weak
+    from search.explore_rows(v_point, p_radius_km * 1000.0, v_query,
+           case when v_mode = 'search' then p_query_embedding end,
+           p_kinds, p_weekday, coalesce(p_newcomer_friendly, false), v_slugs) e
+  ),
+  ranked as (
+    select r.*, row_number() over (order by
+             case when v_mode = 'browse' then r.penalty > 0 else r.is_weak end,
+             case when v_mode <> 'browse' and p_sort = 'best' then floor(r.score / prm.tie_window::float8) end desc,
+             r.distance_m, r.id) as rn
+    from r
+  ),
+  page as (
+    select * from ranked where rn > p_offset and rn <= p_offset + p_limit
+  ),
+  items as (
+    select pg.rn, jsonb_build_object(
+             'kind', pg.kind, 'id', pg.id, 'title', d.title, 'subtitle', d.subtitle,
+             'snippet', left(d.body, 140),
+             'lon', ST_X(d.pt::geometry), 'lat', ST_Y(d.pt::geometry),
+             'distance_km', round((pg.distance_m / 1000)::numeric, 1),
+             'score', pg.score,
+             'label', case when pg.score is null then null
+                           when pg.score >= prm.strong then 'very_relevant'
+                           when pg.score >= prm.weak then 'relevant' else 'weak' end,
+             'is_weak', pg.is_weak, 'is_new', pg.is_new, 'source_label', pg.source_label,
+             'tag_slugs', to_jsonb(d.tag_slugs)) as item
+    from page pg
+    cross join lateral (
+      select a.name as title, a.city as subtitle, a.purpose as body, a.town_point as pt,
+             array(select t.slug from association_tags at join tags t on t.id = at.tag_id
+                   where at.association_id = a.id order by t.slug) as tag_slugs
+      from associations a where pg.kind = 'association' and a.id = pg.id
+      union all
+      select x.title, x.place_label, x.description, x.place,
+             array(select t.slug from activity_tags at join tags t on t.id = at.tag_id
+                   where at.activity_id = x.id order by t.slug)
+      from activities x where pg.kind = 'activity' and x.id = pg.id
+    ) d
+  )
+  select coalesce((select jsonb_agg(item order by rn) from items), '[]'::jsonb),
+         (select count(*) from ranked where score >= prm.strong),
+         exists (select 1 from ranked where rn = p_offset + p_limit + 1)
+    into v_results, v_strong, v_has_more;
+
+  if v_mode <> 'browse' and v_strong < prm.widen_min and p_radius_km < 50 then
+    select count(*) into v_strong_50
+    from search.explore_rows(v_point, 50000, v_query,
+           case when v_mode = 'search' then p_query_embedding end,
+           p_kinds, p_weekday, coalesce(p_newcomer_friendly, false), v_slugs) e
+    where e.score >= prm.strong;
+    if v_strong_50 > v_strong then v_suggest := 50; end if;
+  end if;
+
+  if v_mode <> 'browse' and p_offset = 0 and v_strong = 0 then
+    v_miss := search.anonymise_query(v_query);
+    if char_length(v_miss) >= 2 then
+      insert into search_misses (query, area_label, day)
+      values (v_miss,
+              (select a.city from associations a
+               where a.city is not null and a.town_point is not null
+               order by a.town_point <-> v_point limit 1),
+              current_date)
+      on conflict (query, (coalesce(area_label, '')), day)
+        do update set hits = search_misses.hits + 1;
+    end if;
+  end if;
+
+  return jsonb_build_object('mode', v_mode, 'results', v_results, 'strong_count', v_strong,
+    'strong_count_50km', v_strong_50, 'suggest_radius_km', v_suggest, 'has_more', v_has_more);
+end
+$$;
+revoke all on function public.search_explore(float8, float8, int, text, extensions.vector, text[], smallint,
+  boolean, uuid[], text, int, int) from public;
+grant execute on function public.search_explore(float8, float8, int, text, extensions.vector, text[], smallint,
+  boolean, uuid[], text, int, int) to anon, authenticated;
