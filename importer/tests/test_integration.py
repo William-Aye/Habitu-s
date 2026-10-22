@@ -67,11 +67,11 @@ def embedder(monkeypatch):
     return e
 
 
-def run(*extra, rna=RNA):
+def run(*extra, rna=RNA, dept="69"):
     with respx.mock(assert_all_called=False) as mock:
         mock.get(COMMUNES_URL).respond(json=COMMUNES)
         mock.post(GEOCODER_CSV_URL).mock(side_effect=geocoder_handler)
-        return cli.main(["run", "--db-url", URL, "--departements", "69", "--rna-zip", rna,
+        return cli.main(["run", "--db-url", URL, "--departements", dept, "--rna-zip", rna,
                          "--osm-geojsonseq", OSM, "--embedder", "fake", *extra])
 
 
@@ -81,6 +81,13 @@ def one(conn, sql, *args):
 
 def last_run(conn):
     return one(conn, "select status, error, counts from public.import_runs order by started_at desc limit 1")
+
+
+def snapshot(conn):
+    return conn.execute(
+        "select coalesce(rna_id, osm_id), name, source, phone, confidence, "
+        "extensions.st_astext(location::extensions.geometry), embedding_hash "
+        "from public.associations order by 1").fetchall()
 
 
 def count(conn):
@@ -117,6 +124,16 @@ def test_run_end_to_end(conn, embedder, tmp_path, monkeypatch, capsys):
     assert count(conn) == before
     assert last_run(conn)[0] == "succeeded"
 
+    # --- apply_run fails after a successful COPY (département 13 has no staged RNA) ---
+    snap = snapshot(conn)
+    assert run(dept="69,13") == 1
+    status, error, _ = last_run(conn)
+    assert status == "failed" and "13" in error and "refusing to merge" in error
+    assert one(conn, "select count(*) from importer.staged_rna")[0] == 0
+    assert one(conn, "select count(*) from importer.staged_osm")[0] == 0
+    assert count(conn) == before
+    assert snapshot(conn) == snap
+
     # --- bad CSV: aborts, live data untouched ---
     bad = tmp_path / "bad.csv"
     rows = list(csv.reader(open(RNA, encoding="utf-8", newline=""), delimiter=";"))
@@ -139,9 +156,30 @@ def test_run_end_to_end(conn, embedder, tmp_path, monkeypatch, capsys):
     assert status == "failed" and "--allow-large-drop" in error
     assert count(conn) == before
 
-    # --skip-osm with --allow-large-drop: proceeds, OSM-only listings left alone
+    # Dissolved-but-kept listings (confidence 0) do not count in the denominator.
+    conn.execute("update public.associations set confidence = 0 "
+                 "where rna_id is not null and rna_id not in ('W691000001', 'W691000002')")
     osm_only = one(conn, "select count(*) from public.associations where source = 'osm'")[0]
-    assert run("--allow-large-drop", "--skip-osm", rna=str(small)) == 0
+    assert run("--skip-osm", rna=str(small)) == 0
     assert last_run(conn)[0] == "succeeded"
     assert one(conn, "select count(*) from public.associations where rna_id is not null")[0] == 2
+    # --skip-osm: OSM-only listings left alone
     assert one(conn, "select count(*) from public.associations where source = 'osm'")[0] == osm_only
+
+
+def test_concurrent_import_refused(conn):
+    with psycopg.connect(URL, autocommit=True) as other:
+        other.execute("select pg_advisory_lock(%s)", (db.RUN_LOCK_KEY,))
+        assert run() == 1
+    assert one(conn, "select count(*) from public.import_runs")[0] == 0
+
+
+def test_stale_running_rows_are_marked_abandoned(conn, embedder):
+    old = one(conn, "insert into public.import_runs (started_at) values (now() - interval '25 hours') "
+                    "returning id")[0]
+    recent = one(conn, "insert into public.import_runs (started_at) values (now() - interval '1 hour') "
+                       "returning id")[0]
+    assert run() == 0
+    assert one(conn, "select status, error from public.import_runs where id = %s", old) == ("failed", "abandoned")
+    assert one(conn, "select finished_at is not null from public.import_runs where id = %s", old) == (True,)
+    assert one(conn, "select status from public.import_runs where id = %s", recent) == ("running",)

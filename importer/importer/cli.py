@@ -16,7 +16,7 @@ import psycopg
 from importer import db
 from importer.embed import E5Embedder, Embedder, FakeEmbedder, embedding_text, text_hash
 from importer.geocode import Geocoder, address_key
-from importer.models import OsmRecord, RnaRecord, StagedOsm, StagedRna
+from importer.models import GeoPoint, OsmRecord, RnaRecord, StagedOsm, StagedRna
 from importer.osm import read_osm_geojsonseq
 from importer.rna import find_latest_rna_url, read_rna_zip
 from importer.tagging import Tagger
@@ -26,6 +26,7 @@ log = logging.getLogger("importer")
 
 PROGRESS_EVERY = 50_000
 EMBED_BATCH = 1024
+GEOCODE_CHUNK = 50_000
 T = TypeVar("T")
 
 
@@ -88,7 +89,11 @@ def main(argv: list[str] | None = None) -> int:
 
 def run(args: argparse.Namespace, scope: list[str] | None) -> int:
     with psycopg.connect(args.db_url) as conn:
-        run_id = db.start_run(conn, scope)
+        try:
+            run_id = db.start_run(conn, scope)
+        except db.ImportAlreadyRunning as exc:
+            log.error("%s; not starting a new run", exc)
+            return 1
         log.info("import run %s, scope %s", run_id, scope or "all of France")
         try:
             counts = _run(conn, run_id, scope, args)
@@ -103,80 +108,131 @@ def run(args: argparse.Namespace, scope: list[str] | None) -> int:
     return 0
 
 
-def _read_rna(path: str | None, scope: list[str] | None) -> list[RnaRecord]:
-    departements = set(scope) if scope else None
-    with tempfile.TemporaryDirectory() as tmp:
-        source = Path(path) if path else download_rna(Path(tmp))
-        return list(progress(read_rna_zip(source, departements), "RNA records read"))
+# Memory: a France-wide run has ~1.5M RNA rows. Nothing below holds all records, staged rows
+# or vectors at once. The RNA file is read three times (count + validate, geocode, stage) and
+# the OSM file twice (count + validate, stage); only the address-key -> point map and the
+# existing-hash maps span the whole run. Rows are built, embedded and written in batches of
+# EMBED_BATCH while COPY pulls them.
 
 
 def _run(conn, run_id, scope: list[str] | None, args: argparse.Namespace) -> dict:
-    rna = _read_rna(args.rna_zip, scope)
-    osm: list[OsmRecord] | None = None
-    if not args.skip_osm:
-        osm = list(progress(read_osm_geojsonseq(Path(args.osm_geojsonseq)), "OSM records read"))
+    with tempfile.TemporaryDirectory() as tmp:
+        rna_path = Path(args.rna_zip) if args.rna_zip else download_rna(Path(tmp))
+        departements = set(scope) if scope else None
 
-    if not args.allow_large_drop:
-        db.check_volume(conn, scope, len(rna), None if osm is None else len(osm))
+        def rna_records() -> Iterator[RnaRecord]:
+            return read_rna_zip(rna_path, departements)
 
-    cache = db.GeocodeCache(conn)
-    cache.prefetch(address_key(r) for r in rna)
-    with httpx.Client(timeout=httpx.Timeout(60, read=300)) as client:
-        points = Geocoder(client, cache).geocode(rna)
-    cache.flush()
-    log.info("geocoded %d RNA records", len(points))
+        def osm_records() -> Iterator[OsmRecord]:
+            return iter(()) if args.skip_osm else read_osm_geojsonseq(Path(args.osm_geojsonseq))
 
-    tagger = Tagger()
-    rna_hashes, osm_hashes = db.existing_hashes(conn)
-    staged_rna: list[StagedRna] = []
-    rna_todo: list[tuple[int, str]] = []
-    for r in progress(rna, "RNA records tagged"):
-        text = embedding_text(r.name, r.purpose)
-        h = text_hash(text)
-        if rna_hashes.get(r.rna_id) != h:
-            rna_todo.append((len(staged_rna), text))
-        staged_rna.append(StagedRna(
-            rna_id=r.rna_id, name=r.name, purpose=r.purpose, address=r.address, postcode=r.postcode,
-            insee_code=r.insee_code, city=r.city, website=r.website, published_on=r.published_on,
-            location=points.get(r.rna_id), likely_not_public=is_likely_not_public(r.name, r.purpose),
-            embedding_hash=h, tag_slugs=tagger.tags_for(r.name, r.purpose),
-        ))
+        # Pass 1: validate both sources and count (a bad file fails here, before any staging).
+        rna_read = sum(1 for _ in progress(rna_records(), "RNA records read"))
+        osm_read = None if args.skip_osm else sum(1 for _ in progress(osm_records(), "OSM records read"))
+        if not args.allow_large_drop:
+            db.check_volume(conn, scope, rna_read, osm_read)
 
-    staged_osm: list[StagedOsm] = []
-    osm_todo: list[tuple[int, str]] = []
-    for o in progress(osm or [], "OSM records tagged"):
-        text = embedding_text(o.name, None)
-        h = text_hash(text)
-        existing = osm_hashes.get(o.osm_id)
-        # A feature linked to an RNA listing uses that listing's (RNA) embedding.
-        if existing != h and existing != db.LINKED:
-            osm_todo.append((len(staged_osm), text))
-        staged_osm.append(StagedOsm(
-            osm_id=o.osm_id, name=o.name, lon=o.lon, lat=o.lat, website=o.website, phone=o.phone,
-            email=o.email, opening_hours=o.opening_hours, kind=o.kind,
-            likely_not_public=is_likely_not_public(o.name, None), embedding_hash=h,
-            tag_slugs=tagger.tags_for(o.name, None),
-        ))
+        # Pass 2: geocode unique addresses, in chunks.
+        points = _geocode(conn, rna_records())
 
-    embedder = make_embedder(args.embedder)
-    log.info("embedding %d RNA and %d OSM texts", len(rna_todo), len(osm_todo))
-    _embed(embedder, staged_rna, rna_todo, "RNA")
-    _embed(embedder, staged_osm, osm_todo, "OSM")
-
-    db.stage(conn, run_id, progress(staged_rna, "RNA rows staged"),
-             progress(staged_osm, "OSM rows staged"))
-    counts = db.apply(conn, run_id, scope)
+        # Pass 3: build, embed and COPY in batches.
+        tagger = Tagger()
+        rna_hashes, osm_hashes = db.existing_hashes(conn)
+        embedder = make_embedder(args.embedder)
+        db.stage(
+            conn,
+            run_id,
+            progress(_staged_rna(rna_records(), points, rna_hashes, tagger, embedder), "RNA rows staged"),
+            progress(_staged_osm(osm_records(), osm_hashes, tagger, embedder), "OSM rows staged"),
+        )
+        del points, rna_hashes, osm_hashes
+        counts = db.apply(conn, run_id, scope)
     log.info("import run %s succeeded: %s", run_id, counts)
     return counts
 
 
-def _embed(embedder: Embedder, rows: list, todo: list[tuple[int, str]], label: str) -> None:
-    done = 0
-    for i in range(0, len(todo), EMBED_BATCH):
-        batch = todo[i : i + EMBED_BATCH]
-        vectors = embedder.embed([text for _, text in batch])
-        for (idx, _), vec in zip(batch, vectors, strict=True):
+def _geocode(conn, records: Iterable[RnaRecord]) -> dict[str, GeoPoint | None]:
+    """address_key -> point. The geocoder sees one slim record per unique address."""
+    cache = db.GeocodeCache(conn)
+    points: dict[str, GeoPoint | None] = {}
+    chunk: dict[str, RnaRecord] = {}
+    with httpx.Client(timeout=httpx.Timeout(60, read=300)) as client:
+        geocoder = Geocoder(client, cache)
+
+        def resolve() -> None:
+            cache.prefetch(chunk)
+            points.update(geocoder.geocode(list(chunk.values())))
+            cache.forget()
+            chunk.clear()
+            log.info("addresses geocoded: %d", len(points))
+
+        for r in records:
+            k = address_key(r)
+            if k in points or k in chunk:
+                continue
+            chunk[k] = RnaRecord(rna_id=k, name="", purpose=None, address=r.address,
+                                 postcode=r.postcode, insee_code=r.insee_code, city=None,
+                                 website=None, published_on=None)
+            if len(chunk) >= GEOCODE_CHUNK:
+                resolve()
+        if chunk:
+            resolve()
+    return points
+
+
+def _batches(items: Iterable[T], size: int) -> Iterator[list[T]]:
+    batch: list[T] = []
+    for item in items:
+        batch.append(item)
+        if len(batch) >= size:
+            yield batch
+            batch = []
+    if batch:
+        yield batch
+
+
+def _with_embeddings(rows: list, todo: list[tuple[int, str]], embedder: Embedder) -> list:
+    if todo:
+        vectors = embedder.embed([text for _, text in todo])
+        for (idx, _), vec in zip(todo, vectors, strict=True):
             rows[idx] = dataclasses.replace(rows[idx], embedding=vec)
-        before, done = done, done + len(batch)
-        if done // PROGRESS_EVERY > before // PROGRESS_EVERY:
-            log.info("%s texts embedded: %d", label, done)
+    return rows
+
+
+def _staged_rna(records, points, existing, tagger: Tagger, embedder: Embedder) -> Iterator[StagedRna]:
+    for batch in _batches(records, EMBED_BATCH):
+        rows: list[StagedRna] = []
+        todo: list[tuple[int, str]] = []
+        for r in batch:
+            text = embedding_text(r.name, r.purpose)
+            h = text_hash(text)
+            if existing.get(r.rna_id) != h:
+                todo.append((len(rows), text))
+            rows.append(StagedRna(
+                rna_id=r.rna_id, name=r.name, purpose=r.purpose, address=r.address,
+                postcode=r.postcode, insee_code=r.insee_code, city=r.city, website=r.website,
+                published_on=r.published_on, location=points.get(address_key(r)),
+                likely_not_public=is_likely_not_public(r.name, r.purpose), embedding_hash=h,
+                tag_slugs=tagger.tags_for(r.name, r.purpose),
+            ))
+        yield from _with_embeddings(rows, todo, embedder)
+
+
+def _staged_osm(records, existing, tagger: Tagger, embedder: Embedder) -> Iterator[StagedOsm]:
+    for batch in _batches(records, EMBED_BATCH):
+        rows: list[StagedOsm] = []
+        todo: list[tuple[int, str]] = []
+        for o in batch:
+            text = embedding_text(o.name, None)
+            h = text_hash(text)
+            current = existing.get(o.osm_id)
+            # A feature linked to an RNA listing uses that listing's (RNA) embedding.
+            if current != h and current != db.LINKED:
+                todo.append((len(rows), text))
+            rows.append(StagedOsm(
+                osm_id=o.osm_id, name=o.name, lon=o.lon, lat=o.lat, website=o.website,
+                phone=o.phone, email=o.email, opening_hours=o.opening_hours, kind=o.kind,
+                likely_not_public=is_likely_not_public(o.name, None), embedding_hash=h,
+                tag_slugs=tagger.tags_for(o.name, None),
+            ))
+        yield from _with_embeddings(rows, todo, embedder)

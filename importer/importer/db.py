@@ -25,11 +25,34 @@ _DEPARTEMENT_SQL = (
 )
 
 
+# Session-level advisory lock held by the run's connection for the whole run (released when it
+# closes). Distinct from apply_run's transaction lock (hashtext('importer.apply_run')).
+RUN_LOCK_KEY = 0x46524E445F494D50  # "FRND_IMP"
+STALE_AFTER = "24 hours"
+
+
 class VolumeDropError(RuntimeError):
     pass
 
 
+class ImportAlreadyRunning(RuntimeError):
+    pass
+
+
 def start_run(conn: psycopg.Connection, scope: list[str] | None) -> UUID:
+    """Take the run lock, mark abandoned runs failed, insert the run row and commit.
+
+    Raises ImportAlreadyRunning (no row created) when another import holds the lock.
+    """
+    locked = conn.execute("select pg_try_advisory_lock(%s)", (RUN_LOCK_KEY,)).fetchone()[0]
+    if not locked:
+        conn.rollback()
+        raise ImportAlreadyRunning("another import is running")
+    conn.execute(
+        "update public.import_runs set status = 'failed', finished_at = now(), error = 'abandoned' "
+        "where status = 'running' and started_at < now() - %s::interval",
+        (STALE_AFTER,),
+    )
     run_id = conn.execute(
         "insert into public.import_runs (scope) values (%s::text[]) returning id", (scope,)
     ).fetchone()[0]
@@ -45,7 +68,8 @@ def existing_hashes(conn: psycopg.Connection) -> tuple[dict[str, str], dict[str,
     """
     rna: dict[str, str] = {}
     osm: dict[str, str] = {}
-    with conn.cursor() as cur:
+    with conn.cursor(name="importer_existing_hashes") as cur:
+        cur.itersize = 10_000
         cur.execute(
             "select rna_id, osm_id, source, embedding_hash from public.associations "
             "where rna_id is not null or osm_id is not null"
@@ -63,8 +87,11 @@ def existing_hashes(conn: psycopg.Connection) -> tuple[dict[str, str], dict[str,
 
 
 def existing_counts(conn: psycopg.Connection, scope: list[str] | None) -> tuple[int, int]:
-    """(listings with an rna_id, listings with an osm_id) in the scope."""
-    where = "" if scope is None else f" and {_DEPARTEMENT_SQL} = any(%(scope)s::text[])"
+    """(listings with an rna_id, listings with an osm_id) in the scope, ignoring listings kept at
+    confidence 0 (dissolved but claimed or referenced), which no source is expected to list."""
+    where = " and confidence > 0"
+    if scope is not None:
+        where += f" and {_DEPARTEMENT_SQL} = any(%(scope)s::text[])"
     row = conn.execute(
         "select count(*) filter (where rna_id is not null"
         + where
@@ -142,6 +169,12 @@ class GeocodeCache(MutableMapping[str, GeoPoint | None]):
             self._absent.update(k for k in batch if k not in found)
         self.conn.commit()
 
+    def forget(self) -> None:
+        """Write pending answers, then drop what is held in memory (between geocoding chunks)."""
+        self.flush()
+        self._known.clear()
+        self._absent.clear()
+
     def __getitem__(self, key: str) -> GeoPoint | None:
         if key not in self._known and key not in self._absent:
             self.prefetch([key])
@@ -203,8 +236,10 @@ def _ewkt(lon: float, lat: float) -> str:
     return f"SRID=4326;POINT({lon!r} {lat!r})"
 
 
-def _vector(v: list[float] | None) -> str | None:
-    return None if v is None else "[" + ",".join(repr(float(x)) for x in v) + "]"
+def _vector(v) -> str | None:
+    """pgvector text for any float sequence (numpy float32 row or list); 9 significant digits
+    round-trip float32 exactly."""
+    return None if v is None else "[" + ",".join(format(float(x), ".9g") for x in v) + "]"
 
 
 def stage(

@@ -2,6 +2,7 @@
 import hashlib
 import re
 import struct
+from collections.abc import Sequence
 from typing import Protocol
 
 DIM = 384
@@ -12,7 +13,7 @@ _MAX_CHARS = 1000
 class Embedder(Protocol):
     dim: int
 
-    def embed(self, texts: list[str]) -> list[list[float]]: ...
+    def embed(self, texts: list[str]) -> Sequence[Sequence[float]]: ...
 
 
 class E5Embedder:
@@ -23,13 +24,14 @@ class E5Embedder:
         self.batch_size = batch_size
         self.dim = DIM
 
-    def embed(self, texts: list[str]) -> list[list[float]]:
-        vectors = self.model.encode(
+    def embed(self, texts: list[str]):
+        """float32 array of shape (len(texts), 384); rows are formatted straight into COPY."""
+        return self.model.encode(
             ["passage: " + t for t in texts],
             batch_size=self.batch_size,
             normalize_embeddings=True,
-        )
-        return [[float(x) for x in v] for v in vectors]
+            convert_to_numpy=True,
+        ).astype("float32", copy=False)
 
 
 class FakeEmbedder:

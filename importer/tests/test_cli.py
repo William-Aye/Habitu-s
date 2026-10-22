@@ -1,10 +1,12 @@
 """`run` orchestration with the database layer replaced by fakes (no DB needed)."""
 from pathlib import Path
+from collections.abc import Iterator
 from uuid import uuid4
 
 import pytest
 
 from importer import cli, db
+from importer.embed import FakeEmbedder
 from importer.geocode import GeocodeError
 from importer.osm import OsmSourceError
 
@@ -38,6 +40,9 @@ class FakeDb:
 
 class _DictCache(dict):
     def prefetch(self, keys):
+        list(keys)
+
+    def forget(self):
         pass
 
     def flush(self):
@@ -120,3 +125,78 @@ def test_volume_check_thresholds():
     assert len(problems) == 2
     assert "RNA" in problems[0] and "799" in problems[0] and "1000" in problems[0]
     assert "OSM" in problems[1]
+
+
+class RecordingEmbedder(FakeEmbedder):
+    def __init__(self):
+        self.calls = []
+
+    def embed(self, texts):
+        self.calls.append(len(texts))
+        return super().embed(texts)
+
+
+class NoGeocoder:
+    def __init__(self, *a, **kw):
+        pass
+
+    def geocode(self, records):
+        return {r.rna_id: None for r in records}
+
+
+def test_rows_are_built_and_embedded_in_batches_while_staging(monkeypatch):
+    fake = FakeDb()
+    fake.install(monkeypatch)
+    embedder = RecordingEmbedder()
+    monkeypatch.setattr(cli, "make_embedder", lambda name: embedder)
+    monkeypatch.setattr(cli, "Geocoder", NoGeocoder)
+    monkeypatch.setattr(cli, "EMBED_BATCH", 3)
+    seen = {}
+
+    def stage(conn, run_id, rna, osm):
+        # The writer gets lazy iterators, never materialised lists of rows/vectors.
+        assert isinstance(rna, Iterator) and not isinstance(rna, (list, tuple))
+        assert isinstance(osm, Iterator) and not isinstance(osm, (list, tuple))
+        assert embedder.calls == []  # nothing embedded before the writer pulls rows
+        seen["rna"] = [len(r.embedding) for r in rna]
+        seen["osm"] = [len(o.embedding) for o in osm]
+
+    monkeypatch.setattr(cli.db, "stage", stage)
+    assert cli.main(args("--osm-geojsonseq", OSM)) == 0
+    assert seen["rna"] == [384] * 8 and seen["osm"] == [384] * 4
+    assert embedder.calls and max(embedder.calls) <= 3
+    assert sum(embedder.calls) == 12 and 8 not in embedder.calls
+
+
+def test_another_import_running_exits_without_a_run(monkeypatch, capsys):
+    fake = FakeDb()
+    fake.install(monkeypatch)
+
+    def busy(conn, scope):
+        raise db.ImportAlreadyRunning("another import is running")
+
+    monkeypatch.setattr(cli.db, "start_run", busy)
+    assert cli.main(args("--skip-osm")) == 1
+    assert failures(fake) == []
+
+
+def test_volume_drop_aborts_unless_allowed(monkeypatch):
+    fake = FakeDb()
+    fake.install(monkeypatch)
+    monkeypatch.setattr(cli, "Geocoder", NoGeocoder)
+    monkeypatch.setattr(cli.db, "existing_counts", lambda conn, scope: (1000, 0))
+    assert cli.main(args("--skip-osm")) == 1
+    (fail,) = failures(fake)
+    assert "--allow-large-drop" in fail[2]
+    assert "stage" not in fake.calls
+    assert cli.main(args("--skip-osm", "--allow-large-drop")) == 0
+    assert "apply" in fake.calls
+
+
+def test_vector_text_from_float32_row_round_trips():
+    import numpy as np
+
+    row = np.array([0.1, -1 / 3, 1e-8], dtype=np.float32)
+    text = db._vector(row)
+    assert text.startswith("[") and text.endswith("]")
+    assert np.array_equal(np.array(text[1:-1].split(","), dtype=np.float32), row)
