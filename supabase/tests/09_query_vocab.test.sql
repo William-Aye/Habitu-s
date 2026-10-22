@@ -75,7 +75,7 @@ select ok((select embedding = tests.vec(0.70) from search.resolve_query('atelier
           'words tie-break: embedding of the lower doc_freq pair');
 update search.query_vocab set doc_freq = 0 where phrase = 'atelier poterie';
 select is((select matched from search.resolve_query('atelier poterie enfants')), 'atelier poterie',
-          'words tie-break: curated phrase (doc_freq 0) wins');
+          'words tie-break: doc_freq 0 (added by a requests-only build) wins');
 update search.query_vocab set doc_freq = 0 where phrase = 'poterie enfants';
 select is((select matched from search.resolve_query('atelier poterie enfants')), 'atelier poterie',
           'words tie-break: equal doc_freq, alphabetical phrase');

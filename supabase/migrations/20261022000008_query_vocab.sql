@@ -156,7 +156,8 @@ begin
   ),
   -- No average: e5 vectors share a large common component, so the mean of several units collapses
   -- toward it and ranks every document alike. The most specific unit carries the meaning: most
-  -- tokens, then rarest (curated phrases have doc_freq 0), then alphabetical.
+  -- tokens, then rarest (doc_freq: associations containing the phrase, set by full builds; 0 for a
+  -- phrase a requests-only build added), then alphabetical.
   best as (
     select h.unit, h.embedding from hit h order by h.len desc, h.doc_freq, h.unit limit 1
   )
