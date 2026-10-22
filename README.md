@@ -63,8 +63,8 @@ Both jobs run `python -m importer vocab` and use the same model as documents
 end, so a failure leaves the previous vocabulary in place (and fails the job).
 
 - **Monthly** (`import.yml`, 5th, after the association import): full build from all
-  associations (names, categories, words) plus user requests. Estimate: 30-60 minutes. If the
-  vocabulary step fails, the monthly import run is marked failed although the imported data is
+  associations (names, categories, words) plus user requests. Estimate: 30-60 minutes. The build is a
+  separate job (`vocab`, needs `import`, 120 minute limit). If it fails, the monthly import run is marked failed although the imported data is
   committed; the previous vocabulary stays in place.
 - **Nightly** (`vocab.yml`, 02:17 UTC): `--requests-only`, adds the anonymised phrases users
   searched that the vocabulary did not already understand (exact and fuzzy matches are not
