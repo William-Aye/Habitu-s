@@ -301,6 +301,9 @@ create function public.search_explore(
 ) returns jsonb
 language plpgsql volatile security definer
 set search_path = public, search, extensions, pg_temp
+-- JIT compiles the scoring expressions for ~450 ms of the scan over a 150k-row candidate set and
+-- never pays back on this workload (measured: p95 1.6 s with it, 1.35 s without).
+set jit = off
 as $$
 declare
   prm record;
