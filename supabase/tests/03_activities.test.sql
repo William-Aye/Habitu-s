@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(80);
+select plan(85);
 select tests.create_user('org@test.fr', 'Julie', true) as org \gset
 select tests.create_user('newbie@test.fr', 'Sam', false) as newbie \gset
 select tests.create_user('other@test.fr', 'Max', true) as other \gset
@@ -64,7 +64,7 @@ select throws_ok($$ insert into activities (organiser_id, category_id, title, pl
 select throws_ok($$ insert into activities (organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time)
   values (gen_random_uuid(), '00000000-0000-0000-0000-0000000000c1', 'Pour autrui', 'X', 'POINT(4.85 45.77)', 'weekly', '2026-11-03', '19:00') $$,
   '42501', null, 'cannot create activity for someone else');
-insert into sessions (id, activity_id, starts_at) values ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000f1', '2026-11-03 19:00+01');
+insert into sessions (id, activity_id, starts_at) values ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000f1', '2099-11-03 19:00+01');
 
 -- organiser update own; others affect 0 rows
 select lives_ok($$ update activities set title = 'Go du mardi soir' where id = '00000000-0000-0000-0000-0000000000f1' $$, 'organiser updates own activity');
@@ -73,7 +73,7 @@ select tests.act_as(:'other');
 update activities set title = 'Hacked' where id = '00000000-0000-0000-0000-0000000000f1';
 delete from activities where id = '00000000-0000-0000-0000-0000000000f1';
 select is((select title from activities where id = '00000000-0000-0000-0000-0000000000f1'), 'Go du mardi soir', 'other user cannot update/delete (0 rows)');
-select throws_ok($$ insert into sessions (activity_id, starts_at) values ('00000000-0000-0000-0000-0000000000f1', '2026-11-10 19:00+01') $$,
+select throws_ok($$ insert into sessions (activity_id, starts_at) values ('00000000-0000-0000-0000-0000000000f1', '2099-11-10 19:00+01') $$,
   '42501', null, 'non-organiser cannot insert sessions');
 
 select tests.act_as_anon();
@@ -83,7 +83,7 @@ select is((select count(*) from activity_tags)::int, 1, 'anon reads activity_tag
 select throws_ok($$ insert into activities (organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time)
   values (gen_random_uuid(), '00000000-0000-0000-0000-0000000000c1', 'Anon', 'X', 'POINT(4.85 45.77)', 'weekly', '2026-11-03', '19:00') $$,
   '42501', null, 'anon cannot insert activities');
-select throws_ok($$ insert into sessions (activity_id, starts_at) values ('00000000-0000-0000-0000-0000000000f1', '2026-11-10 19:00+01') $$, '42501', null, 'anon cannot insert sessions');
+select throws_ok($$ insert into sessions (activity_id, starts_at) values ('00000000-0000-0000-0000-0000000000f1', '2099-11-10 19:00+01') $$, '42501', null, 'anon cannot insert sessions');
 select throws_ok($$ select * from activity_members $$, '42501', null, 'anon cannot read members');
 select throws_ok($$ select * from activity_interests $$, '42501', null, 'anon cannot read interests');
 select throws_ok($$ select * from attendances $$, '42501', null, 'anon cannot read attendances');
@@ -201,6 +201,18 @@ select is((select cancelled_at from sessions where id = '00000000-0000-0000-0000
 select lives_ok($$ update sessions set status = 'cancelled_by_organiser' where id = '00000000-0000-0000-0000-0000000000e3' $$,
   'organiser cancels a session');
 select isnt((select cancelled_at from sessions where id = '00000000-0000-0000-0000-0000000000e3'), null, 'cancelled_at set by trigger');
+
+-- sessions: no backdating, no status change after start, immutable activity_id
+select throws_ok($$ insert into sessions (activity_id, starts_at) values ('00000000-0000-0000-0000-0000000000f1', now() - interval '1 day') $$,
+  '42501', null, 'organiser cannot insert a session in the past');
+select throws_ok($$ update sessions set starts_at = now() - interval '1 day' where id = '00000000-0000-0000-0000-0000000000e3' $$,
+  '42501', null, 'organiser cannot backdate a future session');
+select throws_ok($$ update sessions set status = 'cancelled_by_organiser' where id = '00000000-0000-0000-0000-0000000000e2' $$,
+  '42501', null, 'organiser cannot cancel a session that has started');
+select throws_ok($$ update sessions set activity_id = '00000000-0000-0000-0000-0000000000f2' where id = '00000000-0000-0000-0000-0000000000e3' $$,
+  '42501', null, 'organiser cannot move a session to another activity');
+select lives_ok(format($$ update attendances set status = 'no_show' where session_id = '00000000-0000-0000-0000-0000000000e2' and user_id = %L $$, :'newbie'),
+  'organiser can still mark no_show on a started session');
 
 -- activity history cannot be deleted; soft-delete instead
 select tests.act_as_superuser();

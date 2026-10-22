@@ -188,8 +188,8 @@ create trigger activities_guard_delete before delete on public.activities
   for each row execute function public.activities_guard_delete();
 
 -- Sessions: organisers may only schedule or cancel; 'held' and 'cancelled_min_not_reached'
--- belong to the service role / admin. A started session cannot be rescheduled, and a
--- finished status is final for API roles. cancelled_at is maintained here.
+-- belong to the service role / admin. A started session can be neither rescheduled nor have its
+-- status changed, sessions cannot be backdated, and activity_id is immutable for API roles. cancelled_at is maintained here.
 create function public.sessions_guard() returns trigger
 language plpgsql set search_path = public, pg_temp as $$
 begin
@@ -197,8 +197,15 @@ begin
     if new.status not in ('scheduled', 'cancelled_by_organiser') then
       raise exception 'session status reserved to the platform' using errcode = '42501';
     end if;
+    if (tg_op = 'INSERT' or new.starts_at is distinct from old.starts_at) and new.starts_at <= now() then
+      raise exception 'session must start in the future' using errcode = '42501';
+    end if;
     if tg_op = 'UPDATE' then
-      if old.starts_at <= now() and new.starts_at is distinct from old.starts_at then
+      if new.activity_id is distinct from old.activity_id then
+        raise exception 'session activity not editable' using errcode = '42501';
+      end if;
+      if old.starts_at <= now()
+         and (new.starts_at is distinct from old.starts_at or new.status is distinct from old.status) then
         raise exception 'session already started' using errcode = '42501';
       end if;
       if old.status in ('held', 'cancelled_min_not_reached') and new.status is distinct from old.status then
