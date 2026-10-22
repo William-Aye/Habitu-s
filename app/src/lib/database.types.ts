@@ -25,14 +25,14 @@ export type Database = {
           Tables: {
             "activities": {
                   Row: {
-                    "approval_mode": string,"category_id": string,"created_at": string,"description": string | null,"duration_minutes": number,"embedding": string | null,"id": string,"max_size": number | null,"min_participants": number | null,"newcomer_friendly": boolean,"organised_by_association_id": string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at": string,"recurrence_interval_days": number | null,"recurrence_kind": string,"recurrence_weekdays": (number)[] | null,"start_date": string,"start_time": string,"timezone": string,"title": string
+                    "approval_mode": string,"archived_at": string | null,"category_id": string,"created_at": string,"description": string | null,"duration_minutes": number,"embedding": string | null,"id": string,"max_size": number | null,"min_participants": number | null,"newcomer_friendly": boolean,"organised_by_association_id": string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at": string,"recurrence_interval_days": number | null,"recurrence_kind": string,"recurrence_weekdays": (number)[] | null,"start_date": string,"start_time": string,"timezone": string,"title": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "approval_mode"?: string,"category_id": string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind": string,"recurrence_weekdays"?: (number)[] | null,"start_date": string,"start_time": string,"timezone"?: string,"title": string
+                    "approval_mode"?: string,"archived_at"?: string | null,"category_id": string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind": string,"recurrence_weekdays"?: (number)[] | null,"start_date": string,"start_time": string,"timezone"?: string,"title": string
                   }
                   Update: {
-                    "approval_mode"?: string,"category_id"?: string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organiser_id"?: string,"place"?: unknown,"place_label"?: string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind"?: string,"recurrence_weekdays"?: (number)[] | null,"start_date"?: string,"start_time"?: string,"timezone"?: string,"title"?: string
+                    "approval_mode"?: string,"archived_at"?: string | null,"category_id"?: string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organiser_id"?: string,"place"?: unknown,"place_label"?: string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind"?: string,"recurrence_weekdays"?: (number)[] | null,"start_date"?: string,"start_time"?: string,"timezone"?: string,"title"?: string
                   }
                   Relationships: [
                     {
@@ -223,16 +223,48 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"associations": {
+                },"association_waiters": {
                   Row: {
-                    "address": string | null,"attribution": NonNullable<Json>,"claimed_by": string | null,"confidence": number,"created_at": string,"created_by": string | null,"email": string | null,"embedding": string | null,"id": string,"likely_not_public": boolean,"location": unknown,"locked_fields": (string)[],"name": string,"opening_hours": string | null,"osm_id": string | null,"phone": string | null,"purpose": string | null,"rna_id": string | null,"source": string,"updated_at": string,"verified": boolean,"website": string | null
+                    "association_id": string,"created_at": string,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "address"?: string | null,"attribution"?: NonNullable<Json>,"claimed_by"?: string | null,"confidence"?: number,"created_at"?: string,"created_by"?: string | null,"email"?: string | null,"embedding"?: string | null,"id"?: string,"likely_not_public"?: boolean,"location"?: unknown,"locked_fields"?: (string)[],"name": string,"opening_hours"?: string | null,"osm_id"?: string | null,"phone"?: string | null,"purpose"?: string | null,"rna_id"?: string | null,"source": string,"updated_at"?: string,"verified"?: boolean,"website"?: string | null
+                    "association_id": string,"created_at"?: string,"user_id": string
                   }
                   Update: {
-                    "address"?: string | null,"attribution"?: NonNullable<Json>,"claimed_by"?: string | null,"confidence"?: number,"created_at"?: string,"created_by"?: string | null,"email"?: string | null,"embedding"?: string | null,"id"?: string,"likely_not_public"?: boolean,"location"?: unknown,"locked_fields"?: (string)[],"name"?: string,"opening_hours"?: string | null,"osm_id"?: string | null,"phone"?: string | null,"purpose"?: string | null,"rna_id"?: string | null,"source"?: string,"updated_at"?: string,"verified"?: boolean,"website"?: string | null
+                    "association_id"?: string,"created_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "association_waiters_association_id_fkey"
+      columns: ["association_id"]
+isOneToOne: false
+      referencedRelation: "associations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "association_waiters_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "association_waiters_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "public_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"associations": {
+                  Row: {
+                    "address": string | null,"attribution": NonNullable<Json>,"city": string | null,"claimed_by": string | null,"confidence": number,"created_at": string,"created_by": string | null,"email": string | null,"embedding": string | null,"geocode_precision": string | null,"id": string,"insee_code": string | null,"last_import_run": string | null,"likely_not_public": boolean,"location": unknown,"locked_fields": (string)[],"name": string,"name_norm": string | null,"opening_hours": string | null,"osm_id": string | null,"phone": string | null,"postcode": string | null,"purpose": string | null,"rna_id": string | null,"rna_published_on": string | null,"search_tsv": unknown,"source": string,"town_point": unknown,"updated_at": string,"verified": boolean,"website": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "address"?: string | null,"attribution"?: NonNullable<Json>,"city"?: string | null,"claimed_by"?: string | null,"confidence"?: number,"created_at"?: string,"created_by"?: string | null,"email"?: string | null,"embedding"?: string | null,"geocode_precision"?: string | null,"id"?: string,"insee_code"?: string | null,"last_import_run"?: string | null,"likely_not_public"?: boolean,"location"?: unknown,"locked_fields"?: (string)[],"name": string,"opening_hours"?: string | null,"osm_id"?: string | null,"phone"?: string | null,"postcode"?: string | null,"purpose"?: string | null,"rna_id"?: string | null,"rna_published_on"?: string | null,"source": string,"updated_at"?: string,"verified"?: boolean,"website"?: string | null
+                  }
+                  Update: {
+                    "address"?: string | null,"attribution"?: NonNullable<Json>,"city"?: string | null,"claimed_by"?: string | null,"confidence"?: number,"created_at"?: string,"created_by"?: string | null,"email"?: string | null,"embedding"?: string | null,"geocode_precision"?: string | null,"id"?: string,"insee_code"?: string | null,"last_import_run"?: string | null,"likely_not_public"?: boolean,"location"?: unknown,"locked_fields"?: (string)[],"name"?: string,"opening_hours"?: string | null,"osm_id"?: string | null,"phone"?: string | null,"postcode"?: string | null,"purpose"?: string | null,"rna_id"?: string | null,"rna_published_on"?: string | null,"source"?: string,"updated_at"?: string,"verified"?: boolean,"website"?: string | null
                   }
                   Relationships: [
                     {
@@ -605,14 +637,14 @@ isOneToOne: false
                   ]
                 },"search_misses": {
                   Row: {
-                    "area_label": string | null,"created_at": string,"id": number,"query": string
+                    "area_label": string | null,"created_at": string,"day": string,"hits": number,"id": number,"query": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "area_label"?: string | null,"created_at"?: string,"id"?: number,"query": string
+                    "area_label"?: string | null,"created_at"?: string,"day"?: string,"hits"?: number,"id"?: number,"query": string
                   }
                   Update: {
-                    "area_label"?: string | null,"created_at"?: string,"id"?: number,"query"?: string
+                    "area_label"?: string | null,"created_at"?: string,"day"?: string,"hits"?: number,"id"?: number,"query"?: string
                   }
                   Relationships: [
                     
@@ -761,7 +793,10 @@ isOneToOne: true
                 }
           }
           Functions: {
-            "has_confirmed_attendance":
+            "get_association":
+{ Args: { "p_id": string }; Returns: Json
+                           },
+"has_confirmed_attendance":
 { Args: { "p_session": string }; Returns: boolean
                            },
 "is_activity_member":
@@ -778,6 +813,9 @@ isOneToOne: true
                            },
 "is_session_organiser":
 { Args: { "p_session": string }; Returns: boolean
+                           },
+"search_explore":
+{ Args: { "p_interest_category_ids"?: (string)[],"p_kinds"?: (string)[],"p_limit"?: number,"p_lat": number,"p_lon": number,"p_newcomer_friendly"?: boolean,"p_offset"?: number,"p_query"?: string,"p_query_embedding"?: string,"p_radius_km"?: number,"p_sort"?: string,"p_weekday"?: number }; Returns: Json
                            },
 "session_has_member":
 { Args: { "p_session": string,"p_user": string }; Returns: boolean

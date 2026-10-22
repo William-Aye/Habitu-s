@@ -84,6 +84,14 @@ create function search.is_hidden(p_confidence smallint, p_source text) returns b
 language sql immutable
 as $$ select p_source <> 'community' and p_confidence < (search.params()).hidden_below $$;
 
+-- The one place that decides the "Ajouté par la communauté" / "non vérifié" label.
+create function search.source_label(p_source text, p_verified boolean, p_confidence smallint) returns text
+language sql immutable
+as $$
+  select case when p_source = 'community' and not p_verified then 'community'
+              when p_confidence < (search.params()).low_confidence then 'unverified' end
+$$;
+
 create function search.is_dormant(
   p_website text, p_osm_id text, p_claimed_by uuid, p_rna_published_on date, p_source text, p_today date
 ) returns boolean
@@ -224,8 +232,7 @@ as $$
            false as is_new,
            search.is_dormant(a.website, a.osm_id, a.claimed_by, a.rna_published_on, a.source, current_date)
              as dormant,
-           case when a.source = 'community' and not a.verified then 'community'
-                when a.confidence < p.low_confidence then 'unverified' end as source_label,
+           search.source_label(a.source, a.verified, a.confidence) as source_label,
            case when p_query is not null then word_similarity(p.q_norm, a.name_norm) end as name_sim,
            case when p_query is not null then a.search_tsv @@ p.tsq end as fts,
            case when p_query is not null then 1 - (a.embedding <=> p_query_embedding) end as sim
@@ -425,3 +432,35 @@ revoke all on function public.search_explore(float8, float8, int, text, extensio
   boolean, uuid[], text, int, int) from public;
 grant execute on function public.search_explore(float8, float8, int, text, extensions.vector, text[], smallint,
   boolean, uuid[], text, int, int) to anon, authenticated;
+
+-- ---------------------------------------------------------------------------------------------
+-- Association page. Never returns the address or exact position; the position is town_point.
+
+create function public.get_association(p_id uuid) returns jsonb
+language sql stable security definer
+set search_path = public, search, extensions, pg_temp
+as $$
+  select jsonb_build_object(
+    'id', a.id, 'name', a.name, 'purpose', a.purpose, 'city', a.city, 'postcode', a.postcode,
+    'lon', ST_X(a.town_point::geometry), 'lat', ST_Y(a.town_point::geometry),
+    'website', a.website, 'phone', a.phone, 'email', a.email, 'opening_hours', a.opening_hours,
+    'source', a.source, 'verified', a.verified, 'claimed', a.claimed_by is not null,
+    'source_label', search.source_label(a.source, a.verified, a.confidence),
+    'attribution_keys', coalesce((select jsonb_agg(k order by k) from jsonb_object_keys(a.attribution) k), '[]'::jsonb),
+    'tags', coalesce((select jsonb_agg(jsonb_build_object('slug', t.slug, 'label_fr', t.label_fr,
+                                                          'label_en', t.label_en) order by t.slug)
+                      from association_tags at join tags t on t.id = at.tag_id
+                      where at.association_id = a.id), '[]'::jsonb),
+    'activities', coalesce((select jsonb_agg(jsonb_build_object('id', x.id, 'title', x.title)
+                                             order by x.start_date, x.id)
+                            from activities x
+                            where x.organised_by_association_id = a.id and x.archived_at is null), '[]'::jsonb),
+    'can_wait', a.claimed_by is null and a.website is null and a.phone is null and a.email is null,
+    'is_waiting', exists (select 1 from association_waiters w
+                          where w.association_id = a.id and w.user_id = auth.uid())
+  )
+  from associations a
+  where a.id = p_id and not search.is_hidden(a.confidence, a.source)
+$$;
+revoke all on function public.get_association(uuid) from public;
+grant execute on function public.get_association(uuid) to anon, authenticated;
