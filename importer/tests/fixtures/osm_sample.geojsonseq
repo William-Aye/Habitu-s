@@ -1,0 +1,6 @@
+{"type":"Feature","id":"n123","geometry":{"type":"Point","coordinates":[4.835,45.76508]},"properties":{"@type":"node","@id":123,"club":"sport","name":"Go Club Lyon","contact:phone":"+33 4 78 00 00 01","website":"go-club-lyon.example"}}
+{"type":"Feature","id":"n124","geometry":{"type":"Point","coordinates":[4.8375,45.7605]},"properties":{"club":"sport","name":"Club de Go Lyon Sud"}}
+{"type":"Feature","id":"w456","geometry":{"type":"Polygon","coordinates":[[[4.86,45.75],[4.862,45.75],[4.862,45.752],[4.86,45.752],[4.86,45.75]]]},"properties":{"leisure":"sports_centre","name":"Gymnase Jean Jaurès"}}
+{"type":"Feature","id":"n125","geometry":{"type":"Point","coordinates":[4.84,45.77]},"properties":{"@type":"node","@id":125,"club":"sport"}}
+{"type":"Feature","id":"w999","geometry":{"type":"LineString","coordinates":[[4.80,45.70],[4.81,45.71]]},"properties":{"club":"running","name":"Parcours Rhône"}}
+{"type":"Feature","id":"n789","geometry":{"type":"Point","coordinates":[4.88,45.77]},"properties":{"@type":"node","@id":789,"amenity":"community_centre","name":"Maison des Associations de Villeurbanne"}}
