@@ -2,7 +2,7 @@
 // MARKERS: every sentence tagged "(once this feature is available)" describes a feature that
 // is not built yet. Remove the marker when it ships: messages and group/private chat, post-session
 // feedback, 12-month/6-month automatic deletion, inactive-account warning and deletion, phone
-// verification for organisers, push notifications through Expo (keep in sync with privacy.fr.ts).
+// verification for organisers, push notifications through Expo, reports and moderation (3-year purge) (keep in sync with privacy.fr.ts).
 export const privacyEn = `Version to be reviewed by a qualified person before publication.
 
 # Privacy policy
@@ -34,7 +34,7 @@ We use no third-party advertising trackers. Usage statistics are totals, not lin
 - Group messages: 12 months, then deleted automatically (once this feature is available).
 - Private messages: 12 months, then deleted automatically (once this feature is available).
 - Feedback answers after sessions: aggregated into statistics, then the raw answers are deleted after 6 months (once this feature is available).
-- Reports and moderation decisions: 3 years, then deleted.
+- Reports and moderation decisions: 3 years, then deleted (once this feature is available).
 - Accounts inactive for 3 years: warning email, then deletion 30 days later (once this feature is available).
 - Technical logs (including IP addresses): our host's default retention, at most 90 days.
 

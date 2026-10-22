@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { deleteMyAccount, exportMyData } from '../src/features/account/myData';
+import { cleanupExportFiles, deleteMyAccount, exportMyData } from '../src/features/account/myData';
 import { touchLastSeen, resetLastSeenForTests } from '../src/features/account/lastSeen';
 import { pickAndUploadAvatar } from '../src/features/account/avatar';
 import { signOut } from '../src/features/account/auth';
@@ -10,6 +10,7 @@ import { subscribeExploreLocationReset } from '../src/features/explore/useExplor
 const mockWrites: { uri: string; content: string }[] = [];
 let mockSize = 100;
 const mockDeleted: string[] = [];
+const mockCache: string[] = [];
 jest.mock('expo-file-system', () => {
   class File {
     uri: string;
@@ -32,7 +33,17 @@ jest.mock('expo-file-system', () => {
       return new ArrayBuffer(8);
     }
   }
-  return { File, Paths: { cache: { uri: 'file:///cache' } } };
+  class Directory {
+    list() {
+      return mockCache.map((name) => ({
+        name,
+        delete: () => {
+          mockDeleted.push(name);
+        },
+      }));
+    }
+  }
+  return { File, Directory, Paths: { cache: { uri: 'file:///cache' } } };
 });
 jest.mock('expo-sharing', () => ({
   isAvailableAsync: jest.fn(async () => true),
@@ -68,6 +79,7 @@ beforeEach(async () => {
   mockWrites.length = 0;
   mockSize = 100;
   mockDeleted.length = 0;
+  mockCache.length = 0;
   resetLastSeenForTests();
   await AsyncStorage.clear();
   getSession.mockResolvedValue({ data: { session: { user: { id: 'u1' } } } });
@@ -86,10 +98,23 @@ describe('exportMyData', () => {
     expect(mockWrites[0].uri).toContain('habitues-mes-donnees-2026-10-22.json');
     expect(JSON.parse(mockWrites[0].content)).toEqual(data);
     expect(Sharing.shareAsync).toHaveBeenCalledWith(mockWrites[0].uri, expect.anything());
-    expect(mockDeleted).toEqual([mockWrites[0].uri]);
+    expect(mockDeleted).toEqual([]); // the receiving app may still be reading it
   });
 
-  it('deletes the cached file even when sharing fails', async () => {
+  it('removes old export files at the start of the next export and keeps unrelated ones', async () => {
+    rpc.mockResolvedValue({ data: { a: 1 }, error: null });
+    mockCache.push('habitues-mes-donnees-2026-10-01.json', 'other.json');
+    await exportMyData();
+    expect(mockDeleted).toEqual(['habitues-mes-donnees-2026-10-01.json']);
+  });
+
+  it('cleanupExportFiles removes leftover exports', () => {
+    mockCache.push('habitues-mes-donnees-2026-10-01.json', 'photo.jpg');
+    cleanupExportFiles();
+    expect(mockDeleted).toEqual(['habitues-mes-donnees-2026-10-01.json']);
+  });
+
+  it('deletes the cached file when sharing fails', async () => {
     rpc.mockResolvedValue({ data: { a: 1 }, error: null });
     Sharing.shareAsync.mockRejectedValueOnce(new Error('share failed'));
     expect(await exportMyData()).toEqual({ ok: false });
@@ -154,6 +179,23 @@ describe('deleteMyAccount', () => {
     expect(await deleteMyAccount()).toEqual({ ok: false });
     expect(update).toHaveBeenCalledWith({ photo_url: null });
     expect(eq).toHaveBeenCalledWith('id', 'u1');
+  });
+
+  it('removes leftover export files when the account is deleted', async () => {
+    mockCache.push('habitues-mes-donnees-2026-10-01.json');
+    await deleteMyAccount();
+    expect(mockDeleted).toContain('habitues-mes-donnees-2026-10-01.json');
+  });
+
+  it('still resolves ok and resets in-memory state when signOut throws', async () => {
+    (signOut as jest.Mock).mockRejectedValueOnce(new Error('signout'));
+    const seen: string[] = [];
+    const offI = subscribeInterestsChanged(() => seen.push('interests'));
+    const offL = subscribeExploreLocationReset(() => seen.push('location'));
+    expect(await deleteMyAccount()).toEqual({ ok: true });
+    offI();
+    offL();
+    expect(seen).toEqual(['interests', 'location']);
   });
 
   it('does not remove anything when there are no avatar files', async () => {

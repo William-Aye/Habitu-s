@@ -7,6 +7,7 @@ import i18next from 'i18next';
 import { initI18n } from '../i18n';
 import { AccountGateProvider } from '../features/account/AccountGate';
 import { SessionProvider, useSession } from '../features/account/useSession';
+import { cleanupExportFiles } from '../features/account/myData';
 import { touchLastSeen } from '../features/account/lastSeen';
 import { mergeLocalIntoAccount } from '../features/interests/store';
 
@@ -110,6 +111,10 @@ function OnboardingGate() {
 
 export default function RootLayout() {
   const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    cleanupExportFiles();
+  }, []);
 
   useEffect(() => {
     let active = true;

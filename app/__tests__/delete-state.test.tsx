@@ -5,7 +5,15 @@ import { useInterests } from '../src/features/interests/store';
 import { useExploreLocation } from '../src/features/explore/useExploreLocation';
 
 jest.mock('expo-location', () => ({}));
-jest.mock('expo-file-system', () => ({ File: class {}, Paths: {} }));
+jest.mock('expo-file-system', () => ({
+  File: class {},
+  Directory: class {
+    list() {
+      return [];
+    }
+  },
+  Paths: {},
+}));
 jest.mock('expo-sharing', () => ({}));
 jest.mock('../src/features/account/auth', () => ({ signOut: jest.fn(async () => undefined) }));
 jest.mock('../src/features/account/useSession', () => ({

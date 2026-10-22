@@ -2,7 +2,7 @@
 // MARKERS: every sentence tagged "(dès que cette fonctionnalité sera disponible)" describes a feature that
 // is not built yet. Remove the marker when it ships: messages and group/private chat, post-session
 // feedback, 12-month/6-month automatic deletion, inactive-account warning and deletion, phone
-// verification for organisers, push notifications through Expo.
+// verification for organisers, push notifications through Expo, reports and moderation (3-year purge).
 export const privacyFr = `Version à faire relire par une personne qualifiée avant la publication.
 
 # Politique de confidentialité
@@ -34,7 +34,7 @@ Nous n'utilisons aucun traceur publicitaire tiers. Les statistiques de fréquent
 - Messages de groupe : 12 mois, puis supprimés automatiquement (dès que cette fonctionnalité sera disponible).
 - Messages privés : 12 mois, puis supprimés automatiquement (dès que cette fonctionnalité sera disponible).
 - Réponses aux avis après séance : regroupées en statistiques, puis les réponses brutes sont supprimées après 6 mois (dès que cette fonctionnalité sera disponible).
-- Signalements et décisions de modération : 3 ans, puis supprimés.
+- Signalements et décisions de modération : 3 ans, puis supprimés (dès que cette fonctionnalité sera disponible).
 - Comptes inactifs depuis 3 ans : e-mail d'avertissement, puis suppression 30 jours plus tard (dès que cette fonctionnalité sera disponible).
 - Journaux techniques (dont adresses IP) : durée par défaut de notre hébergeur, au plus 90 jours.
 
