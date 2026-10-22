@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(40);
+select plan(47);
 
 select tests.create_user('ana@acc.fr', 'Ana') as ana \gset
 select tests.create_user('ben@acc.fr', 'Ben') as ben \gset
@@ -33,6 +33,18 @@ insert into saved_searches (user_id, query, center, radius_km) values (:'ana', '
 insert into feedback (user_id, type, body) values (:'ana', 'idea', 'une idée');
 insert into safety_tips_seen (user_id, tip_id) values (:'ana', 'tip1');
 insert into notification_log (user_id, kind) values (:'ana', 'digest');
+insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time)
+values ('00000000-0000-0000-0000-00000000ac0c', :'ben', '00000000-0000-0000-0000-00000000ac01', 'Sortie de Ben',
+        'Lyon', 'SRID=4326;POINT(4.83 45.76)', 'weekly', current_date, '11:00');
+insert into activity_members (activity_id, user_id) values ('00000000-0000-0000-0000-00000000ac0c', :'ana');
+insert into activity_interests (activity_id, user_id) values ('00000000-0000-0000-0000-00000000ac0c', :'ana');
+insert into associations (id, name, source, confidence, location)
+values ('00000000-0000-0000-0000-00000000ac0d', 'Asso test', 'rna', 60, 'SRID=4326;POINT(4.8 45.7)');
+insert into association_waiters (association_id, user_id) values ('00000000-0000-0000-0000-00000000ac0d', :'ana');
+insert into association_claims (association_id, claimant_id, proof_method)
+values ('00000000-0000-0000-0000-00000000ac0d', :'ana', 'document');
+insert into organiser_stats (user_id, sessions_held) values (:'ana', 4)
+on conflict (user_id) do update set sessions_held = 4;
 
 -- home-area snapping
 select tests.act_as(:'ana');
@@ -98,6 +110,11 @@ select is(jsonb_array_length((:'exp'::jsonb)->'notification_log'), 1, 'export ha
 select is((:'exp'::jsonb)->'session_feedback_sent'->0->>'went_well', 'true', 'export has Ana''s session feedback');
 select is((:'exp'::jsonb)->'session_feedback_sent'->0->'ambiance_word_ids'->>0, '00000000-0000-0000-0000-00000000ac0b',
   'session feedback carries the ambiance words');
+select is(jsonb_array_length((:'exp'::jsonb)->'memberships'), 1, 'export has memberships');
+select is(jsonb_array_length((:'exp'::jsonb)->'interests_in_activities'), 1, 'export has activity interests');
+select is(jsonb_array_length((:'exp'::jsonb)->'association_waiters'), 1, 'export has association waiters');
+select is(jsonb_array_length((:'exp'::jsonb)->'association_claims'), 1, 'export has association claims');
+select is((:'exp'::jsonb)->'organiser_stats'->>'sessions_held', '4', 'export has organiser stats');
 select ok((:'exp'::jsonb) ?& array['profile','interests','category_requests','activities_organised','memberships',
   'interests_in_activities','attendances','messages_sent','reports_filed','blocks','saved_searches',
   'association_waiters','association_claims','feedback_sent','session_feedback_sent','safety_tips_seen',
@@ -127,6 +144,16 @@ select is((select count(*) from d), 0::bigint, 'Ben cannot delete Ana''s file');
 select tests.act_as_superuser();
 select is((select count(*) from storage.objects where bucket_id = 'avatars' and name = :'ana' || '/own.jpg'), 1::bigint,
   'Ana''s file survives');
+
+-- positive control: Ana can update and delete her own avatar
+select tests.act_as_superuser();
+insert into storage.objects (bucket_id, name, owner) values ('avatars', :'ana' || '/pc.jpg', :'ana');
+select tests.act_as(:'ana');
+with u as (update storage.objects set name = name where bucket_id = 'avatars' and name = :'ana' || '/pc.jpg' returning 1)
+select is((select count(*) from u), 1::bigint, 'Ana can update her own file');
+with d as (delete from storage.objects where bucket_id = 'avatars' and name = :'ana' || '/pc.jpg' returning 1)
+select is((select count(*) from d), 1::bigint, 'Ana can delete her own file');
+select tests.act_as_superuser();
 
 -- backfill statement of the migration, replayed on a pre-existing unsnapped value
 alter table profiles disable trigger profiles_snap_home_area;
