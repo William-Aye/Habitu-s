@@ -6,6 +6,7 @@ import respx
 
 from importer.geocode import (
     COMMUNES_URL,
+    GeocodeError,
     GEOCODER_CSV_URL,
     Geocoder,
     address_key,
@@ -152,3 +153,89 @@ def test_address_key_normalises():
     r = rec(1, address="  1  Rue  DE la Paix ")
     assert address_key(r) == "1 rue de la paix|69001|69123"
     assert address_key(rec(1, address=None, postcode=None, insee=None)) == "||"
+
+
+@respx.mock
+def test_failed_batch_is_not_cached():
+    respx.get(COMMUNES_URL).respond(json=COMMUNES)
+    respx.post(GEOCODER_CSV_URL).respond(500)
+    cache = {}
+    g, _ = make(cache)
+    r = rec(1)
+    assert g.geocode([r])[r.rna_id].precision == "municipality"
+    assert address_key(r) not in cache
+
+
+@respx.mock
+def test_missing_row_in_2xx_not_cached():
+    respx.get(COMMUNES_URL).respond(json=COMMUNES)
+
+    def partial(request):
+        return httpx.Response(200, text=(
+            "key,address,postcode,citycode,latitude,longitude,result_score\n"
+            "1 rue a|69001|69123,1 rue a,69001,69123,45.1,5.2,0.9\n"))
+    respx.post(GEOCODER_CSV_URL).mock(side_effect=partial)
+    cache = {}
+    g, _ = make(cache)
+    a, b = rec(1, address="1 rue A"), rec(2, address="2 rue B")
+    out = g.geocode([a, b])
+    assert out[a.rna_id].precision == "address"
+    assert out[b.rna_id].precision == "municipality"
+    assert address_key(a) in cache and address_key(b) not in cache
+
+
+@respx.mock
+def test_low_score_is_cached():
+    respx.get(COMMUNES_URL).respond(json=COMMUNES)
+    respx.post(GEOCODER_CSV_URL).mock(side_effect=csv_response("0.1"))
+    cache = {}
+    g, _ = make(cache)
+    r = rec(1)
+    g.geocode([r])
+    assert address_key(r) in cache
+
+
+@respx.mock
+def test_commune_get_retries_then_succeeds():
+    route = respx.get(COMMUNES_URL).mock(side_effect=[
+        httpx.Response(500), httpx.Response(200, json=COMMUNES)])
+    g, sleeps = make()
+    r = rec(1, address=None)
+    assert g.geocode([r])[r.rna_id].precision == "municipality"
+    assert route.call_count == 2 and sleeps == [2]
+
+
+@respx.mock
+def test_commune_get_fails_raises():
+    route = respx.get(COMMUNES_URL).respond(503)
+    g, sleeps = make()
+    try:
+        g.geocode([rec(1, address=None)])
+        assert False, "expected GeocodeError"
+    except GeocodeError:
+        pass
+    assert route.call_count == 3 and sleeps == [2, 4]
+
+
+@respx.mock
+def test_429_then_200():
+    respx.get(COMMUNES_URL).respond(json=COMMUNES)
+    route = respx.post(GEOCODER_CSV_URL).mock(
+        side_effect=[httpx.Response(429), csv_response("0.9")])
+    g, sleeps = make()
+    r = rec(1)
+    assert g.geocode([r])[r.rna_id].precision == "address"
+    assert route.call_count == 2 and sleeps == [2]
+
+
+@respx.mock
+def test_multipart_form_fields():
+    respx.get(COMMUNES_URL).respond(json=COMMUNES)
+    route = respx.post(GEOCODER_CSV_URL).mock(side_effect=csv_response("0.9"))
+    g, _ = make()
+    g.geocode([rec(1)])
+    body = route.calls[0].request.content.decode()
+    for name, val in [("columns", "address"), ("postcode", "postcode"),
+                      ("citycode", "citycode")]:
+        assert f'name="{name}"\r\n\r\n{val}\r\n' in body
+    assert 'name="data"' in body
