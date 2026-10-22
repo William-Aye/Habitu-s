@@ -75,7 +75,11 @@ export interface StoredLocation {
   source: 'gps' | 'town';
 }
 
-/** Unicode NFC, trim, collapse whitespace, lower-case, cut to 200 chars. */
+// Source of truth: supabase/functions/embed-query/normalise.ts (keep identical).
+const MAX_QUERY_CHARS = 200;
+const WS = /[ \t\n\r\f\v\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+/g;
+
 export function normaliseQuery(text: string): string {
-  return text.normalize('NFC').trim().replace(/\s+/g, ' ').toLowerCase().slice(0, 200);
+  const collapsed = text.normalize('NFC').replace(WS, ' ').replace(/^ | $/g, '');
+  return Array.from(collapsed.toLowerCase()).slice(0, MAX_QUERY_CHARS).join('');
 }

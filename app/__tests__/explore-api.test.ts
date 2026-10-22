@@ -1,10 +1,13 @@
-import { addWaiter, embedQuery, searchExplore, searchTowns } from '../src/features/explore/api';
+import { addWaiter, embedQuery, getAssociation, removeWaiter, searchExplore, searchTowns } from '../src/features/explore/api';
 import type { ExploreParams } from '../src/features/explore/types';
 
 const mockInvoke = jest.fn();
 const mockRpc = jest.fn();
 const mockInsert = jest.fn();
-const mockFrom = jest.fn(() => ({ insert: mockInsert }));
+const mockEqUser = jest.fn();
+const mockEqAssoc = jest.fn(() => ({ eq: mockEqUser }));
+const mockDelete = jest.fn(() => ({ eq: mockEqAssoc }));
+const mockFrom = jest.fn(() => ({ insert: mockInsert, delete: mockDelete }));
 const mockGetSession = jest.fn();
 
 jest.mock('../src/lib/supabase', () => ({
@@ -138,5 +141,43 @@ describe('searchTowns', () => {
     expect(fetchMock.mock.calls[0][0]).toBe(
       'https://geo.api.gouv.fr/communes?nom=Lyon&fields=nom,centre,codesPostaux&boost=population&limit=5',
     );
+  });
+});
+
+describe('getAssociation', () => {
+  it('returns null when the RPC returns null', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: null });
+    await expect(getAssociation('x')).resolves.toBeNull();
+    expect(mockRpc).toHaveBeenCalledWith('get_association', { p_id: 'x' });
+  });
+
+  it('maps snake_case to camelCase', async () => {
+    mockRpc.mockResolvedValue({
+      data: {
+        id: 'a', name: 'Club', purpose: 'p', city: 'Lyon', postcode: '69001', lon: 1, lat: 2,
+        website: null, phone: null, email: null, opening_hours: 'lun', source: 'rna',
+        verified: true, claimed: false, source_label: null, attribution_keys: ['k'],
+        tags: [{ slug: 's', label_fr: 'Sport', label_en: 'Sport' }],
+        activities: [{ id: 'x', title: 'Judo' }], can_wait: true, is_waiting: false,
+      },
+      error: null,
+    });
+    const a = await getAssociation('a');
+    expect(a?.openingHours).toBe('lun');
+    expect(a?.attributionKeys).toEqual(['k']);
+    expect(a?.tags[0]).toEqual({ slug: 's', labelFr: 'Sport', labelEn: 'Sport' });
+    expect(a?.canWait).toBe(true);
+    expect(a?.isWaiting).toBe(false);
+  });
+});
+
+describe('removeWaiter', () => {
+  it('deletes with both association and user ids', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: { user: { id: 'u1' } } } });
+    mockEqUser.mockResolvedValue({ error: null });
+    await removeWaiter('assoc-1');
+    expect(mockFrom).toHaveBeenCalledWith('association_waiters');
+    expect(mockEqAssoc).toHaveBeenCalledWith('association_id', 'assoc-1');
+    expect(mockEqUser).toHaveBeenCalledWith('user_id', 'u1');
   });
 });

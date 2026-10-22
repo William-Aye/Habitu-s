@@ -89,6 +89,18 @@ describe('useExploreSearch', () => {
     expect(mockSearch.mock.calls[1][2]).toBe(vec);
   });
 
+  it('retries the embedding after a null result', async () => {
+    mockEmbed.mockResolvedValueOnce(null).mockResolvedValueOnce([0.1]);
+    const { rerender } = await renderHook((p: ExploreParams) => useExploreSearch(p), {
+      initialProps: { ...base, query: 'tir à larc' },
+    });
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+    await rerender({ ...base, query: 'tir à larc', radiusKm: 5 });
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+    expect(mockEmbed).toHaveBeenCalledTimes(2);
+    expect(mockSearch.mock.calls[1][2]).toEqual([0.1]);
+  });
+
   it('loadMore requests offset 20 and appends', async () => {
     const first = Array.from({ length: 20 }, (_, i) => `a${i}`);
     mockSearch.mockResolvedValueOnce(response(first, true)).mockResolvedValueOnce(response(['b0'], false));

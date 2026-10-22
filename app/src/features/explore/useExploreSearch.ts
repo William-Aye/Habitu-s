@@ -12,7 +12,12 @@ function getEmbedding(normalised: string): Promise<number[] | null> {
   if (!normalised) return Promise.resolve(null);
   let p = embeddings.get(normalised);
   if (!p) {
-    p = embedQuery(normalised);
+    const created: Promise<number[] | null> = embedQuery(normalised).then((v) => {
+      // Do not remember failures: a later search for this query retries.
+      if (v === null && embeddings.get(normalised) === created) embeddings.delete(normalised);
+      return v;
+    });
+    p = created;
     embeddings.set(normalised, p);
   }
   return p;
