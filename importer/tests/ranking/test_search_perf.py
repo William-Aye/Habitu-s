@@ -60,6 +60,9 @@ def test_search_p95_large_city():
             print(f"search_explore radius 50, {ROWS} rows: sorted ms = {[round(t) for t in times]}, p95 = {p95:.0f}")
             assert p95 < P95_LIMIT_MS, times
         finally:
-            c.execute(CLEAR)
-            c.execute("create index if not exists associations_embedding_hnsw on public.associations"
-                      " using hnsw (embedding vector_cosine_ops)")
+            try:
+                c.execute(CLEAR)
+                c.execute("vacuum public.associations")
+            finally:
+                c.execute("create index if not exists associations_embedding_hnsw on public.associations"
+                          " using hnsw (embedding vector_cosine_ops)")

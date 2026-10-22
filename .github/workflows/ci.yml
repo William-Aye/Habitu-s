@@ -105,4 +105,6 @@ jobs:
           key: e5-small-v1
 
       - name: Run the ranking tests
-        run: cd importer && uv sync && uv run pytest -m ranking
+        env:
+          RANKING_REPORT: '1'
+        run: cd importer && uv sync && uv run pytest -m ranking -s
