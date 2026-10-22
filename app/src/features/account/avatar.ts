@@ -18,7 +18,10 @@ export async function pickAndUploadAvatar(userId: string): Promise<AvatarResult>
     const picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images' });
     if (picked.canceled || !picked.assets?.[0]) return { ok: false, error: 'cancelled' };
 
-    const out = await manipulateAsync(picked.assets[0].uri, [{ resize: { width: 800 } }], {
+    const asset = picked.assets[0];
+    // Only shrink: a small image is re-encoded as is (never upscaled). Unknown width: resize.
+    const actions = asset.width !== undefined && asset.width <= 800 ? [] : [{ resize: { width: 800 } }];
+    const out = await manipulateAsync(asset.uri, actions, {
       compress: 0.7,
       format: SaveFormat.JPEG,
     });

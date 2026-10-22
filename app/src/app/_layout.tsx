@@ -21,15 +21,15 @@ async function mergeInterests(userId: string): Promise<void> {
 
 /** Tells the server the signed-in user is active, at launch and whenever the app returns to the foreground. */
 function LastSeenToucher() {
-  const { status } = useSession();
+  const { status, userId } = useSession();
   useEffect(() => {
     if (status !== 'ready') return;
-    void touchLastSeen();
+    void touchLastSeen(userId);
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void touchLastSeen();
+      if (state === 'active') void touchLastSeen(userId);
     });
     return () => sub.remove();
-  }, [status]);
+  }, [status, userId]);
   return null;
 }
 

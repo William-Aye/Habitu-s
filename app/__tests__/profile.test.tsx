@@ -1,4 +1,5 @@
 import { Alert } from 'react-native';
+import i18next from 'i18next';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import Profile from '../src/app/(tabs)/profile';
 import { initI18n } from '../src/i18n';
@@ -64,7 +65,7 @@ jest.mock('../src/features/account/auth', () => ({
   MAX_FIRST_NAME: 40,
 }));
 
-const mockEq = jest.fn(async (..._a: unknown[]) => ({ error: null }));
+const mockEq = jest.fn(async (..._a: unknown[]): Promise<{ error: { message: string } | null }> => ({ error: null }));
 const mockUpdate = jest.fn((_patch: unknown) => ({ eq: mockEq }));
 jest.mock('../src/lib/supabase', () => ({
   supabase: { from: () => ({ update: (p: unknown) => mockUpdate(p) }) },
@@ -78,6 +79,9 @@ const CONFIRM = 'Supprimer définitivement votre compte et toutes vos données ?
 
 beforeAll(async () => {
   await initI18n();
+});
+afterEach(async () => {
+  await i18next.changeLanguage('fr');
 });
 beforeEach(() => {
   jest.clearAllMocks();
@@ -197,6 +201,14 @@ it('refreshes the session after a successful photo upload', async () => {
   await render(<Profile />);
   await fireEvent.press(screen.getByText('Changer la photo'));
   await waitFor(() => expect(mockRefresh).toHaveBeenCalled());
+});
+
+it('surfaces a failed language update on the profile', async () => {
+  mockEq.mockResolvedValueOnce({ error: { message: 'x' } });
+  await render(<Profile />);
+  await fireEvent.press(screen.getByText('English'));
+  expect(await screen.findByText('Could not save the language. Try again.')).toBeTruthy();
+  expect(mockUpdate).toHaveBeenCalledWith({ language: 'en' });
 });
 
 it('signs out', async () => {

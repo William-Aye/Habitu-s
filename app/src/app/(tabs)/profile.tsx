@@ -14,7 +14,7 @@ import { supabase } from '../../lib/supabase';
 
 type Notice = { kind: 'ok' | 'error'; key: string } | null;
 
-function LanguageSwitch({ onChange }: { onChange(lng: AppLanguage): void }) {
+function LanguageSwitch({ onChange }: { onChange(lng: AppLanguage): void | Promise<unknown> }) {
   const { t, i18n } = useTranslation();
   const current: AppLanguage = i18n.language?.startsWith('en') ? 'en' : 'fr';
   return (
@@ -86,14 +86,15 @@ function PrivacyLink({ onPress }: { onPress(): void }) {
   );
 }
 
-async function changeLanguage(lng: AppLanguage, userId: string | null) {
+/** Returns false when the profile copy could not be saved (the device keeps the choice). */
+async function changeLanguage(lng: AppLanguage, userId: string | null): Promise<boolean> {
   await setLanguage(lng);
-  if (userId) {
-    try {
-      await supabase.from('profiles').update({ language: lng }).eq('id', userId);
-    } catch {
-      // The device keeps the choice; the profile copy catches up on the next change.
-    }
+  if (!userId) return true;
+  try {
+    const { error } = await supabase.from('profiles').update({ language: lng }).eq('id', userId);
+    return !error;
+  } catch {
+    return false;
   }
 }
 
@@ -246,7 +247,12 @@ function SignedInProfile({ userId, profile }: { userId: string; profile: Session
         <Text style={styles.linkText}>{t('profile.interests')}</Text>
       </Pressable>
 
-      <LanguageSwitch onChange={(lng) => changeLanguage(lng, userId)} />
+      <LanguageSwitch
+        onChange={async (lng) => {
+          const ok = await changeLanguage(lng, userId);
+          setNotice(ok ? null : { kind: 'error', key: 'profile.languageError' });
+        }}
+      />
 
       <View style={styles.group}>
         <Text accessibilityRole="header" style={styles.heading}>

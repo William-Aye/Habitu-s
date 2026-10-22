@@ -189,6 +189,7 @@
     "deleteError": "Suppression impossible. Réessayez.",
     "signOut": "Se déconnecter",
     "photoTooLarge": "Cette photo est trop lourde (1 Mo maximum).",
-    "photoError": "Envoi de la photo impossible. Réessayez."
+    "photoError": "Envoi de la photo impossible. Réessayez.",
+    "languageError": "Impossible d'enregistrer la langue. Réessayez."
   }
 }

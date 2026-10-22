@@ -189,6 +189,7 @@
     "deleteError": "Could not delete. Try again.",
     "signOut": "Sign out",
     "photoTooLarge": "This photo is too large (1 MB maximum).",
-    "photoError": "Could not upload the photo. Try again."
+    "photoError": "Could not upload the photo. Try again.",
+    "languageError": "Could not save the language. Try again."
   }
 }

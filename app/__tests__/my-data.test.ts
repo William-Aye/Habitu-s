@@ -4,9 +4,12 @@ import { touchLastSeen, resetLastSeenForTests } from '../src/features/account/la
 import { pickAndUploadAvatar } from '../src/features/account/avatar';
 import { signOut } from '../src/features/account/auth';
 import { supabase } from '../src/lib/supabase';
+import { subscribeInterestsChanged } from '../src/features/interests/store';
+import { subscribeExploreLocationReset } from '../src/features/explore/useExploreLocation';
 
 const mockWrites: { uri: string; content: string }[] = [];
 let mockSize = 100;
+const mockDeleted: string[] = [];
 jest.mock('expo-file-system', () => {
   class File {
     uri: string;
@@ -19,6 +22,9 @@ jest.mock('expo-file-system', () => {
       return mockSize;
     }
     create() {}
+    delete() {
+      mockDeleted.push(this.uri);
+    }
     write(content: string) {
       mockWrites.push({ uri: this.uri, content });
     }
@@ -61,6 +67,7 @@ beforeEach(async () => {
   jest.clearAllMocks();
   mockWrites.length = 0;
   mockSize = 100;
+  mockDeleted.length = 0;
   resetLastSeenForTests();
   await AsyncStorage.clear();
   getSession.mockResolvedValue({ data: { session: { user: { id: 'u1' } } } });
@@ -79,6 +86,14 @@ describe('exportMyData', () => {
     expect(mockWrites[0].uri).toContain('habitues-mes-donnees-2026-10-22.json');
     expect(JSON.parse(mockWrites[0].content)).toEqual(data);
     expect(Sharing.shareAsync).toHaveBeenCalledWith(mockWrites[0].uri, expect.anything());
+    expect(mockDeleted).toEqual([mockWrites[0].uri]);
+  });
+
+  it('deletes the cached file even when sharing fails', async () => {
+    rpc.mockResolvedValue({ data: { a: 1 }, error: null });
+    Sharing.shareAsync.mockRejectedValueOnce(new Error('share failed'));
+    expect(await exportMyData()).toEqual({ ok: false });
+    expect(mockDeleted).toEqual([mockWrites[0].uri]);
   });
 
   it('returns ok:false and writes nothing when the RPC fails', async () => {
@@ -116,6 +131,29 @@ describe('deleteMyAccount', () => {
     expect(await AsyncStorage.getItem('interests.local')).toBeNull();
     expect(await AsyncStorage.getItem('explore.location')).toBeNull();
     expect(await AsyncStorage.getItem('onboarding.done')).toBeNull();
+  });
+
+  it('clears the local keys before signing out, then notifies the interests and Explore state', async () => {
+    const order: string[] = [];
+    (signOut as jest.Mock).mockImplementationOnce(async () => {
+      order.push(`signOut:${await AsyncStorage.getItem('onboarding.done')}`);
+    });
+    const offI = subscribeInterestsChanged(() => order.push('interests'));
+    const offL = subscribeExploreLocationReset(() => order.push('location'));
+    await deleteMyAccount();
+    offI();
+    offL();
+    expect(order).toEqual(['signOut:null', 'interests', 'location']);
+  });
+
+  it('clears the profile photo when the RPC fails after the files were removed', async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: 'boom' } });
+    const eq = jest.fn(async () => ({ error: null }));
+    const update = jest.fn(() => ({ eq }));
+    from.mockReturnValue({ update });
+    expect(await deleteMyAccount()).toEqual({ ok: false });
+    expect(update).toHaveBeenCalledWith({ photo_url: null });
+    expect(eq).toHaveBeenCalledWith('id', 'u1');
   });
 
   it('does not remove anything when there are no avatar files', async () => {
@@ -161,6 +199,29 @@ describe('touchLastSeen', () => {
     rpc.mockRejectedValue(new Error('offline'));
     await expect(touchLastSeen()).resolves.toBeUndefined();
   });
+
+  it('retries right away after an RPC error', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'x' } });
+    rpc.mockResolvedValueOnce({ data: null, error: null });
+    await touchLastSeen('u1');
+    await touchLastSeen('u1');
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
+  it('calls again after an hour and for another user', async () => {
+    rpc.mockResolvedValue({ data: null, error: null });
+    const now = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    await touchLastSeen('u1');
+    now.mockReturnValue(1_000_000 + 3_599_000);
+    await touchLastSeen('u1');
+    expect(rpc).toHaveBeenCalledTimes(1);
+    now.mockReturnValue(1_000_000 + 3_600_000);
+    await touchLastSeen('u1');
+    expect(rpc).toHaveBeenCalledTimes(2);
+    await touchLastSeen('u2');
+    expect(rpc).toHaveBeenCalledTimes(3);
+    now.mockRestore();
+  });
 });
 
 describe('pickAndUploadAvatar', () => {
@@ -176,7 +237,7 @@ describe('pickAndUploadAvatar', () => {
     from.mockReturnValue({ update: jest.fn(() => ({ eq })) });
     Picker.launchImageLibraryAsync.mockResolvedValue({
       canceled: false,
-      assets: [{ uri: 'file:///pick.jpg' }],
+      assets: [{ uri: 'file:///pick.jpg', width: 1600 }],
     });
     Manipulator.manipulateAsync.mockResolvedValue({ uri: 'file:///out.jpg' });
   });
@@ -201,6 +262,18 @@ describe('pickAndUploadAvatar', () => {
     expect(res.ok).toBe(true);
     if (res.ok) expect(res.url).toMatch(/^https:\/\/x\/avatars\/u1\/avatar\.jpg\?v=\d+$/);
     expect(eq).toHaveBeenCalledWith('id', 'u1');
+  });
+
+  it('does not resize an image that is not wider than 800 px', async () => {
+    Picker.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file:///small.jpg', width: 800 }],
+    });
+    await pickAndUploadAvatar('u1');
+    expect(Manipulator.manipulateAsync).toHaveBeenCalledWith('file:///small.jpg', [], {
+      compress: 0.7,
+      format: 'jpeg',
+    });
   });
 
   it('rejects files over 1 MB without uploading', async () => {

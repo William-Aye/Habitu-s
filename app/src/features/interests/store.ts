@@ -40,6 +40,11 @@ function serialised<T>(job: () => Promise<T>): Promise<T> {
 
 // Listeners told when the stored interests changed behind the hooks' back (the sign-in merge).
 const listeners = new Set<() => void>();
+/** Tells the interests hooks to re-read (after the sign-in merge, or after local data was wiped). */
+export function notifyInterestsChanged(): void {
+  listeners.forEach((fn) => fn());
+}
+
 export function subscribeInterestsChanged(fn: () => void): () => void {
   listeners.add(fn);
   return () => {
@@ -139,7 +144,7 @@ async function mergePass(userId: string): Promise<boolean> {
 export async function mergeLocalIntoAccount(userId: string): Promise<void> {
   // One extra pass picks up taps made during the first upload; anything later waits for the next sign-in.
   if (await mergePass(userId)) await mergePass(userId);
-  listeners.forEach((fn) => fn());
+  notifyInterestsChanged();
 }
 
 interface Loaded {

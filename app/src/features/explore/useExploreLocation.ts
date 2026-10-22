@@ -10,6 +10,17 @@ const KEY = 'explore.location';
 function roundKm(v: number): number {
   return Math.round(v * 100) / 100;
 }
+// Told when the stored location was wiped (account deletion) so mounted hooks drop their copy.
+const resetListeners = new Set<() => void>();
+export function subscribeExploreLocationReset(fn: () => void): () => void {
+  resetListeners.add(fn);
+  return () => {
+    resetListeners.delete(fn);
+  };
+}
+export function notifyExploreLocationReset(): void {
+  resetListeners.forEach((fn) => fn());
+}
 export const MY_POSITION_KEY = 'explore.location.myPosition';
 
 export function useExploreLocation(): {
@@ -21,6 +32,8 @@ export function useExploreLocation(): {
 } {
   const [location, setLocation] = useState<StoredLocation | null>(null);
   const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => subscribeExploreLocationReset(() => setLocation(null)), []);
 
   useEffect(() => {
     let cancelled = false;

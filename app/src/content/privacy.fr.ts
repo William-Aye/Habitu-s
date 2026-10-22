@@ -1,4 +1,8 @@
 // Stored as a TypeScript string because Metro does not load .md files as source by default.
+// MARKERS: every sentence tagged "(dès que cette fonctionnalité sera disponible)" describes a feature that
+// is not built yet. Remove the marker when it ships: messages and group/private chat, post-session
+// feedback, 12-month/6-month automatic deletion, inactive-account warning and deletion, phone
+// verification for organisers, push notifications through Expo.
 export const privacyFr = `Version à faire relire par une personne qualifiée avant la publication.
 
 # Politique de confidentialité
@@ -11,8 +15,8 @@ Habitués vous aide à rencontrer des gens autour d'activités régulières. Cet
 - Une confirmation que vous avez 18 ans ou plus. Nous ne demandons pas votre date de naissance.
 - Votre zone d'habitation, ramenée au centre de votre commune (environ 1 km de précision). Nous ne stockons jamais votre position précise : le GPS de votre téléphone sert seulement, sur l'appareil, à trier les résultats par distance.
 - Facultatif : une photo de profil et une courte présentation. Les informations cachées de la photo (dont le lieu de prise de vue) sont supprimées avant l'envoi.
-- Vos centres d'intérêt, les activités que vous rejoignez, vos présences, vos messages de groupe et vos avis après séance.
-- Votre numéro de téléphone, seulement si vous organisez des activités, pour vérifier votre identité. Il est conservé par notre service de connexion et n'apparaît jamais dans l'application.
+- Vos centres d'intérêt, les activités que vous rejoignez, vos présences, vos messages de groupe et vos avis après séance (dès que cette fonctionnalité sera disponible).
+- Votre numéro de téléphone, seulement si vous organisez des activités, pour vérifier votre identité. Il est conservé par notre service de connexion et n'apparaît jamais dans l'application (dès que cette fonctionnalité sera disponible).
 - La date de votre dernière visite, mise à jour au plus une fois par heure.
 
 Vos centres d'intérêt et les activités que vous suivez peuvent révéler des informations sensibles (religion, santé, orientation, opinions). Nous les traitons comme telles : elles ne sont jamais publiques, seules les personnes d'une même activité voient que vous en faites partie, et elles ne sont jamais données à des annonceurs ni utilisées pour personnaliser des publicités.
@@ -27,11 +31,11 @@ Nous n'utilisons aucun traceur publicitaire tiers. Les statistiques de fréquent
 
 # Combien de temps nous gardons vos données
 
-- Messages de groupe : 12 mois, puis supprimés automatiquement.
-- Messages privés : 12 mois, puis supprimés automatiquement.
-- Réponses aux avis après séance : regroupées en statistiques, puis les réponses brutes sont supprimées après 6 mois.
+- Messages de groupe : 12 mois, puis supprimés automatiquement (dès que cette fonctionnalité sera disponible).
+- Messages privés : 12 mois, puis supprimés automatiquement (dès que cette fonctionnalité sera disponible).
+- Réponses aux avis après séance : regroupées en statistiques, puis les réponses brutes sont supprimées après 6 mois (dès que cette fonctionnalité sera disponible).
 - Signalements et décisions de modération : 3 ans, puis supprimés.
-- Comptes inactifs depuis 3 ans : e-mail d'avertissement, puis suppression 30 jours plus tard.
+- Comptes inactifs depuis 3 ans : e-mail d'avertissement, puis suppression 30 jours plus tard (dès que cette fonctionnalité sera disponible).
 - Journaux techniques (dont adresses IP) : durée par défaut de notre hébergeur, au plus 90 jours.
 
 La suppression de votre compte est immédiate (voir plus bas).
@@ -41,7 +45,7 @@ La suppression de votre compte est immédiate (voir plus bas).
 - Supabase (hébergement, base de données et connexion), dans l'Union européenne (Paris).
 - Google (connexion avec Google et, le cas échéant, publicités).
 - Cloudflare (protection du service et vérification anti-robot à l'inscription).
-- Expo (envoi des notifications).
+- Expo (envoi des notifications) (dès que cette fonctionnalité sera disponible).
 - GitHub (hébergement du code de l'application et du site : aucune donnée d'utilisateur).
 
 Quand un de ces services est situé hors de l'Union européenne, le transfert est encadré par le cadre de protection des données UE–États-Unis ou par des clauses contractuelles types.

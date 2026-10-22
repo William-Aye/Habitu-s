@@ -42,3 +42,9 @@ it('renders the French policy', async () => {
   expect(screen.getByText('Politique de confidentialité')).toBeTruthy();
   expect(screen.getByText('Ce que nous collectons')).toBeTruthy();
 });
+
+it('marks every not-yet-built feature in both languages', () => {
+  const body = (s: string) => s.split('\n').filter((l) => !l.startsWith('//')).join('\n');
+  expect(body(privacyFr).split('(dès que cette fonctionnalité sera disponible)')).toHaveLength(8);
+  expect(body(privacyEn).split('(once this feature is available)')).toHaveLength(8);
+});
