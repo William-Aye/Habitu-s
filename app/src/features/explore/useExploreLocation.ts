@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useState } from 'react';
+import { resolveHomeArea } from '../account/homeArea';
 import type { StoredLocation, Town } from './types';
 
 const KEY = 'explore.location';
@@ -14,7 +15,8 @@ export const MY_POSITION_KEY = 'explore.location.myPosition';
 export function useExploreLocation(): {
   location: StoredLocation | null;
   status: 'loading' | 'ready' | 'needed';
-  requestGps(): Promise<'ok' | 'denied'>;
+  /** With `toCommune`, the position is stored as its commune centre; if that lookup fails nothing is stored and 'denied' is returned. */
+  requestGps(opts?: { toCommune?: boolean }): Promise<'ok' | 'denied'>;
   setTown(t: Town): Promise<void>;
 } {
   const [location, setLocation] = useState<StoredLocation | null>(null);
@@ -48,11 +50,22 @@ export function useExploreLocation(): {
     }
   }, []);
 
-  const requestGps = useCallback(async (): Promise<'ok' | 'denied'> => {
+  const requestGps = useCallback(async (opts?: { toCommune?: boolean }): Promise<'ok' | 'denied'> => {
     try {
       const perm = await Location.requestForegroundPermissionsAsync();
       if (!perm.granted) return 'denied';
       const pos = await Location.getCurrentPositionAsync({});
+      if (opts?.toCommune) {
+        const area = await resolveHomeArea({
+          label: MY_POSITION_KEY,
+          lon: pos.coords.longitude,
+          lat: pos.coords.latitude,
+          source: 'gps',
+        });
+        if (!area) return 'denied';
+        await save({ ...area, source: 'town' });
+        return 'ok';
+      }
       await save({
         label: MY_POSITION_KEY,
         lon: roundKm(pos.coords.longitude),

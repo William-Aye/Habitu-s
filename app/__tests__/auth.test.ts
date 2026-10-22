@@ -234,6 +234,14 @@ describe('resolveHomeArea', () => {
     });
   });
 
+  it('adds the postal code to the commune label when known', async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      json: async () => [{ nom: 'Lyon', centre: { coordinates: [4.8, 45.7] }, codesPostaux: ['69001'] }],
+    })) as unknown as typeof fetch;
+    expect((await resolveHomeArea({ label: 'x', lon: 4.8, lat: 45.7, source: 'gps' }))?.label).toBe('Lyon (69001)');
+  });
+
   it('gives up on the commune lookup after 10 seconds', async () => {
     jest.useFakeTimers();
     try {

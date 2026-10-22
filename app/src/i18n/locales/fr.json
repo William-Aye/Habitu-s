@@ -157,5 +157,15 @@
     "requestSignedOut": "Connectez-vous pour proposer une catégorie.",
     "requestError": "Envoi impossible. Réessayez.",
     "proposeAnother": "Proposer une autre catégorie"
+  },
+  "onboarding": {
+    "languageTitle": "Langue",
+    "french": "Français",
+    "english": "English",
+    "where": "Où êtes-vous ?",
+    "like": "Qu'est-ce qui vous plaît ?",
+    "start": "Commencer",
+    "skip": "Passer",
+    "chosen": "Lieu choisi : {{place}}"
   }
 }

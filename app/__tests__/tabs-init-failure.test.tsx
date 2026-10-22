@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { renderRouter, screen } from 'expo-router/testing-library';
 
 jest.mock('../src/i18n', () => {
@@ -9,7 +10,8 @@ jest.setTimeout(60000);
 
 let warn: jest.SpyInstance;
 
-beforeEach(() => {
+beforeEach(async () => {
+  await AsyncStorage.setItem('onboarding.done', '1');
   warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
 });
 

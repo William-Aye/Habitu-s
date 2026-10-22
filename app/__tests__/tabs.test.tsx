@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { renderRouter, screen } from 'expo-router/testing-library';
 import { initI18n } from '../src/i18n';
 
@@ -10,6 +11,11 @@ jest.setTimeout(60000);
 
 beforeAll(async () => {
   await initI18n();
+});
+
+// Past the first-launch screen; onboarding has its own tests.
+beforeEach(async () => {
+  await AsyncStorage.setItem('onboarding.done', '1');
 });
 
 it('shows the four tabs with French labels by default', async () => {

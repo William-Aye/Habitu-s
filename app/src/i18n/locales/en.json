@@ -157,5 +157,15 @@
     "requestSignedOut": "Sign in to suggest a category.",
     "requestError": "Could not send. Try again.",
     "proposeAnother": "Suggest another category"
+  },
+  "onboarding": {
+    "languageTitle": "Language",
+    "french": "Français",
+    "english": "English",
+    "where": "Where are you?",
+    "like": "What do you enjoy?",
+    "start": "Get started",
+    "skip": "Skip",
+    "chosen": "Chosen place: {{place}}"
   }
 }

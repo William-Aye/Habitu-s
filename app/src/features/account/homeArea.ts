@@ -27,11 +27,13 @@ export async function resolveHomeArea(
     const rows = (await res.json()) as {
       nom?: string;
       centre?: { coordinates?: [number, number] };
+      codesPostaux?: string[];
     }[];
     const first = rows[0];
     const c = first?.centre?.coordinates;
     if (!first?.nom || !c) return null;
-    return { label: first.nom, lon: c[0], lat: c[1] };
+    const cp = first.codesPostaux?.[0];
+    return { label: cp ? `${first.nom} (${cp})` : first.nom, lon: c[0], lat: c[1] };
   } catch {
     return null;
   } finally {
