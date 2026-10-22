@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(85);
+select plan(90);
 select has_schema('importer');
 select has_table('public', 'import_runs', 'import_runs exists');
 select has_column('public', 'associations', 'embedding_hash', 'associations.embedding_hash');
@@ -12,6 +12,11 @@ select is(importer.normalise_name('Les Cœurs Vaillants'), 'coeurs vaillants', '
 select is(importer.normalise_name(E'L’Atelier d’Écriture'), 'atelier ecriture', 'normalise_name parity: atelier ecriture');
 select is(importer.normalise_name('Saint-Étienne Basket'), 'saint etienne basket', 'normalise_name parity: saint etienne basket');
 select is(importer.normalise_name('Ærø Straße Łódź Đ €1'), 'aero strasse lodz 1', 'normalise_name parity: aero strasse lodz 1');
+select is(importer.normalise_name('Club ½'), '1 2', 'normalise_name parity: Club ½');
+select is(importer.normalise_name('Salle n²'), 'salle n', 'normalise_name parity: Salle n²');
+select is(importer.normalise_name('Gym™'), 'gym', 'normalise_name parity: Gym™');
+select is(importer.normalise_name('Fit ﬁt'), 'fit fit', 'normalise_name parity: Fit ﬁt');
+select is(importer.normalise_name('ＡＢＣ club'), 'abc', 'normalise_name parity: ＡＢＣ club');
 select is(importer.confidence(current_date - 365, true, true, true, current_date), 100::smallint, 'max confidence');
 select is(importer.confidence(null, false, false, false, current_date), 20::smallint, 'base confidence');
 select is(importer.confidence(current_date - 6*365, false, false, false, current_date), 20::smallint, 'old publication adds nothing');
