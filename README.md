@@ -45,9 +45,12 @@ embedding for the user's query; the database finds it in the query vocabulary
 
 `search.resolve_query` normalises the query and tries, in order (first match wins):
 
-1. **exact**: the normalised phrase is in the vocabulary.
-2. **fuzzy**: typo tolerance. Only for queries of at least 4 characters, the closest phrase
-   by trigram similarity (at least 0.5) with the same number of words ("escalde" finds "escalade").
+1. **exact**: the query's tokens joined by single spaces are a vocabulary phrase
+   ("cours d'escalade" is stored and matched as "cours d escalade").
+2. **fuzzy**: typo tolerance. Only for queries of at least 4 characters with at least one
+   non-stop-word that is not a vocabulary word (a likely typo: "cours de jazz" stays itself
+   rather than becoming "cours de judo"); among the 5 phrases closest by trigram, the most
+   similar one (at least 0.5) with the same number of words ("escalde" finds "escalade").
 3. **words**: the single most specific known phrase inside the query (most tokens, then the
    rarest), used only if the known words cover at least 50 % of the query's non-stop-word
    tokens. Averaging vectors was dropped: e5 vectors share a large common component.
@@ -63,28 +66,41 @@ Both jobs run `python -m importer vocab` and use the same model as documents
 end, so a failure leaves the previous vocabulary in place (and fails the job).
 
 - **Monthly** (`import.yml`, 5th, after the association import): full build from all
-  associations (names, categories, words) plus user requests. Estimate: 30-60 minutes. The build is a
+  associations (names, categories, words) plus user requests. Estimate: 30-60 minutes on a 4 vCPU
+  runner (public repositories); a private repository's standard runner has 2 vCPU and 7 GB, so
+  expect roughly twice that, 60-120 minutes, which reaches the job's limit: raise
+  `timeout-minutes` of the `vocab` job if a run is cut off. The build is a
   separate job (`vocab`, needs `import`, 120 minute limit). If it fails, the monthly import run is marked failed although the imported data is
   committed; the previous vocabulary stays in place.
 - **Nightly** (`vocab.yml`, 02:17 UTC): `--requests-only`, adds the anonymised phrases users
   searched that the vocabulary did not already understand (exact and fuzzy matches are not
-  logged). A phrase is learned only after it was searched at least twice
-  (`vocab_request_min_hits`). Estimate: about 3 minutes (mostly setup).
+  logged). A phrase is learned only after it was searched on at least two different days
+  (`vocab_request_min_hits`; repeats on the same day count once). A phrase with 6 or more digits
+  in total is never stored. At most 2,000 requests are promoted per run (most days, then most
+  recently seen); the rest wait for a later night. Promoted requests count against the
+  150,000-phrase cap right after the curated phrases; a full build removes one that no
+  association text contains once it is a year old. Estimate: about 3 minutes (mostly setup).
 - **Manual**: Actions, "Query vocabulary", Run workflow; tick `full` for a full build.
   `vocab.yml` shares the `import` concurrency group, so it never runs alongside an import.
 
 Measured on 150,000 synthetic associations with the fake embedder: counting 21.7 s, first
 build 79.8 s, rebuild 23.5 s, peak memory 123 MB, temporary disk 138 MB (about 1.4 GB at
 1.5 M associations, an extrapolation). The real e5 model embeds roughly 5 times slower than the fake
-one (an estimate).
+one (an estimate). All timings here assume a 4 vCPU runner; on 2 vCPU expect about double.
 
 ### Coverage report and adding a phrase
 
-The command prints a JSON build report. Phrases from
-`importer/importer/data/vocab_watchlist.txt` (queries that must work) whose coverage is
-`none` are listed as warnings on stderr in the job log. To cover one, append the phrase to
-`vocab_watchlist.txt` (one per line), merge, then run `vocab.yml` by hand (a nightly run also
-picks it up).
+The command prints a JSON build report whose `coverage` gives the `resolve_query` method of
+every phrase of `importer/importer/data/vocab_watchlist.txt`. Watch-list phrases are always
+stored, so each should resolve `exact`: the report is a canary for drift between the builder's
+normalisation (`importer/importer/vocab.py`, `embed.py`) and the database's
+(`search.normalise_query`, `search.tokens`, `search.resolve_query`). Any other method is
+printed as a warning on stderr in the job log; compare `vocab.unit_phrase(phrase)` with
+`select array_to_string(search.tokens(search.normalise_query(phrase)), ' ')` and run the
+shared normalisation tests (`shared/normalise_cases.json`).
+
+To make sure a phrase is always in the vocabulary, append it to `vocab_watchlist.txt` (one per
+line), merge, then run `vocab.yml` by hand (a nightly run also picks it up).
 
 Size check (expected about 262 MB at the 150,000 cap):
 
@@ -95,9 +111,13 @@ select pg_size_pretty(pg_total_relation_size('search.query_vocab'));
 ### Costs
 
 EUR 0 extra: no new account, card or secret. Supabase Pro is already paid (the vocabulary
-fits in it). GitHub Actions minutes: private repositories get 2,000 free minutes a month;
-nightly runs are about 3 minutes each (about 90 a month, estimate) and the monthly build adds
-30-60 (estimate), well inside the free tier.
+fits in it). GitHub Actions minutes: private repositories get 2,000 free minutes a month
+(on 2 vCPU runners; public repositories are not billed). The vocabulary uses about 90 a month
+for the nightly runs (about 3 minutes each, estimate) and 60-120 for the monthly build on 2 vCPU
+(estimate). The same budget also pays for the monthly association import (`import.yml`, up to
+its 350 minute limit) and every CI run, including the search ranking job (up to 45 minutes per
+push or pull request): check the repository's usage page if pushes are frequent, as these, not
+the vocabulary, decide whether the free tier holds.
 
 Upgrade path: a live embedding service can be added later and pass `p_query_embedding`; no
 database change is needed.
