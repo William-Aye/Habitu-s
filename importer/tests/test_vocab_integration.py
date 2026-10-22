@@ -30,6 +30,8 @@ def _clear(c):
 
 @pytest.fixture
 def conn():
+    """Wipes search.query_vocab and search.vocab_requests before and after (run `db.sh reset` /
+    `npm run db:reset` first; pgTAP expects them empty)."""
     with psycopg.connect(URL, autocommit=True) as c:
         _clear(c)
         rows = [
@@ -160,3 +162,35 @@ def test_cli_vocab_prints_report(conn, monkeypatch, capsys):
 
 def test_cli_vocab_fails_with_exit_1(monkeypatch, capsys):
     assert cli.main(["vocab", "--db-url", "postgresql://postgres@127.0.0.1:1/none", "--embedder", "fake"]) == 1
+
+
+def test_requests_only_keeps_requests_already_in_vocabulary(conn):
+    vocab.build(conn, FakeEmbedder(), min_df_unigram=1, min_df_multi=1)
+    assert _vocab(conn)["escalade en salle"][0] == "ngram"
+    conn.execute("insert into search.vocab_requests (phrase, hits) values "
+                 "('escalade en salle', 4), ('yoga', 2), ('ukulélé', 2)")
+    report = vocab.build(conn, FakeEmbedder(), requests_only=True)
+    v = _vocab(conn)
+    assert v["escalade en salle"][0] == "ngram" and v["yoga"][0] == "category"
+    assert v["ukulélé"][0] == "request"
+    assert report.requests_added == 1
+    left = sorted(r[0] for r in conn.execute("select phrase from search.vocab_requests"))
+    assert left == ["escalade en salle", "yoga"]
+    # The next full build marks them 'request' (counted) and removes them from the requests.
+    report = vocab.build(conn, FakeEmbedder(), min_df_unigram=1, min_df_multi=1)
+    v = _vocab(conn)
+    assert v["escalade en salle"] == ("request", 6) and v["yoga"][0] == "request"
+    assert report.requests_added == 2 and report.embedded_new == 0
+    assert conn.execute("select count(*) from search.vocab_requests").fetchone()[0] == 0
+
+
+def test_full_build_counts_converted_requests(conn):
+    vocab.build(conn, FakeEmbedder(), min_df_unigram=1, min_df_multi=1)
+    conn.execute("insert into search.vocab_requests (phrase, hits) values ('falaise', 2), ('kazoo', 2)")
+    report = vocab.build(conn, FakeEmbedder(), min_df_unigram=1, min_df_multi=1)
+    v = _vocab(conn)
+    assert v["falaise"] == ("request", 1) and v["kazoo"] == ("request", 0)
+    assert report.requests_added == 2 and report.embedded_new == 1
+    # Already 'request': not counted again.
+    conn.execute("insert into search.vocab_requests (phrase, hits) values ('kazoo', 5)")
+    assert vocab.build(conn, FakeEmbedder(), min_df_unigram=1, min_df_multi=1).requests_added == 0

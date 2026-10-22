@@ -9,9 +9,9 @@ anonymised requests of search.vocab_requests seen at least vocab_request_min_hit
 Every stored phrase is `" ".join(tokens(...))`: search.resolve_query builds its candidate units by
 joining search.tokens(...) with single spaces, so any other spelling could never match.
 
-Memory: associations are streamed with a server-side cursor; only the document-frequency Counter
-(bounded, see count_document_phrases), the existing phrase -> model map and one embedding batch are
-held. Safety: new vectors are COPYed batch by batch into a session temp table; the vocabulary itself
+Memory: associations are streamed with a server-side cursor and their phrases spilled to hash
+shards on disk (see count_document_phrases); only one shard's counter, the surviving phrases, the
+existing phrase -> model map and one embedding batch are held. Safety: new vectors are COPYed batch by batch into a session temp table; the vocabulary itself
 changes in one final transaction (upsert, deletes, requests), so an interrupted build leaves the
 previous vocabulary intact.
 """
@@ -19,7 +19,9 @@ import csv
 import heapq
 import logging
 import re
+import tempfile
 import unicodedata
+import zlib
 from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
@@ -42,8 +44,8 @@ _SPLIT = re.compile(SEPARATORS)
 STOPWORDS: frozenset[str] = frozenset(
     w for w in (DATA / "stopwords_fr.txt").read_text(encoding="utf-8").split() if w
 )
-# Above this many distinct phrases the counter drops the ones seen once (see count_document_phrases).
-MAX_COUNTER_KEYS = 5_000_000  # ~0.8 GB peak; measured 349 MB at 2.2M keys
+# Temporary shard files of count_document_phrases (phrases partitioned by crc32).
+SHARDS = 64
 FETCH_ROWS = 10_000
 PROGRESS_EVERY = 250_000
 
@@ -104,29 +106,62 @@ def phrases(text: str) -> set[str]:
 
 
 def count_document_phrases(
-    rows: Iterable[tuple[str, str | None]], *, max_keys: int = MAX_COUNTER_KEYS
+    rows: Iterable[tuple[str, str | None]],
+    *,
+    min_df_unigram: int = 1,
+    min_df_multi: int = 1,
+    top: int | None = None,
+    keep: Iterable[str] = (),
+    shards: int = SHARDS,
 ) -> Counter[str]:
-    """Phrase -> number of associations (name, purpose) containing it.
+    """Exact phrase -> number of associations (name, purpose) containing it.
 
-    Bounded memory: when the counter exceeds max_keys distinct phrases, the phrases seen once are
-    dropped. A phrase can then be under-counted by at most one per prune, which only matters near
-    the selection threshold: frequent phrases survive their first prune and are counted exactly
-    from then on. Measured on 150k synthetic associations (2.2M distinct phrases, ~350 MB peak),
-    no prune happens at the default bound; forcing it down to 500k keys still kept 79 % of the
-    same 150k selection, the difference being low-frequency tail phrases.
+    Only phrases meeting their threshold (min_df_unigram for one token, min_df_multi for more) or
+    listed in `keep` are returned. With `top`, each shard also keeps only its `top` most frequent
+    other phrases (ties alphabetical): the global top `top` is among them, so select_phrases with
+    cap <= top selects exactly what it would from the full counts.
+
+    Memory: each association's distinct phrases are written to one of `shards` temporary files
+    chosen by crc32(phrase), so every occurrence of a phrase lands in the same file; each file is
+    then counted with its own Counter. Peak memory is about one shard's bytes and distinct phrases
+    plus the survivors; temporary disk is about 16 bytes per phrase occurrence.
     """
-    counts: Counter[str] = Counter()
-    n = 0
-    for n, (name, purpose) in enumerate(rows, start=1):
-        counts.update(phrases(name or "") | phrases(purpose or ""))
-        if len(counts) > max_keys:
-            before = len(counts)
-            for k in [k for k, c in counts.items() if c == 1]:
-                del counts[k]
-            log.info("vocab: pruned %d single-use phrases after %d associations", before - len(counts), n)
-        if n % PROGRESS_EVERY == 0:
-            log.info("vocab: %d associations read, %d distinct phrases", n, len(counts))
-    return counts
+    keep_b = {p.encode("utf-8") for p in keep}
+    out: Counter[str] = Counter()
+    with tempfile.TemporaryDirectory(prefix="vocab-") as tmp:
+        paths = [Path(tmp) / f"{i:03d}" for i in range(shards)]
+        files = [path.open("wb", buffering=1 << 20) for path in paths]
+        n = 0
+        try:
+            for n, (name, purpose) in enumerate(rows, start=1):
+                # A phrase never holds "\n" (normalisation turns it into a space).
+                for p in phrases(name or "") | phrases(purpose or ""):
+                    b = p.encode("utf-8")
+                    files[zlib.crc32(b) % shards].write(b + b"\n")
+                if n % PROGRESS_EVERY == 0:
+                    log.info("vocab: %d associations read", n)
+        finally:
+            for f in files:
+                f.close()
+        disk = sum(path.stat().st_size for path in paths)
+        log.info("vocab: %d associations read, %.1f MB of phrases in %d shards", n, disk / 1048576, shards)
+        for path in paths:
+            counts = Counter(path.read_bytes().split(b"\n"))
+            path.unlink()
+            counts.pop(b"", None)
+            kept = []
+            for b, c in counts.items():
+                if b in keep_b:
+                    out[b.decode("utf-8")] = c
+                elif c >= (min_df_multi if b" " in b else min_df_unigram):
+                    kept.append((c, b))
+            del counts
+            if top is not None and len(kept) > top:
+                # UTF-8 byte order is code point order, i.e. str order.
+                kept = heapq.nsmallest(top, kept, key=lambda cb: (-cb[0], cb[1]))
+            for c, b in kept:
+                out[b.decode("utf-8")] = c
+    return out
 
 
 def select_phrases(
@@ -205,22 +240,29 @@ def build(
             if p and p not in sources:
                 sources[p] = source
 
+    # Requests come first: a promoted request is marked 'request' (and never removed) even when
+    # it is also a category, a keyword or an ngram.
+    add(requests_raw, "request")
+    promoted = set(sources)
     if requests_only:
         add(watchlist(), "watchlist")
-        add(requests_raw, "request")
         selected = {p: 0 for p in sources if p not in existing}
+        # A request already in the vocabulary stays in search.vocab_requests: this mode leaves
+        # existing rows alone, and the next full build marks it 'request' and removes it.
+        requests_done = [r for r in requests_raw if unit_phrase(r) not in existing]
     else:
+        # Requests promoted earlier are kept (the delete below spares them) and re-embedded on a
+        # model change.
+        add((p for p, (_, s) in existing.items() if s == "request"), "request")
         add((r[0] for r in conn.execute("select name_fr from public.categories order by sort_order, slug")),
             "category")
         add((r[0] for r in conn.execute("select label_fr from public.tags order by slug")), "tag")
         add(_keywords(), "keyword")
         add(watchlist(), "watchlist")
-        add(requests_raw, "request")
-        # Requests promoted earlier are kept (the delete below spares them) and re-embedded on a
-        # model change.
-        add((p for p, (_, s) in existing.items() if s == "request"), "request")
-        counts = count_document_phrases(_documents(conn))
-        log.info("vocab: %d distinct phrases counted", len(counts))
+        requests_done = requests_raw
+        counts = count_document_phrases(_documents(conn), min_df_unigram=min_df_unigram,
+                                        min_df_multi=min_df_multi, top=cap, keep=sources)
+        log.info("vocab: %d phrases counted above the thresholds", len(counts))
         selected = select_phrases(counts, min_df_unigram=min_df_unigram, min_df_multi=min_df_multi,
                                   cap=cap, always=sources)
         del counts
@@ -268,13 +310,16 @@ def build(
                 on conflict (phrase) {conflict}
                 returning v.source, (xmax = 0) as is_new""", (MODEL,)).fetchall()
             report.embedded_new = len(inserted)
-            report.requests_added = sum(1 for s, new in inserted if new and s == "request")
+            newly = [p for p in promoted if existing.get(p, (None, None))[1] != "request"]
+            report.requests_added = conn.execute(
+                "select count(*)::int from search.query_vocab where phrase = any(%s) and source = 'request'",
+                (newly,)).fetchone()[0]
             if not requests_only:
                 report.removed = conn.execute("""
                     delete from search.query_vocab v
                     where v.source <> 'request'
                       and not exists (select 1 from vocab_build t where t.phrase = v.phrase)""").rowcount
-            conn.execute("delete from search.vocab_requests where phrase = any(%s)", (requests_raw,))
+            conn.execute("delete from search.vocab_requests where phrase = any(%s)", (requests_done,))
     finally:
         try:
             conn.execute("drop table if exists vocab_build")

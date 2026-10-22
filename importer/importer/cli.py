@@ -135,7 +135,7 @@ def run_vocab(args: argparse.Namespace) -> int:
     print(json.dumps(dataclasses.asdict(report), ensure_ascii=False))
     for phrase, method in report.coverage.items():
         if method == "none":
-            log.warning("watch-list phrase not covered by the vocabulary: %r", phrase)
+            print(f"warning: watch-list phrase not covered by the vocabulary: {phrase}", file=sys.stderr)
     return 0
 
 
