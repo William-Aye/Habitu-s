@@ -34,10 +34,21 @@ create type search.param_set as (
   hidden_below int, low_confidence int, dormant_years int, widen_min int,
   max_limit int, max_offset int
 );
+-- Tuned against the ranking set (importer/tests/ranking, real e5-small embeddings) around Lyon.
+-- Changed from the first draft (floor .75, ceil .88, not-public penalty 15): the floor/ceiling
+-- window narrows to .77 - .865 so that a good keyword-less match scores >= 70, and the not-public
+-- penalty rises to 25 so a flagged listing that mentions the query stays below the very-relevant
+-- line. Raw cosine similarity seen per query (best matches .. weakest fixture row):
+--   coder           .846 (Python Lyon) .838 (Arduino) .836 (Club informatique) .. decoys <= .815 .. .757
+--   jeu de go       .869 (Soiree) .861 .854 (go clubs) .849 (copropriete) .828 (Gogo) .. decoys <= .821 .. .770
+--   danse bretonne  .873 (Cercle celtique) .868 (Bretons) .830 (Gogo) .829 (Salsa) .. decoys <= .819 .. .777
+--   escalade        .866 .863 .852 (the three climbing rows) .835 (L'Escale solidaire) .. decoys <= .821 .. .765
+-- Expected rows need no keyword boost to clear 70 (Arduino, 72); the closest decoy (L'Escale
+-- solidaire) scores 68. Change these only together with a green ranking run.
 create function search.params() returns search.param_set
 language sql immutable
 as $$
-  select row(0.75::float8, 0.88::float8, 8, 70, 50, 15, 5, 0.6::real, 15, 10, 10, 5, 14, 20, 50, 10, 5,
+  select row(0.77::float8, 0.865::float8, 8, 70, 50, 15, 5, 0.6::real, 25, 10, 10, 5, 14, 20, 50, 10, 5,
              50, 500)::search.param_set
 $$;
 

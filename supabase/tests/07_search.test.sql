@@ -2,16 +2,16 @@ begin;
 \ir helpers.inc
 select plan(87);
 select has_schema('search');
-select is(search.score(0.88, false, 0, 0, false), 100::smallint, 'top similarity = 100');
-select is(search.score(0.75, false, 0, 0, false), 0::smallint, 'floor similarity = 0');
-select is(search.score(0.815, false, 0, 0, false), 50::smallint, 'midpoint = 50');
-select is(search.score(0.815, true, 0, 0, false), 58::smallint, 'keyword boost +8');
-select is(search.score(0.815, false, 0, 15, false), 35::smallint, 'penalty subtracts');
-select is(search.score(0.815, false, 0, 0, true), 55::smallint, 'Nouvelle +5');
+select is(search.score(0.865, false, 0, 0, false), 100::smallint, 'top similarity = 100');
+select is(search.score(0.77, false, 0, 0, false), 0::smallint, 'floor similarity = 0');
+select is(search.score(0.8175, false, 0, 0, false), 50::smallint, 'midpoint = 50');
+select is(search.score(0.8175, true, 0, 0, false), 58::smallint, 'keyword boost +8');
+select is(search.score(0.8175, false, 0, 15, false), 35::smallint, 'penalty subtracts');
+select is(search.score(0.8175, false, 0, 0, true), 55::smallint, 'Nouvelle +5');
 select is(search.score(null, true, 1.0, 0, false), 90::smallint, 'keyword-only full name match');
 select is(search.score(null, false, 0.9, 0, false), 0::smallint, 'keyword-only without hit');
-select is(search.penalty(true, 85::smallint, 'rna', false), 15, 'not public');
-select is(search.penalty(true, 40::smallint, 'rna', false), 25, 'not public + low confidence');
+select is(search.penalty(true, 85::smallint, 'rna', false), 25, 'not public');
+select is(search.penalty(true, 40::smallint, 'rna', false), 35, 'not public + low confidence');
 select is(search.penalty(false, 0::smallint, 'community', false), 10, 'community counted once');
 select ok(search.is_hidden(0::smallint, 'rna'), 'confidence 0 hidden');
 select ok(not search.is_hidden(20::smallint, 'osm'), '20 visible');
@@ -95,8 +95,8 @@ from (values
   ('003', 'Cercle Un', 'rna', 85, false, '2020-01-01', 1.0, 0.80),
   ('004', 'Bande Proche', 'rna', 85, false, '2020-01-01', 2.0, 0.8553),
   ('005', 'Bande Loin', 'rna', 85, false, '2020-01-01', 6.0, 0.8592),
-  ('006', 'Score Quarante', 'rna', 85, false, '2020-01-01', 3.0, 0.802),
-  ('007', 'Score Soixante-Quinze', 'rna', 85, false, '2020-01-01', 3.0, 0.8475),
+  ('006', 'Score Quarante', 'rna', 85, false, '2020-01-01', 3.0, 0.808),
+  ('007', 'Score Soixante-Quinze', 'rna', 85, false, '2020-01-01', 3.0, 0.8413),
   ('008', 'Jumeau Ouvert', 'rna', 85, false, '2020-01-01', 4.0, 0.86),
   ('009', 'Jumeau Fermé', 'rna', 85, true, '2020-01-01', 4.0, 0.86),
   ('010', 'Confiance Quarante', 'osm', 40, false, null, 3.0, 0.83),
