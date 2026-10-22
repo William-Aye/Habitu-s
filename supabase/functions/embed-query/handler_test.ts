@@ -1,5 +1,7 @@
 import { assertEquals } from 'jsr:@std/assert@1.0.13';
 import { createHandler } from './handler.ts';
+import { normaliseQuery } from './normalise.ts';
+import cases from './normalise_cases.json' with { type: 'json' };
 
 const vec = () => Array.from({ length: 384 }, (_, i) => i / 384);
 
@@ -71,4 +73,58 @@ Deno.test('cachePut failure still returns 200', async () => {
   const r = await handler(post({ text: 'escalade' }));
   assertEquals(r.status, 200);
   assertEquals((await r.json()).cached, false);
+});
+
+Deno.test('embed rejection returns 502 embed_failed', async () => {
+  const handler = createHandler({
+    embed: () => Promise.reject(new Error('oom')),
+    cacheGet: () => Promise.resolve(null),
+    cachePut: () => Promise.resolve(),
+  });
+  const r = await handler(post({ text: 'judo' }));
+  assertEquals(r.status, 502);
+  assertEquals((await r.json()).error, 'embed_failed');
+});
+
+Deno.test('invalid cache hit falls through to embed', async () => {
+  let embedded = 0;
+  const handler = createHandler({
+    embed: () => {
+      embedded++;
+      return Promise.resolve(vec());
+    },
+    cacheGet: () => Promise.resolve([1, 2, 3]),
+    cachePut: () => Promise.resolve(),
+  });
+  const r = await handler(post({ text: 'judo' }));
+  assertEquals(r.status, 200);
+  assertEquals(embedded, 1);
+  assertEquals((await r.json()).cached, false);
+});
+
+Deno.test('invalid model output returns 500 embed_failed', async () => {
+  for (const bad of [[1, 2], Array(384).fill(NaN)]) {
+    const handler = createHandler({
+      embed: () => Promise.resolve(bad as number[]),
+      cacheGet: () => Promise.resolve(null),
+      cachePut: () => Promise.resolve(),
+    });
+    const r = await handler(post({ text: 'judo' }));
+    assertEquals(r.status, 500);
+    assertEquals((await r.json()).error, 'embed_failed');
+  }
+});
+
+Deno.test('length limit counts code points', async () => {
+  const handler = createHandler({
+    embed: () => Promise.resolve(vec()),
+    cacheGet: () => Promise.resolve(null),
+    cachePut: () => Promise.resolve(),
+  });
+  assertEquals((await handler(post({ text: '\u{1F600}'.repeat(200) }))).status, 200);
+  assertEquals((await handler(post({ text: '\u{1F600}'.repeat(201) }))).status, 400);
+});
+
+Deno.test('normaliseQuery matches shared cases', () => {
+  for (const c of cases) assertEquals(normaliseQuery(c.input), c.expected);
 });

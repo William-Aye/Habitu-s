@@ -1,8 +1,8 @@
 """Document embeddings (multilingual-e5-small, 384 dims, "passage: " prefix)."""
 import hashlib
 import re
-import unicodedata
 import struct
+import unicodedata
 from collections.abc import Sequence
 from typing import Protocol
 
@@ -10,11 +10,14 @@ DIM = 384
 _SPACES = re.compile(r"\s+")
 _MAX_CHARS = 1000
 _MAX_QUERY_CHARS = 200
+# Explicit whitespace class, identical to supabase/functions/embed-query/normalise.ts.
+_QUERY_WS = re.compile("[ \t\n\r\f\v\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+")
 
 
 def normalise_query(text: str) -> str:
-    """NFC, trim, collapse whitespace, lower-case, cut to 200 chars (same rule as the edge function)."""
-    return _SPACES.sub(" ", unicodedata.normalize("NFC", text).strip()).lower()[:_MAX_QUERY_CHARS]
+    """NFC, trim, collapse whitespace, lower-case, cut to 200 code points (same rule as the edge function)."""
+    collapsed = _QUERY_WS.sub(" ", unicodedata.normalize("NFC", text)).strip(" ")
+    return collapsed.lower()[:_MAX_QUERY_CHARS]
 
 
 class Embedder(Protocol):

@@ -1,6 +1,12 @@
-import { MAX_QUERY_CHARS, normaliseQuery } from './normalise.ts';
+import { codePointLength, MAX_QUERY_CHARS, normaliseQuery } from './normalise.ts';
 
 export const MODEL_ID = 'multilingual-e5-small-q8-v1';
+
+const DIM = 384;
+
+function isValidVector(v: unknown): v is number[] {
+  return Array.isArray(v) && v.length === DIM && v.every((x) => typeof x === 'number' && Number.isFinite(x));
+}
 
 export interface Deps {
   embed(text: string): Promise<number[]>;
@@ -25,7 +31,7 @@ export function createHandler(deps: Deps): (req: Request) => Promise<Response> {
     } catch {
       return json({ error: 'invalid_text' }, 400);
     }
-    if (typeof text !== 'string' || text.length > MAX_QUERY_CHARS) {
+    if (typeof text !== 'string' || codePointLength(text) > MAX_QUERY_CHARS) {
       return json({ error: 'invalid_text' }, 400);
     }
     const q = normaliseQuery(text);
@@ -35,9 +41,19 @@ export function createHandler(deps: Deps): (req: Request) => Promise<Response> {
       console.error('cache read failed', e);
       return null;
     });
-    if (hit) return json({ embedding: hit, model: MODEL_ID, cached: true });
+    if (isValidVector(hit)) return json({ embedding: hit, model: MODEL_ID, cached: true });
 
-    const embedding = await deps.embed(q);
+    let embedding: number[];
+    try {
+      embedding = await deps.embed(q);
+    } catch (e) {
+      console.error('embed failed', e);
+      return json({ error: 'embed_failed' }, 502);
+    }
+    if (!isValidVector(embedding)) {
+      console.error('embed returned an invalid vector');
+      return json({ error: 'embed_failed' }, 500);
+    }
     try {
       await deps.cachePut(MODEL_ID, q, embedding);
     } catch (e) {
