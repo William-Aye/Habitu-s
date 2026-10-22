@@ -75,3 +75,37 @@ jobs:
 
       - name: Sync and run unit tests
         run: cd importer && uv sync && uv run pytest
+
+  ranking:
+    name: Search ranking (pytest, local Supabase)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            app/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Start local Supabase
+        run: npx supabase start
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Cache the embedding model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: e5-small-v1
+
+      - name: Run the ranking tests
+        env:
+          RANKING_REPORT: '1'
+        run: cd importer && uv sync && uv run pytest -m ranking -s

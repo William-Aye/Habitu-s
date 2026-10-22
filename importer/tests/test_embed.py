@@ -37,3 +37,22 @@ def test_e5_semantic_similarity():
     )
     cos = lambda u, v: sum(x * y for x, y in zip(u, v))
     assert cos(q, near) > cos(q, far)
+
+
+def test_normalise_query():
+    from importer.embed import normalise_query
+
+    assert normalise_query("  Jeu  de GO ") == "jeu de go"
+    assert normalise_query("école") == "école"
+    assert len(normalise_query("a" * 300)) == 200
+
+
+def test_normalise_query_shared_cases():
+    import json
+    from pathlib import Path
+
+    from importer.embed import normalise_query
+
+    path = Path(__file__).parents[2] / "shared/normalise_cases.json"
+    for c in json.loads(path.read_text()):
+        assert normalise_query(c["input"]) == c["expected"], c["input"][:20]

@@ -1,0 +1,326 @@
+{
+ "center": {
+  "lon": 4.835,
+  "lat": 45.764
+ },
+ "associations": [
+  {
+   "name": "Club informatique de la Croix-Rousse",
+   "purpose": "Initiation à la programmation, au code et au développement logiciel pour tous les âges.",
+   "lon": 4.833,
+   "lat": 45.776,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/cirx"
+  },
+  {
+   "name": "Atelier Arduino Villeurbanne",
+   "purpose": "Atelier de électronique et de programmation de cartes Arduino, ateliers de codage pour débutants.",
+   "lon": 4.875,
+   "lat": 45.767,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/arduino"
+  },
+  {
+   "name": "Python Lyon",
+   "purpose": "Rencontres de développeurs: apprendre à coder en Python, meetup mensuel de programmation.",
+   "lon": 4.845,
+   "lat": 45.756,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/pylyon"
+  },
+  {
+   "name": "Club de Go de Lyon",
+   "purpose": "Pratique et enseignement du jeu de go, tournois et parties libres.",
+   "lon": 4.84,
+   "lat": 45.768,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/golyon"
+  },
+  {
+   "name": "Go Club Lyon Sud",
+   "purpose": "Jeu de go: initiation, parties amicales et cours pour débutants à Lyon Sud.",
+   "lon": 4.835,
+   "lat": 45.714,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/gosud"
+  },
+  {
+   "name": "Club d'Échecs de Lyon",
+   "purpose": "Pratique du jeu d'échecs, compétitions et cours pour tous niveaux.",
+   "lon": 4.825,
+   "lat": 45.77,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/echecs"
+  },
+  {
+   "name": "Gogo Danse Fitness",
+   "purpose": "Cours de fitness et de danse rythmée, zumba et renforcement musculaire.",
+   "lon": 4.855,
+   "lat": 45.774,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/gogo"
+  },
+  {
+   "name": "Cercle celtique de Lyon",
+   "purpose": "Danses et musique bretonnes: fest-noz, cercle celtique, danses traditionnelles de Bretagne.",
+   "lon": 4.82,
+   "lat": 45.76,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/celtique"
+  },
+  {
+   "name": "Association des Bretons de Lyon",
+   "purpose": "Faire vivre la culture bretonne à Lyon: langue, traditions, fêtes et danses de Bretagne.",
+   "lon": 4.847,
+   "lat": 45.784,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/bretons"
+  },
+  {
+   "name": "Salsa Lyon",
+   "purpose": "Cours de salsa, bachata et danses latines, soirées dansantes.",
+   "lon": 4.815,
+   "lat": 45.764,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/salsa"
+  },
+  {
+   "name": "Club alpin Lyon-Villeurbanne",
+   "purpose": "Escalade, alpinisme, randonnée en montagne et sorties en falaise.",
+   "lon": 4.865,
+   "lat": 45.764,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/alpin"
+  },
+  {
+   "name": "Salle d'escalade Vertical Lyon",
+   "purpose": "Salle d'escalade en bloc et en voie, cours d'initiation à l'escalade.",
+   "lon": 4.83,
+   "lat": 45.749,
+   "source": "osm",
+   "confidence": 60,
+   "osm_id": "node/9000001"
+  },
+  {
+   "name": "L'Escale solidaire",
+   "purpose": "Aide alimentaire et accueil des personnes en difficulté, distribution de repas.",
+   "lon": 4.843,
+   "lat": 45.773,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/escale"
+  },
+  {
+   "name": "Chorale Saint-Jean",
+   "purpose": "Chant choral, répertoire sacré et profane, répétitions hebdomadaires.",
+   "lon": 4.831,
+   "lat": 45.766,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/chorale"
+  },
+  {
+   "name": "Copropriété Les Tilleuls",
+   "purpose": "Syndicat de copropriété: gestion de l'immeuble et jeu de go entre voisins.",
+   "lon": 4.836,
+   "lat": 45.765,
+   "source": "rna",
+   "confidence": 60,
+   "likely_not_public": true,
+   "website": "https://example.org/tilleuls"
+  },
+  {
+   "name": "Go Club Villefranche (hors rayon)",
+   "purpose": "Jeu de go: parties et initiation, club situé loin de Lyon.",
+   "lon": 4.835,
+   "lat": 46.124,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/gofar"
+  },
+  {
+   "name": "Union sportive de Vaise",
+   "purpose": "Football en club, entraînements et matchs pour jeunes et adultes.",
+   "lon": 4.785,
+   "lat": 45.734,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/d0"
+  },
+  {
+   "name": "Tennis club de la Guillotière",
+   "purpose": "Cours et compétitions de tennis, location de courts.",
+   "lon": 4.792,
+   "lat": 45.738,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/d1"
+  },
+  {
+   "name": "Natation Lyon Confluence",
+   "purpose": "Cours de natation, aquagym et entraînement en piscine.",
+   "lon": 4.799,
+   "lat": 45.742,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/d2"
+  },
+  {
+   "name": "Judo club Gerland",
+   "purpose": "Enseignement du judo et du jujitsu pour enfants et adultes.",
+   "lon": 4.806,
+   "lat": 45.746,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/d3"
+  },
+  {
+   "name": "Basket Lyon 8e",
+   "purpose": "Basketball loisir et compétition, école de basket.",
+   "lon": 4.813,
+   "lat": 45.75,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/d4"
+  },
+  {
+   "name": "Ciné-club Lumière",
+   "purpose": "Projections de films classiques et débats autour du cinéma.",
+   "lon": 4.82,
+   "lat": 45.754,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/d5"
+  },
+  {
+   "name": "Théâtre de la Mouche",
+   "purpose": "Troupe amateur de théâtre, ateliers d'improvisation.",
+   "lon": 4.827,
+   "lat": 45.758,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/d6"
+  },
+  {
+   "name": "Atelier poterie des Pentes",
+   "purpose": "Cours de poterie et de céramique, cuisson au four.",
+   "lon": 4.834,
+   "lat": 45.734,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/d7"
+  },
+  {
+   "name": "Photo-club lyonnais",
+   "purpose": "Sorties photographiques, expositions et formation à la photographie.",
+   "lon": 4.841,
+   "lat": 45.738,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/d8"
+  },
+  {
+   "name": "Club de lecture Bellecour",
+   "purpose": "Échanges autour de romans, rencontres avec des auteurs.",
+   "lon": 4.848,
+   "lat": 45.742,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/d9"
+  },
+  {
+   "name": "Secours populaire Lyon 3",
+   "purpose": "Aide aux familles, collecte de vêtements et de denrées.",
+   "lon": 4.855,
+   "lat": 45.746,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/d10"
+  },
+  {
+   "name": "Les Restos du quartier",
+   "purpose": "Distribution de repas et soutien aux personnes sans abri.",
+   "lon": 4.862,
+   "lat": 45.75,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/d11"
+  },
+  {
+   "name": "Amicale des locataires de Monplaisir",
+   "purpose": "Défense des intérêts des locataires et animation de quartier.",
+   "lon": 4.869,
+   "lat": 45.754,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/d12"
+  },
+  {
+   "name": "Jardins partagés de la Duchère",
+   "purpose": "Jardinage collectif, potager partagé et compostage.",
+   "lon": 4.876,
+   "lat": 45.758,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/d13"
+  },
+  {
+   "name": "Cyclo club de Caluire",
+   "purpose": "Sorties à vélo sur route, randonnées cyclistes le dimanche.",
+   "lon": 4.883,
+   "lat": 45.734,
+   "source": "rna",
+   "confidence": 60,
+   "website": "https://example.org/d14"
+  }
+ ],
+ "activities": [
+  {
+   "title": "Soirée jeu de go",
+   "description": "Parties de go entre joueurs, initiation pour débutants, goban fournis.",
+   "category": "games-go",
+   "place_label": "Café des Pentes, Lyon",
+   "lon": 4.838,
+   "lat": 45.767,
+   "published_days_ago": 5
+  },
+  {
+   "title": "Tournoi d'échecs amical",
+   "description": "Parties d'échecs rapides et café, tous niveaux.",
+   "category": "games-echecs",
+   "place_label": "Bibliothèque de la Part-Dieu, Lyon",
+   "lon": 4.85,
+   "lat": 45.76,
+   "published_days_ago": 40
+  },
+  {
+   "title": "Cours de salsa du mardi",
+   "description": "Salsa cubaine pour débutants, soirée de danse.",
+   "category": "dance-salsa-bachata",
+   "place_label": "Salle Rameau, Lyon",
+   "lon": 4.83,
+   "lat": 45.77,
+   "published_days_ago": 40
+  },
+  {
+   "title": "Sortie escalade en falaise",
+   "description": "Journée d'escalade en falaise avec matériel prêté.",
+   "category": "sport-escalade",
+   "place_label": "Rochers de Curis",
+   "lon": 4.84,
+   "lat": 45.8,
+   "published_days_ago": 40
+  }
+ ]
+}

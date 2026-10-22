@@ -13,5 +13,5 @@ it('no empty translations', () => {
   expect([...values(fr), ...values(en)].filter((v) => v.trim() === '')).toEqual([]);
 });
 it('no emoji in any translation', () => {
-  expect([...values(fr), ...values(en)].filter((v) => /\p{Extended_Pictographic}/u.test(v))).toEqual([]);
+  expect([...values(fr), ...values(en)].filter((v) => /\p{Extended_Pictographic}/u.test(v.replace(/©/g, '')))).toEqual([]);
 });

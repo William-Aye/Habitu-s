@@ -56,3 +56,23 @@ jobs:
             args+=(--departements "$deps")
           fi
           uv run --project importer python -m importer run "${args[@]}"
+
+  vocab:
+    needs: import
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Cache embedding model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: e5-small-v1
+
+      - name: Build query vocabulary
+        env:
+          IMPORTER_DB_URL: ${{ secrets.IMPORTER_DB_URL }}
+        run: uv run --project importer python -m importer vocab --db-url "$IMPORTER_DB_URL"

@@ -6,7 +6,97 @@
     "profile": "Profile"
   },
   "explore": {
-    "searchPlaceholder": "Search an activity, a club, an association…"
+    "searchPlaceholder": "Search an activity, a club, an association…",
+    "location": {
+      "around": "Around {{place}}",
+      "edit": "Change",
+      "useGps": "Use my location",
+      "enterTown": "Enter a town",
+      "townPlaceholder": "Town name",
+      "denied": "Location denied. Enter a town instead.",
+      "myPosition": "My location",
+      "cancel": "Cancel"
+    },
+    "filters": {
+      "activities": "Activities",
+      "associations": "Clubs and associations",
+      "day": "Day",
+      "distance": "Distance",
+      "newcomers": "Beginners welcome",
+      "dayTitle": "Which day?",
+      "distanceTitle": "Maximum distance",
+      "close": "Close"
+    },
+    "sort": {
+      "best": "Best match",
+      "nearest": "Nearest"
+    },
+    "view": {
+      "list": "List",
+      "map": "Map"
+    },
+    "weakDivider": "Further from your search",
+    "widen_one": "{{count}} relevant result within {{radius}} km — {{wide}} within 50 km",
+    "widen_other": "{{count}} relevant results within {{radius}} km — {{wide}} within 50 km",
+    "widenAction": "Widen to 50 km",
+    "label": {
+      "veryRelevant": "Very relevant",
+      "relevant": "Relevant",
+      "weak": "Weak match"
+    },
+    "new": "New",
+    "source": {
+      "community": "Added by the community",
+      "unverified": "unverified"
+    },
+    "nearby": "Near you",
+    "empty": "No relevant results nearby",
+    "createActivity": "Create an activity",
+    "feedback": "An idea? A problem?",
+    "activitiesOnly": "This filter applies to activities",
+    "distance": "{{value}} km",
+    "loading": "Loading",
+    "error": "Could not load results. Try again.",
+    "days": {
+      "all": "Every day",
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday",
+      "7": "Sunday"
+    },
+    "retry": "Try again"
+  },
+  "association": {
+    "verified": "Verified association",
+    "activities": "Activities run",
+    "website": "Website",
+    "phone": "Phone",
+    "email": "Email",
+    "openingHours": "Opening hours",
+    "waitButton": "Notify me when this club arrives",
+    "signInToWait": "Sign in to be notified.",
+    "waiting": "We will let you know",
+    "cancelWait": "Cancel",
+    "claim": "This is my association",
+    "report": "Report an error / Remove this listing",
+    "notFound": "This listing is no longer available",
+    "loading": "Loading",
+    "error": "Could not load this listing. Try again.",
+    "town": "{{city}} ({{postcode}})",
+    "mapLabel": "Map of {{place}}",
+    "source": {
+      "rna": "Source: National directory of associations (Open Licence / Etalab 2.0)",
+      "osm": "© OpenStreetMap contributors (ODbL)"
+    },
+    "waitError": "Could not save your request. Try again."
+  },
+  "activity": {
+    "placeholder": {
+      "title": "Activity"
+    }
   },
   "common": {
     "comingSoon": "Coming soon"
