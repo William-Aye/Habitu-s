@@ -14,6 +14,10 @@ jest.mock('../src/features/explore/api', () => ({ searchTowns: jest.fn(async () 
 jest.mock('../src/features/explore/useExploreLocation', () => ({ useExploreLocation: jest.fn() }));
 jest.mock('../src/features/explore/useExploreSearch', () => ({ useExploreSearch: jest.fn() }));
 
+// The first render of the Explore screen loads its whole module tree (maps, icons, expo modules),
+// which takes several seconds on a cold CI runner.
+jest.setTimeout(60000);
+
 function result(id: string, over: Partial<ExploreResult> = {}): ExploreResult {
   return {
     kind: 'activity', id, title: `Titre ${id}`, subtitle: null, snippet: null, lon: 4.8, lat: 45.7,

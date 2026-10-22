@@ -1,7 +1,9 @@
 import './onnx.ts';
 // Web build of Transformers.js 3.8.1 (bundled, pinned). The npm entry resolves to the Node build,
-// which loads the native onnxruntime-node addon that the Edge runtime forbids.
-import { env, pipeline } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/dist/transformers.js';
+// which loads the native onnxruntime-node addon that the Edge runtime forbids. Minified on purpose:
+// the unminified bundle keeps JSDoc `import('../utils/…')` types, which the Edge runtime's module
+// graph tries to resolve (and cannot) at boot.
+import { env, pipeline } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/dist/transformers.min.js';
 
 // Server runtime: weights come from the Hub over HTTP; no browser cache, no filesystem cache.
 env.allowLocalModels = false;

@@ -15,6 +15,10 @@ jest.mock('../src/features/explore/useExploreSearch', () => ({
   useExploreSearch: jest.fn(),
 }));
 
+// The first render of the Explore screen loads its whole module tree (maps, icons, expo modules),
+// which takes several seconds on a cold CI runner.
+jest.setTimeout(60000);
+
 const mockLocation = useExploreLocation as jest.Mock;
 const mockSearch = useExploreSearch as jest.Mock;
 
