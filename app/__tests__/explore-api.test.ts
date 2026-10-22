@@ -1,7 +1,6 @@
-import { addWaiter, embedQuery, getAssociation, removeWaiter, searchExplore, searchTowns } from '../src/features/explore/api';
+import { addWaiter, getAssociation, removeWaiter, searchExplore, searchTowns } from '../src/features/explore/api';
 import type { ExploreParams } from '../src/features/explore/types';
 
-const mockInvoke = jest.fn();
 const mockRpc = jest.fn();
 const mockInsert = jest.fn();
 const mockEqUser = jest.fn();
@@ -12,7 +11,6 @@ const mockGetSession = jest.fn();
 
 jest.mock('../src/lib/supabase', () => ({
   supabase: {
-    functions: { invoke: (...a: unknown[]) => mockInvoke(...a) },
     rpc: (...a: unknown[]) => mockRpc(...a),
     from: (...a: unknown[]) => (mockFrom as (...x: unknown[]) => unknown)(...a),
     auth: { getSession: () => mockGetSession() },
@@ -35,38 +33,6 @@ beforeEach(() => {
   jest.useRealTimers();
 });
 
-describe('embedQuery', () => {
-  it('resolves null when invoke rejects', async () => {
-    mockInvoke.mockRejectedValue(new Error('boom'));
-    await expect(embedQuery('judo')).resolves.toBeNull();
-  });
-
-  it('resolves null when invoke returns an error', async () => {
-    mockInvoke.mockResolvedValue({ data: null, error: new Error('502') });
-    await expect(embedQuery('judo')).resolves.toBeNull();
-  });
-
-  it('resolves null after 8 s when invoke never resolves', async () => {
-    jest.useFakeTimers();
-    mockInvoke.mockReturnValue(new Promise(() => {}));
-    const p = embedQuery('judo');
-    await jest.advanceTimersByTimeAsync(8000);
-    await expect(p).resolves.toBeNull();
-  });
-
-  it('resolves null for a vector that is not 384 numbers', async () => {
-    mockInvoke.mockResolvedValue({ data: { embedding: [1, 2, 3] }, error: null });
-    await expect(embedQuery('judo')).resolves.toBeNull();
-  });
-
-  it('returns a valid 384-number vector', async () => {
-    const v = Array.from({ length: 384 }, () => 0.1);
-    mockInvoke.mockResolvedValue({ data: { embedding: v }, error: null });
-    await expect(embedQuery('judo')).resolves.toEqual(v);
-    expect(mockInvoke).toHaveBeenCalledWith('embed-query', { body: { text: 'judo' } });
-  });
-});
-
 describe('searchExplore', () => {
   it('sends snake_case args and maps the response to camelCase', async () => {
     mockRpc.mockResolvedValue({
@@ -83,15 +49,16 @@ describe('searchExplore', () => {
       },
       error: null,
     });
-    const res = await searchExplore(params, { limit: 20, offset: 0 }, null);
+    const res = await searchExplore(params, { limit: 20, offset: 0 });
     expect(mockRpc).toHaveBeenCalledWith(
       'search_explore',
       expect.objectContaining({
-        p_lon: 4.8, p_lat: 45.7, p_radius_km: 10, p_query_embedding: null,
+        p_lon: 4.8, p_lat: 45.7, p_radius_km: 10,
         p_kinds: ['activity'], p_weekday: null, p_newcomer_friendly: false,
         p_interest_category_ids: [], p_sort: 'best', p_limit: 20, p_offset: 0,
       }),
     );
+    expect(mockRpc.mock.calls[0][1]).not.toHaveProperty('p_query_embedding');
     expect(res.results[0].distanceKm).toBe(2.5);
     expect(res.results[0].tagSlugs).toEqual(['sport']);
     expect(res.results[0].isNew).toBe(true);
@@ -103,7 +70,7 @@ describe('searchExplore', () => {
 
   it('throws ExploreError on RPC error', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'nope' } });
-    await expect(searchExplore(params, { limit: 20, offset: 0 }, null)).rejects.toMatchObject({
+    await expect(searchExplore(params, { limit: 20, offset: 0 })).rejects.toMatchObject({
       name: 'ExploreError',
     });
   });

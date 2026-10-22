@@ -24,7 +24,8 @@ insert into associations (id, name, source, verified, claimed_by) values
 select is(has_table_privilege('authenticated', 'public.activities', 'TRUNCATE'), false, 'authenticated cannot truncate activities');
 select is(has_table_privilege('anon', 'public.attendances', 'TRUNCATE'), false, 'anon cannot truncate attendances');
 select has_index('public', 'activities', 'activities_place_gist', 'GiST on place');
-select has_index('public', 'activities', 'activities_embedding_hnsw', 'HNSW on embedding');
+-- No HNSW index: search_explore never uses it (decision 5 of docs/plans/2026-10-22-query-vocabulary.md).
+select hasnt_index('public', 'activities', 'activities_embedding_hnsw', 'no HNSW on embedding');
 select has_index('public', 'sessions', 'sessions_activity_starts', 'sessions index');
 
 select tests.act_as(:'newbie');

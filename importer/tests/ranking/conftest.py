@@ -3,7 +3,6 @@
 Needs local Supabase (`npm run db:reset`). The model is downloaded on first use (slow).
 """
 import json
-import os
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -82,12 +81,7 @@ def conn(embedder):
 
 @pytest.fixture(scope="session")
 def query_embed(embedder):
-    """Python (fp32) query embeddings by default; RANKING_QUERY_EMBEDDER=edge uses the Edge Function,
-    as production does (Transformers.js, q8)."""
-    if os.environ.get("RANKING_QUERY_EMBEDDER") == "edge":
-        import edge_client
-
-        return edge_client.connect()
+    """Python (fp32) query embeddings."""
     return lambda q: embedder.embed_queries([q])[0]
 
 

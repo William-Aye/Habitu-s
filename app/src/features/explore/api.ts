@@ -15,37 +15,6 @@ export class ExploreError extends Error {
   }
 }
 
-const EMBEDDING_DIMENSIONS = 384;
-
-export async function embedQuery(text: string, timeoutMs = 8000): Promise<number[] | null> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<null>((resolve) => {
-    timer = setTimeout(() => resolve(null), timeoutMs);
-  });
-  const call = (async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke('embed-query', { body: { text } });
-      if (error) return null;
-      const v = (data as { embedding?: unknown } | null)?.embedding;
-      if (
-        Array.isArray(v) &&
-        v.length === EMBEDDING_DIMENSIONS &&
-        v.every((n) => typeof n === 'number' && Number.isFinite(n))
-      ) {
-        return v as number[];
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  })();
-  try {
-    return await Promise.race([call, timeout]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 function mapResult(r: any): ExploreResult {
   return {
     kind: r.kind,
@@ -68,14 +37,12 @@ function mapResult(r: any): ExploreResult {
 export async function searchExplore(
   p: ExploreParams,
   page: { limit: number; offset: number },
-  embedding: number[] | null,
 ): Promise<ExploreResponse> {
   const { data, error } = await supabase.rpc('search_explore', {
     p_lon: p.center.lon,
     p_lat: p.center.lat,
     p_radius_km: p.radiusKm,
     p_query: normaliseQuery(p.query),
-    p_query_embedding: embedding,
     p_kinds: p.kinds,
     p_weekday: p.weekday,
     p_newcomer_friendly: p.newcomerFriendly,

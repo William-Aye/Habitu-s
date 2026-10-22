@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import * as Location from 'expo-location';
-import { embedQuery, searchExplore } from '../src/features/explore/api';
+import { searchExplore } from '../src/features/explore/api';
 import type { ExploreParams, ExploreResponse, ExploreResult } from '../src/features/explore/types';
 import { useExploreLocation } from '../src/features/explore/useExploreLocation';
 import { useExploreSearch } from '../src/features/explore/useExploreSearch';
@@ -13,7 +13,6 @@ jest.mock('expo-location', () => ({
 }));
 
 const mockSearch = searchExplore as jest.Mock;
-const mockEmbed = embedQuery as jest.Mock;
 
 const base: ExploreParams = {
   query: '',
@@ -42,7 +41,6 @@ function response(ids: string[], hasMore = false): ExploreResponse {
 beforeEach(async () => {
   jest.clearAllMocks();
   jest.useFakeTimers();
-  mockEmbed.mockResolvedValue(null);
   mockSearch.mockResolvedValue(response(['x']));
   await AsyncStorage.clear();
 });
@@ -67,38 +65,11 @@ describe('useExploreSearch', () => {
     expect(mockSearch.mock.calls[0][0].query).toBe('dan');
   });
 
-  it('still calls the RPC with null when the embedding is unavailable', async () => {
-    mockEmbed.mockResolvedValue(null);
+  it('typing a query calls searchExplore once after 350 ms, with no embedding argument', async () => {
     await renderHook(() => useExploreSearch({ ...base, query: 'yoga nidra' }));
     await act(async () => { await jest.advanceTimersByTimeAsync(400); });
     expect(mockSearch).toHaveBeenCalledTimes(1);
-    expect(mockSearch.mock.calls[0][2]).toBeNull();
-  });
-
-  it('fetches the embedding once per distinct normalised query', async () => {
-    const vec = [0.5];
-    mockEmbed.mockResolvedValue(vec);
-    const { rerender } = await renderHook((p: ExploreParams) => useExploreSearch(p), {
-      initialProps: { ...base, query: '  Poterie  Douce ' },
-    });
-    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
-    await rerender({ ...base, query: 'poterie douce', radiusKm: 25 });
-    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
-    expect(mockEmbed).toHaveBeenCalledTimes(1);
-    expect(mockSearch).toHaveBeenCalledTimes(2);
-    expect(mockSearch.mock.calls[1][2]).toBe(vec);
-  });
-
-  it('retries the embedding after a null result', async () => {
-    mockEmbed.mockResolvedValueOnce(null).mockResolvedValueOnce([0.1]);
-    const { rerender } = await renderHook((p: ExploreParams) => useExploreSearch(p), {
-      initialProps: { ...base, query: 'tir à larc' },
-    });
-    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
-    await rerender({ ...base, query: 'tir à larc', radiusKm: 5 });
-    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
-    expect(mockEmbed).toHaveBeenCalledTimes(2);
-    expect(mockSearch.mock.calls[1][2]).toEqual([0.1]);
+    expect(mockSearch.mock.calls[0]).toHaveLength(2);
   });
 
   it('loadMore requests offset 20 and appends', async () => {

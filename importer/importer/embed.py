@@ -10,12 +10,12 @@ DIM = 384
 _SPACES = re.compile(r"\s+")
 _MAX_CHARS = 1000
 _MAX_QUERY_CHARS = 200
-# Explicit whitespace class, identical to supabase/functions/embed-query/normalise.ts.
+# Explicit whitespace class, identical to app/src/features/explore/types.ts; cases in shared/normalise_cases.json.
 _QUERY_WS = re.compile("[ \t\n\r\f\v\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+")
 
 
 def normalise_query(text: str) -> str:
-    """NFC, trim, collapse whitespace, lower-case, cut to 200 code points (same rule as the edge function)."""
+    """NFC, trim, collapse whitespace, lower-case, cut to 200 code points."""
     collapsed = _QUERY_WS.sub(" ", unicodedata.normalize("NFC", text)).strip(" ")
     return collapsed.lower()[:_MAX_QUERY_CHARS]
 

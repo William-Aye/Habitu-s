@@ -67,7 +67,7 @@ select throws_ok($$ select location from associations $$, '42501', null, 'anon c
 select throws_ok($$ select created_by from associations $$, '42501', null, 'anon cannot read created_by');
 select throws_ok($$ select claimed_by from associations $$, '42501', null, 'anon cannot read claimed_by');
 select lives_ok($$ select name, city, town_point from associations $$, 'anon reads public columns');
-select throws_ok($$ select * from query_embedding_cache $$, '42501', null, 'cache is service-only');
+select hasnt_table('public', 'query_embedding_cache', 'no query embedding cache (precomputed vocabulary instead)');
 select throws_ok($$ insert into association_waiters (association_id, user_id)
                     values ('00000000-0000-0000-0000-00000000f001', gen_random_uuid()) $$,
                  '42501', null, 'anon cannot wait');

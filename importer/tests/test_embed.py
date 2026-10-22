@@ -53,6 +53,6 @@ def test_normalise_query_shared_cases():
 
     from importer.embed import normalise_query
 
-    path = Path(__file__).parents[2] / "supabase/functions/embed-query/normalise_cases.json"
+    path = Path(__file__).parents[2] / "shared/normalise_cases.json"
     for c in json.loads(path.read_text()):
         assert normalise_query(c["input"]) == c["expected"], c["input"][:20]

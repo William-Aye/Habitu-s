@@ -11,5 +11,3 @@ __pycache__/
 .venv/
 *.pyc
 .claude/worktrees/
-# Written by `deno test` runs; npm: specifiers are pinned exactly in the sources.
-/deno.lock

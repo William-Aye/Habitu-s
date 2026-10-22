@@ -75,7 +75,7 @@ export interface StoredLocation {
   source: 'gps' | 'town';
 }
 
-// Source of truth: supabase/functions/embed-query/normalise.ts (keep identical).
+// Debounce key. Source of truth: the shared cases in shared/normalise_cases.json (keep identical in SQL, Python and the app).
 const MAX_QUERY_CHARS = 200;
 const WS = /[ \t\n\r\f\v\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+/g;
 

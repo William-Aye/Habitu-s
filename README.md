@@ -37,25 +37,9 @@ The local Supabase stack uses ports in the 553xx range instead of the 543xx defa
 
 ## Search
 
-Search combines keyword matching with semantic ranking. The `embed-query` Edge Function
-embeds search queries with `Xenova/multilingual-e5-small` (q8, 384 dims, `"query: "` prefix)
-and caches results in `query_embedding_cache`. If the function is unavailable the app falls
-back to keyword results.
-
-The function runs Transformers.js 3.8.1's web build (pinned jsdelivr URL) on onnxruntime-web's
-WebAssembly backend, single-threaded (`onnx.ts`): the Edge runtime forbids native addons, so the
-npm entry's Node build (`onnxruntime-node`) cannot load there. Weights are fetched from the
-Hugging Face Hub on a worker's first call.
-
-### Serving the function locally
-
-```bash
-npx supabase start
-npx supabase functions serve embed-query
-```
-
-The app reaches it at `/functions/v1/embed-query` under `EXPO_PUBLIC_SUPABASE_URL`
-(locally `http://127.0.0.1:55321`, hosted `https://<project-ref>.supabase.co`).
+Search combines keyword matching with semantic ranking. The query-vocabulary
+description (how queries get their embedding) is written in a later step of
+`docs/plans/2026-10-22-query-vocabulary.md`.
 
 ### Ranking rule
 
@@ -70,16 +54,10 @@ can be judged, not just pass/fail. CI runs the same job (`ranking`).
 
 ### Checks
 
-- Edge unit tests (CI job `edge`): `deno test supabase/functions/embed-query`
 - Perf (local only, not in CI): `cd importer && uv run pytest -m perf -s` (150k associations
   near Paris, document vectors clustered around cosine 0.8 to the query direction; target p95
   < 1.5 s). Last measured on a local PG16 (4 cores), 2026-10-22: radius 50 with an unrelated
   query p95 971 ms; radius 10 with the widen count over 50 km p95 895 ms.
-- Parity with Python (`importer/tests/ranking/test_embed_parity.py`; CI job `ranking` serves the
-  function and runs it): locally `npx supabase functions serve embed-query`, then
-  `cd importer && SUPABASE_ANON_KEY=<local anon key> uv run pytest -m edge tests/ranking/test_embed_parity.py`.
-  `RANKING_QUERY_EMBEDDER=edge uv run pytest -m ranking` runs the ranking set on the function's
-  query embeddings (the production path).
 
 ### Hosted migration note
 
@@ -90,32 +68,3 @@ under an ACCESS EXCLUSIVE lock. Apply that migration outside import runs.
 
 The map uses the OpenFreeMap style (`https://tiles.openfreemap.org/styles/liberty`).
 Keep its attribution (OpenMapTiles, OpenStreetMap contributors) visible on every map.
-
-### embed-query go/no-go spike
-
-Run by the owner on the hosted project (needs network access to huggingface.co):
-
-```bash
-# 1. Deploy
-npx supabase functions deploy embed-query
-
-# 2. Cold: wait >= 15 min idle, then one call; repeat 10 times
-URL=https://<project-ref>.supabase.co/functions/v1/embed-query
-deno run -A supabase/functions/embed-query/bench.ts "$URL" "$SUPABASE_ANON_KEY" 1
-
-# 3. Warm: 50 calls (unique texts, so the cache is bypassed)
-deno run -A supabase/functions/embed-query/bench.ts "$URL" "$SUPABASE_ANON_KEY" 50
-
-# 4. Parity with Python: see "Checks" above
-```
-
-**Go** when cold <= 8 s, warm p50 <= 300 ms and no memory-limit error in the function logs,
-and parity cosine >= 0.99. **No-go**: report numbers to the owner (fallback: Cloud Run, same contract).
-
-| Measure | Threshold | Result |
-|---|---|---|
-| Cold call (10 runs, max) | <= 8 s | not measured yet |
-| Warm p50 (50 calls) | <= 300 ms | not measured yet |
-| Warm p95 (50 calls) | info | not measured yet |
-| Memory-limit errors | none | not measured yet |
-| Parity cosine (4 queries) | >= 0.99 | not measured yet |

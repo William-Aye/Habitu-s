@@ -13,7 +13,8 @@ insert into association_claims (id, association_id, claimant_id, proof_method)
 
 -- structure
 select has_index('public', 'associations', 'associations_location_gist', 'GiST index on location');
-select has_index('public', 'associations', 'associations_embedding_hnsw', 'HNSW index on embedding');
+-- No HNSW index: search_explore never uses it (decision 5 of docs/plans/2026-10-22-query-vocabulary.md).
+select hasnt_index('public', 'associations', 'associations_embedding_hnsw', 'no HNSW index on embedding');
 select has_index('public', 'associations', 'associations_name_trgm', 'trigram index on name');
 select is(has_table_privilege('authenticated', 'public.associations', 'TRUNCATE'), false, 'authenticated cannot truncate associations');
 select is(has_table_privilege('anon', 'public.association_claims', 'TRUNCATE'), false, 'anon cannot truncate claims');

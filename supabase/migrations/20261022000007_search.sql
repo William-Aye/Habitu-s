@@ -224,21 +224,11 @@ where m.id > k.id and m.query = k.query and coalesce(m.area_label, '') = coalesc
 create unique index search_misses_agg on public.search_misses (query, coalesce(area_label, ''), day);
 
 -- ---------------------------------------------------------------------------------------------
--- Query embedding cache (service role only), pruned daily
-
-create table public.query_embedding_cache (
-  model text not null,
-  query_norm text not null,
-  embedding vector(384) not null,
-  created_at timestamptz not null default now(),
-  primary key (model, query_norm)
-);
-alter table public.query_embedding_cache enable row level security;
-revoke all on public.query_embedding_cache from anon, authenticated;
+-- pg_cron (jobs are scheduled by later migrations) and the HNSW indexes: search_explore never
+-- uses them (decision 5 of docs/plans/2026-10-22-query-vocabulary.md), so they only cost writes.
 
 create extension if not exists pg_cron;
-select cron.schedule('prune-query-embedding-cache', '10 4 * * *',
-  $$ delete from public.query_embedding_cache where created_at < now() - interval '60 days' $$);
+drop index if exists public.associations_embedding_hnsw, public.activities_embedding_hnsw;
 
 -- ---------------------------------------------------------------------------------------------
 -- Explore and search

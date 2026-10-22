@@ -76,19 +76,6 @@ jobs:
       - name: Sync and run unit tests
         run: cd importer && uv sync && uv run pytest
 
-  edge:
-    name: Edge function (deno test)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-
-      - name: Run embed-query tests
-        run: deno test supabase/functions/embed-query
-
   ranking:
     name: Search ranking (pytest, local Supabase)
     runs-on: ubuntu-latest
@@ -122,54 +109,3 @@ jobs:
         env:
           RANKING_REPORT: '1'
         run: cd importer && uv sync && uv run pytest -m ranking -s
-
-      # Production embeds queries in the Edge Function (Transformers.js, q8); the ranking rule was
-      # tuned on Python fp32 query embeddings. Serve the function and check that they agree.
-      - name: Serve embed-query
-        run: |
-          nohup npx supabase functions serve embed-query > "$RUNNER_TEMP/functions.log" 2>&1 &
-          eval "$(npx supabase status -o env)"
-          test -n "$ANON_KEY"
-          echo "SUPABASE_ANON_KEY=$ANON_KEY" >> "$GITHUB_ENV"
-
-      - name: Wait for embed-query (the first call downloads the model)
-        timeout-minutes: 20
-        run: |
-          log="$RUNNER_TEMP/functions.log"
-          shown=0
-          deadline=$((SECONDS + 900))
-          i=0
-          while [ "$SECONDS" -lt "$deadline" ]; do
-            i=$((i + 1))
-            start=$SECONDS
-            # The first call may download the weights (~118 MB), hence the long per-call limit.
-            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 120 -X POST \
-              -H "Authorization: Bearer $SUPABASE_ANON_KEY" -H 'Content-Type: application/json' \
-              -d '{"text":"test"}' http://127.0.0.1:55321/functions/v1/embed-query || true)
-            echo "attempt $i: HTTP ${code:-none} after $((SECONDS - start)) s (total ${SECONDS} s)"
-            total=$(wc -l < "$log" 2>/dev/null || echo 0)
-            if [ "$total" -gt "$shown" ]; then
-              echo "--- functions.log (new lines, last 20) ---"
-              tail -n +"$((shown + 1))" "$log" | tail -n 20
-              shown=$total
-            fi
-            if [ "$code" = 200 ]; then exit 0; fi
-            sleep 5
-          done
-          echo "embed-query not ready after 15 minutes"
-          exit 1
-
-      - name: Embedding parity (Edge vs Python)
-        run: cd importer && uv run pytest -m edge tests/ranking/test_embed_parity.py
-
-      # Informational until the rule is checked on q8 query embeddings: the step's own result
-      # shows whether the ranking set also holds on the production query path.
-      - name: Ranking set with Edge query embeddings (informational)
-        continue-on-error: true
-        env:
-          RANKING_QUERY_EMBEDDER: edge
-        run: cd importer && uv run pytest -m ranking
-
-      - name: Edge function log
-        if: always()
-        run: tail -n 300 "$RUNNER_TEMP/functions.log" 2>/dev/null || echo "no functions.log"

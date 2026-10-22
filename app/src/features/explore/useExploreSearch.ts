@@ -1,27 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { embedQuery, searchExplore } from './api';
+import { searchExplore } from './api';
 import type { ExploreParams, ExploreResponse, ExploreResult } from './types';
 import { normaliseQuery } from './types';
 
 const PAGE_SIZE = 20;
 const DEBOUNCE_MS = 350;
-
-// One embedding request per distinct normalised query, for the app session.
-const embeddings = new Map<string, Promise<number[] | null>>();
-function getEmbedding(normalised: string): Promise<number[] | null> {
-  if (!normalised) return Promise.resolve(null);
-  let p = embeddings.get(normalised);
-  if (!p) {
-    const created: Promise<number[] | null> = embedQuery(normalised).then((v) => {
-      // Do not remember failures: a later search for this query retries.
-      if (v === null && embeddings.get(normalised) === created) embeddings.delete(normalised);
-      return v;
-    });
-    p = created;
-    embeddings.set(normalised, p);
-  }
-  return p;
-}
 
 export function useExploreSearch(params: ExploreParams | null): {
   response: ExploreResponse | null;
@@ -43,7 +26,7 @@ export function useExploreSearch(params: ExploreParams | null): {
   const [loadMoreError, setLoadMoreError] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const requestId = useRef(0);
-  const current = useRef<{ params: ExploreParams; embedding: number[] | null } | null>(null);
+  const current = useRef<{ params: ExploreParams } | null>(null);
   const loadingMore = useRef(false);
 
   useEffect(() => {
@@ -96,11 +79,9 @@ export function useExploreSearch(params: ExploreParams | null): {
     setLoadMoreError(false);
     (async () => {
       try {
-        const embedding = await getEmbedding(debounced);
+        const res = await searchExplore(effective, { limit: PAGE_SIZE, offset: 0 });
         if (id !== requestId.current) return;
-        const res = await searchExplore(effective, { limit: PAGE_SIZE, offset: 0 }, embedding);
-        if (id !== requestId.current) return;
-        current.current = { params: effective, embedding };
+        current.current = { params: effective };
         setResponse(res);
         setResults(res.results);
         setLoading(false);
@@ -123,7 +104,7 @@ export function useExploreSearch(params: ExploreParams | null): {
     setLoadMoreError(false);
     const id = requestId.current;
     const offset = resultsRef.current.length;
-    searchExplore(cur.params, { limit: PAGE_SIZE, offset }, cur.embedding)
+    searchExplore(cur.params, { limit: PAGE_SIZE, offset })
       .then((res) => {
         if (id !== requestId.current) return;
         setResponse(res);
