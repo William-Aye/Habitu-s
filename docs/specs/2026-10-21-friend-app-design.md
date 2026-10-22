@@ -34,7 +34,8 @@ The biggest risk for an app like this is looking empty on day one. The answer is
 |---|---|
 | **Activité / Activity** | A recurring meetup created by a user, e.g. "Échecs le jeudi au Café du Parc". Internal table: `activities`. |
 | **Séance / Session** | One concrete occurrence of an activity on a given date. |
-| **Organisateur / Organiser** | The user who created the activity. |
+| **Organisateur / Organiser** | The user who created the activity. Keeps the highest rights. |
+| **Co-organisateur / Co-organiser** | A member the organiser chose (and who accepted) to help run the activity, e.g. while the organiser is away. Fewer rights than the organiser (section 8). |
 | **Club ou association / Club or association** | An organisation listed in the directory (imported from open data, or added by the community). Optional "organised by" label on an activity. |
 | **Habitués / Regulars** | Two users who attended at least 3 sessions of the same activity together. |
 | **Organisateur de confiance / Trusted organiser** | Pass/fail safety badge earned by organisers (section 9). Not a rating. |
@@ -88,6 +89,7 @@ Expected offset from ads: see section 10.
 | `activities` | title, description, category, tags, meeting place (point + label), recurrence rule (weekly / every N days / specific weekdays), time, max size, optional minimum participants, newcomer-friendly flag, approval mode (open by default / approve members), organiser, optional `organised_by_association_id`, published_at (drives the "Nouvelle" label), embedding |
 | `activity_members` | activity + user + status (member / pending / removed) |
 | `activity_interests` | user + activity ("Ça m'intéresse": lighter than joining, no commitment) |
+| `activity_co_organisers` | activity + user + status (`invited`, `active`, `declined`, `removed`) + optional `ends_at` (rights end automatically at that time) + invited_at/accepted_at |
 | `sessions` | concrete occurrences generated from the activity's recurrence rule; can be individually cancelled or moved; status (`scheduled`, `held`, `cancelled_by_organiser`, `cancelled_min_not_reached`) |
 | `session_feedback` | session + participant + `went_well` (yes/no) + up to 3 ambiance words. Never shown individually; anonymous to the organiser |
 | `ambiance_words` | fixed admin-managed list, FR/EN (e.g. Accueillant, Détendu, Bavard, Sportif, Concentré, Débutants bienvenus, Bon niveau requis, Petit groupe, Grand groupe, Jeunes adultes, Tous âges) |
@@ -210,7 +212,7 @@ No icon-only buttons for important actions. One clear primary button per screen.
 
 Description, category, tags, meeting place on a map, recurrence, next session date, confirmed attendees for the next session (count + first names + photos, e.g. "6 confirmés"), interested count ("9 intéressés"), "Organisé par" club/association (if any), **Rejoindre** button, **Ça m'intéresse** button, share button, and a visible **Signaler cette activité** link.
 
-Organiser block: first name, photo, factual stats ("Organisé par Julie · 8 séances organisées · 14 participants différents") and badge: **Organisateur de confiance**, **Association vérifiée**, or **Nouvel organisateur** (neutral, shown until the trusted conditions are met).
+Organiser block: first name, photo, active co-organisers if any ("Co-organisé par Sam"), factual stats ("Organisé par Julie · 8 séances organisées · 14 participants différents") and badge: **Organisateur de confiance**, **Association vérifiée**, or **Nouvel organisateur** (neutral, shown until the trusted conditions are met).
 
 Ambiance line (once at least 3 participants answered): the most chosen words, e.g. "Ambiance : Accueillant · Détendu · Débutants bienvenus". "Nouvelle" label during the first 14 days.
 
@@ -260,6 +262,29 @@ After publishing: a **"Partagez-la avec vos amis"** screen with the share link, 
 
 When a user's interest has no activity nearby, Explore shows nearby associations plus a **"Lancez-la vous-même"** prompt leading to this flow.
 
+### Co-organisers (stand-ins)
+
+For when the organiser is away (holidays, illness) or simply wants help.
+
+- **"Ajouter un co-organisateur"** on the activity page (organiser only). Only current members of the activity with a verified phone number can be chosen.
+- **The person must accept** an invitation; nobody gets responsibilities without agreeing.
+- **Optional end date** ("jusqu'au 15 novembre"): rights end automatically at that time. Without an end date, rights last until removed.
+- **The organiser can remove a co-organiser at any time** (one tap); a co-organiser can step down themselves.
+- Co-organisers receive the same notifications as the organiser (new members, late cancellations, join requests).
+- Shown on the activity page as "Co-organisé par Sam".
+
+| Action | Organiser | Co-organiser |
+|---|---|---|
+| Change a future session's time or place, cancel it | yes | yes |
+| Accept or refuse join requests | yes | yes |
+| Mark no-shows | yes | yes |
+| Edit title and description | yes | yes |
+| Add or remove co-organisers | yes | no |
+| Change main settings (open/approval, max size, minimum participants, recurrence, category, "organised by") | yes | no |
+| Archive or delete the activity | yes | no |
+
+**Trust badge:** sessions run by a co-organiser count toward the **main organiser's** statistics and badge (the organiser chose the stand-in), never the co-organiser's. Session feedback stays anonymous to co-organisers exactly as to organisers, and a co-organiser cannot give feedback on sessions of an activity they co-organise.
+
 ### Joining an approval-required activity
 
 The organiser sees only neutral facts about the requester: first name, photo, bio, "Membre depuis …". There is no participant score. A user joining an activity for the first time is shown to the group with a positive label: *"Première fois dans cette activité — accueillez-le/la"*.
@@ -273,7 +298,8 @@ The organiser sees only neutral facts about the requester: first name, photo, bi
   - At most **2 instant new-activity alerts per user per week**; can be turned off in settings.
 - Session cancelled because the minimum was not reached.
 - Morning-after "La séance s'est bien passée ?" question.
-- New member joined your activity (organiser).
+- New member joined your activity (organiser and active co-organisers).
+- Co-organiser invitation (to the invited member); invitation accepted or declined, and end of co-organiser rights (to the organiser).
 - Late cancellation (organiser).
 - Saved-search alerts.
 - Chat messages (mutable per activity).
@@ -425,6 +451,7 @@ Protection is applied at each layer where it actually works (the app talks direc
 - **Minimum participants test:** session auto-cancelled at 20:00 the evening before when below minimum, not otherwise.
 - **Rate limit tests:** each write limit allows the last permitted action and refuses the next one; admins and the service role are not limited.
 - **Dashboard tests:** the dashboard function is callable only by admins; figures match a known fixture; no per-person data is returned.
+- **Co-organiser tests:** every row of the organiser/co-organiser rights table; an invited (not yet accepted), declined, removed or expired (`ends_at` passed) co-organiser has no rights; only members with a verified phone can be invited; a co-organiser cannot add co-organisers or give feedback on the activity's sessions; sessions they run count toward the organiser's stats.
 - **End-to-end journeys** on an Android emulator: browse → sign up → join → "Je serai là"; create an activity with and without "organised by" (including a new community club and the home-address warning); report.
 
 ## 14. Build order (sub-projects)
@@ -435,7 +462,7 @@ Each gets its own implementation plan.
 2. **Association directory:** import pipeline, tagging, embeddings, confidence score, GitHub Actions schedule.
 3. **Explore and search:** semantic + full-text search, ranking, filters, list/map, association pages.
 4. **Accounts and interests:** browse-first onboarding, language choice, deferred sign-up (with Cloudflare Turnstile and tuned Auth rate limits), interests picker, category requests, `last_seen_at`.
-5. **Activities and sessions:** create activity (incl. "Who organises it?"), recurrence, join, "Ça m'intéresse", "Je serai là", minimum participants, reminders, no-shows, share links, new-activity alerts.
+5. **Activities and sessions:** create activity (incl. "Who organises it?"), recurrence, join, "Ça m'intéresse", "Je serai là", minimum participants, reminders, no-shows, share links, new-activity alerts, co-organisers (invitation, rights, end date, removal).
 6. **Chat and regulars:** activity chat, regulars computation, private messages.
 7. **Safety, trust and admin:** reports, blocks, contextual tips, Share my plans, morning-after feedback, ambiance words, trusted organiser badge, "Une idée ? Un problème ?", admin screens, claims, community-club review, Tableau de bord, database write limits.
 8. **Ads:** AdMob native ads in Explore, UMP consent, placement rules.
