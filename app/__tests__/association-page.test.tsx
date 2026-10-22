@@ -16,6 +16,11 @@ jest.mock('../src/features/explore/api', () => ({
   removeWaiter: jest.fn(),
 }));
 
+const mockGate = jest.fn();
+jest.mock('../src/features/account/AccountGate', () => ({
+  useRequireAccount: () => mockGate,
+}));
+
 const mockGet = getAssociation as jest.Mock;
 const mockAdd = addWaiter as jest.Mock;
 const mockRemove = removeWaiter as jest.Mock;
@@ -39,6 +44,8 @@ beforeEach(() => {
   mockGet.mockResolvedValue(assoc());
   mockAdd.mockResolvedValue('added');
   mockRemove.mockResolvedValue(undefined);
+  mockGate.mockReset();
+  mockGate.mockResolvedValue(false);
 });
 
 async function show(a: AssociationDetail | null) {
@@ -112,12 +119,24 @@ it('shows the waiter button for a contactless unclaimed listing', async () => {
   expect(screen.getByText(WAIT)).toBeTruthy();
 });
 
-it('asks to sign in when signed out, with no insert', async () => {
+it('opens the gate with the wait reason when signed out, with no insert', async () => {
   mockAdd.mockResolvedValue('signed_out');
   await show(assoc());
   await fireEvent.press(screen.getByText(WAIT));
   expect(await screen.findByText('Connectez-vous pour être prévenu(e).')).toBeTruthy();
+  expect(mockGate).toHaveBeenCalledWith('wait');
+  expect(mockAdd).toHaveBeenCalledTimes(1);
   expect(screen.queryByText('Nous vous préviendrons')).toBeNull();
+});
+
+it('retries the waiter registration once the account is created', async () => {
+  mockAdd.mockResolvedValueOnce('signed_out').mockResolvedValueOnce('added');
+  mockGate.mockResolvedValue(true);
+  await show(assoc());
+  await fireEvent.press(screen.getByText(WAIT));
+  expect(await screen.findByText('Nous vous préviendrons')).toBeTruthy();
+  expect(mockGate).toHaveBeenCalledWith('wait');
+  expect(mockAdd).toHaveBeenCalledTimes(2);
 });
 
 it('registers the waiter when signed in, and can cancel', async () => {

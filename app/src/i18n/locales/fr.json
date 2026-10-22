@@ -167,5 +167,28 @@
     "start": "Commencer",
     "skip": "Passer",
     "chosen": "Lieu choisi : {{place}}"
+  },
+  "profile": {
+    "title": "Profil",
+    "signIn": "Se connecter",
+    "changePhoto": "Changer la photo",
+    "photoAlt": "Photo de profil",
+    "bio": "Présentation",
+    "save": "Enregistrer",
+    "saved": "Enregistré",
+    "saveError": "Enregistrement impossible. Réessayez.",
+    "interests": "Mes centres d'intérêt",
+    "language": "Langue",
+    "myData": "Mes données",
+    "download": "Télécharger mes données",
+    "downloadError": "Impossible de préparer vos données. Réessayez.",
+    "delete": "Supprimer mon compte",
+    "deleteConfirm": "Supprimer définitivement votre compte et toutes vos données ?",
+    "deleteAction": "Supprimer",
+    "cancel": "Annuler",
+    "deleteError": "Suppression impossible. Réessayez.",
+    "signOut": "Se déconnecter",
+    "photoTooLarge": "Cette photo est trop lourde (1 Mo maximum).",
+    "photoError": "Envoi de la photo impossible. Réessayez."
   }
 }

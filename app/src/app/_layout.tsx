@@ -1,12 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef, useState } from 'react';
 import { Stack, usePathname, useRouter } from 'expo-router';
-import { StyleSheet, useColorScheme, View } from 'react-native';
+import { AppState, StyleSheet, useColorScheme, View } from 'react-native';
 import { I18nextProvider } from 'react-i18next';
 import i18next from 'i18next';
 import { initI18n } from '../i18n';
 import { AccountGateProvider } from '../features/account/AccountGate';
 import { SessionProvider, useSession } from '../features/account/useSession';
+import { touchLastSeen } from '../features/account/lastSeen';
 import { mergeLocalIntoAccount } from '../features/interests/store';
 
 // A failed merge keeps the local interests for the next sign-in; the log carries no user data.
@@ -16,6 +17,20 @@ async function mergeInterests(userId: string): Promise<void> {
   } catch {
     console.warn('interests merge failed');
   }
+}
+
+/** Tells the server the signed-in user is active, at launch and whenever the app returns to the foreground. */
+function LastSeenToucher() {
+  const { status } = useSession();
+  useEffect(() => {
+    if (status !== 'ready') return;
+    void touchLastSeen();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void touchLastSeen();
+    });
+    return () => sub.remove();
+  }, [status]);
+  return null;
 }
 
 const styles = StyleSheet.create({
@@ -116,6 +131,7 @@ export default function RootLayout() {
     <I18nextProvider i18n={i18next}>
       <SessionProvider>
         <AccountGateProvider onSignedUp={mergeInterests}>
+          <LastSeenToucher />
           <OnboardingGate />
         </AccountGateProvider>
       </SessionProvider>

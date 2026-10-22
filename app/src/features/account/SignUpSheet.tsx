@@ -37,7 +37,8 @@ export function SignUpSheet({
   onClose,
   onSignedUp,
 }: {
-  reason: GateReason;
+  /** Omitted when the user chose to sign in from Profil: no reason sentence is shown. */
+  reason?: GateReason;
   /** `true` when the user ends up signed in with a complete profile, `false` if dismissed. */
   onClose(ready: boolean): void;
   onSignedUp?: (userId: string) => Promise<void>;
@@ -222,7 +223,7 @@ export function SignUpSheet({
             <Text accessibilityRole="header" style={styles.title}>
               {t('account.title')}
             </Text>
-            <Text style={styles.reason}>{t(`account.reasons.${reason}`)}</Text>
+            {reason ? <Text style={styles.reason}>{t(`account.reasons.${reason}`)}</Text> : null}
 
             {step === 'choose' ? (
               <View style={styles.group}>

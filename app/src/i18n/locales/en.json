@@ -167,5 +167,28 @@
     "start": "Get started",
     "skip": "Skip",
     "chosen": "Chosen place: {{place}}"
+  },
+  "profile": {
+    "title": "Profile",
+    "signIn": "Sign in",
+    "changePhoto": "Change photo",
+    "photoAlt": "Profile photo",
+    "bio": "About you",
+    "save": "Save",
+    "saved": "Saved",
+    "saveError": "Could not save. Try again.",
+    "interests": "My interests",
+    "language": "Language",
+    "myData": "My data",
+    "download": "Download my data",
+    "downloadError": "Could not prepare your data. Try again.",
+    "delete": "Delete my account",
+    "deleteConfirm": "Permanently delete your account and all your data?",
+    "deleteAction": "Delete",
+    "cancel": "Cancel",
+    "deleteError": "Could not delete. Try again.",
+    "signOut": "Sign out",
+    "photoTooLarge": "This photo is too large (1 MB maximum).",
+    "photoError": "Could not upload the photo. Try again."
   }
 }

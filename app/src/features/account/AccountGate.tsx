@@ -13,7 +13,8 @@ import { useSession } from './useSession';
 
 export type GateReason = 'join' | 'message' | 'create' | 'wait' | 'category';
 
-type RequireAccount = (reason: GateReason) => Promise<boolean>;
+/** Without a reason (sign-in chosen from Profil) the sheet shows no reason sentence. */
+type RequireAccount = (reason?: GateReason) => Promise<boolean>;
 
 /** How long a pending session may delay the decision to open the sheet. */
 const LOADING_WAIT_MS = 5000;
@@ -34,7 +35,7 @@ export function AccountGateProvider({
     statusRef.current = status;
   }, [status]);
 
-  const [reason, setReason] = useState<GateReason | null>(null);
+  const [reason, setReason] = useState<{ reason?: GateReason } | null>(null);
   const resolver = useRef<((ok: boolean) => void) | null>(null);
 
   const requireAccount = useCallback<RequireAccount>(async (r) => {
@@ -47,7 +48,7 @@ export function AccountGateProvider({
     resolver.current?.(false);
     return new Promise<boolean>((resolve) => {
       resolver.current = resolve;
-      setReason(r);
+      setReason({ reason: r });
     });
   }, []);
 
@@ -63,7 +64,7 @@ export function AccountGateProvider({
   return (
     <GateContext.Provider value={value}>
       {children}
-      {reason ? <SignUpSheet reason={reason} onClose={finish} onSignedUp={onSignedUp} /> : null}
+      {reason ? <SignUpSheet reason={reason.reason} onClose={finish} onSignedUp={onSignedUp} /> : null}
     </GateContext.Provider>
   );
 }
