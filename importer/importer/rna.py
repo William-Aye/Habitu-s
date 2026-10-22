@@ -46,9 +46,18 @@ def _sources(path: Path) -> list[tuple[str, object]]:
     path = Path(path)
     if path.suffix.lower() == ".zip":
         with zipfile.ZipFile(path) as zf:
-            names = [n for n in zf.namelist() if n.lower().endswith(".csv")]
+            names = [i.filename for i in zf.infolist() if _is_data_member(i)]
         return [(n, (path, n)) for n in names]
     return [(path.name, (path, None))]
+
+
+def _is_data_member(info: zipfile.ZipInfo) -> bool:
+    """A CSV member, not a directory or macOS metadata (__MACOSX/..., AppleDouble ._ files)."""
+    name = info.filename
+    base = name.rsplit("/", 1)[-1]
+    return (not info.is_dir() and name.lower().endswith(".csv")
+            and not name.startswith("__MACOSX/") and "/__MACOSX/" not in name
+            and not base.startswith("._"))
 
 
 @contextmanager
@@ -82,11 +91,17 @@ def _check_header(label: str, header: list[str] | None) -> None:
         raise RnaSourceError(f"{label}: missing columns: {', '.join(missing)}")
 
 
+def departement(insee: str | None) -> str | None:
+    """Département of an INSEE commune code ('69123' -> '69', '2A004' -> '2A', '97105' -> '971')."""
+    if not insee:
+        return None
+    return insee[:3] if insee.startswith("97") else insee[:2]
+
+
 def _in_scope(insee: str, departements: set[str] | None) -> bool:
     if departements is None:
         return True
-    prefix = insee[:3] if insee.startswith("97") else insee[:2]
-    return prefix in departements
+    return departement(insee) in departements
 
 
 def _parse_date(value: str) -> date | None:
@@ -114,12 +129,17 @@ def _record(row: dict[str, str]) -> RnaRecord:
     )
 
 
+def _errors(encoding: str) -> str:
+    # cp1252 leaves five bytes undefined: one stray byte must not abort the run.
+    return "replace" if encoding == "cp1252" else "strict"
+
+
 def read_rna_zip(path: Path, departements: set[str] | None) -> Iterator[RnaRecord]:
     sources = []
     for label, ref in _sources(path):
         encoding = _detect_encoding(ref)
         with _open_binary(ref) as raw:
-            text = io.TextIOWrapper(raw, encoding=encoding, newline="")
+            text = io.TextIOWrapper(raw, encoding=encoding, errors=_errors(encoding), newline="")
             header = next(csv.reader(text, delimiter=";"), None)
             text.detach()
         _check_header(label, header)
@@ -128,7 +148,7 @@ def read_rna_zip(path: Path, departements: set[str] | None) -> Iterator[RnaRecor
     yielded = 0
     for ref, encoding in sources:
         with _open_binary(ref) as raw:
-            text = io.TextIOWrapper(raw, encoding=encoding, newline="")
+            text = io.TextIOWrapper(raw, encoding=encoding, errors=_errors(encoding), newline="")
             try:
                 for row in csv.DictReader(text, delimiter=";"):
                     if (row.get("position") or "").strip() != "A":

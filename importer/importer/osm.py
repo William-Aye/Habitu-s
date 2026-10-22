@@ -2,7 +2,9 @@
 
 Workflow (see the import pipeline):
     osmium tags-filter france-latest.osm.pbf <OSMIUM_FILTER...> -o filtered.osm.pbf
-    osmium export filtered.osm.pbf -f geojsonseq -o clubs.geojsonseq
+    osmium export filtered.osm.pbf -f geojsonseq -a type,id -o clubs.geojsonseq
+
+`-a type,id` matters: without it osmium writes no OSM ids, and every feature is a bad line.
 """
 import json
 import sys
@@ -86,8 +88,10 @@ def _to_record(feature: dict) -> OsmRecord | None:
     if coords is None:
         return None
     osm_id = _osm_id(feature, props)
+    if osm_id is None:
+        raise ValueError("feature has no OSM id (export with `osmium export -a type,id`)")
     kind = _kind(props)
-    if osm_id is None or kind is None:
+    if kind is None:
         return None
     lon, lat = coords
     return OsmRecord(

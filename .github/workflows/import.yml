@@ -12,6 +12,9 @@ on:
 
 concurrency: import
 
+permissions:
+  contents: read
+
 jobs:
   import:
     runs-on: ubuntu-latest
@@ -22,7 +25,9 @@ jobs:
       - uses: astral-sh/setup-uv@v5
 
       - name: Install osmium-tool
-        run: sudo apt-get install -y osmium-tool
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y osmium-tool
 
       - name: Cache embedding model
         uses: actions/cache@v4
@@ -36,12 +41,18 @@ jobs:
       - name: Filter and export OSM clubs
         run: |
           osmium tags-filter france-latest.osm.pbf nwr/club nwr/leisure=sports_centre,sports_hall,dance,fitness_centre nwr/amenity=community_centre,social_centre,arts_centre -o filtered.osm.pbf
-          osmium export filtered.osm.pbf -f geojsonseq -o clubs.geojsonseq
+          osmium export filtered.osm.pbf -f geojsonseq -a type,id -o clubs.geojsonseq
 
       - name: Run import
         env:
           IMPORTER_DB_URL: ${{ secrets.IMPORTER_DB_URL }}
-        run: >-
-          uv run --project importer python -m importer run
-          --osm-geojsonseq clubs.geojsonseq
-          ${{ inputs.departements && format('--departements {0}', inputs.departements) || '' }}
+          # Passed through the environment, never interpolated into the script.
+          DEPARTEMENTS: ${{ inputs.departements }}
+        run: |
+          set -euo pipefail
+          deps="$(printf '%s' "${DEPARTEMENTS:-}" | tr -d '[:space:]')"
+          args=(--osm-geojsonseq clubs.geojsonseq)
+          if [ -n "$deps" ]; then
+            args+=(--departements "$deps")
+          fi
+          uv run --project importer python -m importer run "${args[@]}"

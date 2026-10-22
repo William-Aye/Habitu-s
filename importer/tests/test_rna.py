@@ -12,6 +12,7 @@ from importer.rna import (
     RNA_DATASET_API,
     REQUIRED_COLUMNS,
     RnaSourceError,
+    departement,
     find_latest_rna_url,
     read_rna_zip,
 )
@@ -24,7 +25,7 @@ DISSOLVED = {"W691000009", "W691000010"}
 
 def test_reads_active_rows_and_skips_dissolved():
     recs = list(read_rna_zip(UTF8, None))
-    assert len(recs) == 10
+    assert len(recs) == 11
     assert not DISSOLVED & {r.rna_id for r in recs}
 
 
@@ -32,6 +33,14 @@ def test_departement_filter():
     assert len(list(read_rna_zip(UTF8, {"69"}))) == 8
     assert len(list(read_rna_zip(UTF8, {"971"}))) == 1
     assert len(list(read_rna_zip(UTF8, {"75", "69"}))) == 9
+
+
+def test_corsica_departement_scope():
+    (rec,) = read_rna_zip(UTF8, {"2A"})
+    assert rec.insee_code == "2A004" and rec.city == "Ajaccio"
+    assert departement("2A004") == "2A"
+    assert departement("97105") == "971" and departement("69123") == "69" and departement(None) is None
+    assert not list(r for r in read_rna_zip(UTF8, None) if r.insee_code.startswith("20"))
 
 
 def test_cp1252_and_utf8_give_identical_records():
@@ -112,3 +121,25 @@ def test_find_latest_rna_url_none():
     ]}))
     with httpx.Client() as c, pytest.raises(RnaSourceError, match="no rna_waldec resource found"):
         find_latest_rna_url(c)
+
+
+def test_cp1252_undefined_bytes_are_replaced_not_fatal(tmp_path):
+    # 0x81 is undefined in cp1252; a single such byte must not abort the whole run.
+    data = CP1252.read_bytes().replace("Les Amis du C".encode("cp1252"), b"Les Amis du \x81C")
+    p = tmp_path / "undefined.csv"
+    p.write_bytes(data)
+    recs = {r.rna_id: r for r in read_rna_zip(p, None)}
+    assert len(recs) == 11
+    assert recs["W691000006"].name == "Les Amis du �Cœur"
+
+
+def test_zip_skips_directories_and_macos_metadata(tmp_path):
+    z = tmp_path / "rna.zip"
+    with zipfile.ZipFile(z, "w") as zf:
+        zf.writestr("rna/", b"")
+        zf.writestr("rna/a.csv", UTF8.read_bytes())
+        zf.writestr("__MACOSX/rna/._a.csv", b"\x00\x05\x16\x07 not a csv")
+        zf.writestr("rna/._b.csv", b"\x00\x05\x16\x07 not a csv")
+        zf.writestr("weird.csv/", b"")
+    recs = list(read_rna_zip(z, {"69"}))
+    assert len(recs) == 8

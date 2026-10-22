@@ -239,3 +239,30 @@ def test_multipart_form_fields():
                       ("citycode", "citycode")]:
         assert f'name="{name}"\r\n\r\n{val}\r\n' in body
     assert 'name="data"' in body
+
+
+@respx.mock
+def test_response_with_utf8_bom_is_parsed():
+    def handler(request):
+        text = csv_response("0.9")(request).text
+        return httpx.Response(200, content=b"\xef\xbb\xbf" + text.encode("utf-8"))
+
+    respx.get(COMMUNES_URL).respond(json=COMMUNES)
+    respx.post(GEOCODER_CSV_URL).mock(side_effect=handler)
+    g, _ = make()
+    r = rec(1)
+    assert g.geocode([r])[r.rna_id] == GeoPoint(5.2, 45.1, "address")
+
+
+@respx.mock
+def test_communes_are_public_and_loaded_once():
+    route = respx.get(COMMUNES_URL).respond(json=COMMUNES)
+    g, _ = make()
+    assert g.communes()["75056"] == GeoPoint(2.35, 48.85, "municipality")
+    g.communes()
+    assert route.call_count == 1
+
+
+def test_preloaded_communes_skip_the_download():
+    g = Geocoder(httpx.Client(), {}, communes={"69123": GeoPoint(4.83, 45.76, "municipality")})
+    assert g.communes()["69123"].lon == 4.83

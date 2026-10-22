@@ -104,6 +104,8 @@ def test_run_end_to_end(conn, embedder, tmp_path, monkeypatch, capsys):
         "rna+osm", "+33 4 78 00 00 01")
     assert one(conn, "select source from public.associations where name = 'Club de Go Lyon Sud'") == ("osm",)
     assert one(conn, "select likely_not_public from public.associations where name like 'Syndicat de copropriété%'") == (True,)
+    assert one(conn, "select postcode, city from public.associations where rna_id = 'W691000004'") == (
+        "69100", "Villeurbanne")
     slugs = {r[0] for r in conn.execute(
         "select t.slug from public.association_tags at join public.tags t on t.id = at.tag_id "
         "join public.associations a on a.id = at.association_id where a.name = 'Club de Go de Lyon'")}
@@ -120,12 +122,20 @@ def test_run_end_to_end(conn, embedder, tmp_path, monkeypatch, capsys):
     assert run() == 0
     counts = json.loads(capsys.readouterr().out)
     assert counts["inserted"] == 0
+    assert counts["updated"] == 0  # nothing changed, nothing rewritten
     assert embedder.texts == 0
     assert count(conn) == before
     assert last_run(conn)[0] == "succeeded"
 
-    # --- apply_run fails after a successful COPY (département 13 has no staged RNA) ---
+    # --- a département with no RNA record fails before geocoding or staging ---
     snap = snapshot(conn)
+    assert run(dept="69,13") == 1
+    status, error, _ = last_run(conn)
+    assert status == "failed" and "no RNA records read for département(s) 13" in error
+
+    # --- apply_run fails after a successful COPY (Python guard bypassed: département 13 has
+    # no staged RNA) ---
+    monkeypatch.setattr(cli, "check_scope_read", lambda scope, read: None)
     assert run(dept="69,13") == 1
     status, error, _ = last_run(conn)
     assert status == "failed" and "13" in error and "refusing to merge" in error

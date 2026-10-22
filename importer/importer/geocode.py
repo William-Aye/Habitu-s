@@ -42,13 +42,14 @@ class Geocoder:
         batch_size: int = 5000,
         min_score: float = 0.4,
         sleep: Callable[[float], None] = time.sleep,
+        communes: dict[str, GeoPoint] | None = None,
     ):
         self.client = client
         self.cache = cache
         self.batch_size = batch_size
         self.min_score = min_score
         self.sleep = sleep
-        self._communes: dict[str, GeoPoint] | None = None
+        self._communes: dict[str, GeoPoint] | None = communes
 
     def _request(self, method: str, url: str, **kw) -> httpx.Response | None:
         """Up to MAX_ATTEMPTS tries; retry on network errors, 5xx, 408, 429.
@@ -72,9 +73,8 @@ class Geocoder:
         return None
 
     # -- commune centres (lazy, cached on the instance) --
-    def _commune_centre(self, insee_code: str | None) -> GeoPoint | None:
-        if not insee_code:
-            return None
+    def communes(self) -> dict[str, GeoPoint]:
+        """INSEE code -> commune centre, downloaded once. Raises GeocodeError."""
         if self._communes is None:
             resp = self._request("GET", COMMUNES_URL, timeout=120)
             if resp is None:
@@ -87,7 +87,12 @@ class Geocoder:
                 except (KeyError, TypeError, ValueError):
                     continue
             self._communes = communes
-        return self._communes.get(insee_code)
+        return self._communes
+
+    def _commune_centre(self, insee_code: str | None) -> GeoPoint | None:
+        if not insee_code:
+            return None
+        return self.communes().get(insee_code)
 
     def _post_batch(
         self, rows: list[tuple[str, RnaRecord]]
@@ -105,7 +110,7 @@ class Geocoder:
         if resp is None:
             return None
         try:
-            return self._parse(resp.content.decode("utf-8"))
+            return self._parse(resp.content.decode("utf-8-sig"))
         except (UnicodeDecodeError, csv.Error):
             log.warning("unparseable geocoder response")
             return None

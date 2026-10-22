@@ -153,3 +153,38 @@ def test_too_many_bad_lines_raise_source_error(tmp_path, capsys):
     _write(path, lines)
     with pytest.raises(OsmSourceError):
         list(read_osm_geojsonseq(path))
+
+
+def test_feature_without_id_is_a_bad_line(tmp_path, capsys):
+    path = tmp_path / "noid.geojsonseq"
+    no_id = json.dumps({"type": "Feature", "geometry": POINT, "properties": {"name": "No Id", "club": "sport"}})
+    _write(path, [_feature("n1", POINT, name="First", club="sport"), no_id])
+    assert [r.name for r in read_osm_geojsonseq(path)] == ["First"]
+    err = capsys.readouterr().err
+    assert "line 2" in err and "id" in err
+
+
+def test_export_without_ids_raises_source_error(tmp_path):
+    # `osmium export` without `-a type,id` (or --add-unique-id) writes no ids at all.
+    path = tmp_path / "noids.geojsonseq"
+    _write(path, [json.dumps({"type": "Feature", "geometry": POINT,
+                              "properties": {"name": f"Club {i}", "club": "sport"}}) for i in range(150)])
+    with pytest.raises(OsmSourceError):
+        list(read_osm_geojsonseq(path))
+
+
+def test_osmium_attribute_ids_are_read(tmp_path):
+    # `osmium export -a type,id` writes "@type"/"@id" properties.
+    path = tmp_path / "attrs.geojsonseq"
+    _write(path, [json.dumps({"type": "Feature", "geometry": POINT,
+                              "properties": {"@type": "way", "@id": 77, "name": "Gym", "leisure": "sports_hall"}})])
+    (rec,) = read_osm_geojsonseq(path)
+    assert rec.osm_id == "way/77"
+
+
+def test_docstring_export_command_writes_ids():
+    import importer.osm as osm
+
+    assert "-a type,id" in osm.__doc__
+    workflow = Path(__file__).parents[2] / ".github" / "workflows" / "import.yml"
+    assert "-a type,id" in workflow.read_text(encoding="utf-8")

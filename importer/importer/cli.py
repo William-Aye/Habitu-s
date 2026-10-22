@@ -6,7 +6,8 @@ import logging
 import os
 import sys
 import tempfile
-from collections.abc import Iterable, Iterator
+from collections import Counter
+from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 from typing import TypeVar
 
@@ -17,8 +18,9 @@ from importer import db
 from importer.embed import E5Embedder, Embedder, FakeEmbedder, embedding_text, text_hash
 from importer.geocode import Geocoder, address_key
 from importer.models import GeoPoint, OsmRecord, RnaRecord, StagedOsm, StagedRna
-from importer.osm import read_osm_geojsonseq
-from importer.rna import find_latest_rna_url, read_rna_zip
+from importer.osm import OsmSourceError, read_osm_geojsonseq
+from importer.place import CommuneIndex
+from importer.rna import RnaSourceError, departement, find_latest_rna_url, read_rna_zip
 from importer.tagging import Tagger
 from importer.text import is_likely_not_public
 
@@ -110,32 +112,67 @@ def run(args: argparse.Namespace, scope: list[str] | None) -> int:
     return 0
 
 
+def check_scope_read(scope: list[str] | None, rna_read: Counter) -> None:
+    """Fail fast (before geocoding) when a requested département has no RNA record."""
+    missing = [d for d in scope or () if not rna_read.get(d)]
+    if missing:
+        raise RnaSourceError(
+            f"no RNA records read for département(s) {', '.join(missing)}; check the codes "
+            "(Corsica is 2A and 2B, not 20) and the RNA file"
+        )
+
+
 # Memory: a France-wide run has ~1.5M RNA rows. Nothing below holds all records, staged rows
 # or vectors at once. The RNA file is read three times (count + validate, geocode, stage) and
-# the OSM file twice (count + validate, stage); only the address-key -> point map and the
-# existing-hash maps span the whole run. Rows are built, embedded and written in batches of
-# EMBED_BATCH while COPY pulls them.
+# the OSM file twice (count + validate, stage); only the address-key -> point map, the commune
+# centres and the existing-hash maps span the whole run. Rows are built, embedded and written in
+# batches of EMBED_BATCH while COPY pulls them.
 
 
 def _run(conn, run_id, scope: list[str] | None, args: argparse.Namespace) -> dict:
-    with tempfile.TemporaryDirectory() as tmp:
+    with tempfile.TemporaryDirectory() as tmp, httpx.Client(timeout=httpx.Timeout(60, read=300)) as client:
         rna_path = Path(args.rna_zip) if args.rna_zip else download_rna(Path(tmp))
         departements = set(scope) if scope else None
+        cache = db.GeocodeCache(conn)
+        geocoder = Geocoder(client, cache)
 
         def rna_records() -> Iterator[RnaRecord]:
             return read_rna_zip(rna_path, departements)
 
-        def osm_records() -> Iterator[OsmRecord]:
-            return iter(()) if args.skip_osm else read_osm_geojsonseq(Path(args.osm_geojsonseq))
-
         # Pass 1: validate both sources and count (a bad file fails here, before any staging).
-        rna_read = sum(1 for _ in progress(rna_records(), "RNA records read"))
-        osm_read = None if args.skip_osm else sum(1 for _ in progress(osm_records(), "OSM records read"))
+        rna_read = Counter(departement(r.insee_code) for r in progress(rna_records(), "RNA records read"))
+        check_scope_read(scope, rna_read)
+
+        osm_records: Callable[[], Iterator[OsmRecord]] = lambda: iter(())
+        osm_read = None
+        if not args.skip_osm:
+            osm_path = Path(args.osm_geojsonseq)
+            # A scoped run stages (and embeds) only the OSM features of its départements: each
+            # feature takes the département of the nearest commune centre.
+            in_scope: Callable[[OsmRecord], bool] = lambda o: True
+            if departements is not None:
+                index = CommuneIndex(geocoder.communes())
+                in_scope = lambda o: index.departement(o.lon, o.lat) in departements
+
+            def osm_records() -> Iterator[OsmRecord]:
+                return (o for o in read_osm_geojsonseq(osm_path) if in_scope(o))
+
+            osm_total = 0
+            osm_read = 0
+            for o in progress(read_osm_geojsonseq(osm_path), "OSM records read"):
+                osm_total += 1
+                osm_read += in_scope(o)
+            if osm_total == 0:
+                raise OsmSourceError(
+                    f"0 OSM records read from {osm_path}: the export is empty or has no ids "
+                    "(it must be made with `osmium export ... -a type,id`)"
+                )
+            log.info("OSM records in scope: %d of %d", osm_read, osm_total)
         if not args.allow_large_drop:
-            db.check_volume(conn, scope, rna_read, osm_read)
+            db.check_volume(conn, scope, dict(rna_read), osm_read)
 
         # Pass 2: geocode unique addresses, in chunks.
-        points = _geocode(conn, rna_records())
+        points = _geocode(cache, geocoder, rna_records())
 
         # Pass 3: build, embed and COPY in batches.
         tagger = Tagger()
@@ -153,32 +190,29 @@ def _run(conn, run_id, scope: list[str] | None, args: argparse.Namespace) -> dic
     return counts
 
 
-def _geocode(conn, records: Iterable[RnaRecord]) -> dict[str, GeoPoint | None]:
+def _geocode(cache, geocoder, records: Iterable[RnaRecord]) -> dict[str, GeoPoint | None]:
     """address_key -> point. The geocoder sees one slim record per unique address."""
-    cache = db.GeocodeCache(conn)
     points: dict[str, GeoPoint | None] = {}
     chunk: dict[str, RnaRecord] = {}
-    with httpx.Client(timeout=httpx.Timeout(60, read=300)) as client:
-        geocoder = Geocoder(client, cache)
 
-        def resolve() -> None:
-            cache.prefetch(chunk)
-            points.update(geocoder.geocode(list(chunk.values())))
-            cache.forget()
-            chunk.clear()
-            log.info("addresses geocoded: %d", len(points))
+    def resolve() -> None:
+        cache.prefetch(chunk)
+        points.update(geocoder.geocode(list(chunk.values())))
+        cache.forget()
+        chunk.clear()
+        log.info("addresses geocoded: %d", len(points))
 
-        for r in records:
-            k = address_key(r)
-            if k in points or k in chunk:
-                continue
-            chunk[k] = RnaRecord(rna_id=k, name="", purpose=None, address=r.address,
-                                 postcode=r.postcode, insee_code=r.insee_code, city=None,
-                                 website=None, published_on=None)
-            if len(chunk) >= GEOCODE_CHUNK:
-                resolve()
-        if chunk:
+    for r in records:
+        k = address_key(r)
+        if k in points or k in chunk:
+            continue
+        chunk[k] = RnaRecord(rna_id=k, name="", purpose=None, address=r.address,
+                             postcode=r.postcode, insee_code=r.insee_code, city=None,
+                             website=None, published_on=None)
+        if len(chunk) >= GEOCODE_CHUNK:
             resolve()
+    if chunk:
+        resolve()
     return points
 
 

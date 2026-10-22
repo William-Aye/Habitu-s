@@ -8,7 +8,9 @@ from importer.models import GeoPoint, StagedOsm, StagedRna
 
 # Volume sanity check (before staging): fewer than VOLUME_MIN_RATIO of the existing listings
 # read from a source aborts the run, unless --allow-large-drop. Only applies when at least
-# VOLUME_MIN_EXISTING listings exist, so first runs and small test databases are exempt.
+# VOLUME_MIN_EXISTING listings exist, so first runs and small test databases are exempt. RNA is
+# checked for the whole scope and per département (a full-France run must not lose one
+# département unnoticed among a hundred).
 VOLUME_MIN_RATIO = 0.8
 VOLUME_MIN_EXISTING = 100
 
@@ -104,6 +106,31 @@ def existing_counts(conn: psycopg.Connection, scope: list[str] | None) -> tuple[
     return int(row[0]), int(row[1])
 
 
+def existing_rna_by_departement(conn: psycopg.Connection, scope: list[str] | None) -> dict[str, int]:
+    """Département -> live listings with an rna_id (confidence > 0) in the scope."""
+    where = "rna_id is not null and confidence > 0 and insee_code is not null"
+    if scope is not None:
+        where += f" and {_DEPARTEMENT_SQL} = any(%(scope)s::text[])"
+    rows = conn.execute(
+        f"select {_DEPARTEMENT_SQL} as d, count(*) from public.associations where {where} group by 1",
+        {"scope": scope},
+    ).fetchall()
+    conn.commit()
+    return {d: int(n) for d, n in rows}
+
+
+def departement_volume_problems(read: dict[str, int], existing: dict[str, int]) -> list[str]:
+    problems = []
+    for d, n in sorted(existing.items()):
+        got = read.get(d, 0)
+        if n >= VOLUME_MIN_EXISTING and got < VOLUME_MIN_RATIO * n:
+            problems.append(
+                f"RNA département {d}: read {got} records but {n} listings with an rna_id exist "
+                f"(< {VOLUME_MIN_RATIO:.0%})"
+            )
+    return problems
+
+
 def volume_problems(
     rna_read: int, rna_existing: int, osm_read: int | None, osm_existing: int
 ) -> list[str]:
@@ -121,10 +148,16 @@ def volume_problems(
 
 
 def check_volume(
-    conn: psycopg.Connection, scope: list[str] | None, rna_read: int, osm_read: int | None
+    conn: psycopg.Connection,
+    scope: list[str] | None,
+    rna_read_by_departement: dict[str, int],
+    osm_read: int | None,
 ) -> None:
+    """rna_read_by_departement: RNA records read per département; osm_read: OSM features read in
+    the scope (None when OSM is skipped)."""
     rna_existing, osm_existing = existing_counts(conn, scope)
-    problems = volume_problems(rna_read, rna_existing, osm_read, osm_existing)
+    problems = volume_problems(sum(rna_read_by_departement.values()), rna_existing, osm_read, osm_existing)
+    problems += departement_volume_problems(rna_read_by_departement, existing_rna_by_departement(conn, scope))
     if problems:
         raise VolumeDropError(
             "source volume dropped sharply; refusing to import (use --allow-large-drop to override): "
@@ -248,26 +281,27 @@ def stage(
     """COPY the rows into importer.staged_*; does not commit (apply() does)."""
     with conn.cursor() as cur:
         with cur.copy(
-            "copy importer.staged_rna (run_id, rna_id, name, purpose, address, insee_code, location, "
-            "geocode_precision, website, published_on, likely_not_public, tag_slugs, embedding, "
+            "copy importer.staged_rna (run_id, rna_id, name, purpose, address, postcode, city, insee_code, "
+            "location, geocode_precision, website, published_on, likely_not_public, tag_slugs, embedding, "
             "embedding_hash) from stdin"
         ) as copy:
             for r in rna:
                 loc = r.location
                 copy.write_row((
-                    run_id, r.rna_id, r.name, r.purpose, r.address, r.insee_code,
+                    run_id, r.rna_id, r.name, r.purpose, r.address, r.postcode, r.city, r.insee_code,
                     _ewkt(loc.lon, loc.lat) if loc else None, loc.precision if loc else None,
                     r.website, r.published_on, r.likely_not_public, r.tag_slugs,
                     _vector(r.embedding), r.embedding_hash,
                 ))
         with cur.copy(
             "copy importer.staged_osm (run_id, osm_id, name, location, insee_code, website, phone, "
-            "email, opening_hours, tag_slugs, embedding, embedding_hash) from stdin"
+            "email, opening_hours, likely_not_public, tag_slugs, embedding, embedding_hash) from stdin"
         ) as copy:
             for o in osm:
                 copy.write_row((
                     run_id, o.osm_id, o.name, _ewkt(o.lon, o.lat), o.insee_code, o.website, o.phone,
-                    o.email, o.opening_hours, o.tag_slugs, _vector(o.embedding), o.embedding_hash,
+                    o.email, o.opening_hours, o.likely_not_public, o.tag_slugs, _vector(o.embedding),
+                    o.embedding_hash,
                 ))
 
 
