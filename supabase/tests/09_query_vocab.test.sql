@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(58);
+select plan(63);
 
 -- Same helper as 07: similarity of tests.vec(s) to tests.vec(1.0) is exactly s.
 create function tests.vec(s float8) returns extensions.vector language sql immutable as $$
@@ -59,10 +59,27 @@ select is((select (method, matched) from search.resolve_query('go')), ('exact'::
 select is((select method from search.resolve_query('gol')), 'none', 'short query: no fuzzy match');
 select is(extensions.similarity('yog', 'yoga'), 0.5::real, 'yog -> yoga is exactly at the fuzzy threshold');
 select is((select method from search.resolve_query('yog')), 'none', 'under 4 characters: never fuzzy');
-select ok((select method = 'words' and matched like '%danse bretonne%' and embedding is not null
-           from search.resolve_query('cours de danse bretonne')), 'words: pair and tokens averaged');
-select ok((select method = 'words' and matched like '%jeu de go%' and embedding is not null
-           from search.resolve_query('jeu de go club')), 'words: adjacent token triple');
+-- Words: the single most specific matched unit (most tokens, then lowest doc_freq, then phrase);
+-- no averaging (e5 vectors share a large common component, so an average ranks everything alike).
+select is((select (method, matched) from search.resolve_query('cours de danse bretonne')),
+          ('words'::text, 'danse bretonne'::text), 'words: the pair beats its single words');
+select ok((select embedding = (select v.embedding from search.query_vocab v where v.phrase = 'danse bretonne')
+           from search.resolve_query('cours de danse bretonne')), 'words: the chosen unit''s vector, not an average');
+select is((select (method, matched) from search.resolve_query('jeu de go club')),
+          ('words'::text, 'jeu de go'::text), 'words: adjacent token triple beats the pair and word');
+insert into search.query_vocab (phrase, embedding, source, doc_freq)
+values ('atelier poterie', tests.vec(0.80), 'ngram', 40), ('poterie enfants', tests.vec(0.70), 'ngram', 12);
+select is((select matched from search.resolve_query('atelier poterie enfants')), 'poterie enfants',
+          'words tie-break: two pairs, the lower doc_freq wins');
+select ok((select embedding = tests.vec(0.70) from search.resolve_query('atelier poterie enfants')),
+          'words tie-break: embedding of the lower doc_freq pair');
+update search.query_vocab set doc_freq = 0 where phrase = 'atelier poterie';
+select is((select matched from search.resolve_query('atelier poterie enfants')), 'atelier poterie',
+          'words tie-break: curated phrase (doc_freq 0) wins');
+update search.query_vocab set doc_freq = 0 where phrase = 'poterie enfants';
+select is((select matched from search.resolve_query('atelier poterie enfants')), 'atelier poterie',
+          'words tie-break: equal doc_freq, alphabetical phrase');
+delete from search.query_vocab where phrase in ('atelier poterie', 'poterie enfants');
 select is((select (embedding, method, matched) from search.resolve_query('xyzzy plugh')),
           (null::extensions.vector, 'none'::text, null::text), 'unknown words: none, no embedding');
 select is((select method from search.resolve_query('yoda')), 'none', 'yoda is not yoga (similarity 0.25)');

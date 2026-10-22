@@ -76,7 +76,7 @@ revoke all on search.stopwords, search.query_vocab, search.vocab_requests
   from public, anon, authenticated, service_role;
 
 -- ---------------------------------------------------------------------------------------------
--- Resolution: exact phrase -> fuzzy (closest spelling) -> words (average of known units) -> none.
+-- Resolution: exact phrase -> fuzzy (closest spelling) -> words (the most specific known unit) -> none.
 -- Always returns exactly one row.
 
 create function search.resolve_query(p_query text)
@@ -139,16 +139,20 @@ begin
     where not (a.stop and b.stop and c.stop)
   ),
   hit as (
-    select u.unit, u.pos, u.len, v.embedding from units u join search.query_vocab v on v.phrase = u.unit
+    select u.unit, u.pos, u.len, v.embedding, v.doc_freq
+    from units u join search.query_vocab v on v.phrase = u.unit
   ),
-  dist as (
-    select distinct on (h.unit) h.unit, h.pos, h.len, h.embedding from hit h order by h.unit, h.pos
+  -- No average: e5 vectors share a large common component, so the mean of several units collapses
+  -- toward it and ranks every document alike. The most specific unit carries the meaning: most
+  -- tokens, then rarest (curated phrases have doc_freq 0), then alphabetical.
+  best as (
+    select h.unit, h.embedding from hit h order by h.len desc, h.doc_freq, h.unit limit 1
   )
   select (select count(*) from t where not t.stop),
          (select count(distinct t.n) from t join hit h on t.n between h.pos and h.pos + h.len - 1
           where not t.stop),
-         (select extensions.avg(d.embedding) from dist d),
-         (select string_agg(d.unit, ' ' order by d.pos, d.len desc) from dist d)
+         (select b.embedding from best b),
+         (select b.unit from best b)
     into v_content, v_covered, v_emb, v_matched;
 
   if v_content > 0 and v_covered::real / v_content >= prm.vocab_words_cover then
