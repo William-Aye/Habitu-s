@@ -25,14 +25,14 @@ export type Database = {
           Tables: {
             "activities": {
                   Row: {
-                    "approval_mode": string,"archived_at": string | null,"category_id": string,"created_at": string,"description": string | null,"duration_minutes": number,"embedding": string | null,"id": string,"max_size": number | null,"min_participants": number | null,"newcomer_friendly": boolean,"organised_by_association_id": string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at": string,"recurrence_interval_days": number | null,"recurrence_kind": string,"recurrence_weekdays": (number)[] | null,"start_date": string,"start_time": string,"timezone": string,"title": string
+                    "approval_mode": string,"archived_at": string | null,"category_id": string,"created_at": string,"description": string | null,"duration_minutes": number,"embedding": string | null,"id": string,"max_size": number | null,"min_participants": number | null,"newcomer_friendly": boolean,"organised_by_association_id": string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at": string,"recurrence_interval_days": number | null,"recurrence_kind": string,"recurrence_weekdays": (number)[] | null,"search_tsv": unknown,"start_date": string,"start_time": string,"timezone": string,"title": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "approval_mode"?: string,"archived_at"?: string | null,"category_id": string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind": string,"recurrence_weekdays"?: (number)[] | null,"start_date": string,"start_time": string,"timezone"?: string,"title": string
+                    "approval_mode"?: string,"archived_at"?: string | null,"category_id": string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind": string,"recurrence_weekdays"?: (number)[] | null,"search_tsv"?: never,"start_date": string,"start_time": string,"timezone"?: string,"title": string
                   }
                   Update: {
-                    "approval_mode"?: string,"archived_at"?: string | null,"category_id"?: string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organiser_id"?: string,"place"?: unknown,"place_label"?: string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind"?: string,"recurrence_weekdays"?: (number)[] | null,"start_date"?: string,"start_time"?: string,"timezone"?: string,"title"?: string
+                    "approval_mode"?: string,"archived_at"?: string | null,"category_id"?: string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organiser_id"?: string,"place"?: unknown,"place_label"?: string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind"?: string,"recurrence_weekdays"?: (number)[] | null,"search_tsv"?: never,"start_date"?: string,"start_time"?: string,"timezone"?: string,"title"?: string
                   }
                   Relationships: [
                     {
@@ -257,14 +257,14 @@ isOneToOne: false
                   ]
                 },"associations": {
                   Row: {
-                    "address": string | null,"attribution": NonNullable<Json>,"city": string | null,"claimed_by": string | null,"confidence": number,"created_at": string,"created_by": string | null,"email": string | null,"embedding": string | null,"geocode_precision": string | null,"id": string,"insee_code": string | null,"last_import_run": string | null,"likely_not_public": boolean,"location": unknown,"locked_fields": (string)[],"name": string,"name_norm": string | null,"opening_hours": string | null,"osm_id": string | null,"phone": string | null,"postcode": string | null,"purpose": string | null,"rna_id": string | null,"rna_published_on": string | null,"search_tsv": unknown,"source": string,"town_point": unknown,"updated_at": string,"verified": boolean,"website": string | null
+                    "address": string | null,"attribution": NonNullable<Json>,"city": string | null,"claimed_by": string | null,"confidence": number,"created_at": string,"created_by": string | null,"email": string | null,"embedding": string | null,"embedding_hash": string | null,"geocode_precision": string | null,"id": string,"insee_code": string | null,"last_import_run": string | null,"likely_not_public": boolean,"location": unknown,"locked_fields": (string)[],"name": string,"name_norm": string | null,"opening_hours": string | null,"osm_id": string | null,"phone": string | null,"postcode": string | null,"purpose": string | null,"rna_id": string | null,"rna_published_on": string | null,"search_tsv": unknown,"source": string,"town_point": unknown,"updated_at": string,"verified": boolean,"website": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "address"?: string | null,"attribution"?: NonNullable<Json>,"city"?: string | null,"claimed_by"?: string | null,"confidence"?: number,"created_at"?: string,"created_by"?: string | null,"email"?: string | null,"embedding"?: string | null,"geocode_precision"?: string | null,"id"?: string,"insee_code"?: string | null,"last_import_run"?: string | null,"likely_not_public"?: boolean,"location"?: unknown,"locked_fields"?: (string)[],"name": string,"opening_hours"?: string | null,"osm_id"?: string | null,"phone"?: string | null,"postcode"?: string | null,"purpose"?: string | null,"rna_id"?: string | null,"rna_published_on"?: string | null,"source": string,"updated_at"?: string,"verified"?: boolean,"website"?: string | null
+                    "address"?: string | null,"attribution"?: NonNullable<Json>,"city"?: string | null,"claimed_by"?: string | null,"confidence"?: number,"created_at"?: string,"created_by"?: string | null,"email"?: string | null,"embedding"?: string | null,"embedding_hash"?: string | null,"geocode_precision"?: string | null,"id"?: string,"insee_code"?: string | null,"last_import_run"?: string | null,"likely_not_public"?: boolean,"location"?: unknown,"locked_fields"?: (string)[],"name": string,"name_norm"?: never,"opening_hours"?: string | null,"osm_id"?: string | null,"phone"?: string | null,"postcode"?: string | null,"purpose"?: string | null,"rna_id"?: string | null,"rna_published_on"?: string | null,"search_tsv"?: never,"source": string,"town_point"?: never,"updated_at"?: string,"verified"?: boolean,"website"?: string | null
                   }
                   Update: {
-                    "address"?: string | null,"attribution"?: NonNullable<Json>,"city"?: string | null,"claimed_by"?: string | null,"confidence"?: number,"created_at"?: string,"created_by"?: string | null,"email"?: string | null,"embedding"?: string | null,"geocode_precision"?: string | null,"id"?: string,"insee_code"?: string | null,"last_import_run"?: string | null,"likely_not_public"?: boolean,"location"?: unknown,"locked_fields"?: (string)[],"name"?: string,"opening_hours"?: string | null,"osm_id"?: string | null,"phone"?: string | null,"postcode"?: string | null,"purpose"?: string | null,"rna_id"?: string | null,"rna_published_on"?: string | null,"source"?: string,"updated_at"?: string,"verified"?: boolean,"website"?: string | null
+                    "address"?: string | null,"attribution"?: NonNullable<Json>,"city"?: string | null,"claimed_by"?: string | null,"confidence"?: number,"created_at"?: string,"created_by"?: string | null,"email"?: string | null,"embedding"?: string | null,"embedding_hash"?: string | null,"geocode_precision"?: string | null,"id"?: string,"insee_code"?: string | null,"last_import_run"?: string | null,"likely_not_public"?: boolean,"location"?: unknown,"locked_fields"?: (string)[],"name"?: string,"name_norm"?: never,"opening_hours"?: string | null,"osm_id"?: string | null,"phone"?: string | null,"postcode"?: string | null,"purpose"?: string | null,"rna_id"?: string | null,"rna_published_on"?: string | null,"search_tsv"?: never,"source"?: string,"town_point"?: never,"updated_at"?: string,"verified"?: boolean,"website"?: string | null
                   }
                   Relationships: [
                     {
@@ -435,6 +435,20 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"import_runs": {
+                  Row: {
+                    "counts": NonNullable<Json>,"error": string | null,"finished_at": string | null,"id": string,"scope": (string)[] | null,"started_at": string,"status": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "counts"?: NonNullable<Json>,"error"?: string | null,"finished_at"?: string | null,"id"?: string,"scope"?: (string)[] | null,"started_at"?: string,"status"?: string
+                  }
+                  Update: {
+                    "counts"?: NonNullable<Json>,"error"?: string | null,"finished_at"?: string | null,"id"?: string,"scope"?: (string)[] | null,"started_at"?: string,"status"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"messages": {
                   Row: {
                     "activity_id": string | null,"body": string,"created_at": string,"id": string,"recipient_id": string | null,"sender_id": string
@@ -533,14 +547,14 @@ isOneToOne: true
                   ]
                 },"profiles": {
                   Row: {
-                    "age_confirmed": boolean,"bio": string | null,"created_at": string,"first_name": string,"home_area": unknown,"home_area_label": string | null,"id": string,"language": string,"phone_verified": boolean,"photo_url": string | null,"role": string,"supporter": boolean
+                    "age_confirmed": boolean,"bio": string | null,"created_at": string,"first_name": string,"home_area": unknown,"home_area_label": string | null,"id": string,"language": string,"last_seen_at": string | null,"phone_verified": boolean,"photo_url": string | null,"role": string,"supporter": boolean
                   }
                   ComputedFields: never
                   Insert: {
-                    "age_confirmed"?: boolean,"bio"?: string | null,"created_at"?: string,"first_name"?: string,"home_area"?: unknown,"home_area_label"?: string | null,"id": string,"language"?: string,"phone_verified"?: boolean,"photo_url"?: string | null,"role"?: string,"supporter"?: boolean
+                    "age_confirmed"?: boolean,"bio"?: string | null,"created_at"?: string,"first_name"?: string,"home_area"?: unknown,"home_area_label"?: string | null,"id": string,"language"?: string,"last_seen_at"?: string | null,"phone_verified"?: boolean,"photo_url"?: string | null,"role"?: string,"supporter"?: boolean
                   }
                   Update: {
-                    "age_confirmed"?: boolean,"bio"?: string | null,"created_at"?: string,"first_name"?: string,"home_area"?: unknown,"home_area_label"?: string | null,"id"?: string,"language"?: string,"phone_verified"?: boolean,"photo_url"?: string | null,"role"?: string,"supporter"?: boolean
+                    "age_confirmed"?: boolean,"bio"?: string | null,"created_at"?: string,"first_name"?: string,"home_area"?: unknown,"home_area_label"?: string | null,"id"?: string,"language"?: string,"last_seen_at"?: string | null,"phone_verified"?: boolean,"photo_url"?: string | null,"role"?: string,"supporter"?: boolean
                   }
                   Relationships: [
                     
@@ -683,14 +697,14 @@ isOneToOne: false
                   ]
                 },"sessions": {
                   Row: {
-                    "activity_id": string,"id": string,"place": unknown,"place_label": string | null,"starts_at": string,"status": string
+                    "activity_id": string,"cancelled_at": string | null,"id": string,"place": unknown,"place_label": string | null,"starts_at": string,"status": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "activity_id": string,"id"?: string,"place"?: unknown,"place_label"?: string | null,"starts_at": string,"status"?: string
+                    "activity_id": string,"cancelled_at"?: string | null,"id"?: string,"place"?: unknown,"place_label"?: string | null,"starts_at": string,"status"?: string
                   }
                   Update: {
-                    "activity_id"?: string,"id"?: string,"place"?: unknown,"place_label"?: string | null,"starts_at"?: string,"status"?: string
+                    "activity_id"?: string,"cancelled_at"?: string | null,"id"?: string,"place"?: unknown,"place_label"?: string | null,"starts_at"?: string,"status"?: string
                   }
                   Relationships: [
                     {
@@ -793,7 +807,16 @@ isOneToOne: true
                 }
           }
           Functions: {
-            "get_association":
+            "association_locked_for_me":
+{ Args: { "p_id": string }; Returns: boolean
+                           },
+"delete_my_account":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"export_my_data":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"get_association":
 { Args: { "p_id": string }; Returns: Json
                            },
 "has_confirmed_attendance":
@@ -808,6 +831,9 @@ isOneToOne: true
 "is_admin":
 { Args: Record<PropertyKey, never>; Returns: boolean
                            },
+"is_blocked_between":
+{ Args: { "p_other": string }; Returns: boolean
+                           },
 "is_session_member":
 { Args: { "p_session": string }; Returns: boolean
                            },
@@ -815,10 +841,13 @@ isOneToOne: true
 { Args: { "p_session": string }; Returns: boolean
                            },
 "search_explore":
-{ Args: { "p_interest_category_ids"?: (string)[],"p_kinds"?: (string)[],"p_limit"?: number,"p_lat": number,"p_lon": number,"p_newcomer_friendly"?: boolean,"p_offset"?: number,"p_query"?: string,"p_query_embedding"?: string,"p_radius_km"?: number,"p_sort"?: string,"p_weekday"?: number }; Returns: Json
+{ Args: { "p_interest_category_ids"?: (string)[],"p_kinds"?: (string)[],"p_lat": number,"p_limit"?: number,"p_lon": number,"p_newcomer_friendly"?: boolean,"p_offset"?: number,"p_query"?: string,"p_query_embedding"?: string,"p_radius_km"?: number,"p_sort"?: string,"p_weekday"?: number }; Returns: Json
                            },
 "session_has_member":
 { Args: { "p_session": string,"p_user": string }; Returns: boolean
+                           },
+"touch_last_seen":
+{ Args: Record<PropertyKey, never>; Returns: undefined
                            }
           }
           Enums: {
