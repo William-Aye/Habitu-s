@@ -1,0 +1,276 @@
+keyword,category_slug
+course a pied,sport-course-a-pied
+running,sport-course-a-pied
+jogging,sport-course-a-pied
+trail,sport-course-a-pied
+marathon,sport-course-a-pied
+footing,sport-course-a-pied
+escalade,sport-escalade
+grimpe,sport-escalade
+varappe,sport-escalade
+alpinisme,sport-escalade
+via ferrata,sport-escalade
+randonnee,sport-randonnee
+randonnees,sport-randonnee
+randonneurs,sport-randonnee
+rando,sport-randonnee
+trekking,sport-randonnee
+velo,sport-velo
+cyclisme,sport-velo
+cyclotourisme,sport-velo
+vtt,sport-velo
+cyclistes,sport-velo
+natation,sport-natation
+nageurs,sport-natation
+piscine,sport-natation
+water polo,sport-natation
+aquagym,sport-natation
+football,sport-sports-collectifs
+basket,sport-sports-collectifs
+handball,sport-sports-collectifs
+volley,sport-sports-collectifs
+rugby,sport-sports-collectifs
+judo,sport-arts-martiaux
+karate,sport-arts-martiaux
+aikido,sport-arts-martiaux
+taekwondo,sport-arts-martiaux
+arts martiaux,sport-arts-martiaux
+boxe,sport-arts-martiaux
+yoga,sport-yoga
+hatha yoga,sport-yoga
+vinyasa,sport-yoga
+danse sportive,sport-danse-sportive
+rock acrobatique,sport-danse-sportive
+twirling,sport-danse-sportive
+cheerleading,sport-danse-sportive
+jardinage,outdoors-jardinage
+jardin partage,outdoors-jardinage
+jardins familiaux,outdoors-jardinage
+potager,outdoors-jardinage
+jardiniers,outdoors-jardinage
+permaculture,outdoors-jardinage
+ornithologie,outdoors-observation-oiseaux
+observation des oiseaux,outdoors-observation-oiseaux
+oiseaux,outdoors-observation-oiseaux
+ornithologique,outdoors-observation-oiseaux
+balades nature,outdoors-balades-nature
+sorties nature,outdoors-balades-nature
+promenades,outdoors-balades-nature
+decouverte de la nature,outdoors-balades-nature
+naturaliste,outdoors-balades-nature
+jeux de societe,games-jeux-de-societe
+jeu de societe,games-jeux-de-societe
+ludotheque,games-jeux-de-societe
+jeux de plateau,games-jeux-de-societe
+echecs,games-echecs
+echiquier,games-echecs
+jeu d echecs,games-echecs
+chess,games-echecs
+club de go,games-go
+joueurs de go,games-go
+go club,games-go
+jeu de go,games-go
+baduk,games-go
+weiqi,games-go
+goban,games-go
+jeux de role,games-jeux-de-role
+jeu de role,games-jeux-de-role
+jdr,games-jeux-de-role
+donjons et dragons,games-jeux-de-role
+jeux video,games-jeux-video
+jeu video,games-jeux-video
+esport,games-jeux-video
+e sport,games-jeux-video
+gaming,games-jeux-video
+belote,games-cartes
+bridge,games-cartes
+tarot,games-cartes
+poker,games-cartes
+jeux de cartes,games-cartes
+chorale,music-chorale
+choeur,music-chorale
+chant choral,music-chorale
+chorales,music-chorale
+chanteurs,music-chorale
+jam,music-groupe-jam
+groupe de musique,music-groupe-jam
+orchestre,music-groupe-jam
+musiciens,music-groupe-jam
+fanfare,music-groupe-jam
+harmonie municipale,music-groupe-jam
+orchestre d harmonie,music-groupe-jam
+guitare,music-instruments
+piano,music-instruments
+violon,music-instruments
+batterie,music-instruments
+ecole de musique,music-instruments
+ecoute musicale,music-ecoute
+concerts,music-ecoute
+melomanes,music-ecoute
+musique classique,music-ecoute
+concert de jazz,music-ecoute
+musique jazz,music-ecoute
+jazz band,music-ecoute
+dessin,arts-dessin-peinture
+peinture,arts-dessin-peinture
+aquarelle,arts-dessin-peinture
+arts plastiques,arts-dessin-peinture
+peintres,arts-dessin-peinture
+photographie,arts-photographie
+photographes,arts-photographie
+photographique,arts-photographie
+photo club,arts-photographie
+argentique,arts-photographie
+couture,arts-couture-tricot
+tricot,arts-couture-tricot
+broderie,arts-couture-tricot
+patchwork,arts-couture-tricot
+crochet,arts-couture-tricot
+poterie,arts-poterie
+ceramique,arts-poterie
+ceramistes,arts-poterie
+argile,arts-poterie
+modelage,arts-poterie
+origami,arts-origami
+pliage de papier,arts-origami
+kirigami,arts-origami
+danse de salon,dance-danse-de-salon
+danses de salon,dance-danse-de-salon
+valse,dance-danse-de-salon
+tango,dance-danse-de-salon
+salsa,dance-salsa-bachata
+bachata,dance-salsa-bachata
+kizomba,dance-salsa-bachata
+merengue,dance-salsa-bachata
+zouk,dance-salsa-bachata
+danses latines,dance-salsa-bachata
+danses traditionnelles,dance-danses-traditionnelles
+danse folklorique,dance-danses-traditionnelles
+folklore,dance-danses-traditionnelles
+danses bretonnes,dance-danses-traditionnelles
+bal folk,dance-danses-traditionnelles
+danse contemporaine,dance-danse-contemporaine
+danse moderne,dance-danse-contemporaine
+modern jazz,dance-danse-contemporaine
+hip hop,dance-danse-contemporaine
+lecture,culture-lecture
+club de lecture,culture-lecture
+bibliotheque,culture-lecture
+lecteurs,culture-lecture
+litterature,culture-lecture
+theatre,culture-theatre
+comediens,culture-theatre
+improvisation,culture-theatre
+compagnie theatrale,culture-theatre
+cinema,culture-cinema
+cine club,culture-cinema
+cineclub,culture-cinema
+cinephiles,culture-cinema
+histoire,culture-histoire-patrimoine
+patrimoine,culture-histoire-patrimoine
+genealogie,culture-histoire-patrimoine
+archeologie,culture-histoire-patrimoine
+ecriture,culture-ecriture
+atelier d ecriture,culture-ecriture
+poesie,culture-ecriture
+ecrivains,culture-ecriture
+slam,culture-ecriture
+programmation,tech-programmation
+informatique,tech-programmation
+logiciel libre,tech-programmation
+developpeurs,tech-programmation
+programmation informatique,tech-programmation
+code informatique,tech-programmation
+arduino,tech-arduino
+electronique,tech-arduino
+raspberry pi,tech-arduino
+fablab,tech-arduino
+radioamateur,tech-arduino
+robotique,tech-robotique
+robots,tech-robotique
+drone,tech-robotique
+drones,tech-robotique
+astronomie,tech-astronomie
+astronomes,tech-astronomie
+telescope,tech-astronomie
+astrophysique,tech-astronomie
+observatoire astronomique,tech-astronomie
+sciences,tech-sciences
+scientifique,tech-sciences
+culture scientifique,tech-sciences
+sciences physiques,tech-sciences
+physique chimie,tech-sciences
+vulgarisation scientifique,tech-sciences
+echange linguistique,languages-echange-linguistique
+echanges linguistiques,languages-echange-linguistique
+tandem,languages-echange-linguistique
+conversation en langues,languages-echange-linguistique
+langues etrangeres,languages-echange-linguistique
+anglais,languages-anglais
+english,languages-anglais
+conversation anglaise,languages-anglais
+anglophone,languages-anglais
+espagnol,languages-espagnol
+hispanique,languages-espagnol
+hispanophone,languages-espagnol
+castillan,languages-espagnol
+allemand,languages-autres
+italien,languages-autres
+japonais,languages-autres
+chinois,languages-autres
+arabe,languages-autres
+cuisine,food-cuisine
+cuisiniers,food-cuisine
+recettes,food-cuisine
+gastronomie,food-cuisine
+cooking,food-cuisine
+patisserie,food-patisserie
+gateaux,food-patisserie
+patissiers,food-patisserie
+cake design,food-patisserie
+chocolat,food-patisserie
+degustation,food-degustation
+oenologie,food-degustation
+vin,food-degustation
+vins,food-degustation
+biere,food-degustation
+cidre,food-degustation
+benevolat,social-benevolat
+benevoles,social-benevolat
+solidarite,social-benevolat
+entraide,social-benevolat
+humanitaire,social-benevolat
+aide aux devoirs,social-aide-aux-devoirs
+soutien scolaire,social-aide-aux-devoirs
+accompagnement scolaire,social-aide-aux-devoirs
+alphabetisation,social-aide-aux-devoirs
+tutorat,social-aide-aux-devoirs
+environnement,social-environnement
+ecologie,social-environnement
+developpement durable,social-environnement
+protection de la nature,social-environnement
+recyclage,social-environnement
+transition ecologique,social-environnement
+meditation,wellbeing-meditation
+pleine conscience,wellbeing-meditation
+mindfulness,wellbeing-meditation
+relaxation,wellbeing-meditation
+qi gong,wellbeing-meditation
+marche douce,wellbeing-marche-douce
+marche nordique,wellbeing-marche-douce
+marche sante,wellbeing-marche-douce
+gym douce,wellbeing-marche-douce
+gymnastique douce,wellbeing-marche-douce
+sophrologie,wellbeing-sophrologie
+sophrologue,wellbeing-sophrologie
+gestion du stress,wellbeing-sophrologie
+tai chi,wellbeing-sophrologie
+sorties parents enfants,family-sorties-parents-enfants
+sorties en famille,family-sorties-parents-enfants
+parents enfants,family-sorties-parents-enfants
+activites en famille,family-sorties-parents-enfants
+rencontres de parents,family-rencontres-parents
+groupe de parents,family-rencontres-parents
+parentalite,family-rencontres-parents
+assistantes maternelles,family-rencontres-parents
+cafe des parents,family-rencontres-parents

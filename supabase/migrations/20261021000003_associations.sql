@@ -80,6 +80,16 @@ begin
         old.confidence, old.likely_not_public, old.source, old.claimed_by, old.verified,
         old.attribution, old.created_by, old.created_at) then
       raise exception 'column not editable' using errcode = '42501';
+    else
+      -- A claimant's edit locks the column: later imports keep the claimant's value.
+      new.locked_fields := new.locked_fields || array(
+        select c from (values (1, 'purpose', new.purpose is distinct from old.purpose),
+                              (2, 'website', new.website is distinct from old.website),
+                              (3, 'phone', new.phone is distinct from old.phone),
+                              (4, 'email', new.email is distinct from old.email),
+                              (5, 'opening_hours', new.opening_hours is distinct from old.opening_hours)) v(n, c, changed)
+        where changed and not c = any(new.locked_fields)
+        order by n);
     end if;
   end if;
   return new;

@@ -6,3 +6,8 @@ supabase/.branches/
 app/.expo/
 app/android/
 app/ios/
+importer/.venv/
+__pycache__/
+.venv/
+*.pyc
+.claude/worktrees/
