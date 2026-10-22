@@ -1,0 +1,14 @@
+{
+  "tabs": {
+    "explore": "Explorer",
+    "myActivities": "Mes activités",
+    "messages": "Messages",
+    "profile": "Profil"
+  },
+  "explore": {
+    "searchPlaceholder": "Rechercher une activité, un club, une association…"
+  },
+  "common": {
+    "comingSoon": "Bientôt disponible"
+  }
+}
