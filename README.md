@@ -35,6 +35,77 @@ The local Supabase stack uses ports in the 553xx range instead of the 543xx defa
 | Pooler | 55329 |
 | Shadow database | 55320 |
 
+## Accounts
+
+Browsing, searching and choosing interests need no account. People sign in only when an
+action needs one: with Google (native Android sign-in) or with a 6-digit code sent by e-mail.
+Sign-up asks for a first name and an 18+ confirmation, nothing else.
+
+### Environment variables
+
+| Name | Where | Value |
+| --- | --- | --- |
+| `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | `app/.env` (copy from `app/.env.example`) | Google OAuth **Web** client id |
+| `EXPO_PUBLIC_TURNSTILE_SITE_KEY` | `app/.env` | Cloudflare Turnstile site key |
+| `GOOGLE_WEB_CLIENT_ID` | environment read by `supabase/config.toml` (`env(...)`) | same Web client id |
+| `GOOGLE_WEB_CLIENT_SECRET` | environment read by `supabase/config.toml` (`env(...)`) | Web client secret |
+| Turnstile secret key | Supabase dashboard only, never in the repo | Cloudflare Turnstile secret key |
+
+### 1. Google sign-in (free, no billing account)
+
+1. Create a Google Cloud project.
+2. Configure the OAuth consent screen: app name "Habitués", support e-mail set to yours.
+3. Create a **Web** OAuth client id. In Supabase, go to Authentication → Providers → Google and
+   enter this client id and its secret. Turn on **Skip nonce check** (the native Android sign-in
+   sends a nonce Supabase cannot check; `supabase/config.toml` already sets it).
+4. Create an **Android** OAuth client id with package name `fr.friendapp.app` and the SHA-1
+   fingerprint of the signing key. For local builds, run `npx expo prebuild` in `app/`, then
+   `cd android && ./gradlew signingReport` and copy the SHA-1 of the debug variant. Add the
+   Google Play signing SHA-1 as well before release.
+5. Put the Web client id in `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (`app/.env`).
+6. Before any iOS build, replace the placeholder
+   `com.googleusercontent.apps.REPLACE_WITH_IOS_CLIENT_ID` in `app/app.json` (the
+   `iosUrlScheme` of the google-signin plugin) with the real iOS client's reversed id.
+
+### 2. Cloudflare Turnstile (free)
+
+1. In the Cloudflare dashboard, open Turnstile and add a widget. Choose the widget mode
+   **Invisible** (this is a property of the site key, not a code option).
+2. Allowed domains: add your app domain (`habitues.app`, or the domain you chose) and
+   `challenges.cloudflare.com`. The app's Turnstile WebView loads its page from
+   `https://challenges.cloudflare.com` (`BASE_URL` in `app/src/features/account/Turnstile.tsx`),
+   and the code expects that hostname to be allowed for the site key.
+3. Put the site key in `EXPO_PUBLIC_TURNSTILE_SITE_KEY` (`app/.env`).
+4. Put the secret key in the Supabase dashboard: Authentication → Attack protection → CAPTCHA,
+   provider Turnstile. The secret never goes in the repo or in the app.
+
+### 3. Supabase Auth settings (dashboard)
+
+- Email OTP: length **6**, expiry **3600** seconds.
+- Email template, French, no link: subject and body containing `Votre code Habitués : {{ .Token }}`.
+- Rate limit: **4 e-mails per hour per address**.
+- Refresh-token rotation: **on**.
+- Custom SMTP: strongly recommended before launch. Supabase's built-in e-mail sender allows only
+  a few e-mails per hour. Choosing the provider is a launch step.
+
+### 4. Local development
+
+- CAPTCHA is **disabled** in `supabase/config.toml` (`[auth.captcha] enabled = false`). If it is
+  enabled without a secret, local e-mail sign-in is rejected. Keep `EXPO_PUBLIC_TURNSTILE_SITE_KEY`
+  empty locally: the app then skips the challenge and sends an empty token.
+- Local e-mail codes do not leave your machine. Open the local mail viewer (Inbucket) at
+  `http://127.0.0.1:55324` to read them.
+- Google sign-in does not work locally until `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` and the Supabase
+  Google secrets are set. The e-mail code path works without them.
+
+### 5. Before publication
+
+- Privacy policy (`app/src/content/privacy.fr.ts` and `privacy.en.ts`):
+  - Remove the "(dès que cette fonctionnalité sera disponible)" marker from a sentence only when the
+    feature it describes is built. Those sentences describe features that do not exist yet.
+  - Replace the placeholder `confidentialite@<domaine>` with the real contact address.
+  - Have a qualified person check the text before it is published.
+
 ## Search
 
 Search combines keyword matching with semantic ranking. The semantic side needs an
