@@ -35,11 +35,55 @@ The local Supabase stack uses ports in the 553xx range instead of the 543xx defa
 | Pooler | 55329 |
 | Shadow database | 55320 |
 
-## Search — embed-query spike
+## Search
 
-The `embed-query` Edge Function embeds search queries with `Xenova/multilingual-e5-small`
-(q8, 384 dims, `"query: "` prefix) and caches results in `query_embedding_cache`.
-Go/no-go spike on the hosted project (owner runs; needs network access to huggingface.co):
+Search combines keyword matching with semantic ranking. The `embed-query` Edge Function
+embeds search queries with `Xenova/multilingual-e5-small` (q8, 384 dims, `"query: "` prefix)
+and caches results in `query_embedding_cache`. If the function is unavailable the app falls
+back to keyword results.
+
+### Serving the function locally
+
+```bash
+npx supabase start
+npx supabase functions serve embed-query
+```
+
+The app reaches it at `/functions/v1/embed-query` under `EXPO_PUBLIC_SUPABASE_URL`
+(locally `http://127.0.0.1:55321`, hosted `https://<project-ref>.supabase.co`).
+
+### Ranking rule
+
+Change `search.params()` only together with a green ranking run:
+
+```bash
+cd importer && RANKING_REPORT=1 uv run pytest -m ranking -s
+```
+
+`RANKING_REPORT=1` prints per-query diagnostics (ranks and scores) so a parameter change
+can be judged, not just pass/fail. CI runs the same job (`ranking`).
+
+### Checks
+
+- Edge unit tests (CI job `edge`): `deno test supabase/functions/embed-query`
+- Perf (local only, not in CI): `cd importer && uv run pytest -m perf`. Last measured
+  p95 about 1.43 s at 150k rows, jit off, on a local PG16.
+- Parity with Python (local, function served, needs the model):
+  `cd importer && SUPABASE_ANON_KEY=<local anon key> uv run pytest -m edge`
+
+### Hosted migration note
+
+Adding the stored generated columns rewrites the `associations` table (about 1.5M rows)
+under an ACCESS EXCLUSIVE lock. Apply that migration outside import runs.
+
+### Map attribution
+
+The map uses the OpenFreeMap style (`https://tiles.openfreemap.org/styles/liberty`).
+Keep its attribution (OpenMapTiles, OpenStreetMap contributors) visible on every map.
+
+### embed-query go/no-go spike
+
+Run by the owner on the hosted project (needs network access to huggingface.co):
 
 ```bash
 # 1. Deploy
@@ -52,9 +96,7 @@ deno run -A supabase/functions/embed-query/bench.ts "$URL" "$SUPABASE_ANON_KEY" 
 # 3. Warm: 50 calls (unique texts, so the cache is bypassed)
 deno run -A supabase/functions/embed-query/bench.ts "$URL" "$SUPABASE_ANON_KEY" 50
 
-# 4. Parity with Python (local serve; needs the model)
-npx supabase functions serve embed-query
-cd importer && SUPABASE_ANON_KEY=<local anon key> uv run pytest -m edge tests/ranking/test_embed_parity.py
+# 4. Parity with Python: see "Checks" above
 ```
 
 **Go** when cold <= 8 s, warm p50 <= 300 ms and no memory-limit error in the function logs,

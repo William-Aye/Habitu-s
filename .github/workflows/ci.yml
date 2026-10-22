@@ -76,6 +76,19 @@ jobs:
       - name: Sync and run unit tests
         run: cd importer && uv sync && uv run pytest
 
+  edge:
+    name: Edge function (deno test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Run embed-query tests
+        run: deno test supabase/functions/embed-query
+
   ranking:
     name: Search ranking (pytest, local Supabase)
     runs-on: ubuntu-latest
