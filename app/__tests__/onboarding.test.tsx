@@ -14,14 +14,14 @@ jest.mock('expo-location', () => ({
   getCurrentPositionAsync: jest.fn(),
 }));
 
-const mockSession: { status: string } = { status: 'signed_out' };
+const mockSession: { status: string; error: boolean } = { status: 'signed_out', error: false };
 jest.mock('../src/features/account/useSession', () => ({
   SessionProvider: ({ children }: { children: React.ReactNode }) => children,
   useSession: () => ({
     status: mockSession.status,
     userId: mockSession.status === 'ready' ? 'u1' : null,
     profile: null,
-    error: false,
+    error: mockSession.error,
     refresh: jest.fn(),
   }),
 }));
@@ -52,6 +52,7 @@ const realFetch = global.fetch;
 beforeEach(async () => {
   mockLocales.tag = 'fr-FR';
   mockSession.status = 'signed_out';
+  mockSession.error = false;
   await AsyncStorage.clear();
   await initI18n();
 });
@@ -81,11 +82,52 @@ it('never shows onboarding to a signed-in user', async () => {
   expect(screen.queryByText(WHERE)).toBeNull();
 });
 
-it('does not flash onboarding while the session is loading', async () => {
+it('covers the app and does not show onboarding while the session is loading', async () => {
   mockSession.status = 'loading';
   await renderRouter('./src/app', { initialUrl: '/' });
   await act(async () => {
     await jest.advanceTimersByTimeAsync(200);
+  });
+  expect(screen.getByTestId('startup-cover')).toBeTruthy();
+  expect(screen.queryByText(WHERE)).toBeNull();
+});
+
+it('shows the app, never onboarding, when the profile fetch keeps failing', async () => {
+  mockSession.status = 'loading';
+  mockSession.error = true;
+  await renderRouter('./src/app', { initialUrl: '/' });
+  expect(await screen.findByText('Explorer')).toBeTruthy();
+  expect(screen.queryByTestId('startup-cover')).toBeNull();
+  expect(screen.queryByText(WHERE)).toBeNull();
+});
+
+it('gives up waiting for the session after about 3 seconds and shows the app', async () => {
+  mockSession.status = 'loading';
+  await renderRouter('./src/app', { initialUrl: '/' });
+  expect(screen.getByTestId('startup-cover')).toBeTruthy();
+  await act(async () => {
+    await jest.advanceTimersByTimeAsync(3500);
+  });
+  expect(await screen.findByText('Explorer')).toBeTruthy();
+  expect(screen.queryByTestId('startup-cover')).toBeNull();
+  expect(screen.queryByText(WHERE)).toBeNull();
+});
+
+it('remembers a signed-in user, so a later signed-out start skips onboarding', async () => {
+  mockSession.status = 'ready';
+  await renderRouter('./src/app', { initialUrl: '/' });
+  expect(await screen.findByText('Explorer')).toBeTruthy();
+  await act(async () => {
+    await jest.advanceTimersByTimeAsync(50);
+  });
+  // The flag outlives the session: a signed-out cold start then opens Explorer (see the "done" test).
+  expect(await AsyncStorage.getItem('onboarding.done')).toBe('1');
+});
+
+it('does not redirect a first launch that opens a deep link', async () => {
+  await renderRouter('./src/app', { initialUrl: '/associations/abc' });
+  await act(async () => {
+    await jest.advanceTimersByTimeAsync(500);
   });
   expect(screen.queryByText(WHERE)).toBeNull();
 });

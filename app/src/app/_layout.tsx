@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef, useState } from 'react';
-import { Stack, useRouter } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { Stack, usePathname, useRouter } from 'expo-router';
+import { StyleSheet, useColorScheme, View } from 'react-native';
 import { I18nextProvider } from 'react-i18next';
 import i18next from 'i18next';
 import { initI18n } from '../i18n';
@@ -19,8 +19,11 @@ async function mergeInterests(userId: string): Promise<void> {
 }
 
 const styles = StyleSheet.create({
-  cover: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#fff' },
+  cover: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
 });
+
+/** How long the cover waits for the session before showing the app anyway. */
+const SESSION_WAIT_MS = 3000;
 
 const ONBOARDING_KEY = 'onboarding.done';
 
@@ -29,8 +32,12 @@ const ONBOARDING_KEY = 'onboarding.done';
  * and the session has settled, so neither screen flashes for the wrong person.
  */
 function OnboardingGate() {
-  const { status } = useSession();
+  const { status, error } = useSession();
   const router = useRouter();
+  const scheme = useColorScheme();
+  const pathname = usePathname();
+  const [startedOnHome] = useState(() => pathname === '/');
+  const [waited, setWaited] = useState(false);
   const [done, setDone] = useState<boolean | null>(null);
   const redirected = useRef(false);
 
@@ -44,8 +51,22 @@ function OnboardingGate() {
     };
   }, []);
 
-  const settled = done !== null && status !== 'loading';
-  const needsOnboarding = settled && !done && status === 'signed_out';
+  useEffect(() => {
+    const timer = setTimeout(() => setWaited(true), SESSION_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // A returning user (ever signed in) never sees the first-launch screen again.
+  useEffect(() => {
+    if (status === 'ready') {
+      AsyncStorage.setItem(ONBOARDING_KEY, '1').catch(() => {});
+    }
+  }, [status]);
+
+  // A failing or slow session fetch must not hold the app behind the cover forever.
+  const known = status === 'ready' ? true : done;
+  const settled = known !== null && (status !== 'loading' || error || waited);
+  const needsOnboarding = settled && !known && status === 'signed_out' && startedOnHome;
 
   useEffect(() => {
     if (needsOnboarding && !redirected.current) {
@@ -58,7 +79,11 @@ function OnboardingGate() {
   return (
     <>
       <Stack screenOptions={{ headerShown: false }} />
-      {settled ? null : <View pointerEvents="auto" style={styles.cover} />}
+      {settled ? null : <View
+          testID="startup-cover"
+          pointerEvents="auto"
+          style={[styles.cover, { backgroundColor: scheme === 'dark' ? '#121212' : '#fff' }]}
+        />}
     </>
   );
 }
