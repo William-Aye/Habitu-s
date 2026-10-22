@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(130);
+select plan(133);
 select has_schema('importer');
 select has_table('public', 'import_runs', 'import_runs exists');
 select has_column('public', 'associations', 'embedding_hash', 'associations.embedding_hash');
@@ -593,5 +593,49 @@ values (:'run14', 'node/0101', 'Club de tennis de Gex', 'SRID=4326;POINT(6.060 4
 select importer.apply_run(:'run14', array['01']) as counts14 \gset
 select is((select count(*) from associations where osm_id = 'node/7401')::int, 1,
   'an 01 run does not remove the OSM listing placed in 74 by its staged code');
+
+-- ---------------------------------------------------------------------------------------------
+-- Runs 15 and 16, scope {'56'}: the website a listing took from its OSM feature goes as soon as
+-- the feature is no longer staged.
+insert into import_runs (scope) values (array['56']) returning id as run15 \gset
+insert into importer.staged_rna (run_id, rna_id, name, insee_code, location, geocode_precision,
+                                 published_on, likely_not_public, embedding_hash)
+values (:'run15', 'W561000001', 'Club de Go de Vannes', '56260', 'SRID=4326;POINT(-2.760 47.658)', 'address',
+        current_date - 100, false, 'v1');
+insert into importer.staged_osm (run_id, osm_id, name, location, website, insee_code, embedding_hash)
+values (:'run15', 'node/5601', 'Go Club Vannes', 'SRID=4326;POINT(-2.7601 47.6581)', 'https://go-vannes.example',
+        '56260', 'v2');
+select importer.apply_run(:'run15', array['56']) as counts15 \gset
+select is((select website from associations where rna_id = 'W561000001'), 'https://go-vannes.example',
+  'run 15: website taken from the matched OSM feature');
+insert into import_runs (scope) values (array['56']) returning id as run16 \gset
+insert into importer.staged_rna (run_id, rna_id, name, insee_code, location, geocode_precision,
+                                 published_on, likely_not_public, embedding_hash)
+values (:'run16', 'W561000001', 'Club de Go de Vannes', '56260', 'SRID=4326;POINT(-2.760 47.658)', 'address',
+        current_date - 100, false, 'v1');
+insert into importer.staged_osm (run_id, osm_id, name, location, insee_code, embedding_hash)
+values (:'run16', 'node/5602', 'Salle de sport de Vannes', 'SRID=4326;POINT(-2.750 47.650)', '56260', 'v3');
+select importer.apply_run(:'run16', array['56']) as counts16 \gset
+select ok((select website is null and osm_id is null and confidence = 40 from associations where rna_id = 'W561000001'),
+  'vanished OSM feature: its website is dropped in the same run');
+-- Runs 17 and 18: relinked, then a run with no OSM staged at all keeps the link and its website.
+insert into import_runs (scope) values (array['56']) returning id as run17 \gset
+insert into importer.staged_rna (run_id, rna_id, name, insee_code, location, geocode_precision,
+                                 published_on, likely_not_public, embedding_hash)
+values (:'run17', 'W561000001', 'Club de Go de Vannes', '56260', 'SRID=4326;POINT(-2.760 47.658)', 'address',
+        current_date - 100, false, 'v1');
+insert into importer.staged_osm (run_id, osm_id, name, location, website, insee_code, embedding_hash)
+values (:'run17', 'node/5601', 'Go Club Vannes', 'SRID=4326;POINT(-2.7601 47.6581)', 'https://go-vannes.example',
+        '56260', 'v2');
+select importer.apply_run(:'run17', array['56']) as counts17 \gset
+insert into import_runs (scope) values (array['56']) returning id as run18 \gset
+insert into importer.staged_rna (run_id, rna_id, name, insee_code, location, geocode_precision,
+                                 published_on, likely_not_public, embedding_hash)
+values (:'run18', 'W561000001', 'Club de Go de Vannes', '56260', 'SRID=4326;POINT(-2.760 47.658)', 'address',
+        current_date - 100, false, 'v1');
+select importer.apply_run(:'run18', array['56']) as counts18 \gset
+select ok((select website = 'https://go-vannes.example' and osm_id = 'node/5601' and confidence = 85
+           from associations where rna_id = 'W561000001'),
+  'no OSM staged: the linked listing keeps its OSM website');
 select * from finish();
 rollback;

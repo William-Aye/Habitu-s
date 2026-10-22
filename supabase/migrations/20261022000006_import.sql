@@ -362,12 +362,14 @@ begin
       case when k.keep_location then e.location else s.location end,
       case when k.keep_location then e.geocode_precision else s.geocode_precision end,
       case when 'website' = any(e.locked_fields) then e.website
-           -- A listing linked to OSM keeps the website step 3 took from the feature, unless the
-           -- staged feature now has another one (step 3 then refills it).
+           -- A listing linked to OSM keeps the website step 3 took from the feature while the
+           -- feature is still staged with it (another website: step 3 refills it; feature gone:
+           -- the website goes with it), or when no OSM is staged at all (the link stays then).
            when s.website is null and e.source = 'rna+osm'
-                and not exists (select 1 from staged_osm o
-                                where o.run_id = p_run and o.osm_id = e.osm_id
-                                  and o.website is distinct from e.website)
+                and (exists (select 1 from staged_osm o
+                             where o.run_id = p_run and o.osm_id = e.osm_id
+                               and o.website is not distinct from e.website)
+                     or not exists (select 1 from staged_osm o where o.run_id = p_run))
              then e.website
            else s.website end,
       case when 'rna_published_on' = any(e.locked_fields) then e.rna_published_on else s.published_on end,
