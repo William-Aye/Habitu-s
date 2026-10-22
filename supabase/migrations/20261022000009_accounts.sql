@@ -19,6 +19,9 @@ revoke all on function public.profiles_snap_home_area() from public, anon, authe
 create trigger profiles_snap_home_area before insert or update of home_area on public.profiles
   for each row execute function public.profiles_snap_home_area();
 
+-- Backfill: snap home areas saved before the trigger existed.
+update public.profiles set home_area = home_area where home_area is not null;
+
 -- At most one write per hour per user.
 create function public.touch_last_seen() returns void
 language sql security definer set search_path = public, pg_temp as $$
@@ -30,7 +33,8 @@ grant execute on function public.touch_last_seen() to authenticated;
 
 -- RGPD export: every personal row of the caller, nothing about others. Other people's ids appear only
 -- as targets the caller acted on (activity, association, blocked user, message recipient, report target).
--- session_feedback is anonymous by design (its user_id is only a uniqueness guard) and is excluded.
+-- session_feedback_sent holds the caller's own answers (the table stores user_id; the feedback is only
+-- anonymous towards organisers and other members).
 -- Admin-only columns (admin_note, moderation decisions) are left out of the rows.
 create function public.export_my_data() returns jsonb
 language plpgsql stable security definer set search_path = public, extensions, pg_temp as $$
@@ -63,6 +67,9 @@ begin
     'association_waiters', coalesce((select jsonb_agg(to_jsonb(w)) from public.association_waiters w where w.user_id = v_uid), '[]'),
     'association_claims', coalesce((select jsonb_agg(to_jsonb(c)) from public.association_claims c where c.claimant_id = v_uid), '[]'),
     'feedback_sent', coalesce((select jsonb_agg(to_jsonb(f)) from public.feedback f where f.user_id = v_uid), '[]'),
+    'session_feedback_sent', coalesce((select jsonb_agg(to_jsonb(sf)) from public.session_feedback sf where sf.user_id = v_uid), '[]'),
+    'safety_tips_seen', coalesce((select jsonb_agg(to_jsonb(st)) from public.safety_tips_seen st where st.user_id = v_uid), '[]'),
+    'notification_log', coalesce((select jsonb_agg(to_jsonb(nl)) from public.notification_log nl where nl.user_id = v_uid), '[]'),
     'organiser_stats', (select to_jsonb(o) from public.organiser_stats o where o.user_id = v_uid)
   );
 end $$;
@@ -94,6 +101,8 @@ values ('avatars', 'avatars', true, 1048576, '{image/jpeg}')
 on conflict (id) do update set public = excluded.public, file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
+create policy avatars_select_own on storage.objects for select to authenticated
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy avatars_insert_own on storage.objects for insert to authenticated
   with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy avatars_update_own on storage.objects for update to authenticated

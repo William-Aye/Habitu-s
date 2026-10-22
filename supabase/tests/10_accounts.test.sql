@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(22);
+select plan(40);
 
 select tests.create_user('ana@acc.fr', 'Ana') as ana \gset
 select tests.create_user('ben@acc.fr', 'Ben') as ben \gset
@@ -12,18 +12,39 @@ values (:'ana', '00000000-0000-0000-0000-00000000ac01', 'love'),
        (:'ben', '00000000-0000-0000-0000-00000000ac01', 'like');
 insert into category_requests (user_id, requested_name) values (:'ana', 'Pétanque nocturne');
 
+update profiles set phone_verified = true where id = :'ana';
+insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time)
+values ('00000000-0000-0000-0000-00000000ac0a', :'ana', '00000000-0000-0000-0000-00000000ac01', 'Sortie rando',
+        'Lyon', 'SRID=4326;POINT(4.83 45.76)', 'weekly', current_date, '10:00');
+insert into activity_members (activity_id, user_id) values ('00000000-0000-0000-0000-00000000ac0a', :'ben');
+insert into sessions (id, activity_id, starts_at)
+values ('00000000-0000-0000-0000-00000000ac5e', '00000000-0000-0000-0000-00000000ac0a', now() - interval '1 day');
+insert into attendances (session_id, user_id, status) values ('00000000-0000-0000-0000-00000000ac5e', :'ana', 'confirmed');
+insert into ambiance_words (id, slug, label_fr, label_en)
+values ('00000000-0000-0000-0000-00000000ac0b', 'acc-word', 'Chaleureuse', 'Warm');
+insert into session_feedback (session_id, user_id, went_well, ambiance_word_ids)
+values ('00000000-0000-0000-0000-00000000ac5e', :'ana', true, '{00000000-0000-0000-0000-00000000ac0b}');
+insert into messages (sender_id, recipient_id, body) values (:'ana', :'ben', 'salut-de-ana');
+insert into messages (sender_id, recipient_id, body) values (:'ben', :'ana', 'secret-de-ben-dm');
+insert into messages (sender_id, activity_id, body) values (:'ben', '00000000-0000-0000-0000-00000000ac0a', 'secret-de-ben-groupe');
+insert into blocks (blocker_id, blocked_id) values (:'ana', :'ben');
+insert into reports (reporter_id, target_type, target_id, reason) values (:'ana', 'user', :'ben', 'other');
+insert into saved_searches (user_id, query, center, radius_km) values (:'ana', 'rando', 'SRID=4326;POINT(4.83 45.76)', 10);
+insert into feedback (user_id, type, body) values (:'ana', 'idea', 'une idée');
+insert into safety_tips_seen (user_id, tip_id) values (:'ana', 'tip1');
+insert into notification_log (user_id, kind) values (:'ana', 'digest');
+
 -- home-area snapping
 select tests.act_as(:'ana');
 update profiles set home_area = 'SRID=4326;POINT(4.83574 45.76402)' where id = :'ana';
 select is((select ST_AsText(home_area::geometry) from profiles where id = :'ana'), 'POINT(4.84 45.76)',
   'update snaps home_area to the 0.01 degree grid');
 select tests.act_as_superuser();
-delete from profiles where id = :'ben';
-insert into profiles (id, first_name, home_area) values (:'ben', 'Ben', 'SRID=4326;POINT(2.35219 48.85661)');
-select is((select ST_AsText(home_area::geometry) from profiles where id = :'ben'), 'POINT(2.35 48.86)',
+select tests.create_user('cleo@acc.fr', 'Cleo') as cleo \gset
+delete from profiles where id = :'cleo';
+insert into profiles (id, first_name, home_area) values (:'cleo', 'Cleo', 'SRID=4326;POINT(2.35219 48.85661)');
+select is((select ST_AsText(home_area::geometry) from profiles where id = :'cleo'), 'POINT(2.35 48.86)',
   'insert snaps home_area too');
-insert into user_interests (user_id, category_id, level)
-values (:'ben', '00000000-0000-0000-0000-00000000ac01', 'like');
 
 -- last_seen_at
 select ok((select last_seen_at is null from profiles where id = :'ana'), 'last_seen_at starts null');
@@ -62,10 +83,25 @@ select tests.act_as_superuser();
 select is((:'exp'::jsonb)->'profile'->>'first_name', 'Ana', 'export has the profile');
 select is(jsonb_array_length((:'exp'::jsonb)->'interests'), 1, 'export has the interests');
 select is(jsonb_array_length((:'exp'::jsonb)->'category_requests'), 1, 'export has the category request');
-select ok(not (:'exp' like '%' || :'ben' || '%'), 'export mentions nobody else');
+select ok(not (:'exp' like '%secret-de-ben%'), 'Ben''s message bodies are absent');
+select is((select count(*) from regexp_matches(:'exp', :'ben', 'g')), 3::bigint,
+  'Ben''s id appears only as recipient, blocked user and report target');
+select is((:'exp'::jsonb)->'messages_sent'->0->>'recipient_id', :'ben', 'recipient_id is the DM target');
+select is((:'exp'::jsonb)->'blocks'->0->>'blocked_id', :'ben', 'blocked_id is the blocked user');
+select is((:'exp'::jsonb)->'reports_filed'->0->>'target_id', :'ben', 'target_id is the reported user');
+select is(jsonb_array_length((:'exp'::jsonb)->'activities_organised'), 1, 'export has organised activities');
+select is(jsonb_array_length((:'exp'::jsonb)->'attendances'), 1, 'export has attendances');
+select is(jsonb_array_length((:'exp'::jsonb)->'saved_searches'), 1, 'export has saved searches');
+select is(jsonb_array_length((:'exp'::jsonb)->'feedback_sent'), 1, 'export has feedback');
+select is(jsonb_array_length((:'exp'::jsonb)->'safety_tips_seen'), 1, 'export has safety tips seen');
+select is(jsonb_array_length((:'exp'::jsonb)->'notification_log'), 1, 'export has the notification log');
+select is((:'exp'::jsonb)->'session_feedback_sent'->0->>'went_well', 'true', 'export has Ana''s session feedback');
+select is((:'exp'::jsonb)->'session_feedback_sent'->0->'ambiance_word_ids'->>0, '00000000-0000-0000-0000-00000000ac0b',
+  'session feedback carries the ambiance words');
 select ok((:'exp'::jsonb) ?& array['profile','interests','category_requests','activities_organised','memberships',
   'interests_in_activities','attendances','messages_sent','reports_filed','blocks','saved_searches',
-  'association_waiters','association_claims','feedback_sent'], 'export has every key');
+  'association_waiters','association_claims','feedback_sent','session_feedback_sent','safety_tips_seen',
+  'notification_log'], 'export has every key');
 
 -- storage
 select ok(exists (select 1 from storage.buckets where id = 'avatars' and public
@@ -76,6 +112,29 @@ select lives_ok(format($q$insert into storage.objects (bucket_id, name, owner) v
 select throws_ok(format($q$insert into storage.objects (bucket_id, name, owner) values ('avatars', %L, %L)$q$,
   :'ben' || '/x.jpg', :'ana'), '42501', null, 'Ana cannot upload into Ben''s folder');
 select tests.act_as_superuser();
+insert into storage.objects (bucket_id, name, owner) values ('avatars', :'ana' || '/own.jpg', :'ana');
+select tests.act_as(:'ana');
+select is((select count(*) from storage.objects where bucket_id = 'avatars' and name = :'ana' || '/own.jpg'), 1::bigint,
+  'Ana can read her own file (upsert needs select)');
+select tests.act_as(:'ben');
+select is((select count(*) from storage.objects where bucket_id = 'avatars' and name like :'ana' || '/%'), 0::bigint,
+  'Ben cannot list Ana''s folder');
+with u as (update storage.objects set name = name where bucket_id = 'avatars' and name = :'ana' || '/own.jpg' returning 1)
+select is((select count(*) from u), 0::bigint, 'Ben cannot update Ana''s file');
+select set_config('storage.allow_delete_query', 'true', true);
+with d as (delete from storage.objects where bucket_id = 'avatars' and name = :'ana' || '/own.jpg' returning 1)
+select is((select count(*) from d), 0::bigint, 'Ben cannot delete Ana''s file');
+select tests.act_as_superuser();
+select is((select count(*) from storage.objects where bucket_id = 'avatars' and name = :'ana' || '/own.jpg'), 1::bigint,
+  'Ana''s file survives');
+
+-- backfill statement of the migration, replayed on a pre-existing unsnapped value
+alter table profiles disable trigger profiles_snap_home_area;
+update profiles set home_area = 'SRID=4326;POINT(5.12345 43.29876)' where id = :'ben';
+alter table profiles enable trigger profiles_snap_home_area;
+update public.profiles set home_area = home_area where home_area is not null;
+select is((select ST_AsText(home_area::geometry) from profiles where id = :'ben'), 'POINT(5.12 43.3)',
+  'backfill snaps pre-existing home areas');
 
 -- deletion
 insert into storage.objects (bucket_id, name) values ('avatars', :'ana' || '/a.jpg'), ('avatars', :'ben' || '/b.jpg');
