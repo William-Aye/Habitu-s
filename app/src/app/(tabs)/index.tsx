@@ -47,7 +47,9 @@ export default function Explore() {
   const { response, results, loading, error, loadMore } = useExploreSearch(params);
 
   const open = (r: ExploreResult) =>
-    router.push((r.kind === 'association' ? `/associations/${r.id}` : `/activites/${r.id}`) as never);
+    r.kind === 'association'
+      ? router.push({ pathname: '/associations/[id]', params: { id: r.id } })
+      : router.push({ pathname: '/activites/[id]', params: { id: r.id, title: r.title } });
 
   const needsLocation = status === 'needed' || (editingLocation && status === 'ready');
   const place = location

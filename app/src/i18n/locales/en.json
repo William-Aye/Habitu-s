@@ -67,6 +67,34 @@
       "7": "Sunday"
     }
   },
+  "association": {
+    "verified": "Verified association",
+    "activities": "Activities run",
+    "website": "Website",
+    "phone": "Phone",
+    "email": "Email",
+    "openingHours": "Opening hours",
+    "waitButton": "Notify me when this club arrives",
+    "signInToWait": "Sign in to be notified.",
+    "waiting": "We will let you know",
+    "cancelWait": "Cancel",
+    "claim": "This is my association",
+    "report": "Report an error / Remove this listing",
+    "notFound": "This listing is no longer available",
+    "loading": "Loading",
+    "error": "Could not load this listing. Try again.",
+    "town": "{{city}} ({{postcode}})",
+    "mapLabel": "Map of {{place}}",
+    "source": {
+      "rna": "Source: National directory of associations (Open Licence / Etalab 2.0)",
+      "osm": "© OpenStreetMap contributors (ODbL)"
+    }
+  },
+  "activity": {
+    "placeholder": {
+      "title": "Activity"
+    }
+  },
   "common": {
     "comingSoon": "Coming soon"
   }

@@ -67,6 +67,34 @@
       "7": "Dimanche"
     }
   },
+  "association": {
+    "verified": "Association vérifiée",
+    "activities": "Activités organisées",
+    "website": "Site web",
+    "phone": "Téléphone",
+    "email": "E-mail",
+    "openingHours": "Horaires",
+    "waitButton": "Me prévenir quand ce club arrive",
+    "signInToWait": "Connectez-vous pour être prévenu(e).",
+    "waiting": "Nous vous préviendrons",
+    "cancelWait": "Annuler",
+    "claim": "C'est mon association",
+    "report": "Signaler une erreur / Retirer cette fiche",
+    "notFound": "Cette fiche n'est plus disponible",
+    "loading": "Chargement",
+    "error": "Impossible de charger cette fiche. Réessayez.",
+    "town": "{{city}} ({{postcode}})",
+    "mapLabel": "Carte de {{place}}",
+    "source": {
+      "rna": "Source : Répertoire national des associations (Licence Ouverte / Etalab 2.0)",
+      "osm": "© les contributeurs d'OpenStreetMap (ODbL)"
+    }
+  },
+  "activity": {
+    "placeholder": {
+      "title": "Activité"
+    }
+  },
   "common": {
     "comingSoon": "Bientôt disponible"
   }
