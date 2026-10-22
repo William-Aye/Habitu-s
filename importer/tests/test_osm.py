@@ -2,7 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from importer.osm import OSMIUM_FILTER, read_osm_geojsonseq
+import json
+
+from importer.osm import OSMIUM_FILTER, OsmSourceError, read_osm_geojsonseq
 
 FIXTURE = Path(__file__).parent / "fixtures" / "osm_sample.geojsonseq"
 
@@ -81,3 +83,73 @@ def test_osmium_filter_constant():
         "nwr/leisure=sports_centre,sports_hall,dance,fitness_centre",
         "nwr/amenity=community_centre,social_centre,arts_centre",
     ]
+
+
+def _feature(fid, geometry, **props):
+    return json.dumps({"type": "Feature", "id": fid, "geometry": geometry, "properties": props})
+
+
+POINT = {"type": "Point", "coordinates": [4.8, 45.7]}
+
+
+def _write(path, lines):
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def test_multipolygon_uses_first_polygon_outer_ring(tmp_path):
+    path = tmp_path / "mp.geojsonseq"
+    geom = {
+        "type": "MultiPolygon",
+        "coordinates": [
+            [[[4.0, 45.0], [4.2, 45.0], [4.2, 45.2], [4.0, 45.2], [4.0, 45.0]]],
+            [[[9.0, 40.0], [9.2, 40.0], [9.2, 40.2], [9.0, 40.2], [9.0, 40.0]]],
+        ],
+    }
+    _write(path, [_feature("w1", geom, name="Multi Club", leisure="sports_centre")])
+    (rec,) = read_osm_geojsonseq(path)
+    assert rec.lon == pytest.approx(4.1, abs=1e-6)
+    assert rec.lat == pytest.approx(45.1, abs=1e-6)
+
+
+def test_contact_website_and_email_fallbacks(tmp_path):
+    path = tmp_path / "contact.geojsonseq"
+    _write(path, [_feature(
+        "n5", POINT, name="Fallback Club", club="sport",
+        **{"contact:website": "https://fallback.example", "contact:email": "hi@fallback.example"},
+    )])
+    (rec,) = read_osm_geojsonseq(path)
+    assert rec.website == "https://fallback.example"
+    assert rec.email == "hi@fallback.example"
+
+
+def test_malformed_line_is_skipped_with_warning(tmp_path, capsys):
+    path = tmp_path / "bad.geojsonseq"
+    _write(path, [
+        _feature("n1", POINT, name="First", club="sport"),
+        '{"type": "Feature", "id": "n2", "geometry": ',  # truncated JSON
+        _feature("n3", POINT, name="Third", club="sport"),
+    ])
+    out = list(read_osm_geojsonseq(path))
+    assert [r.name for r in out] == ["First", "Third"]
+    err = capsys.readouterr().err
+    assert "line 2" in err
+
+
+def test_empty_polygon_coordinates_are_skipped(tmp_path, capsys):
+    path = tmp_path / "empty.geojsonseq"
+    _write(path, [
+        _feature("w9", {"type": "Polygon", "coordinates": []}, name="Empty Gym", leisure="sports_centre"),
+        _feature("n1", POINT, name="Good", club="sport"),
+    ])
+    out = list(read_osm_geojsonseq(path))
+    assert [r.name for r in out] == ["Good"]
+    assert "line 1" in capsys.readouterr().err
+
+
+def test_too_many_bad_lines_raise_source_error(tmp_path, capsys):
+    path = tmp_path / "truncated.geojsonseq"
+    lines = [_feature(f"n{i}", POINT, name=f"Club {i}", club="sport") for i in range(10)]
+    lines += ["{not json"] * 150
+    _write(path, lines)
+    with pytest.raises(OsmSourceError):
+        list(read_osm_geojsonseq(path))
