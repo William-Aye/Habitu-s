@@ -42,6 +42,11 @@ embeds search queries with `Xenova/multilingual-e5-small` (q8, 384 dims, `"query
 and caches results in `query_embedding_cache`. If the function is unavailable the app falls
 back to keyword results.
 
+The function runs Transformers.js 3.8.1's web build (pinned jsdelivr URL) on onnxruntime-web's
+WebAssembly backend, single-threaded (`onnx.ts`): the Edge runtime forbids native addons, so the
+npm entry's Node build (`onnxruntime-node`) cannot load there. Weights are fetched from the
+Hugging Face Hub on a worker's first call.
+
 ### Serving the function locally
 
 ```bash
