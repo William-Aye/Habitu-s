@@ -24,5 +24,5 @@ it('shows the search bar at the top of Explorer', async () => {
   const placeholder = 'Rechercher une activité, un club, une association…';
   expect(await screen.findByPlaceholderText(placeholder)).toBeTruthy();
   const field = await screen.findByLabelText(placeholder);
-  expect(field.props.editable).toBe(false);
+  expect(field.props.editable).not.toBe(false);
 });

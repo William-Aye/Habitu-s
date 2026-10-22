@@ -8,7 +8,63 @@
   "explore": {
     "searchPlaceholder": "Rechercher une activité, un club, une association…",
     "location": {
+      "around": "Autour de {{place}}",
+      "edit": "Modifier",
+      "useGps": "Utiliser ma position",
+      "enterTown": "Saisir une ville",
+      "townPlaceholder": "Nom de la ville",
+      "denied": "Position refusée. Saisissez une ville.",
       "myPosition": "Ma position"
+    },
+    "filters": {
+      "activities": "Activités",
+      "associations": "Clubs et associations",
+      "day": "Jour",
+      "distance": "Distance",
+      "newcomers": "Débutants bienvenus",
+      "dayTitle": "Quel jour ?",
+      "distanceTitle": "Distance maximale",
+      "close": "Fermer"
+    },
+    "sort": {
+      "best": "Meilleure correspondance",
+      "nearest": "Plus proche"
+    },
+    "view": {
+      "list": "Liste",
+      "map": "Carte"
+    },
+    "weakDivider": "Moins proche de votre recherche",
+    "widen_one": "{{count}} résultat pertinent à {{radius}} km — {{wide}} à 50 km",
+    "widen_other": "{{count}} résultats pertinents à {{radius}} km — {{wide}} à 50 km",
+    "widenAction": "Élargir à 50 km",
+    "label": {
+      "veryRelevant": "Très pertinent",
+      "relevant": "Pertinent",
+      "weak": "Peu pertinent"
+    },
+    "new": "Nouvelle",
+    "source": {
+      "community": "Ajouté par la communauté",
+      "unverified": "non vérifié"
+    },
+    "nearby": "Près de chez vous",
+    "empty": "Aucun résultat pertinent près d’ici",
+    "createActivity": "Créer une activité",
+    "feedback": "Une idée ? Un problème ?",
+    "activitiesOnly": "Ce filtre concerne les activités",
+    "distance": "{{value}} km",
+    "loading": "Chargement",
+    "error": "Impossible de charger les résultats. Réessayez.",
+    "days": {
+      "all": "Tous les jours",
+      "1": "Lundi",
+      "2": "Mardi",
+      "3": "Mercredi",
+      "4": "Jeudi",
+      "5": "Vendredi",
+      "6": "Samedi",
+      "7": "Dimanche"
     }
   },
   "common": {
