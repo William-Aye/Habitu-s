@@ -66,7 +66,9 @@ echecs,games-echecs
 echiquier,games-echecs
 jeu d echecs,games-echecs
 chess,games-echecs
-go,games-go
+club de go,games-go
+joueurs de go,games-go
+go club,games-go
 jeu de go,games-go
 baduk,games-go
 weiqi,games-go
@@ -95,7 +97,8 @@ groupe de musique,music-groupe-jam
 orchestre,music-groupe-jam
 musiciens,music-groupe-jam
 fanfare,music-groupe-jam
-harmonie,music-groupe-jam
+harmonie municipale,music-groupe-jam
+orchestre d harmonie,music-groupe-jam
 guitare,music-instruments
 piano,music-instruments
 violon,music-instruments
@@ -105,7 +108,9 @@ ecoute musicale,music-ecoute
 concerts,music-ecoute
 melomanes,music-ecoute
 musique classique,music-ecoute
-jazz,music-ecoute
+concert de jazz,music-ecoute
+musique jazz,music-ecoute
+jazz band,music-ecoute
 dessin,arts-dessin-peinture
 peinture,arts-dessin-peinture
 aquarelle,arts-dessin-peinture
@@ -129,12 +134,10 @@ modelage,arts-poterie
 origami,arts-origami
 pliage de papier,arts-origami
 kirigami,arts-origami
-scrapbooking,arts-origami
 danse de salon,dance-danse-de-salon
 danses de salon,dance-danse-de-salon
 valse,dance-danse-de-salon
 tango,dance-danse-de-salon
-rock et danses,dance-danse-de-salon
 salsa,dance-salsa-bachata
 bachata,dance-salsa-bachata
 kizomba,dance-salsa-bachata
@@ -150,7 +153,6 @@ danse contemporaine,dance-danse-contemporaine
 danse moderne,dance-danse-contemporaine
 modern jazz,dance-danse-contemporaine
 hip hop,dance-danse-contemporaine
-danse classique,dance-danse-contemporaine
 lecture,culture-lecture
 club de lecture,culture-lecture
 bibliotheque,culture-lecture
@@ -177,7 +179,8 @@ programmation,tech-programmation
 informatique,tech-programmation
 logiciel libre,tech-programmation
 developpeurs,tech-programmation
-numerique,tech-programmation
+programmation informatique,tech-programmation
+code informatique,tech-programmation
 arduino,tech-arduino
 electronique,tech-arduino
 raspberry pi,tech-arduino
@@ -187,16 +190,16 @@ robotique,tech-robotique
 robots,tech-robotique
 drone,tech-robotique
 drones,tech-robotique
-modelisme,tech-robotique
 astronomie,tech-astronomie
 astronomes,tech-astronomie
 telescope,tech-astronomie
 astrophysique,tech-astronomie
-observatoire,tech-astronomie
+observatoire astronomique,tech-astronomie
 sciences,tech-sciences
 scientifique,tech-sciences
 culture scientifique,tech-sciences
-physique,tech-sciences
+sciences physiques,tech-sciences
+physique chimie,tech-sciences
 vulgarisation scientifique,tech-sciences
 echange linguistique,languages-echange-linguistique
 echanges linguistiques,languages-echange-linguistique

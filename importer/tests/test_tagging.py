@@ -55,3 +55,18 @@ def test_rules_slugs_exist_in_seed_and_cover_all_children():
     assert set(counts) <= children
     for slug in children:
         assert counts.get(slug, 0) >= 3, slug
+
+
+def test_precision_negative_cases():
+    t = Tagger()
+    assert "tech-sciences" not in t.tags_for("Activité physique pour tous", None)
+    assert "tech-sciences" in t.tags_for("Atelier", "physique chimie")
+    assert t.tags_for("Harmonie Mutuelle", None) == []
+    assert "music-groupe-jam" in t.tags_for("Harmonie municipale de Lyon", None)
+    assert "games-go" not in t.tags_for("Go Sport Lyon", None)
+    assert "games-go" in t.tags_for("Club de Go de Lyon", None)
+    assert "music" not in t.tags_for("Modern Jazz Danse", None)
+    assert "music-ecoute" in t.tags_for("Association", "musique jazz")
+    assert "tech" not in t.tags_for("Observatoire de l'emploi", None)
+    assert "tech-astronomie" in t.tags_for("Observatoire astronomique", None)
+    assert "dance-danse-contemporaine" not in t.tags_for("Danse classique", None)
