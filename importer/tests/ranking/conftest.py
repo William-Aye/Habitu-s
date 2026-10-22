@@ -9,6 +9,7 @@ from pathlib import Path
 import psycopg
 import pytest
 
+from importer import vocab
 from importer.embed import E5Embedder, embedding_text
 
 URL = "postgresql://postgres:postgres@127.0.0.1:55322/postgres"
@@ -72,29 +73,35 @@ def embedder():
 def conn(embedder):
     with psycopg.connect(URL, autocommit=True) as c:
         clear_fixture(c)  # idempotent: a crashed earlier run may have left rows
+        started = c.execute("select clock_timestamp()").fetchone()[0]
         load_fixture(c, embedder)
         try:
+            # Production path: the vocabulary is precomputed from the data (plus the watch-list, which
+            # holds the spec queries). The fixture is tiny, so every phrase counts.
+            vocab.build(c, embedder, min_df_unigram=1, min_df_multi=1)
             yield c
         finally:
             clear_fixture(c)
+            c.execute("delete from search.query_vocab")
+            c.execute("delete from search.vocab_requests")
+            c.execute("delete from public.search_misses where created_at >= %s", (started,))
 
 
 @pytest.fixture(scope="session")
-def query_embed(embedder):
-    """Python (fp32) query embeddings."""
-    return lambda q: embedder.embed_queries([q])[0]
+def search(conn):
+    """Query only: search_explore resolves the meaning from the vocabulary. Returns the results;
+    `search.full(q)` returns the whole payload (mode, query_match, ...)."""
 
-
-@pytest.fixture(scope="session")
-def search(conn, query_embed):
-    def run(q, radius_km=10, **kw):
-        qv = query_embed(q)
-        row = conn.execute(
-            "select public.search_explore(%s, %s, %s, %s, %s::vector, p_limit => 50)",
-            (CENTER[0], CENTER[1], radius_km, q, _vec(qv)),
+    def full(q, radius_km=10, **kw):
+        return conn.execute(
+            "select public.search_explore(%s, %s, %s, %s, p_limit => 50)",
+            (CENTER[0], CENTER[1], radius_km, q),
         ).fetchone()[0]
-        return row["results"]
 
+    def run(q, radius_km=10, **kw):
+        return full(q, radius_km, **kw)["results"]
+
+    run.full = full
     return run
 
 

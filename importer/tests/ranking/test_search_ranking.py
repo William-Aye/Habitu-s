@@ -40,8 +40,14 @@ def assert_very_relevant(results, expected):
               f"{t!r} is {by_title[t]['label']} (score {by_title[t]['score']}), expected very_relevant")
 
 
+def assert_exact(search, q):
+    qm = search.full(q).get("query_match")
+    assert qm == "exact", f"{q!r}: query_match is {qm!r}, expected 'exact'"
+
+
 def test_coder(search):
     res = search("coder")
+    assert_exact(search, "coder")
     expected = ["Club informatique de la Croix-Rousse", "Atelier Arduino Villeurbanne", "Python Lyon"]
     for t in expected:
         check(t in top(res, 5), res, f"{t!r} not in top 5")
@@ -54,6 +60,7 @@ GO_RELATED = ["Club de Go de Lyon", "Soirée jeu de go", "Go Club Lyon Sud", "Co
 
 def test_jeu_de_go(search):
     res = search("jeu de go")
+    assert_exact(search, "jeu de go")
     first = titles(res)[0]
     check(first in ("Club de Go de Lyon", "Soirée jeu de go"), res, f"rank 1 is {first!r}")
     top3 = top(res, 3)
@@ -74,6 +81,7 @@ def test_jeu_de_go(search):
 
 def test_danse_bretonne(search):
     res = search("danse bretonne")
+    assert_exact(search, "danse bretonne")
     check(rank(res, "Cercle celtique de Lyon") == 1, res, "Cercle celtique not rank 1")
     check(rank(res, "Association des Bretons de Lyon") <= 3, res, "Bretons not in top 3")
     salsa = rank(res, "Salsa Lyon")
@@ -84,6 +92,7 @@ def test_danse_bretonne(search):
 
 def test_escalade(search):
     res = search("escalade")
+    assert_exact(search, "escalade")
     expected = ["Club alpin Lyon-Villeurbanne", "Salle d'escalade Vertical Lyon"]
     for t in expected:
         check(t in top(res, 3), res, f"{t!r} not in top 3")
@@ -91,17 +100,37 @@ def test_escalade(search):
     assert_very_relevant(res, expected)
 
 
+def test_words_fallback(search):
+    q = "cours de danse bretonne pour débutants"
+    full = search.full(q)
+    res = full["results"]
+    check(full.get("query_match") == "words", res, f"query_match is {full.get('query_match')!r}")
+    check("Cercle celtique de Lyon" in top(res, 3), res, "Cercle celtique not in top 3")
+
+
+def test_fuzzy_fallback(search):
+    full = search.full("escalde")
+    res = full["results"]
+    check(full.get("query_match") == "fuzzy", res, f"query_match is {full.get('query_match')!r}")
+    check("Club alpin Lyon-Villeurbanne" in top(res, 3), res, "Club alpin not in top 3")
+
+
+def test_unknown_query_is_keyword_only(search):
+    full = search.full("zzz qqq")
+    assert full["mode"] == "keyword_only", full.get("mode")
+
+
 QUERIES = ["coder", "jeu de go", "danse bretonne", "escalade"]
 
 
 @pytest.mark.parametrize("q", QUERIES)
-def test_not_public_never_above_more_similar_unflagged(search, conn, query_embed, vec, q):
+def test_not_public_never_above_more_similar_unflagged(search, conn, embedder, vec, q):
     """"Copropriété Les Tilleuls" (likely_not_public) never outranks an unflagged result that is
     more similar to the query."""
     t = titles(search(q))
     if "Copropriété Les Tilleuls" not in t:
         return  # filtered out entirely: nothing can be ranked below it
-    qv = vec(query_embed(q))
+    qv = vec(embedder.embed_queries([q])[0])
     sims = dict(conn.execute(
         """select name, 1 - (embedding <=> %s::vector) from public.associations
            where attribution @> '{"fixture": "ranking"}' and not likely_not_public""", (qv,)).fetchall())
@@ -115,16 +144,17 @@ def test_not_public_never_above_more_similar_unflagged(search, conn, query_embed
 
 
 @pytest.mark.skipif(os.environ.get("RANKING_REPORT") != "1", reason="set RANKING_REPORT=1 for the tuning report")
-def test_ranking_report(search, conn, query_embed, vec):
+def test_ranking_report(search, conn, embedder, vec):
     """Always passes. Prints, per query, the ranked results and every fixture row's raw cosine
     similarity and keyword hit, so params can be tuned from one CI log (run with -s)."""
     for q in QUERIES:
-        res = search(q)
-        print(f"\n=== RANKING REPORT: {q!r} ===")
+        full = search.full(q)
+        res = full["results"]
+        print(f"\n=== RANKING REPORT: {q!r} === query_match={full.get('query_match')} mode={full.get('mode')}")
         print("rank | title | kind | score | label | is_weak | distance_km")
         for i, r in enumerate(res, 1):
             print(f"{i:>3} | {r['title']} | {r['kind']} | {r['score']} | {r['label']} | {r['is_weak']} | {r['distance_km']}")
-        qv = vec(query_embed(q))
+        qv = vec(embedder.embed_queries([q])[0])
         rows = conn.execute(
             """select kind, title, sim, kw, name_sim from (
                  select 'association' as kind, name as title, 1 - (embedding <=> %(v)s::vector) as sim,
