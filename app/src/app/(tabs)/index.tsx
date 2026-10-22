@@ -15,10 +15,12 @@ import {
   useExploreLocation,
 } from '../../features/explore/useExploreLocation';
 import { useExploreSearch } from '../../features/explore/useExploreSearch';
+import { useInterests } from '../../features/interests/store';
 
 export default function Explore() {
   const { t } = useTranslation();
   const { location, status, requestGps, setTown } = useExploreLocation();
+  const { interests } = useInterests();
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<FilterState>({
     kinds: ['activity', 'association'],
@@ -40,7 +42,7 @@ export default function Explore() {
         kinds: effectiveKinds(filters),
         weekday: filters.weekday,
         newcomerFriendly: filters.newcomerFriendly,
-        interestCategoryIds: [],
+        interestCategoryIds: hasQuery ? [] : Object.keys(interests),
         sort: hasQuery ? sort : 'best',
       }
     : null;

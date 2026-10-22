@@ -5,6 +5,16 @@ import i18next from 'i18next';
 import { initI18n } from '../i18n';
 import { AccountGateProvider } from '../features/account/AccountGate';
 import { SessionProvider } from '../features/account/useSession';
+import { mergeLocalIntoAccount } from '../features/interests/store';
+
+// A failed merge keeps the local interests for the next sign-in; the log carries no user data.
+async function mergeInterests(userId: string): Promise<void> {
+  try {
+    await mergeLocalIntoAccount(userId);
+  } catch {
+    console.warn('interests merge failed');
+  }
+}
 
 export default function RootLayout() {
   const [ready, setReady] = useState(false);
@@ -28,7 +38,7 @@ export default function RootLayout() {
   return (
     <I18nextProvider i18n={i18next}>
       <SessionProvider>
-        <AccountGateProvider>
+        <AccountGateProvider onSignedUp={mergeInterests}>
           <Stack screenOptions={{ headerShown: false }} />
         </AccountGateProvider>
       </SessionProvider>

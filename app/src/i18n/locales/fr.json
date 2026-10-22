@@ -135,5 +135,26 @@
       "first_name": "Entrez un prénom de 40 caractères au maximum.",
       "age": "Vous devez avoir 18 ans ou plus."
     }
+  },
+  "interests": {
+    "title": "Vos centres d’intérêt",
+    "filterLabel": "Filtrer les catégories",
+    "filterPlaceholder": "Rechercher une catégorie",
+    "levels": {
+      "like": "J'aime",
+      "love": "J'adore",
+      "curious": "Curieux"
+    },
+    "loadError": "Impossible de charger les catégories.",
+    "retry": "Réessayer",
+    "empty": "Aucune catégorie ne correspond.",
+    "hint": "Touchez pour aimer, touchez encore pour adorer. Appui long pour « curieux ».",
+    "propose": "Vous ne trouvez pas ? Proposer une catégorie",
+    "requestLabel": "Nom de la catégorie",
+    "requestSend": "Envoyer",
+    "requestInvalid": "Le nom doit faire entre 2 et 80 caractères.",
+    "requestSent": "Merci, votre proposition a été envoyée.",
+    "requestSignedOut": "Connectez-vous pour proposer une catégorie.",
+    "requestError": "Envoi impossible. Réessayez."
   }
 }

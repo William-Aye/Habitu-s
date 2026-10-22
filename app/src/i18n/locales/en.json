@@ -135,5 +135,26 @@
       "first_name": "Enter a first name of 40 characters or fewer.",
       "age": "You must be 18 or older."
     }
+  },
+  "interests": {
+    "title": "Your interests",
+    "filterLabel": "Filter categories",
+    "filterPlaceholder": "Search a category",
+    "levels": {
+      "like": "Like",
+      "love": "Love",
+      "curious": "Curious"
+    },
+    "loadError": "Could not load the categories.",
+    "retry": "Try again",
+    "empty": "No category matches.",
+    "hint": "Tap to like, tap again to love. Long-press for \"curious\".",
+    "propose": "Can't find it? Suggest a category",
+    "requestLabel": "Category name",
+    "requestSend": "Send",
+    "requestInvalid": "The name must be between 2 and 80 characters.",
+    "requestSent": "Thank you, your suggestion was sent.",
+    "requestSignedOut": "Sign in to suggest a category.",
+    "requestError": "Could not send. Try again."
   }
 }
