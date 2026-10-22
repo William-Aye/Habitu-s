@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(113);
+select plan(128);
 select has_schema('importer');
 select has_table('public', 'import_runs', 'import_runs exists');
 select has_column('public', 'associations', 'embedding_hash', 'associations.embedding_hash');
@@ -552,5 +552,20 @@ select throws_like(format('select importer.apply_run(%L, null)', :'run12'),
 update associations set confidence = 0 where rna_id like 'W01%' and rna_id <> 'W010000001';
 select lives_ok(format('select importer.apply_run(%L, null)', :'run12'),
   'null scope: listings kept at confidence 0 do not count towards the guard');
+-- ---------------------------------------------------------------------------------------------
+-- Claimant guard: a claimant cannot write the import-owned columns, nor lock them.
+select tests.act_as(:'claimant');
+select throws_ok(format('update associations set %I = %s where rna_id = ''W441000002''', c, v), '42501', null,
+  'claimant cannot set ' || c)
+from (values ('insee_code', '''75056'''), ('postcode', '''75001'''), ('city', '''Paris'''),
+             ('geocode_precision', '''municipality'''), ('embedding_hash', '''x'''),
+             ('last_import_run', 'gen_random_uuid()'), ('rna_published_on', 'current_date')) v(c, v);
+select throws_ok(format('update associations set locked_fields = locked_fields || %L::text[] where rna_id = ''W441000002''',
+                        array[c]), '42501', null, 'claimant cannot lock ' || c)
+from unnest(array['insee_code', 'postcode', 'city', 'geocode_precision', 'embedding_hash', 'last_import_run',
+                  'rna_published_on']) c;
+select throws_ok($$ insert into associations (name, source, created_by, insee_code) values ('X', 'community', auth.uid(), '75056') $$,
+  '42501', null, 'non-admin cannot insert insee_code');
+select tests.act_as_superuser();
 select * from finish();
 rollback;

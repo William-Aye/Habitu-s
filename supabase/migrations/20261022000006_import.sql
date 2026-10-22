@@ -14,6 +14,54 @@ alter table public.associations
   add column last_import_run uuid;
 create index associations_insee_code on public.associations (insee_code);
 
+-- The guard of 20261021000003, redefined now that the import columns exist: non-admin API users
+-- cannot write them either, and a claimant cannot lock them (a lock on insee_code or
+-- rna_published_on would let a claimant fake a town or confidence that imports then keep).
+create or replace function public.associations_guard_update() returns trigger
+language plpgsql set search_path = public, pg_temp as $$
+declare
+  c_import_owned constant text[] := array['insee_code', 'postcode', 'city', 'geocode_precision',
+                                          'embedding_hash', 'last_import_run', 'rna_published_on'];
+begin
+  new.updated_at := now();
+  if current_user in ('anon', 'authenticated') and not public.is_admin() then
+    if tg_op = 'INSERT' then
+      if new.rna_id is not null or new.osm_id is not null or new.embedding is not null
+         or new.claimed_by is not null or new.verified or new.confidence <> 0
+         or new.likely_not_public or new.locked_fields <> '{}' or new.attribution <> '{}'::jsonb
+         or new.insee_code is not null or new.geocode_precision is not null or new.embedding_hash is not null
+         or new.last_import_run is not null or new.rna_published_on is not null then
+        raise exception 'column not settable' using errcode = '42501';
+      end if;
+    elsif (new.id, new.name, new.rna_id, new.osm_id, new.address, new.location, new.embedding::text,
+        new.confidence, new.likely_not_public, new.source, new.claimed_by, new.verified,
+        new.attribution, new.created_by, new.created_at,
+        new.insee_code, new.postcode, new.city, new.geocode_precision, new.embedding_hash,
+        new.last_import_run, new.rna_published_on)
+       is distinct from
+       (old.id, old.name, old.rna_id, old.osm_id, old.address, old.location, old.embedding::text,
+        old.confidence, old.likely_not_public, old.source, old.claimed_by, old.verified,
+        old.attribution, old.created_by, old.created_at,
+        old.insee_code, old.postcode, old.city, old.geocode_precision, old.embedding_hash,
+        old.last_import_run, old.rna_published_on)
+       or exists (select 1 from unnest(new.locked_fields) l
+                  where l = any(c_import_owned) and not l = any(old.locked_fields)) then
+      raise exception 'column not editable' using errcode = '42501';
+    else
+      -- A claimant's edit locks the column: later imports keep the claimant's value.
+      new.locked_fields := new.locked_fields || array(
+        select c from (values (1, 'purpose', new.purpose is distinct from old.purpose),
+                              (2, 'website', new.website is distinct from old.website),
+                              (3, 'phone', new.phone is distinct from old.phone),
+                              (4, 'email', new.email is distinct from old.email),
+                              (5, 'opening_hours', new.opening_hours is distinct from old.opening_hours)) v(n, c, changed)
+        where changed and not c = any(new.locked_fields)
+        order by n);
+    end if;
+  end if;
+  return new;
+end $$;
+
 create table public.import_runs (
   id uuid primary key default gen_random_uuid(),
   started_at timestamptz not null default now(),
