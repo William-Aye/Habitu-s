@@ -6,6 +6,8 @@ revoke all on schema importer from public, anon, authenticated;
 
 alter table public.associations
   add column insee_code text,
+  add column postcode text,
+  add column city text,
   add column rna_published_on date,
   add column geocode_precision text check (geocode_precision in ('address', 'municipality', 'osm')),
   add column embedding_hash text,
@@ -33,6 +35,8 @@ create table importer.staged_rna (
   name text not null,
   purpose text,
   address text,
+  postcode text,
+  city text,
   insee_code text,
   location extensions.geography(Point, 4326),
   geocode_precision text,
@@ -55,6 +59,7 @@ create table importer.staged_osm (
   phone text,
   email text,
   opening_hours text,
+  likely_not_public boolean not null default false,
   tag_slugs text[] not null default '{}',
   embedding extensions.vector(384),
   embedding_hash text not null,
@@ -174,6 +179,8 @@ begin
       name = case when 'name' = any(f.locked_fields) then f.name else a.name end,
       purpose = case when 'purpose' = any(f.locked_fields) then f.purpose else a.purpose end,
       address = case when 'address' = any(f.locked_fields) then f.address else a.address end,
+      postcode = case when 'address' = any(f.locked_fields) then f.postcode else a.postcode end,
+      city = case when 'address' = any(f.locked_fields) then f.city else a.city end,
       location = case when 'location' = any(f.locked_fields) then f.location else a.location end,
       geocode_precision = case when 'location' = any(f.locked_fields) then f.geocode_precision
                                else a.geocode_precision end,
@@ -192,6 +199,10 @@ begin
   return true;
 end $$;
 
+-- A monthly run sees ~1.5M listings, most of them unchanged: every write below only touches a row
+-- whose values actually change (an unchanged row keeps its tuple, last_import_run and updated_at).
+-- "Rows of this run" (the RNA rows of the scope and the OSM-only rows refreshed by it) are kept
+-- in pg_temp._ar_rows for the later steps.
 create function importer.apply_run(p_run uuid, p_scope text[]) returns jsonb
 language plpgsql security definer
 set search_path = public, importer, extensions, pg_temp
@@ -199,6 +210,8 @@ as $$
 declare
   c_rna constant jsonb := '{"rna": "Licence Ouverte / Etalab 2.0"}';
   c_osm constant jsonb := '{"osm": "© OpenStreetMap contributors, ODbL 1.0"}';
+  -- Null scope: a département with at least this many live RNA listings must have staged rows.
+  c_guard_min constant int := 50;
   v_inserted int := 0;
   v_updated int := 0;
   v_osm_matched int := 0;
@@ -210,6 +223,7 @@ declare
   v_downgraded int := 0;
   v_osm_staged boolean;
   v_missing text;
+  v_live bigint;
   v_counts jsonb;
   m record;
 begin
@@ -229,6 +243,22 @@ begin
     if not exists (select 1 from staged_rna where run_id = p_run) then
       raise exception 'import run % has no staged RNA rows; refusing to merge', p_run;
     end if;
+    -- All of France: every département that has a real number of live RNA listings must
+    -- still have staged rows (listings kept at confidence 0 are not expected in the source).
+    select e.d, e.n into v_missing, v_live
+    from (select importer.departement(a.insee_code) as d, count(*) as n
+          from associations a
+          where a.rna_id is not null and a.confidence > 0 and a.insee_code is not null
+          group by 1
+          having count(*) >= c_guard_min) e
+    where e.d not in (select distinct importer.departement(s.insee_code) from staged_rna s
+                      where s.run_id = p_run and s.insee_code is not null)
+    order by e.d
+    limit 1;
+    if found then
+      raise exception 'import run %: no staged RNA rows for département % (% live listings); refusing to merge',
+        p_run, v_missing, v_live;
+    end if;
   else
     select d into v_missing
     from unnest(p_scope) d
@@ -241,10 +271,11 @@ begin
   end if;
 
   drop table if exists pg_temp._ar_osm, pg_temp._ar_match, pg_temp._ar_cand, pg_temp._ar_pairs,
-                       pg_temp._ar_gone;
+                       pg_temp._ar_gone, pg_temp._ar_rows, pg_temp._ar_want;
   create temp table _ar_cand (l text not null, r uuid not null, sim real not null, dist float8 not null)
     on commit drop;
   create temp table _ar_pairs (l text not null, r uuid not null) on commit drop;
+  create temp table _ar_rows (id uuid primary key) on commit drop;
 
   -- 1. Tags mirror categories.
   insert into tags (slug, label_fr, label_en)
@@ -252,46 +283,79 @@ begin
   on conflict (slug) do nothing;
 
   -- 2. Upsert RNA rows (in scope only; never an existing row outside the scope). Locked
-  -- columns keep their value.
+  -- columns keep their value. The new values are computed against the existing row (e), and
+  -- the update only happens when they differ from it.
   with up as (
     insert into associations as a (
-      rna_id, name, purpose, address, insee_code, location, geocode_precision, website,
+      rna_id, name, purpose, address, postcode, city, insee_code, location, geocode_precision, website,
       rna_published_on, likely_not_public, embedding, embedding_hash, source, attribution, last_import_run)
-    select s.rna_id, s.name, s.purpose, s.address, s.insee_code, s.location, s.geocode_precision, s.website,
-           s.published_on, s.likely_not_public, s.embedding,
-           case when s.embedding is not null then s.embedding_hash end,
-           'rna', c_rna, p_run
+    select s.rna_id,
+      case when 'name' = any(e.locked_fields) then e.name else s.name end,
+      case when 'purpose' = any(e.locked_fields) then e.purpose else s.purpose end,
+      case when 'address' = any(e.locked_fields) then e.address else s.address end,
+      -- postcode and city belong to the address.
+      case when 'address' = any(e.locked_fields) or 'postcode' = any(e.locked_fields) then e.postcode
+           else s.postcode end,
+      case when 'address' = any(e.locked_fields) or 'city' = any(e.locked_fields) then e.city else s.city end,
+      case when 'insee_code' = any(e.locked_fields) then e.insee_code else s.insee_code end,
+      case when k.keep_location then e.location else s.location end,
+      case when k.keep_location then e.geocode_precision else s.geocode_precision end,
+      case when 'website' = any(e.locked_fields) then e.website
+           -- A listing linked to OSM keeps the website step 3 took from the feature, unless the
+           -- staged feature now has another one (step 3 then refills it).
+           when s.website is null and e.source = 'rna+osm'
+                and not exists (select 1 from staged_osm o
+                                where o.run_id = p_run and o.osm_id = e.osm_id
+                                  and o.website is distinct from e.website)
+             then e.website
+           else s.website end,
+      case when 'rna_published_on' = any(e.locked_fields) then e.rna_published_on else s.published_on end,
+      case when 'likely_not_public' = any(e.locked_fields) then e.likely_not_public else s.likely_not_public end,
+      coalesce(s.embedding, e.embedding),
+      case when s.embedding is not null then s.embedding_hash else e.embedding_hash end,
+      case when e.source = 'rna+osm' then 'rna+osm' else 'rna' end,
+      coalesce(e.attribution, '{}') || c_rna,
+      p_run
     from staged_rna s
+    left join associations e on e.rna_id = s.rna_id
+    cross join lateral (select coalesce(
+      'location' = any(e.locked_fields) or 'geocode_precision' = any(e.locked_fields)
+      -- Geocoding failed this month: keep the previous position.
+      or s.location is null
+      -- Linked to an OSM feature: step 3 places it on the feature.
+      or (e.osm_id is not null and e.geocode_precision = 'osm')
+      -- Only the commune was found this month for an address that was found before.
+      or (s.geocode_precision = 'municipality' and e.geocode_precision = 'address'
+          and s.address is not distinct from e.address and s.insee_code is not distinct from e.insee_code),
+      false) as keep_location) k
     where s.run_id = p_run and importer.in_scope(s.insee_code, p_scope)
     on conflict (rna_id) do update set
-      name = case when 'name' = any(a.locked_fields) then a.name else excluded.name end,
-      purpose = case when 'purpose' = any(a.locked_fields) then a.purpose else excluded.purpose end,
-      address = case when 'address' = any(a.locked_fields) then a.address else excluded.address end,
-      insee_code = case when 'insee_code' = any(a.locked_fields) then a.insee_code else excluded.insee_code end,
-      -- A row whose geocoding failed this month (null location) keeps its previous position.
-      location = case when 'location' = any(a.locked_fields) or excluded.location is null
-                      then a.location else excluded.location end,
-      geocode_precision = case when 'geocode_precision' = any(a.locked_fields)
-                                 or 'location' = any(a.locked_fields)
-                                 or excluded.location is null
-                               then a.geocode_precision else excluded.geocode_precision end,
-      website = case when 'website' = any(a.locked_fields) then a.website else excluded.website end,
-      rna_published_on = case when 'rna_published_on' = any(a.locked_fields) then a.rna_published_on
-                              else excluded.rna_published_on end,
-      likely_not_public = case when 'likely_not_public' = any(a.locked_fields) then a.likely_not_public
-                               else excluded.likely_not_public end,
-      embedding = coalesce(excluded.embedding, a.embedding),
-      embedding_hash = case when excluded.embedding is not null then excluded.embedding_hash
-                            else a.embedding_hash end,
-      source = case when a.source = 'rna+osm' then 'rna+osm' else 'rna' end,
-      attribution = a.attribution || c_rna,
-      last_import_run = p_run
+      name = excluded.name, purpose = excluded.purpose, address = excluded.address,
+      postcode = excluded.postcode, city = excluded.city, insee_code = excluded.insee_code,
+      location = excluded.location, geocode_precision = excluded.geocode_precision,
+      website = excluded.website, rna_published_on = excluded.rna_published_on,
+      likely_not_public = excluded.likely_not_public, embedding = excluded.embedding,
+      embedding_hash = excluded.embedding_hash, source = excluded.source,
+      attribution = excluded.attribution, last_import_run = p_run
     where importer.in_scope(a.insee_code, p_scope)
+      and (a.name, a.purpose, a.address, a.postcode, a.city, a.insee_code, a.location::text,
+           a.geocode_precision, a.website, a.rna_published_on, a.likely_not_public, a.embedding_hash,
+           a.source, a.attribution)
+          is distinct from
+          (excluded.name, excluded.purpose, excluded.address, excluded.postcode, excluded.city,
+           excluded.insee_code, excluded.location::text, excluded.geocode_precision, excluded.website,
+           excluded.rna_published_on, excluded.likely_not_public, excluded.embedding_hash,
+           excluded.source, excluded.attribution)
     returning (xmax = 0) as is_insert
   )
   select count(*) filter (where is_insert), count(*) filter (where not is_insert)
     into v_inserted, v_updated
   from up;
+
+  insert into _ar_rows (id)
+  select a.id
+  from staged_rna s join associations a on a.rna_id = s.rna_id
+  where s.run_id = p_run and importer.in_scope(s.insee_code, p_scope) and importer.in_scope(a.insee_code, p_scope);
 
   -- 3a. Place OSM features in a département: nearest listing with an INSEE code within 5 km.
   update staged_osm o set insee_code = (
@@ -308,11 +372,18 @@ begin
   -- anything on the OSM side.
   v_osm_staged := exists (select 1 from _ar_osm);
 
-  -- Stale links: an RNA row of this run whose OSM feature is no longer mapped loses the link.
+  -- Stale links: an RNA row of this run whose OSM feature is no longer mapped loses the link
+  -- (and goes back to its geocoded position).
   if v_osm_staged then
-    update associations a set osm_id = null, source = 'rna', attribution = a.attribution - 'osm'
-    where a.last_import_run = p_run and a.source = 'rna+osm'
-      and not exists (select 1 from staged_osm s where s.run_id = p_run and s.osm_id = a.osm_id);
+    update associations a set osm_id = null, source = 'rna', attribution = a.attribution - 'osm',
+      location = case when 'location' = any(a.locked_fields) or s.location is null then a.location
+                      else s.location end,
+      geocode_precision = case when 'location' = any(a.locked_fields) or s.location is null
+                               then a.geocode_precision else s.geocode_precision end,
+      last_import_run = p_run
+    from _ar_rows r, staged_rna s
+    where a.id = r.id and s.run_id = p_run and s.rna_id = a.rna_id and a.source = 'rna+osm'
+      and not exists (select 1 from staged_osm o where o.run_id = p_run and o.osm_id = a.osm_id);
     get diagnostics v_unlinked = row_count;
   end if;
 
@@ -320,8 +391,8 @@ begin
   create temp table _ar_match (osm_id text primary key, assoc_id uuid not null unique) on commit drop;
   insert into _ar_match (osm_id, assoc_id)
   select o.osm_id, a.id
-  from _ar_osm o join associations a on a.osm_id = o.osm_id
-  where a.last_import_run = p_run and a.source in ('rna', 'rna+osm');
+  from _ar_osm o join associations a on a.osm_id = o.osm_id join _ar_rows r on r.id = a.id
+  where a.source in ('rna', 'rna+osm');
 
   insert into _ar_cand (l, r, sim, dist)
   select o.osm_id, a.id,
@@ -329,7 +400,8 @@ begin
          ST_Distance(a.location, o.location)
   from _ar_osm o
   join associations a on ST_DWithin(a.location, o.location, 300)
-  where a.last_import_run = p_run and a.source in ('rna', 'rna+osm')
+  join _ar_rows r on r.id = a.id
+  where a.source in ('rna', 'rna+osm')
     and not exists (select 1 from _ar_match x where x.osm_id = o.osm_id or x.assoc_id = a.id)
     and similarity(importer.normalise_name(a.name), importer.normalise_name(o.name)) >= 0.6;
   perform importer.pick_pairs();
@@ -353,28 +425,36 @@ begin
       delete from _ar_match where osm_id = m.osm_id;
     end if;
   end loop;
+  select count(*) into v_osm_matched from _ar_match;
 
   update associations a set
-    osm_id = o.osm_id,
-    source = 'rna+osm',
-    phone = case when a.phone is null and not 'phone' = any(a.locked_fields) then o.phone else a.phone end,
-    email = case when a.email is null and not 'email' = any(a.locked_fields) then o.email else a.email end,
-    opening_hours = case when a.opening_hours is null and not 'opening_hours' = any(a.locked_fields)
-                         then o.opening_hours else a.opening_hours end,
-    website = case when a.website is null and not 'website' = any(a.locked_fields) then o.website
-                   else a.website end,
-    location = case when 'location' = any(a.locked_fields) then a.location else o.location end,
-    geocode_precision = case when 'location' = any(a.locked_fields) then a.geocode_precision else 'osm' end,
-    attribution = a.attribution || c_osm,
-    last_import_run = p_run
-  from _ar_match x join _ar_osm o on o.osm_id = x.osm_id
-  where a.id = x.assoc_id;
-  get diagnostics v_osm_matched = row_count;
+    osm_id = v.osm_id, source = 'rna+osm', phone = v.phone, email = v.email,
+    opening_hours = v.opening_hours, website = v.website, location = v.location,
+    geocode_precision = v.geocode_precision, attribution = v.attribution, last_import_run = p_run
+  from (
+    select b.id, o.osm_id,
+      case when b.phone is null and not 'phone' = any(b.locked_fields) then o.phone else b.phone end as phone,
+      case when b.email is null and not 'email' = any(b.locked_fields) then o.email else b.email end as email,
+      case when b.opening_hours is null and not 'opening_hours' = any(b.locked_fields)
+           then o.opening_hours else b.opening_hours end as opening_hours,
+      case when b.website is null and not 'website' = any(b.locked_fields) then o.website
+           else b.website end as website,
+      case when 'location' = any(b.locked_fields) then b.location else o.location end as location,
+      case when 'location' = any(b.locked_fields) then b.geocode_precision else 'osm' end as geocode_precision,
+      b.attribution || c_osm as attribution
+    from _ar_match x join _ar_osm o on o.osm_id = x.osm_id join associations b on b.id = x.assoc_id
+  ) v
+  where a.id = v.id
+    and (a.osm_id, a.source, a.phone, a.email, a.opening_hours, a.website, a.location::text,
+         a.geocode_precision, a.attribution)
+        is distinct from
+        (v.osm_id, 'rna+osm', v.phone, v.email, v.opening_hours, v.website, v.location::text,
+         v.geocode_precision, v.attribution);
 
   -- An in-scope rna+osm listing whose RNA record disappeared but whose OSM feature is still
   -- mapped (and unmatched) lives on as an OSM listing; step 4 then refreshes it.
   update associations a set source = 'osm', rna_id = null, rna_published_on = null,
-         attribution = a.attribution - 'rna'
+         attribution = a.attribution - 'rna', last_import_run = p_run
   from _ar_osm o
   where a.osm_id = o.osm_id and a.source = 'rna+osm' and importer.in_scope(a.insee_code, p_scope)
     and not exists (select 1 from staged_rna s where s.run_id = p_run and s.rna_id = a.rna_id)
@@ -382,34 +462,50 @@ begin
   get diagnostics v_downgraded = row_count;
 
   -- 4. OSM-only features. An existing row with the same osm_id is refreshed only if it is an
-  -- in-scope OSM-only listing.
-  with up as (
-    insert into associations as a (
-      osm_id, name, location, insee_code, geocode_precision, website, phone, email, opening_hours,
-      embedding, embedding_hash, source, attribution, last_import_run)
-    select o.osm_id, o.name, o.location, o.insee_code, 'osm', o.website, o.phone, o.email, o.opening_hours,
-           o.embedding, case when o.embedding is not null then o.embedding_hash end, 'osm', c_osm, p_run
-    from _ar_osm o
-    where not exists (select 1 from _ar_match x where x.osm_id = o.osm_id)
-    on conflict (osm_id) do update set
-      name = case when 'name' = any(a.locked_fields) then a.name else excluded.name end,
-      location = case when 'location' = any(a.locked_fields) then a.location else excluded.location end,
-      insee_code = case when 'location' = any(a.locked_fields) or excluded.insee_code is null
-                        then a.insee_code else excluded.insee_code end,
-      website = case when 'website' = any(a.locked_fields) then a.website else excluded.website end,
-      phone = case when 'phone' = any(a.locked_fields) then a.phone else excluded.phone end,
-      email = case when 'email' = any(a.locked_fields) then a.email else excluded.email end,
-      opening_hours = case when 'opening_hours' = any(a.locked_fields) then a.opening_hours
-                           else excluded.opening_hours end,
-      embedding = coalesce(excluded.embedding, a.embedding),
-      embedding_hash = case when excluded.embedding is not null then excluded.embedding_hash
-                            else a.embedding_hash end,
-      attribution = a.attribution || c_osm,
-      last_import_run = p_run
-    where a.source = 'osm' and importer.in_scope(a.insee_code, p_scope)
-    returning 1
-  )
-  select count(*) into v_osm_only from up;
+  -- in-scope OSM-only listing, and only when something changed.
+  insert into associations as a (
+    osm_id, name, location, insee_code, geocode_precision, website, phone, email, opening_hours,
+    likely_not_public, embedding, embedding_hash, source, attribution, last_import_run)
+  select o.osm_id,
+    case when 'name' = any(e.locked_fields) then e.name else o.name end,
+    case when 'location' = any(e.locked_fields) then e.location else o.location end,
+    case when 'location' = any(e.locked_fields) or o.insee_code is null then e.insee_code
+         else o.insee_code end,
+    coalesce(e.geocode_precision, 'osm'),
+    case when 'website' = any(e.locked_fields) then e.website else o.website end,
+    case when 'phone' = any(e.locked_fields) then e.phone else o.phone end,
+    case when 'email' = any(e.locked_fields) then e.email else o.email end,
+    case when 'opening_hours' = any(e.locked_fields) then e.opening_hours else o.opening_hours end,
+    case when 'likely_not_public' = any(e.locked_fields) then e.likely_not_public else o.likely_not_public end,
+    coalesce(o.embedding, e.embedding),
+    case when o.embedding is not null then o.embedding_hash else e.embedding_hash end,
+    'osm',
+    coalesce(e.attribution, '{}') || c_osm,
+    p_run
+  from _ar_osm o
+  left join associations e on e.osm_id = o.osm_id
+  where not exists (select 1 from _ar_match x where x.osm_id = o.osm_id)
+  on conflict (osm_id) do update set
+    name = excluded.name, location = excluded.location, insee_code = excluded.insee_code,
+    website = excluded.website, phone = excluded.phone, email = excluded.email,
+    opening_hours = excluded.opening_hours, likely_not_public = excluded.likely_not_public,
+    embedding = excluded.embedding, embedding_hash = excluded.embedding_hash,
+    attribution = excluded.attribution, last_import_run = p_run
+  where a.source = 'osm' and importer.in_scope(a.insee_code, p_scope)
+    and (a.name, a.location::text, a.insee_code, a.website, a.phone, a.email, a.opening_hours,
+         a.likely_not_public, a.embedding_hash, a.attribution)
+        is distinct from
+        (excluded.name, excluded.location::text, excluded.insee_code, excluded.website, excluded.phone,
+         excluded.email, excluded.opening_hours, excluded.likely_not_public, excluded.embedding_hash,
+         excluded.attribution);
+
+  insert into _ar_rows (id)
+  select a.id
+  from _ar_osm o join associations a on a.osm_id = o.osm_id
+  where a.source = 'osm' and importer.in_scope(a.insee_code, p_scope)
+    and not exists (select 1 from _ar_match x where x.osm_id = o.osm_id)
+  on conflict (id) do nothing;
+  get diagnostics v_osm_only = row_count;
 
   -- 5. Community listings that duplicate an imported listing of this run are folded into it.
   -- A community row without an INSEE code takes the département of its nearest coded listing.
@@ -420,8 +516,9 @@ begin
          ST_Distance(a.location, c.location)
   from associations c
   join associations a on ST_DWithin(a.location, c.location, 300)
+  join _ar_rows r on r.id = a.id
   where c.source = 'community'
-    and a.last_import_run = p_run and a.source in ('rna', 'rna+osm', 'osm')
+    and a.source in ('rna', 'rna+osm', 'osm')
     and similarity(importer.normalise_name(a.name), importer.normalise_name(c.name)) >= 0.6
     and importer.in_scope(coalesce(c.insee_code, (
           select n.insee_code from associations n
@@ -450,27 +547,37 @@ begin
           and not exists (select 1 from staged_osm s where s.run_id = p_run and s.osm_id = a.osm_id)));
   delete from associations a using _ar_gone g where a.id = g.id and not g.keep;
   get diagnostics v_removed = row_count;
-  update associations a set confidence = 0 from _ar_gone g where a.id = g.id and g.keep;
-  get diagnostics v_kept = row_count;
+  update associations a set confidence = 0 from _ar_gone g where a.id = g.id and g.keep and a.confidence <> 0;
+  select count(*) into v_kept from _ar_gone where keep;
 
-  -- 7. Tags of touched rows = staged slugs (RNA + OSM); unknown slugs are ignored.
-  delete from association_tags t using associations a
-   where a.id = t.association_id and a.last_import_run = p_run;
-  insert into association_tags (association_id, tag_id)
-  select distinct a.id, t.id
-  from associations a
+  -- 7. Tags of this run's rows = staged slugs (RNA + OSM); unknown slugs are ignored. Only the
+  -- difference is written.
+  create temp table _ar_want on commit drop as
+  select distinct a.id as association_id, t.id as tag_id
+  from _ar_rows r
+  join associations a on a.id = r.id
   join lateral (
     select unnest(s.tag_slugs) as slug from staged_rna s where s.run_id = p_run and s.rna_id = a.rna_id
     union
     select unnest(o.tag_slugs) from staged_osm o where o.run_id = p_run and o.osm_id = a.osm_id
   ) sl on true
-  join tags t on t.slug = sl.slug
-  where a.last_import_run = p_run;
+  join tags t on t.slug = sl.slug;
+  delete from association_tags t using _ar_rows r
+  where t.association_id = r.id
+    and not exists (select 1 from _ar_want w where w.association_id = t.association_id and w.tag_id = t.tag_id);
+  insert into association_tags (association_id, tag_id)
+  select w.association_id, w.tag_id from _ar_want w
+  where not exists (select 1 from association_tags t
+                    where t.association_id = w.association_id and t.tag_id = w.tag_id);
 
-  -- 8. Confidence of touched rows.
-  update associations set confidence = importer.confidence(
-    rna_published_on, website is not null, osm_id is not null, claimed_by is not null and verified, current_date)
-  where last_import_run = p_run;
+  -- 8. Confidence of this run's rows, where it changes.
+  update associations a set confidence = importer.confidence(
+    a.rna_published_on, a.website is not null, a.osm_id is not null, a.claimed_by is not null and a.verified,
+    current_date)
+  from _ar_rows r
+  where a.id = r.id
+    and a.confidence <> importer.confidence(a.rna_published_on, a.website is not null, a.osm_id is not null,
+                                            a.claimed_by is not null and a.verified, current_date);
 
   -- 9. Clean up staging and close the run.
   delete from staged_rna where run_id = p_run;

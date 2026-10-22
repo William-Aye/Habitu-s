@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(93);
+select plan(111);
 select has_schema('importer');
 select has_table('public', 'import_runs', 'import_runs exists');
 select has_column('public', 'associations', 'embedding_hash', 'associations.embedding_hash');
@@ -396,5 +396,156 @@ select is((select geocode_precision from associations where rna_id = 'W331000001
   'null staged location: existing geocode_precision kept');
 select ok((select location is null and geocode_precision is null from associations where rna_id = 'W331000002'),
   'null staged location: new listing inserted without a location');
+-- ---------------------------------------------------------------------------------------------
+-- Runs 8 and 9, scope {'44'}: town stored, OSM likely_not_public staged, and a second identical
+-- run rewrites no association row and no tag row (same tuple ctid before and after).
+insert into import_runs (scope) values (array['44']) returning id as run8 \gset
+create temp table stage44_rna as
+select * from (values
+  ('W441000001', 'Club de Go de Nantes', 'Jeu de go', '3 rue Kervégan', '44000', 'Nantes', '44109',
+   'SRID=4326;POINT(-1.553 47.213)'::extensions.geography, 'address', null::text, current_date - 100,
+   '{games-go}'::text[], 'n1'),
+  ('W441000002', 'Chorale de Nantes', 'Chant', '8 quai de la Fosse', '44000', 'Nantes', '44109',
+   'SRID=4326;POINT(-1.565 47.210)'::extensions.geography, 'address', 'https://chorale-nantes.example',
+   current_date - 100, '{music-chorale}'::text[], 'n2')
+) v(rna_id, name, purpose, address, postcode, city, insee_code, location, geocode_precision, website,
+    published_on, tag_slugs, embedding_hash);
+create temp table stage44_osm as
+select * from (values
+  ('node/4401', 'Go Club Nantes', 'SRID=4326;POINT(-1.5535 47.2132)'::extensions.geography, '+33 2 40 00 00 01',
+   'https://go-club-nantes.example', false, '{games}'::text[], 'q1'),
+  ('node/4402', 'Salle de sport de la Résidence', 'SRID=4326;POINT(-1.540 47.220)'::extensions.geography, null,
+   null, true, '{sport}'::text[], 'q2')
+) v(osm_id, name, location, phone, website, likely_not_public, tag_slugs, embedding_hash);
+create function pg_temp.stage44(p_run uuid) returns void language sql as $$
+  insert into importer.staged_rna (run_id, rna_id, name, purpose, address, postcode, city, insee_code, location,
+                                   geocode_precision, website, published_on, likely_not_public, tag_slugs,
+                                   embedding_hash)
+  select p_run, rna_id, name, purpose, address, postcode, city, insee_code, location, geocode_precision, website,
+         published_on, false, tag_slugs, embedding_hash
+  from pg_temp.stage44_rna;
+  insert into importer.staged_osm (run_id, osm_id, name, location, phone, website, likely_not_public, tag_slugs,
+                                   embedding_hash)
+  select p_run, osm_id, name, location, phone, website, likely_not_public, tag_slugs, embedding_hash
+  from pg_temp.stage44_osm;
+$$;
+select pg_temp.stage44(:'run8');
+select importer.apply_run(:'run8', array['44']) as counts8 \gset
+select ok((select city = 'Nantes' and postcode = '44000' from associations where rna_id = 'W441000002'),
+  'town (city, postcode) stored from RNA');
+select ok((select source = 'rna+osm' and website = 'https://go-club-nantes.example' and geocode_precision = 'osm'
+           from associations where rna_id = 'W441000001'), 'run 8: RNA row matched, website and location from OSM');
+select ok((select likely_not_public and source = 'osm' from associations where osm_id = 'node/4402'),
+  'OSM-only listing carries likely_not_public from staging');
+
+create temp table snap44 as
+select id, ctid::text as c from associations where insee_code = '44109';
+create temp table snaptags44 as
+select t.association_id, t.tag_id, t.ctid::text as c
+from association_tags t join associations a on a.id = t.association_id where a.insee_code = '44109';
+insert into import_runs (scope) values (array['44']) returning id as run9 \gset
+select pg_temp.stage44(:'run9');
+select importer.apply_run(:'run9', array['44']) as counts9 \gset
+select is((select array_agg(a.ctid::text order by a.id) from associations a where a.insee_code = '44109'),
+          (select array_agg(c order by id) from snap44),
+  'second identical run rewrites no association row');
+select is((select array_agg(t.ctid::text order by t.association_id, t.tag_id)
+           from association_tags t join associations a on a.id = t.association_id where a.insee_code = '44109'),
+          (select array_agg(c order by association_id, tag_id) from snaptags44),
+  'second identical run rewrites no tag row');
+select is((select count(*) from snaptags44)::int, 4, 'tags of the run-8 rows present (2 + 1 + 1)');
+select ok((:'counts9'::jsonb)->>'inserted' = '0' and (:'counts9'::jsonb)->>'updated' = '0'
+          and (:'counts9'::jsonb)->>'osm_matched' = '1' and (:'counts9'::jsonb)->>'osm_only' = '1',
+  'second identical run: nothing inserted or updated, match and OSM-only still counted');
+select is((select confidence from associations where rna_id = 'W441000001'), 85::smallint,
+  'confidence of an unchanged row still right');
+
+-- Tag diff: one slug removed, one added; the kept tag row is not rewritten.
+insert into import_runs (scope) values (array['44']) returning id as run9b \gset
+update pg_temp.stage44_rna set tag_slugs = '{music}' where rna_id = 'W441000002';
+update pg_temp.stage44_rna set tag_slugs = '{}' where rna_id = 'W441000001';
+select pg_temp.stage44(:'run9b');
+select importer.apply_run(:'run9b', array['44']) as counts9b \gset
+select is((select array_agg(t.slug order by t.slug) from association_tags at join tags t on t.id = at.tag_id
+           join associations a on a.id = at.association_id where a.rna_id = 'W441000002'),
+  array['music'], 'tag diff: removed slug deleted, new slug inserted');
+select is((select at.ctid::text from association_tags at join tags t on t.id = at.tag_id
+           join associations a on a.id = at.association_id where a.rna_id = 'W441000001' and t.slug = 'games'),
+          (select s.c from snaptags44 s join tags t on t.id = s.tag_id
+           join associations a on a.id = s.association_id where a.rna_id = 'W441000001' and t.slug = 'games'),
+  'tag diff: a tag still staged keeps its row');
+
+-- Claimant edits lock the edited columns; the next import keeps the claimant's values.
+update associations set claimed_by = :'claimant' where rna_id = 'W441000002';
+select tests.act_as(:'claimant');
+update associations set website = 'https://claire-chorale.example', purpose = 'Chant choral'
+where rna_id = 'W441000002';
+update associations set purpose = 'Chant choral a cappella', phone = '+33 2 40 00 00 02'
+where rna_id = 'W441000002';
+select tests.act_as_superuser();
+select is((select locked_fields from associations where rna_id = 'W441000002'),
+  array['purpose', 'website', 'phone'], 'claimant edits add the edited columns to locked_fields, once each');
+update profiles set role = 'admin' where id = :'organiser';
+select tests.act_as(:'organiser');
+update associations set opening_hours = 'Mo 18:00-20:00' where rna_id = 'W441000002';
+select tests.act_as_superuser();
+select ok((select not 'opening_hours' = any(locked_fields) from associations where rna_id = 'W441000002'),
+  'admin edits do not lock');
+insert into import_runs (scope) values (array['44']) returning id as run10 \gset
+update pg_temp.stage44_rna set website = 'https://autre-site.example', purpose = 'Autre objet'
+where rna_id = 'W441000002';
+select pg_temp.stage44(:'run10');
+select importer.apply_run(:'run10', array['44']) as counts10 \gset
+select ok((select website = 'https://claire-chorale.example' and purpose = 'Chant choral a cappella'
+           from associations where rna_id = 'W441000002'), 'import keeps the claimant''s edited values');
+
+-- ---------------------------------------------------------------------------------------------
+-- Run 11, scope {'35'}: a municipality-level geocode does not replace an address-level one when
+-- the address and commune are unchanged; it does when the address changed. Town locks follow
+-- the address lock.
+insert into import_runs (scope) values (array['35']) returning id as run11 \gset
+insert into associations (rna_id, name, address, postcode, city, insee_code, location, geocode_precision, source,
+                          locked_fields, confidence)
+values
+  ('W351000001', 'Cercle celtique de Rennes', '5 rue de Brest', '35000', 'Rennes', '35238',
+   'SRID=4326;POINT(-1.690 48.112)', 'address', 'rna', '{}', 40),
+  ('W351000002', 'Bagad de Rennes', '9 rue de Nantes', '35000', 'Rennes', '35238',
+   'SRID=4326;POINT(-1.700 48.105)', 'address', 'rna', '{}', 40),
+  ('W351000003', 'Rennes Échecs', '1 place de la Mairie', '35000', 'Rennes (ville)', '35238',
+   'SRID=4326;POINT(-1.679 48.111)', 'address', 'rna', '{address}', 40);
+insert into importer.staged_rna (run_id, rna_id, name, address, postcode, city, insee_code, location,
+                                 geocode_precision, published_on, likely_not_public, embedding_hash)
+values
+  (:'run11', 'W351000001', 'Cercle celtique de Rennes', '5 rue de Brest', '35000', 'Rennes', '35238',
+   'SRID=4326;POINT(-1.680 48.111)', 'municipality', current_date - 100, false, 'r1'),
+  (:'run11', 'W351000002', 'Bagad de Rennes', '12 rue de Lorient', '35000', 'Rennes', '35238',
+   'SRID=4326;POINT(-1.680 48.111)', 'municipality', current_date - 100, false, 'r2'),
+  (:'run11', 'W351000003', 'Rennes Échecs', '2 place de la Mairie', '35700', 'Rennes', '35238',
+   'SRID=4326;POINT(-1.680 48.111)', 'municipality', current_date - 100, false, 'r3');
+select importer.apply_run(:'run11', array['35']) as counts11 \gset
+select ok((select geocode_precision = 'address'
+                  and extensions.st_equals(location::extensions.geometry, 'SRID=4326;POINT(-1.690 48.112)'::extensions.geometry)
+           from associations where rna_id = 'W351000001'),
+  'same address: municipality geocode does not replace the address-level location');
+select ok((select geocode_precision = 'municipality' and address = '12 rue de Lorient'
+           from associations where rna_id = 'W351000002'),
+  'changed address: municipality geocode replaces the old location');
+select ok((select address = '1 place de la Mairie' and postcode = '35000' and city = 'Rennes (ville)'
+           from associations where rna_id = 'W351000003'), 'address lock also keeps postcode and city');
+
+-- ---------------------------------------------------------------------------------------------
+-- Run 12, scope null: a département with >= 50 live RNA listings and no staged RNA row aborts.
+insert into associations (rna_id, name, insee_code, source, confidence)
+select 'W01' || lpad(g::text, 7, '0'), 'Association de l''Ain ' || g, '01053', 'rna', 40
+from generate_series(1, 50) g;
+insert into import_runs (scope) values (null) returning id as run12 \gset
+insert into importer.staged_rna (run_id, rna_id, name, insee_code, location, geocode_precision,
+                                 published_on, likely_not_public, embedding_hash)
+values (:'run12', 'W331000001', 'Club de Go de Bordeaux', '33063', null, null, current_date - 100, false, 'b1');
+select throws_like(format('select importer.apply_run(%L, null)', :'run12'),
+  '%no staged RNA rows for département 01%', 'null scope: a populated département missing from staging aborts');
+update associations set confidence = 0 where rna_id like 'W01%' and rna_id <> 'W010000001';
+select lives_ok(format('select importer.apply_run(%L, null)', :'run12'),
+  'null scope: listings kept at confidence 0 do not count towards the guard');
 select * from finish();
 rollback;
