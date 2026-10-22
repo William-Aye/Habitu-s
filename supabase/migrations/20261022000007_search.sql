@@ -5,6 +5,8 @@
 
 create schema search;
 revoke all on schema search from public, anon, authenticated;
+-- Functions created below (and by later migrations) are not executable by API roles unless granted.
+alter default privileges in schema search revoke execute on functions from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------------------------------
 -- Helpers. Immutable so generated columns and indexes may use them. Every name is qualified.
@@ -153,6 +155,17 @@ create policy waiters_admin on public.association_waiters for select to authenti
 alter table public.search_misses
   add column day date not null default current_date,
   add column hits int not null default 1;
+-- The existing log was never aggregated: all rows now carry today's day, so collapse duplicates
+-- into one row per (query, area) whose hits counts the rows merged.
+with dup as (
+  select min(id) as keep_id, count(*)::int as n
+  from public.search_misses group by query, coalesce(area_label, '') having count(*) > 1
+)
+update public.search_misses m set hits = dup.n from dup where m.id = dup.keep_id;
+delete from public.search_misses m
+using public.search_misses k
+where m.id > k.id and m.query = k.query and coalesce(m.area_label, '') = coalesce(k.area_label, '')
+  and m.day = k.day;
 create unique index search_misses_agg on public.search_misses (query, coalesce(area_label, ''), day);
 
 -- ---------------------------------------------------------------------------------------------
