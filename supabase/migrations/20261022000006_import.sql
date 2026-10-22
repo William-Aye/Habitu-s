@@ -1,5 +1,5 @@
 -- Association directory import: staging schema, run log, new association columns.
--- (importer.apply_run is added in a later task.)
+-- importer.apply_run (end of file) merges one staged run into the live tables in a single transaction.
 
 create schema importer;
 revoke all on schema importer from public, anon, authenticated;
@@ -103,3 +103,340 @@ $$;
 
 revoke all on function importer.normalise_name(text) from public, anon, authenticated;
 revoke all on function importer.confidence(date, boolean, boolean, boolean, date) from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------------------------------
+-- Merge of one import run. Everything below runs inside the caller's transaction: any error
+-- rolls back every change to live data.
+
+-- Département of an INSEE commune code ('69123' -> '69', '2A004' -> '2A', '97105' -> '971').
+create function importer.departement(p_insee text) returns text
+language sql immutable
+set search_path = pg_catalog, pg_temp
+as $$
+  select case when p_insee is null then null
+              when p_insee like '97%' then left(p_insee, 3)
+              else left(p_insee, 2) end
+$$;
+
+-- null scope = all of France; otherwise a listing without a known département is out of scope.
+create function importer.in_scope(p_insee text, p_scope text[]) returns boolean
+language sql immutable
+set search_path = pg_catalog, importer, pg_temp
+as $$
+  select p_scope is null or coalesce(importer.departement(p_insee) = any(p_scope), false)
+$$;
+
+-- Greedy one-to-one pairing over pg_temp._ar_cand(l, r, sim, dist) into pg_temp._ar_pairs(l, r):
+-- repeatedly keep the pairs that are each other's best (highest similarity, then shortest
+-- distance, ids as tie-break), then drop every candidate that reuses a paired side. The global
+-- best pair is always mutual, so each round makes progress.
+create function importer.pick_pairs() returns void
+language plpgsql
+set search_path = public, importer, extensions, pg_temp
+as $$
+begin
+  loop
+    with ranked as (
+      select l, r,
+             row_number() over (partition by l order by sim desc, dist, r) as rank_l,
+             row_number() over (partition by r order by sim desc, dist, l) as rank_r
+      from pg_temp._ar_cand)
+    insert into pg_temp._ar_pairs (l, r)
+    select l, r from ranked where rank_l = 1 and rank_r = 1;
+    exit when not found;
+    delete from pg_temp._ar_cand c
+     where exists (select 1 from pg_temp._ar_pairs p where p.l = c.l or p.r = c.r);
+  end loop;
+end $$;
+
+-- Fold listing p_from into p_into: carry over the claim, verification, locks and locked values
+-- (when p_from is claimed), repoint activities and claims, delete p_from. Refuses (returns false)
+-- when both rows are claimed by different people.
+create function importer.merge_into(p_from uuid, p_into uuid) returns boolean
+language plpgsql
+set search_path = public, importer, extensions, pg_temp
+as $$
+declare
+  f public.associations;
+  t public.associations;
+begin
+  select * into strict f from public.associations where id = p_from;
+  select * into strict t from public.associations where id = p_into;
+  if f.claimed_by is not null and t.claimed_by is not null and f.claimed_by <> t.claimed_by then
+    return false;
+  end if;
+  if f.claimed_by is not null then
+    update public.associations a set
+      claimed_by = f.claimed_by,
+      verified = f.verified or a.verified,
+      locked_fields = array(select distinct x from unnest(a.locked_fields || f.locked_fields) x order by x),
+      name = case when 'name' = any(f.locked_fields) then f.name else a.name end,
+      purpose = case when 'purpose' = any(f.locked_fields) then f.purpose else a.purpose end,
+      address = case when 'address' = any(f.locked_fields) then f.address else a.address end,
+      location = case when 'location' = any(f.locked_fields) then f.location else a.location end,
+      geocode_precision = case when 'location' = any(f.locked_fields) then f.geocode_precision
+                               else a.geocode_precision end,
+      website = case when 'website' = any(f.locked_fields) then f.website else a.website end,
+      phone = case when 'phone' = any(f.locked_fields) then f.phone else a.phone end,
+      email = case when 'email' = any(f.locked_fields) then f.email else a.email end,
+      opening_hours = case when 'opening_hours' = any(f.locked_fields) then f.opening_hours
+                           else a.opening_hours end,
+      likely_not_public = case when 'likely_not_public' = any(f.locked_fields) then f.likely_not_public
+                               else a.likely_not_public end
+    where a.id = p_into;
+  end if;
+  update public.activities set organised_by_association_id = p_into where organised_by_association_id = p_from;
+  update public.association_claims set association_id = p_into where association_id = p_from;
+  delete from public.associations where id = p_from;
+  return true;
+end $$;
+
+create function importer.apply_run(p_run uuid, p_scope text[]) returns jsonb
+language plpgsql security definer
+set search_path = public, importer, extensions, pg_temp
+as $$
+declare
+  c_rna constant jsonb := '{"rna": "Licence Ouverte / Etalab 2.0"}';
+  c_osm constant jsonb := '{"osm": "© OpenStreetMap contributors, ODbL 1.0"}';
+  v_inserted int := 0;
+  v_updated int := 0;
+  v_osm_matched int := 0;
+  v_osm_only int := 0;
+  v_community int := 0;
+  v_removed int := 0;
+  v_kept int := 0;
+  v_counts jsonb;
+  m record;
+begin
+  -- One merge at a time; the run must exist, be running and have RNA rows staged (an empty
+  -- staging table would otherwise read as "every listing in scope was dissolved").
+  perform pg_advisory_xact_lock(hashtext('importer.apply_run'));
+  perform 1 from import_runs where id = p_run and status = 'running' for update;
+  if not found then
+    raise exception 'import run % not found or not running', p_run;
+  end if;
+  if not exists (select 1 from staged_rna where run_id = p_run) then
+    raise exception 'import run % has no staged RNA rows; refusing to merge', p_run;
+  end if;
+
+  drop table if exists pg_temp._ar_osm, pg_temp._ar_match, pg_temp._ar_cand, pg_temp._ar_pairs,
+                       pg_temp._ar_gone;
+  create temp table _ar_cand (l text not null, r uuid not null, sim real not null, dist float8 not null)
+    on commit drop;
+  create temp table _ar_pairs (l text not null, r uuid not null) on commit drop;
+
+  -- 1. Tags mirror categories.
+  insert into tags (slug, label_fr, label_en)
+  select slug, name_fr, name_en from categories
+  on conflict (slug) do nothing;
+
+  -- 2. Upsert RNA rows (in scope only; never an existing row outside the scope). Locked
+  -- columns keep their value.
+  with up as (
+    insert into associations as a (
+      rna_id, name, purpose, address, insee_code, location, geocode_precision, website,
+      rna_published_on, likely_not_public, embedding, embedding_hash, source, attribution, last_import_run)
+    select s.rna_id, s.name, s.purpose, s.address, s.insee_code, s.location, s.geocode_precision, s.website,
+           s.published_on, s.likely_not_public, s.embedding,
+           case when s.embedding is not null then s.embedding_hash end,
+           'rna', c_rna, p_run
+    from staged_rna s
+    where s.run_id = p_run and importer.in_scope(s.insee_code, p_scope)
+    on conflict (rna_id) do update set
+      name = case when 'name' = any(a.locked_fields) then a.name else excluded.name end,
+      purpose = case when 'purpose' = any(a.locked_fields) then a.purpose else excluded.purpose end,
+      address = case when 'address' = any(a.locked_fields) then a.address else excluded.address end,
+      insee_code = case when 'insee_code' = any(a.locked_fields) then a.insee_code else excluded.insee_code end,
+      location = case when 'location' = any(a.locked_fields) then a.location else excluded.location end,
+      geocode_precision = case when 'geocode_precision' = any(a.locked_fields)
+                                 or 'location' = any(a.locked_fields)
+                               then a.geocode_precision else excluded.geocode_precision end,
+      website = case when 'website' = any(a.locked_fields) then a.website else excluded.website end,
+      rna_published_on = case when 'rna_published_on' = any(a.locked_fields) then a.rna_published_on
+                              else excluded.rna_published_on end,
+      likely_not_public = case when 'likely_not_public' = any(a.locked_fields) then a.likely_not_public
+                               else excluded.likely_not_public end,
+      embedding = coalesce(excluded.embedding, a.embedding),
+      embedding_hash = case when excluded.embedding is not null then excluded.embedding_hash
+                            else a.embedding_hash end,
+      source = case when a.source = 'rna+osm' then 'rna+osm' else 'rna' end,
+      attribution = a.attribution || c_rna,
+      last_import_run = p_run
+    where importer.in_scope(a.insee_code, p_scope)
+    returning (xmax = 0) as is_insert
+  )
+  select count(*) filter (where is_insert), count(*) filter (where not is_insert)
+    into v_inserted, v_updated
+  from up;
+
+  -- 3a. Place OSM features in a département: nearest listing with an INSEE code within 5 km.
+  update staged_osm o set insee_code = (
+    select a.insee_code from associations a
+    where a.insee_code is not null and ST_DWithin(a.location, o.location, 5000)
+    order by a.location <-> o.location
+    limit 1)
+  where o.run_id = p_run and o.insee_code is null;
+
+  create temp table _ar_osm on commit drop as
+  select * from staged_osm o
+  where o.run_id = p_run and importer.in_scope(o.insee_code, p_scope);
+
+  -- 3. Match OSM -> RNA rows of this run. A feature already linked to such a row stays linked.
+  create temp table _ar_match (osm_id text primary key, assoc_id uuid not null unique) on commit drop;
+  insert into _ar_match (osm_id, assoc_id)
+  select o.osm_id, a.id
+  from _ar_osm o join associations a on a.osm_id = o.osm_id
+  where a.last_import_run = p_run and a.source in ('rna', 'rna+osm');
+
+  insert into _ar_cand (l, r, sim, dist)
+  select o.osm_id, a.id,
+         similarity(importer.normalise_name(a.name), importer.normalise_name(o.name)),
+         ST_Distance(a.location, o.location)
+  from _ar_osm o
+  join associations a on ST_DWithin(a.location, o.location, 300)
+  where a.last_import_run = p_run and a.source in ('rna', 'rna+osm')
+    and not exists (select 1 from _ar_match x where x.osm_id = o.osm_id or x.assoc_id = a.id)
+    and similarity(importer.normalise_name(a.name), importer.normalise_name(o.name)) >= 0.6;
+  perform importer.pick_pairs();
+  insert into _ar_match (osm_id, assoc_id) select l, r::uuid from _ar_pairs;
+
+  -- A newly matched feature may already be held by another listing: an in-scope OSM-only
+  -- listing is folded into the RNA row; an in-scope RNA listing absent from this run releases
+  -- it; anything else (out of scope, conflicting claims) cancels the match.
+  for m in
+    select x.osm_id, x.assoc_id, h.id as holder_id, h.source as holder_source, h.insee_code as holder_insee
+    from _ar_match x join associations h on h.osm_id = x.osm_id and h.id <> x.assoc_id
+  loop
+    if not importer.in_scope(m.holder_insee, p_scope) then
+      delete from _ar_match where osm_id = m.osm_id;
+    elsif m.holder_source in ('rna', 'rna+osm') then
+      update associations set osm_id = null, source = 'rna' where id = m.holder_id;
+    elsif m.holder_source <> 'osm' or not importer.merge_into(m.holder_id, m.assoc_id) then
+      delete from _ar_match where osm_id = m.osm_id;
+    end if;
+  end loop;
+
+  update associations a set
+    osm_id = o.osm_id,
+    source = 'rna+osm',
+    phone = case when a.phone is null and not 'phone' = any(a.locked_fields) then o.phone else a.phone end,
+    email = case when a.email is null and not 'email' = any(a.locked_fields) then o.email else a.email end,
+    opening_hours = case when a.opening_hours is null and not 'opening_hours' = any(a.locked_fields)
+                         then o.opening_hours else a.opening_hours end,
+    website = case when a.website is null and not 'website' = any(a.locked_fields) then o.website
+                   else a.website end,
+    location = case when 'location' = any(a.locked_fields) then a.location else o.location end,
+    geocode_precision = case when 'location' = any(a.locked_fields) then a.geocode_precision else 'osm' end,
+    attribution = a.attribution || c_osm,
+    last_import_run = p_run
+  from _ar_match x join _ar_osm o on o.osm_id = x.osm_id
+  where a.id = x.assoc_id;
+  get diagnostics v_osm_matched = row_count;
+
+  -- 4. OSM-only features. An existing row with the same osm_id is refreshed only if it is an
+  -- in-scope OSM-only listing.
+  with up as (
+    insert into associations as a (
+      osm_id, name, location, insee_code, geocode_precision, website, phone, email, opening_hours,
+      embedding, embedding_hash, source, attribution, last_import_run)
+    select o.osm_id, o.name, o.location, o.insee_code, 'osm', o.website, o.phone, o.email, o.opening_hours,
+           o.embedding, case when o.embedding is not null then o.embedding_hash end, 'osm', c_osm, p_run
+    from _ar_osm o
+    where not exists (select 1 from _ar_match x where x.osm_id = o.osm_id)
+    on conflict (osm_id) do update set
+      name = case when 'name' = any(a.locked_fields) then a.name else excluded.name end,
+      location = case when 'location' = any(a.locked_fields) then a.location else excluded.location end,
+      insee_code = case when 'location' = any(a.locked_fields) or excluded.insee_code is null
+                        then a.insee_code else excluded.insee_code end,
+      website = case when 'website' = any(a.locked_fields) then a.website else excluded.website end,
+      phone = case when 'phone' = any(a.locked_fields) then a.phone else excluded.phone end,
+      email = case when 'email' = any(a.locked_fields) then a.email else excluded.email end,
+      opening_hours = case when 'opening_hours' = any(a.locked_fields) then a.opening_hours
+                           else excluded.opening_hours end,
+      embedding = coalesce(excluded.embedding, a.embedding),
+      embedding_hash = case when excluded.embedding is not null then excluded.embedding_hash
+                            else a.embedding_hash end,
+      attribution = a.attribution || c_osm,
+      last_import_run = p_run
+    where a.source = 'osm' and importer.in_scope(a.insee_code, p_scope)
+    returning 1
+  )
+  select count(*) into v_osm_only from up;
+
+  -- 5. Community listings that duplicate an imported listing of this run are folded into it.
+  -- A community row without an INSEE code takes the département of its nearest coded listing.
+  truncate _ar_cand, _ar_pairs;
+  insert into _ar_cand (l, r, sim, dist)
+  select c.id::text, a.id,
+         similarity(importer.normalise_name(a.name), importer.normalise_name(c.name)),
+         ST_Distance(a.location, c.location)
+  from associations c
+  join associations a on ST_DWithin(a.location, c.location, 300)
+  where c.source = 'community'
+    and a.last_import_run = p_run and a.source in ('rna', 'rna+osm', 'osm')
+    and similarity(importer.normalise_name(a.name), importer.normalise_name(c.name)) >= 0.6
+    and importer.in_scope(coalesce(c.insee_code, (
+          select n.insee_code from associations n
+          where n.insee_code is not null and n.id <> c.id and ST_DWithin(n.location, c.location, 5000)
+          order by n.location <-> c.location
+          limit 1)), p_scope);
+  perform importer.pick_pairs();
+  for m in select l::uuid as from_id, r as into_id from _ar_pairs loop
+    if importer.merge_into(m.from_id, m.into_id) then
+      v_community := v_community + 1;
+    end if;
+  end loop;
+
+  -- 6. Imported listings in scope that are no longer published: delete, unless claimed or
+  -- referenced by an activity (then confidence 0).
+  create temp table _ar_gone on commit drop as
+  select a.id,
+         (a.claimed_by is not null
+          or exists (select 1 from activities x where x.organised_by_association_id = a.id)) as keep
+  from associations a
+  where importer.in_scope(a.insee_code, p_scope)
+    and ((a.source in ('rna', 'rna+osm')
+          and not exists (select 1 from staged_rna s where s.run_id = p_run and s.rna_id = a.rna_id))
+      or (a.source = 'osm'
+          and not exists (select 1 from staged_osm s where s.run_id = p_run and s.osm_id = a.osm_id)));
+  delete from associations a using _ar_gone g where a.id = g.id and not g.keep;
+  get diagnostics v_removed = row_count;
+  update associations a set confidence = 0 from _ar_gone g where a.id = g.id and g.keep;
+  get diagnostics v_kept = row_count;
+
+  -- 7. Tags of touched rows = staged slugs (RNA + OSM); unknown slugs are ignored.
+  delete from association_tags t using associations a
+   where a.id = t.association_id and a.last_import_run = p_run;
+  insert into association_tags (association_id, tag_id)
+  select distinct a.id, t.id
+  from associations a
+  join lateral (
+    select unnest(s.tag_slugs) as slug from staged_rna s where s.run_id = p_run and s.rna_id = a.rna_id
+    union
+    select unnest(o.tag_slugs) from staged_osm o where o.run_id = p_run and o.osm_id = a.osm_id
+  ) sl on true
+  join tags t on t.slug = sl.slug
+  where a.last_import_run = p_run;
+
+  -- 8. Confidence of touched rows.
+  update associations set confidence = importer.confidence(
+    rna_published_on, website is not null, osm_id is not null, claimed_by is not null and verified, current_date)
+  where last_import_run = p_run;
+
+  -- 9. Clean up staging and close the run.
+  delete from staged_rna where run_id = p_run;
+  delete from staged_osm where run_id = p_run;
+  v_counts := jsonb_build_object(
+    'inserted', v_inserted, 'updated', v_updated, 'osm_matched', v_osm_matched, 'osm_only', v_osm_only,
+    'community_merged', v_community, 'removed', v_removed, 'kept_dissolved', v_kept);
+  update import_runs set status = 'succeeded', finished_at = now(), counts = v_counts where id = p_run;
+  return v_counts;
+end $$;
+
+revoke all on function importer.departement(text) from public, anon, authenticated;
+revoke all on function importer.in_scope(text, text[]) from public, anon, authenticated;
+revoke all on function importer.pick_pairs() from public, anon, authenticated;
+revoke all on function importer.merge_into(uuid, uuid) from public, anon, authenticated;
+revoke all on function importer.apply_run(uuid, text[]) from public, anon, authenticated;
+grant usage on schema importer to service_role;
+grant execute on function importer.apply_run(uuid, text[]) to service_role;
