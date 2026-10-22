@@ -19,7 +19,7 @@ permissions:
 jobs:
   vocab:
     runs-on: ubuntu-latest
-    timeout-minutes: ${{ inputs.full && 120 || 30 }}
+    timeout-minutes: ${{ inputs.full && 180 || 30 }}
     steps:
       - uses: actions/checkout@v4
 

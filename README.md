@@ -68,9 +68,8 @@ end, so a failure leaves the previous vocabulary in place (and fails the job).
 - **Monthly** (`import.yml`, 5th, after the association import): full build from all
   associations (names, categories, words) plus user requests. Estimate: 30-60 minutes on a 4 vCPU
   runner (public repositories); a private repository's standard runner has 2 vCPU and 7 GB, so
-  expect roughly twice that, 60-120 minutes, which reaches the job's limit: raise
-  `timeout-minutes` of the `vocab` job if a run is cut off. The build is a
-  separate job (`vocab`, needs `import`, 120 minute limit). If it fails, the monthly import run is marked failed although the imported data is
+  expect roughly twice that, 60-120 minutes. The build is a separate job (`vocab`, needs
+  `import`, 180 minute limit; a full build started by hand from `vocab.yml` has the same limit). If it fails, the monthly import run is marked failed although the imported data is
   committed; the previous vocabulary stays in place.
 - **Nightly** (`vocab.yml`, 02:17 UTC): `--requests-only`, adds the anonymised phrases users
   searched that the vocabulary did not already understand (exact and fuzzy matches are not
