@@ -456,32 +456,84 @@ Protection is applied at each layer where it actually works (the app talks direc
 
 ## 14. Build order (sub-projects)
 
-Each gets its own implementation plan.
+Each gets its own implementation plan. The work is split into **Release 1 (MVP)** — the smallest app that delivers the core promise (find a recurring activity near you, show up safely, come back) — and **Release 2**, built in the first months after launch. Nothing is dropped from the spec; only the order changes. Release 2 items must not delay Release 1.
 
-1. **Foundation:** Supabase project, schema, RLS, categories seed, Expo app skeleton (custom dev build) with the four tabs and French/English translation setup.
-2. **Association directory:** import pipeline, tagging, embeddings, confidence score, GitHub Actions schedule.
-3. **Explore and search:** semantic + full-text search, ranking, filters, list/map, association pages.
-4. **Accounts and interests:** browse-first onboarding, language choice, deferred sign-up (with Cloudflare Turnstile and tuned Auth rate limits), interests picker, category requests, `last_seen_at`.
-5. **Activities and sessions:** create activity (incl. "Who organises it?"), recurrence, join, "Ça m'intéresse", "Je serai là", minimum participants, reminders, no-shows, share links, new-activity alerts, co-organisers (invitation, rights, end date, removal).
-6. **Chat and regulars:** activity chat, regulars computation, private messages.
-7. **Safety, trust and admin:** reports, blocks, contextual tips, Share my plans, morning-after feedback, ambiance words, trusted organiser badge, "Une idée ? Un problème ?", admin screens, claims, community-club review, Tableau de bord, database write limits.
-8. **Ads:** AdMob native ads in Explore, UMP consent, placement rules.
-9. **Launch:** closed test (12+ testers for 14 days, Google Play requirement), French store listing, public release.
-10. **Later:** website (Expo web, hosted on Cloudflare Pages), iOS, local sponsored listings, "Soutenir l'app".
+### Release 1 — MVP
+
+1. **Foundation** (done): Supabase project, schema, RLS, categories seed, Expo app skeleton with the four tabs and French/English translations.
+2. **Association directory:** import pipeline, tagging, embeddings, confidence score, GitHub Actions schedule; dormant-listing rule (section 17).
+3. **Explore and search:** semantic + full-text search, ranking, filters, list/map, association pages, "Me prévenir quand ce club arrive" (section 17).
+4. **Accounts and interests:** browse-first onboarding, language choice, deferred sign-up (Cloudflare Turnstile, tuned Auth rate limits), interests picker, category requests, `last_seen_at`.
+5. **Activities and sessions (core):** create activity (incl. "Who organises it?"), recurrence, join, "Je serai là" with add-to-calendar, reminders, share links, séance découverte, "Je viens avec quelqu'un", welcome person (section 17).
+6. **Group chat:** one chat per activity (private messages come in Release 2).
+7. **Safety essentials:** reports, blocks, contextual safety tips, Share my plans, "Une idée ? Un problème ?", minimal admin screens (reports queue, claims, community clubs, category requests, feedback), database write limits.
+8. **Public web pages:** association and activity pages on the web (Expo web on Cloudflare Pages), indexable by search engines, with "Je serai là" from the browser after a light sign-up (section 17). Comes before launch because shared links must work for iPhone friends.
+9. **Launch:** closed test (12+ testers for 14 days, Google Play requirement), French store listing, public release — timed with the September "Forums des associations" if the date allows (section 15).
+
+### Release 2 — first months after launch
+
+10. **Trust and feedback:** morning-after feedback, ambiance words, trusted organiser badge.
+11. **Engagement:** "Ça m'intéresse", minimum participants, no-shows, new-activity alerts, saved searches with alerts, gentle return reminders, seasonal suggestions (section 17).
+12. **Organisers:** co-organisers.
+13. **Regulars:** regulars computation and private messages between regulars.
+14. **Admin:** Tableau de bord, trusted-badge admin, search misses, import health screen.
+15. **Ads:** AdMob native ads in Explore, UMP consent, placement rules.
+16. **Later:** iOS app, local sponsored listings, "Soutenir l'app".
 
 ## 15. Launch and growth (non-code)
 
-- Invite high-confidence associations to claim their listing and create their activities.
+- **Associations are the first customers.** Invite high-confidence associations to claim their listing and post their recurring sessions: each claimed association brings its existing members. Give them a page they are proud to share (and a QR code for their premises and flyers).
+- **Forums des associations (September).** Nearly every French town holds one at the "rentrée". Aim the launch at it; give participating associations their QR code; be present in one or two cities.
+- **Target first: students, newcomers and expats** — people who just moved (Erasmus, first job, relocation) are the ones most actively looking for new friends. Campus associations and expat groups are priority partners.
+- **Search engines:** every association and activity has a public web page; niche searches ("club de go Lyon") land on them — the cheapest acquisition channel.
 - Every activity page is shareable, so each organiser brings their own circle.
 - One partner association per large city to seed the first activities.
 - Recruit closed-test testers early (friends + one or two friendly associations); they become the first users.
+- **Positioning:** recurring groups + nationwide association directory + safety. This is what sets the app apart from one-off meetups (On Va Sortir, Meetup) and dinners with strangers (Timeleft); use it in the store listing and first screen.
 
 ## 16. Out of scope for the first release
 
-- iOS and website (planned next).
+- iOS app (planned in Release 2; public web pages are in Release 1).
+- Everything listed under Release 2 in section 14.
 - Users under 18.
 - Payments, paid events, sponsored listings, ad-free subscription.
 - One-off (non-recurring) events.
 - Machine translation of user content.
 - Ratings or reviews of participants; free-text reviews of activities.
 - Identity-document verification for organisers.
+
+## 17. First-meeting, directory and retention improvements
+
+### Making the first meeting easier (Release 1)
+
+- **Séance découverte (trial session):** the organiser can mark any session as open to first-timers with no commitment. Shown as a label on the session and as a filter in Explore ("Séances découverte").
+- **"Je viens avec quelqu'un":** when confirming "Je serai là", a member can add one guest (count only, no account needed). The guest counts toward the confirmed number and the maximum size. Only one guest per member per session.
+- **Welcome person:** the organiser can name a member (or themselves) as the welcome contact for newcomers: "À votre arrivée, demandez Sam". Shown on the session to members who are coming for the first time.
+- **Add to calendar:** after "Je serai là", one tap adds the session to the phone's calendar (time, place, link back to the app).
+
+### Better directory (Release 1)
+
+- **"Me prévenir quand ce club arrive":** on an unclaimed association page with no contact details, a signed-in user can ask to be notified when the association claims its listing or creates an activity. The number of people waiting is shown to the association when it claims ("12 personnes attendent votre club"), which encourages claiming. Admins see listings with the most people waiting, to contact those associations first.
+- **Dormant listings:** an association with no website, no OpenStreetMap match, no claim and no RNA publication in the last 10 years is hidden from browsing and suggestions; it still appears when someone searches for it by name or very specific terms (match score above the "strong match" threshold).
+
+### Public web pages (Release 1)
+
+- Every association and activity has a public web page at a stable, readable address (e.g. `/associations/club-de-go-de-lyon-w691000001`, `/activites/go-le-mardi-lyon-<id>`), rendered on the server or pre-rendered so search engines index it, with title, description, place (town level for associations, meeting place for activities), next session and "Ouvrir dans l'app".
+- From the web, a visitor can sign up (same light sign-up as the app) and press "Je serai là"; the app is recommended but not required.
+- Pages never show participants' names or photos to visitors who are not signed in; only counts ("6 confirmés").
+- Pages of hidden (dormant or confidence < 20) listings return "not found" to search engines.
+
+### Retention (Release 2)
+
+- **Gentle return:** a member who has not attended their activity for 3 weeks gets one friendly reminder ("Le groupe se retrouve jeudi, vous venez ?"), at most once per activity per month; can be turned off.
+- **Seasonal suggestions:** Explore suggestions favour outdoor categories in spring and summer and indoor ones in autumn and winter, using the category tree.
+
+### Data model additions
+
+| Table / column | Purpose |
+|---|---|
+| `sessions.is_discovery` boolean | Séance découverte |
+| `attendances.guest_count` smallint (0 or 1) | "Je viens avec quelqu'un" |
+| `activities.welcome_member_id` | Welcome person (must be the organiser, a co-organiser or a member) |
+| `association_waiters` (association + user, created_at) | "Me prévenir quand ce club arrive" |
+| `activity_members.last_reminded_at` | Gentle-return frequency cap |
