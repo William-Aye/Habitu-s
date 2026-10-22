@@ -53,6 +53,8 @@ Admin screens (same app,      ─┘      ├─ Postgres + PostGIS + pgvector (
 
 GitHub Actions (monthly cron) ──► import pipeline ──► Postgres (associations)
 Google AdMob ◄── native ads in Explore list only
+Cloudflare Turnstile ◄── invisible bot check on sign-up and anonymous feedback
+Cloudflare Pages ◄── hosts the website (later), with Cloudflare's DDoS/bot protection
 ```
 
 - **App:** React Native with Expo (TypeScript), using a custom development build (required for AdMob and push notifications; Expo Go is not used). One codebase for Android now, web and iOS later.
@@ -69,7 +71,7 @@ Google AdMob ◄── native ads in Explore list only
 |---|---|
 | Google Play developer account | $25 one-time |
 | Supabase Pro (8 GB DB, needed for ~1–1.5M associations + embeddings) | ~€25/month from launch |
-| GitHub Actions, Expo, embedding model, BAN geocoder, open data, AdMob | Free |
+| GitHub Actions, Expo, embedding model, BAN geocoder, open data, AdMob, Cloudflare Turnstile and Pages | Free |
 | Optional: Claude Haiku batch for unclassified associations | A few euros per run, optional |
 
 Expected offset from ads: see section 10.
@@ -78,7 +80,7 @@ Expected offset from ads: see section 10.
 
 | Table | Purpose / key fields |
 |---|---|
-| `profiles` | first name, optional photo, optional bio, approximate home area (never exact address), UI language (`fr`/`en`), age confirmed (18+), phone verified flag, role (user/admin), supporter flag (reserved for later ad-free option) |
+| `profiles` | first name, optional photo, optional bio, approximate home area (never exact address), UI language (`fr`/`en`), age confirmed (18+), phone verified flag, role (user/admin), supporter flag (reserved for later ad-free option), `last_seen_at` (updated at most once per hour by the app; drives the dashboard's active-user counts) |
 | `categories` | tree (parent_id), name FR/EN, Lucide icon name. Admin-managed |
 | `tags` / `association_tags` / `activity_tags` | free-form tags; associations and activities can carry many. Categories are a browsable layer over tags |
 | `user_interests` | user + category + level: `like`, `love`, `curious` |
@@ -364,6 +366,42 @@ Admin screens live inside the app, visible only to `role = admin`:
 - **Ambiance words:** manage the fixed list.
 - **Import health:** last run, counts, errors.
 - **Automatic first filter:** banned-word and spam checks on activity titles, descriptions, community-added clubs and chat before human review.
+- **Tableau de bord (dashboard):** see below.
+
+### Tableau de bord (admin dashboard)
+
+An admin-only screen in the app (and on the website once it exists). Totals only — never individual people. Computed from the app's own database by an admin-only function; **no third-party analytics or trackers** (no extra consent banner, no cost).
+
+| Group | Figures (each with a "last 30 days" trend) |
+|---|---|
+| Users | total accounts; active today / last 7 days / last 30 days (from `profiles.last_seen_at`); new sign-ups per day |
+| Activity | activities created; sessions held; "Je serai là" confirmations; average participants per held session; share links opened |
+| Health | share of users who come back after their first session (attended ≥ 2 sessions); activities with no participant after 30 days; open reports |
+| Where | the figures above per département, sortable, to see where to push associations next |
+| Directory | association listings; claimed listings; community-added clubs awaiting review; last import run status |
+
+Figures are refreshed every hour by a scheduled job (pg_cron) into a small summary table, so opening the dashboard is instant and cheap.
+
+### Abuse and spam protection
+
+Protection is applied at each layer where it actually works (the app talks directly to Supabase, which already sits behind Cloudflare's network protection):
+
+- **Cloudflare Turnstile** (free, usually invisible) on sign-up and on the anonymous "Une idée ? Un problème ?" form, using Supabase Auth's built-in CAPTCHA support.
+- **Supabase Auth rate limits** on sign-in, emails and SMS, tuned below Supabase defaults.
+- **Database write limits per user**, enforced by triggers (error code 42501 with a clear message the app translates):
+
+| Action | Limit |
+|---|---|
+| Messages | 30 per minute |
+| Activities created | 3 per day |
+| Reports | 5 per hour |
+| "Une idée ? Un problème ?" | 3 per hour per user; anonymous submissions limited through Turnstile |
+| Community-added clubs | 5 per day |
+| Category requests | 5 per day |
+| Join requests | 20 per day |
+
+- **Website (later)** hosted on **Cloudflare Pages** (free), with Cloudflare's DDoS protection, bot filtering and rate rules.
+- **Access rules** (row-level security) remain the main protection for data; every rule is covered by automated tests.
 
 ## 12. Error handling
 
@@ -385,6 +423,8 @@ Admin screens live inside the app, visible only to `role = admin`:
 - **Feedback privacy test:** an organiser can never read individual session feedback rows; ambiance hidden below 3 answers.
 - **Alert cap test:** a user never receives more than 2 instant new-activity alerts per week.
 - **Minimum participants test:** session auto-cancelled at 20:00 the evening before when below minimum, not otherwise.
+- **Rate limit tests:** each write limit allows the last permitted action and refuses the next one; admins and the service role are not limited.
+- **Dashboard tests:** the dashboard function is callable only by admins; figures match a known fixture; no per-person data is returned.
 - **End-to-end journeys** on an Android emulator: browse → sign up → join → "Je serai là"; create an activity with and without "organised by" (including a new community club and the home-address warning); report.
 
 ## 14. Build order (sub-projects)
@@ -394,13 +434,13 @@ Each gets its own implementation plan.
 1. **Foundation:** Supabase project, schema, RLS, categories seed, Expo app skeleton (custom dev build) with the four tabs and French/English translation setup.
 2. **Association directory:** import pipeline, tagging, embeddings, confidence score, GitHub Actions schedule.
 3. **Explore and search:** semantic + full-text search, ranking, filters, list/map, association pages.
-4. **Accounts and interests:** browse-first onboarding, language choice, deferred sign-up, interests picker, category requests.
+4. **Accounts and interests:** browse-first onboarding, language choice, deferred sign-up (with Cloudflare Turnstile and tuned Auth rate limits), interests picker, category requests, `last_seen_at`.
 5. **Activities and sessions:** create activity (incl. "Who organises it?"), recurrence, join, "Ça m'intéresse", "Je serai là", minimum participants, reminders, no-shows, share links, new-activity alerts.
 6. **Chat and regulars:** activity chat, regulars computation, private messages.
-7. **Safety, trust and admin:** reports, blocks, contextual tips, Share my plans, morning-after feedback, ambiance words, trusted organiser badge, "Une idée ? Un problème ?", admin screens, claims, community-club review.
+7. **Safety, trust and admin:** reports, blocks, contextual tips, Share my plans, morning-after feedback, ambiance words, trusted organiser badge, "Une idée ? Un problème ?", admin screens, claims, community-club review, Tableau de bord, database write limits.
 8. **Ads:** AdMob native ads in Explore, UMP consent, placement rules.
 9. **Launch:** closed test (12+ testers for 14 days, Google Play requirement), French store listing, public release.
-10. **Later:** website (Expo web), iOS, local sponsored listings, "Soutenir l'app".
+10. **Later:** website (Expo web, hosted on Cloudflare Pages), iOS, local sponsored listings, "Soutenir l'app".
 
 ## 15. Launch and growth (non-code)
 
