@@ -57,7 +57,8 @@ class StagedRna:
 
 @dataclass(frozen=True)
 class StagedOsm:
-    """Row for importer.staged_osm (insee_code is derived by apply_run)."""
+    """Row for importer.staged_osm. insee_code: the commune with the nearest centre (None when
+    there is none nearby; apply_run then places the row by its nearest listing)."""
     osm_id: str
     name: str
     lon: float
@@ -69,6 +70,6 @@ class StagedOsm:
     kind: str
     likely_not_public: bool
     embedding_hash: str
-    insee_code: None = None
+    insee_code: str | None = None
     tag_slugs: list[str] = field(default_factory=list)
     embedding: list[float] | None = None

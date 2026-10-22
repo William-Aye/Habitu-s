@@ -143,25 +143,27 @@ def _run(conn, run_id, scope: list[str] | None, args: argparse.Namespace) -> dic
         rna_read = Counter(departement(r.insee_code) for r in progress(rna_records(), "RNA records read"))
         check_scope_read(scope, rna_read)
 
-        osm_records: Callable[[], Iterator[OsmRecord]] = lambda: iter(())
+        osm_records: Callable[[], Iterator[tuple[OsmRecord, str | None]]] = lambda: iter(())
         osm_read = None
         if not args.skip_osm:
             osm_path = Path(args.osm_geojsonseq)
-            # A scoped run stages (and embeds) only the OSM features of its départements: each
-            # feature takes the département of the nearest commune centre.
-            in_scope: Callable[[OsmRecord], bool] = lambda o: True
-            if departements is not None:
-                index = CommuneIndex(geocoder.communes())
-                in_scope = lambda o: index.departement(o.lon, o.lat) in departements
+            # Each feature is placed in the commune with the nearest centre. That INSEE code is
+            # staged with it (apply_run scopes the row by it), and a scoped run stages (and
+            # embeds) only the features of its départements.
+            index = CommuneIndex(geocoder.communes())
 
-            def osm_records() -> Iterator[OsmRecord]:
-                return (o for o in read_osm_geojsonseq(osm_path) if in_scope(o))
+            def in_scope(insee_code: str | None) -> bool:
+                return departements is None or departement(insee_code) in departements
+
+            def osm_records() -> Iterator[tuple[OsmRecord, str | None]]:
+                placed = ((o, index.nearest(o.lon, o.lat)) for o in read_osm_geojsonseq(osm_path))
+                return ((o, code) for o, code in placed if in_scope(code))
 
             osm_total = 0
             osm_read = 0
             for o in progress(read_osm_geojsonseq(osm_path), "OSM records read"):
                 osm_total += 1
-                osm_read += in_scope(o)
+                osm_read += in_scope(index.nearest(o.lon, o.lat))
             if osm_total == 0:
                 raise OsmSourceError(
                     f"0 OSM records read from {osm_path}: the export is empty or has no ids "
@@ -255,10 +257,11 @@ def _staged_rna(records, points, existing, tagger: Tagger, embedder: Embedder) -
 
 
 def _staged_osm(records, existing, tagger: Tagger, embedder: Embedder) -> Iterator[StagedOsm]:
+    """records: (feature, INSEE code of its nearest commune) pairs."""
     for batch in _batches(records, EMBED_BATCH):
         rows: list[StagedOsm] = []
         todo: list[tuple[int, str]] = []
-        for o in batch:
+        for o, insee_code in batch:
             text = embedding_text(o.name, None)
             h = text_hash(text)
             current = existing.get(o.osm_id)
@@ -269,6 +272,6 @@ def _staged_osm(records, existing, tagger: Tagger, embedder: Embedder) -> Iterat
                 osm_id=o.osm_id, name=o.name, lon=o.lon, lat=o.lat, website=o.website,
                 phone=o.phone, email=o.email, opening_hours=o.opening_hours, kind=o.kind,
                 likely_not_public=is_likely_not_public(o.name, None), embedding_hash=h,
-                tag_slugs=tagger.tags_for(o.name, None),
+                insee_code=insee_code, tag_slugs=tagger.tags_for(o.name, None),
             ))
         yield from _with_embeddings(rows, todo, embedder)

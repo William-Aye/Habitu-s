@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(128);
+select plan(130);
 select has_schema('importer');
 select has_table('public', 'import_runs', 'import_runs exists');
 select has_column('public', 'associations', 'embedding_hash', 'associations.embedding_hash');
@@ -567,5 +567,31 @@ from unnest(array['insee_code', 'postcode', 'city', 'geocode_precision', 'embedd
 select throws_ok($$ insert into associations (name, source, created_by, insee_code) values ('X', 'community', auth.uid(), '75056') $$,
   '42501', null, 'non-admin cannot insert insee_code');
 select tests.act_as_superuser();
+
+-- ---------------------------------------------------------------------------------------------
+-- Runs 13 and 14: an OSM feature is scoped by the INSEE code staged with it (the importer's
+-- nearest commune), even when the nearest listing lies in another département.
+insert into associations (rna_id, name, insee_code, location, source, confidence)
+values ('W011000001', 'Club de Go du Pays de Gex', '01173', 'SRID=4326;POINT(6.100 46.200)', 'rna', 40);
+insert into import_runs (scope) values (array['74']) returning id as run13 \gset
+insert into importer.staged_rna (run_id, rna_id, name, insee_code, location, geocode_precision,
+                                 published_on, likely_not_public, embedding_hash)
+values (:'run13', 'W741000001', 'Chorale d''Annemasse', '74012', 'SRID=4326;POINT(6.235 46.193)', 'address',
+        current_date - 100, false, 'a1');
+insert into importer.staged_osm (run_id, osm_id, name, location, insee_code, embedding_hash)
+values (:'run13', 'node/7401', 'Fablab du Genevois', 'SRID=4326;POINT(6.110 46.200)', '74010', 'a2');
+select importer.apply_run(:'run13', array['74']) as counts13 \gset
+select is((select insee_code from associations where osm_id = 'node/7401'), '74010',
+  'staged OSM INSEE code kept (not replaced by the nearest listing''s)');
+insert into import_runs (scope) values (array['01']) returning id as run14 \gset
+insert into importer.staged_rna (run_id, rna_id, name, insee_code, location, geocode_precision,
+                                 published_on, likely_not_public, embedding_hash)
+values (:'run14', 'W011000001', 'Club de Go du Pays de Gex', '01173', 'SRID=4326;POINT(6.100 46.200)', 'address',
+        current_date - 100, false, 'g1');
+insert into importer.staged_osm (run_id, osm_id, name, location, insee_code, embedding_hash)
+values (:'run14', 'node/0101', 'Club de tennis de Gex', 'SRID=4326;POINT(6.060 46.333)', '01173', 'g2');
+select importer.apply_run(:'run14', array['01']) as counts14 \gset
+select is((select count(*) from associations where osm_id = 'node/7401')::int, 1,
+  'an 01 run does not remove the OSM listing placed in 74 by its staged code');
 select * from finish();
 rollback;

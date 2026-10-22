@@ -322,15 +322,26 @@ def test_osm_is_filtered_to_the_scope_before_embedding(monkeypatch, tmp_path):
     assert sum(embedder.calls) == 8 + 4
 
 
-def test_full_france_run_stages_all_osm_without_loading_communes(monkeypatch, tmp_path):
+def test_full_france_run_stages_all_osm_with_their_commune(monkeypatch, tmp_path):
     fake = FakeDb()
     fake.install(monkeypatch)
-    FakeGeocoder.instances.clear()
     staged = _capture_stage(monkeypatch)
     assert cli.main(["run", "--db-url", "postgresql://x", "--rna-zip", RNA, "--embedder", "fake",
                      "--osm-geojsonseq", _osm_file(tmp_path, paris=3)]) == 0
     assert len(staged["osm"]) == 7
-    assert all(g.communes_loaded == 0 for g in FakeGeocoder.instances)
+    assert all(o.insee_code == "75056" for o in staged["osm"] if "parisien" in o.name)
+
+
+def test_staged_osm_rows_carry_the_nearest_commune_code(monkeypatch, tmp_path):
+    # The same commune that decides the scope is staged, so apply_run scopes the row the same way.
+    fake = FakeDb()
+    fake.install(monkeypatch)
+    staged = _capture_stage(monkeypatch)
+    assert cli.main(args("--osm-geojsonseq", _osm_file(tmp_path, paris=3))) == 0
+    codes = {o.name: o.insee_code for o in staged["osm"]}
+    assert codes["Go Club Lyon"] == "69123"
+    assert codes["Gymnase Jean Jaurès"] == "69123"
+    assert codes["Maison des Associations de Villeurbanne"] == "69266"
 
 
 def test_osm_volume_check_compares_in_scope_counts(monkeypatch, tmp_path):
@@ -408,9 +419,10 @@ def test_stage_writes_town_and_osm_likely_not_public():
                     likely_not_public=False, embedding_hash="h")
     osm = StagedOsm(osm_id="node/1", name="Salle privée", lon=4.8, lat=45.7, website=None, phone=None,
                     email=None, opening_hours=None, kind="club=sport", likely_not_public=True,
-                    embedding_hash="h")
+                    embedding_hash="h", insee_code="69259")
     db.stage(conn, uuid4(), [rna], [osm])
     (rna_sql, rna_rows), (osm_sql, osm_rows) = conn.copies
     row = dict(zip(_columns(rna_sql), rna_rows[0], strict=True))
     assert row["postcode"] == "69001" and row["city"] == "Lyon 1er"
-    assert dict(zip(_columns(osm_sql), osm_rows[0], strict=True))["likely_not_public"] is True
+    osm_row = dict(zip(_columns(osm_sql), osm_rows[0], strict=True))
+    assert osm_row["likely_not_public"] is True and osm_row["insee_code"] == "69259"

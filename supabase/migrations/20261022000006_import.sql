@@ -419,7 +419,9 @@ begin
   from staged_rna s join associations a on a.rna_id = s.rna_id
   where s.run_id = p_run and importer.in_scope(s.insee_code, p_scope) and importer.in_scope(a.insee_code, p_scope);
 
-  -- 3a. Place OSM features in a département: nearest listing with an INSEE code within 5 km.
+  -- 3a. OSM features are staged with the importer's nearest-commune INSEE code (the same rule
+  -- that scoped them). Fallback for a feature staged without one: the nearest listing with an
+  -- INSEE code within 5 km.
   update staged_osm o set insee_code = (
     select a.insee_code from associations a
     where a.insee_code is not null and ST_DWithin(a.location, o.location, 5000)
