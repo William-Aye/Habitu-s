@@ -40,14 +40,16 @@ def assert_very_relevant(results, expected):
               f"{t!r} is {by_title[t]['label']} (score {by_title[t]['score']}), expected very_relevant")
 
 
-def assert_exact(search, q):
-    qm = search.full(q).get("query_match")
+def exact(search, q):
+    """Run the query once; assert it resolved by exact phrase; return the results."""
+    full = search.full(q)
+    qm = full.get("query_match")
     assert qm == "exact", f"{q!r}: query_match is {qm!r}, expected 'exact'"
+    return full["results"]
 
 
 def test_coder(search):
-    res = search("coder")
-    assert_exact(search, "coder")
+    res = exact(search, "coder")
     expected = ["Club informatique de la Croix-Rousse", "Atelier Arduino Villeurbanne", "Python Lyon"]
     for t in expected:
         check(t in top(res, 5), res, f"{t!r} not in top 5")
@@ -59,8 +61,7 @@ GO_RELATED = ["Club de Go de Lyon", "Soirée jeu de go", "Go Club Lyon Sud", "Co
 
 
 def test_jeu_de_go(search):
-    res = search("jeu de go")
-    assert_exact(search, "jeu de go")
+    res = exact(search, "jeu de go")
     first = titles(res)[0]
     check(first in ("Club de Go de Lyon", "Soirée jeu de go"), res, f"rank 1 is {first!r}")
     top3 = top(res, 3)
@@ -80,8 +81,7 @@ def test_jeu_de_go(search):
 
 
 def test_danse_bretonne(search):
-    res = search("danse bretonne")
-    assert_exact(search, "danse bretonne")
+    res = exact(search, "danse bretonne")
     check(rank(res, "Cercle celtique de Lyon") == 1, res, "Cercle celtique not rank 1")
     check(rank(res, "Association des Bretons de Lyon") <= 3, res, "Bretons not in top 3")
     salsa = rank(res, "Salsa Lyon")
@@ -91,8 +91,7 @@ def test_danse_bretonne(search):
 
 
 def test_escalade(search):
-    res = search("escalade")
-    assert_exact(search, "escalade")
+    res = exact(search, "escalade")
     expected = ["Club alpin Lyon-Villeurbanne", "Salle d'escalade Vertical Lyon"]
     for t in expected:
         check(t in top(res, 3), res, f"{t!r} not in top 3")
@@ -172,3 +171,4 @@ def test_ranking_report(search, conn, embedder, vec):
         print("--- raw cosine similarity (desc) | kind | title | fts_hit | name_sim | name_hit(>=0.6)")
         for kind, title, sim, kw, ns in rows:
             print(f"{sim:.4f} | {kind} | {title} | {bool(kw)} | {ns:.2f} | {ns >= 0.6}")
+

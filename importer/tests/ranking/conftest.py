@@ -18,6 +18,9 @@ ORGANISER_EMAIL = "ranking-fixture@example.test"
 CENTER = (4.835, 45.764)
 
 
+SNAPSHOTS = ("public.search_misses", "search.vocab_requests", "search.query_vocab")
+
+
 def _vec(v) -> str:
     return "[" + ",".join(f"{float(x):.7f}" for x in v) + "]"
 
@@ -73,7 +76,8 @@ def embedder():
 def conn(embedder):
     with psycopg.connect(URL, autocommit=True) as c:
         clear_fixture(c)  # idempotent: a crashed earlier run may have left rows
-        started = c.execute("select clock_timestamp()").fetchone()[0]
+        for t in SNAPSHOTS:  # dev data must survive: snapshot now, restore in teardown
+            c.execute(f"create temp table snap_{t.split('.')[1]} as select * from {t}")
         load_fixture(c, embedder)
         try:
             # Production path: the vocabulary is precomputed from the data (plus the watch-list, which
@@ -82,9 +86,14 @@ def conn(embedder):
             yield c
         finally:
             clear_fixture(c)
-            c.execute("delete from search.query_vocab")
-            c.execute("delete from search.vocab_requests")
-            c.execute("delete from public.search_misses where created_at >= %s", (started,))
+            for t in SNAPSHOTS:
+                c.execute(f"delete from {t}")
+                c.execute(f"insert into {t} select * from snap_{t.split('.')[1]}")
+            diff = c.execute(
+                """select count(*) from ((select * from public.search_misses except select * from snap_search_misses)
+                   union all (select * from snap_search_misses except select * from public.search_misses)) d"""
+            ).fetchone()[0]
+            assert diff == 0, "search_misses not restored to its pre-test snapshot"
 
 
 @pytest.fixture(scope="session")

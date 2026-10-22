@@ -9,7 +9,8 @@ from importer import vocab
 from importer.embed import normalise_query
 
 URL = "postgresql://postgres:postgres@127.0.0.1:55322/postgres"
-CASES = json.loads((Path(__file__).resolve().parents[3] / "shared" / "normalise_cases.json").read_text("utf-8"))
+ROOT = next(p for p in Path(__file__).resolve().parents if (p / "shared" / "normalise_cases.json").exists())
+CASES = json.loads((ROOT / "shared" / "normalise_cases.json").read_text("utf-8"))
 
 pytestmark = [pytest.mark.integration, pytest.mark.ranking]
 
