@@ -89,6 +89,7 @@ declare
   prm search.param_set := search.params();
   q text := search.normalise_query(p_query);
   v_tokens text[];
+  v_joined text;
   v_phrase text;
   v_emb extensions.vector;
   v_content int;
@@ -100,24 +101,34 @@ begin
     return;
   end if;
 
-  select v.embedding into v_emb from search.query_vocab v where v.phrase = q;
+  -- Stored phrases are tokens joined by single spaces: "cours d'escalade" is "cours d escalade".
+  v_tokens := search.tokens(q);
+  v_joined := array_to_string(v_tokens, ' ');
+
+  select v.embedding into v_emb from search.query_vocab v where v.phrase = v_joined;
   if found then
-    return query select v_emb, 'exact'::text, q;
+    return query select v_emb, 'exact'::text, v_joined;
     return;
   end if;
 
-  v_tokens := search.tokens(q);
-
-  -- Fuzzy is for spelling mistakes: the closest phrase must also have as many tokens as the query,
-  -- otherwise "cours de danse bretonne" (similarity 0.65 to "danse bretonne") would drop words
-  -- that the words step keeps.
-  if char_length(q) >= prm.vocab_fuzzy_min_len then
-    select v.phrase, v.embedding into v_phrase, v_emb
-    from search.query_vocab v
-    order by v.phrase operator(extensions.<->) q
+  -- Fuzzy is for spelling mistakes, so it is tried only when a content token is unknown as a word:
+  -- "cours de jazz" (every word known) must not become "cours de judo" (similarity 0.56). The
+  -- phrase must also have as many tokens as the query, otherwise "cours de danse bretonne"
+  -- (similarity 0.65 to "danse bretonne") would drop words that the words step keeps; the 5
+  -- nearest are considered, the most similar of the right length wins.
+  if char_length(q) >= prm.vocab_fuzzy_min_len
+     and exists (select 1 from unnest(v_tokens) u(tok)
+                 where not exists (select 1 from search.stopwords s where s.word = u.tok)
+                   and not exists (select 1 from search.query_vocab v where v.phrase = u.tok)) then
+    select k.phrase, k.embedding into v_phrase, v_emb
+    from (select v.phrase, v.embedding, extensions.similarity(v.phrase, q) as sim
+          from search.query_vocab v
+          order by v.phrase operator(extensions.<->) q
+          limit 5) k
+    where k.sim >= prm.vocab_fuzzy_sim and cardinality(search.tokens(k.phrase)) = cardinality(v_tokens)
+    order by k.sim desc, k.phrase
     limit 1;
-    if found and extensions.similarity(v_phrase, q) >= prm.vocab_fuzzy_sim
-       and cardinality(search.tokens(v_phrase)) = cardinality(v_tokens) then
+    if found then
       return query select v_emb, 'fuzzy'::text, v_phrase;
       return;
     end if;

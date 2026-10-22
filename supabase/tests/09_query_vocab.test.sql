@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(66);
+select plan(73);
 
 -- Same helper as 07: similarity of tests.vec(s) to tests.vec(1.0) is exactly s.
 create function tests.vec(s float8) returns extensions.vector language sql immutable as $$
@@ -86,6 +86,36 @@ select is((select method from search.resolve_query('yoda')), 'none', 'yoda is no
 select is((select method from search.resolve_query('de la')), 'none', 'only stop-words: none');
 select is((select method from search.resolve_query('')), 'none', 'empty: none');
 select is((select count(*)::int from search.resolve_query('escalde')), 1, 'always exactly one row');
+-- Exact on the joined tokens: stored phrases are tokens joined by single spaces.
+insert into search.query_vocab (phrase, embedding, source)
+values ('cours d escalade', tests.vec(0.60), 'ngram');
+select is((select (method, matched) from search.resolve_query('Cours d''escalade')),
+          ('exact'::text, 'cours d escalade'::text), 'exact: apostrophe matches the stored token form');
+select is((select (method, matched) from search.resolve_query('escalade !')),
+          ('exact'::text, 'escalade'::text), 'exact: trailing punctuation ignored');
+delete from search.query_vocab where phrase = 'cours d escalade';
+-- Fuzzy only when a content word is unknown: a correctly spelled query keeps its own words.
+insert into search.query_vocab (phrase, embedding, source, doc_freq)
+values ('cours de judo', tests.vec(0.50), 'ngram', 30), ('cours', tests.vec(0.40), 'ngram', 900),
+       ('jazz', tests.vec(0.45), 'ngram', 40), ('randonnée vélo', tests.vec(0.55), 'ngram', 20),
+       ('randonnée', tests.vec(0.35), 'ngram', 300), ('ski', tests.vec(0.30), 'ngram', 400);
+select ok(extensions.similarity('cours de jazz', 'cours de judo') >= (search.params()).vocab_fuzzy_sim
+          and extensions.similarity('randonnée ski', 'randonnée vélo') >= (search.params()).vocab_fuzzy_sim,
+          'the sibling phrases are above the fuzzy threshold');
+select is((select (method, matched) from search.resolve_query('cours de jazz')), ('words'::text, 'jazz'::text),
+          'known words: cours de jazz is not fuzzy cours de judo');
+select is((select (method, matched) from search.resolve_query('randonnée ski')), ('words'::text, 'randonnée'::text),
+          'known words: randonnée ski is not fuzzy randonnée vélo');
+select is((select (method, matched) from search.resolve_query('escalde')), ('fuzzy'::text, 'escalade'::text),
+          'unknown word: still fuzzy');
+delete from search.query_vocab
+where phrase in ('cours de judo', 'cours', 'jazz', 'randonnée vélo', 'randonnée', 'ski');
+-- The nearest phrase has the wrong length (2 tokens, 0.63): the next one of the right length wins.
+insert into search.query_vocab (phrase, embedding, source)
+values ('escalade salle', tests.vec(0.20), 'ngram'), ('salle d escalade', tests.vec(0.25), 'ngram');
+select is((select (method, matched) from search.resolve_query('escalde en salle')),
+          ('fuzzy'::text, 'salle d escalade'::text), 'fuzzy: best of the 5 nearest with the same token count');
+delete from search.query_vocab where phrase in ('escalade salle', 'salle d escalade');
 
 -- ---------------------------------------------------------------------------------------------
 -- search_explore
