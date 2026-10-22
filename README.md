@@ -37,9 +37,71 @@ The local Supabase stack uses ports in the 553xx range instead of the 543xx defa
 
 ## Search
 
-Search combines keyword matching with semantic ranking. The query-vocabulary
-description (how queries get their embedding) is written in a later step of
-`docs/plans/2026-10-22-query-vocabulary.md`.
+Search combines keyword matching with semantic ranking. The semantic side needs an
+embedding for the user's query; the database finds it in the query vocabulary
+(`search.query_vocab`) instead of calling an embedding service at request time.
+
+### How a query gets its meaning
+
+`search.resolve_query` normalises the query and tries, in order (first match wins):
+
+1. **exact**: the normalised phrase is in the vocabulary.
+2. **fuzzy**: typo tolerance. Only for queries of at least 4 characters, the closest phrase
+   by trigram similarity (at least 0.5) with the same number of words ("escalde" finds "escalade").
+3. **words**: the single most specific known phrase inside the query (most tokens, then the
+   rarest), used only if the known words cover at least 50 % of the query's non-stop-word
+   tokens. Averaging vectors was dropped: e5 vectors share a large common component.
+4. **none**: keyword-only search, as before.
+
+The response field `query_match` says which one applied. A `p_query_embedding` passed by a
+caller wins over all of these.
+
+### Vocabulary builds
+
+Both jobs run `python -m importer vocab` and use the same model as documents
+(`intfloat/multilingual-e5-small`, rows tagged `e5-small-v1`). The build commits only at the
+end, so a failure leaves the previous vocabulary in place (and fails the job).
+
+- **Monthly** (`import.yml`, 5th, after the association import): full build from all
+  associations (names, categories, words) plus user requests. Estimate: 30-60 minutes.
+- **Nightly** (`vocab.yml`, 02:17 UTC): `--requests-only`, adds the anonymised phrases users
+  searched that the vocabulary did not know. Estimate: about 3 minutes (mostly setup).
+- **Manual**: Actions, "Query vocabulary", Run workflow; tick `full` for a full build.
+  `vocab.yml` shares the `import` concurrency group, so it never runs alongside an import.
+
+Measured on 150,000 synthetic associations with the fake embedder: counting 21.7 s, first
+build 79.8 s, rebuild 23.5 s, peak memory 123 MB, temporary disk 138 MB (about 1.4 GB at
+1.5 M associations). The real e5 model embeds roughly 5 times slower than the fake one.
+
+### Coverage report and adding a phrase
+
+The command prints a JSON build report. Phrases from
+`importer/importer/data/vocab_watchlist.txt` (queries that must work) whose coverage is
+`none` are listed as warnings on stderr in the job log. To cover one, append the phrase to
+`vocab_watchlist.txt` (one per line), merge, then run `vocab.yml` by hand (a nightly run also
+picks it up).
+
+Size check (expected about 262 MB at the 150,000 cap):
+
+```sql
+select pg_size_pretty(pg_total_relation_size('search.query_vocab'));
+```
+
+### Costs
+
+EUR 0 extra: no new account, card or secret. Supabase Pro is already paid (the vocabulary
+fits in it). GitHub Actions minutes: private repositories get 2,000 free minutes a month;
+nightly runs are about 3 minutes each (about 90 a month, estimate) and the monthly build adds
+30-60 (estimate), well inside the free tier.
+
+Upgrade path: a live embedding service can be added later and pass `p_query_embedding`; no
+database change is needed.
+
+### First run
+
+After deploying migrations 007 and 008 to the hosted project, trigger `import.yml` once (it
+builds the vocabulary after the import), or run `vocab.yml` with `full` ticked to build it
+without an import. Until then queries fall back to keyword-only search.
 
 ### Ranking rule
 

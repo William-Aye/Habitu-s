@@ -56,3 +56,8 @@ jobs:
             args+=(--departements "$deps")
           fi
           uv run --project importer python -m importer run "${args[@]}"
+
+      - name: Build query vocabulary
+        env:
+          IMPORTER_DB_URL: ${{ secrets.IMPORTER_DB_URL }}
+        run: uv run --project importer python -m importer vocab --db-url "$IMPORTER_DB_URL"
