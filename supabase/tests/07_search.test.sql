@@ -31,8 +31,11 @@ values ('00000000-0000-0000-0000-00000000f001', 'Club de Go de Lyon', 'rna', 60,
         'SRID=4326;POINT(4.83456 45.76789)');
 select is(ST_AsText((select town_point from associations where id = '00000000-0000-0000-0000-00000000f001')),
           'POINT(4.83 45.77)', 'town_point snapped to 0.01 degree');
-select ok(search_tsv @@ websearch_to_tsquery('french', search.unaccent('echecs')), 'search_tsv matches unaccented word')
-  from (select to_tsvector('french', search.unaccent('Club d''Échecs de Lyon')) as search_tsv) t;
+insert into associations (id, name, source, confidence)
+values ('00000000-0000-0000-0000-00000000f002', 'Club d''Échecs de Lyon', 'rna', 60);
+select ok((select search_tsv from associations where id = '00000000-0000-0000-0000-00000000f002')
+          @@ websearch_to_tsquery('french', search.unaccent('echecs')),
+          'stored associations.search_tsv matches an unaccented word');
 select throws_ok($$ insert into search_misses (query, area_label) values ('q', 'Lyon'), ('q', 'Lyon') $$,
                  '23505', null, 'search_misses aggregates per (query, area, day)');
 select ok(not has_function_privilege('authenticated', f, 'execute'), f || ' not callable by API roles')
