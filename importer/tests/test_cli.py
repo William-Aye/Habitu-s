@@ -50,6 +50,11 @@ class _DictCache(dict):
 
 
 class _NullConn:
+    executed: list[str] = []
+
+    def execute(self, sql, *a):
+        _NullConn.executed.append(sql)
+
     def __enter__(self):
         return self
 
@@ -200,3 +205,11 @@ def test_vector_text_from_float32_row_round_trips():
     text = db._vector(row)
     assert text.startswith("[") and text.endswith("]")
     assert np.array_equal(np.array(text[1:-1].split(","), dtype=np.float32), row)
+
+
+def test_connection_disables_statement_timeout(monkeypatch):
+    fake = FakeDb()
+    fake.install(monkeypatch)
+    _NullConn.executed.clear()
+    cli.main(args("--skip-osm"))
+    assert _NullConn.executed[0] == "SET statement_timeout = 0"

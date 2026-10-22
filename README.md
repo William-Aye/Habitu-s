@@ -9,6 +9,8 @@ Une application francaise pour se faire des amis grace a des activites recurrent
 - Android Studio with an emulator (API 34+)
 - Git
 
+Directory import runbook: [importer/README.md](importer/README.md)
+
 ## Local database
 
 ```bash

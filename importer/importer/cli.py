@@ -89,6 +89,8 @@ def main(argv: list[str] | None = None) -> int:
 
 def run(args: argparse.Namespace, scope: list[str] | None) -> int:
     with psycopg.connect(args.db_url) as conn:
+        # The streaming COPY can last over an hour on a first full run.
+        conn.execute("SET statement_timeout = 0")
         try:
             run_id = db.start_run(conn, scope)
         except db.ImportAlreadyRunning as exc:

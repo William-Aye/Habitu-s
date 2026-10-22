@@ -64,3 +64,14 @@ jobs:
       - name: Typecheck
         working-directory: app
         run: npx tsc --noEmit
+
+  importer:
+    name: Importer (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Sync and run unit tests
+        run: cd importer && uv sync && uv run pytest
