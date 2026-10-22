@@ -92,6 +92,7 @@ jobs:
   ranking:
     name: Search ranking (pytest, local Supabase)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -132,15 +133,30 @@ jobs:
           echo "SUPABASE_ANON_KEY=$ANON_KEY" >> "$GITHUB_ENV"
 
       - name: Wait for embed-query (the first call downloads the model)
+        timeout-minutes: 20
         run: |
-          for i in $(seq 1 120); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+          log="$RUNNER_TEMP/functions.log"
+          shown=0
+          deadline=$((SECONDS + 900))
+          i=0
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            i=$((i + 1))
+            start=$SECONDS
+            # The first call may download the weights (~118 MB), hence the long per-call limit.
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 120 -X POST \
               -H "Authorization: Bearer $SUPABASE_ANON_KEY" -H 'Content-Type: application/json' \
               -d '{"text":"test"}' http://127.0.0.1:55321/functions/v1/embed-query || true)
+            echo "attempt $i: HTTP ${code:-none} after $((SECONDS - start)) s (total ${SECONDS} s)"
+            total=$(wc -l < "$log" 2>/dev/null || echo 0)
+            if [ "$total" -gt "$shown" ]; then
+              echo "--- functions.log (new lines, last 20) ---"
+              tail -n +"$((shown + 1))" "$log" | tail -n 20
+              shown=$total
+            fi
             if [ "$code" = 200 ]; then exit 0; fi
             sleep 5
           done
-          cat "$RUNNER_TEMP/functions.log"
+          echo "embed-query not ready after 15 minutes"
           exit 1
 
       - name: Embedding parity (Edge vs Python)
@@ -153,3 +169,7 @@ jobs:
         env:
           RANKING_QUERY_EMBEDDER: edge
         run: cd importer && uv run pytest -m ranking
+
+      - name: Edge function log
+        if: always()
+        run: tail -n 300 "$RUNNER_TEMP/functions.log" 2>/dev/null || echo "no functions.log"
