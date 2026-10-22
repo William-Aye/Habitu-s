@@ -1,4 +1,5 @@
-"""`python -m importer run ...`: read RNA + OSM, geocode, tag, embed, stage and merge one run."""
+"""`python -m importer run ...`: read RNA + OSM, geocode, tag, embed, stage and merge one run.
+`python -m importer vocab ...`: build the query vocabulary (importer/importer/vocab.py)."""
 import argparse
 import dataclasses
 import json
@@ -14,7 +15,7 @@ from typing import TypeVar
 import httpx
 import psycopg
 
-from importer import db
+from importer import db, vocab
 from importer.embed import E5Embedder, Embedder, FakeEmbedder, embedding_text, text_hash
 from importer.geocode import Geocoder, address_key
 from importer.models import GeoPoint, OsmRecord, RnaRecord, StagedOsm, StagedRna
@@ -71,6 +72,12 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--embedder", choices=("e5", "fake"), default="e5")
     run.add_argument("--allow-large-drop", action="store_true",
                      help="skip the source volume sanity check")
+    voc = sub.add_parser("vocab", help="build the query vocabulary (search.query_vocab)")
+    voc.add_argument("--db-url", default=os.environ.get("IMPORTER_DB_URL"))
+    voc.add_argument("--requests-only", action="store_true",
+                     help="only add the frequent requests and the watch-list")
+    voc.add_argument("--embedder", choices=("e5", "fake"), default="e5")
+    voc.add_argument("--cap", type=int, default=150_000, help="maximum number of phrases")
     return parser
 
 
@@ -79,6 +86,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if not args.db_url:
         parser.error("--db-url or IMPORTER_DB_URL is required")
+    if args.command == "vocab":
+        logging.basicConfig(stream=sys.stderr, level=logging.INFO,
+                            format="%(asctime)s %(levelname)s %(message)s")
+        return run_vocab(args)
     if not args.skip_osm and not args.osm_geojsonseq:
         parser.error("--osm-geojsonseq is required unless --skip-osm")
     scope = None
@@ -109,6 +120,22 @@ def run(args: argparse.Namespace, scope: list[str] | None) -> int:
                 log.exception("could not record the failure of run %s", run_id)
             return 1
     print(json.dumps(counts, ensure_ascii=False))
+    return 0
+
+
+def run_vocab(args: argparse.Namespace) -> int:
+    try:
+        with psycopg.connect(args.db_url, autocommit=True) as conn:
+            conn.execute("SET statement_timeout = 0")
+            report = vocab.build(conn, make_embedder(args.embedder), requests_only=args.requests_only,
+                                 cap=args.cap)
+    except Exception:
+        log.exception("vocabulary build failed")
+        return 1
+    print(json.dumps(dataclasses.asdict(report), ensure_ascii=False))
+    for phrase, method in report.coverage.items():
+        if method == "none":
+            log.warning("watch-list phrase not covered by the vocabulary: %r", phrase)
     return 0
 
 
