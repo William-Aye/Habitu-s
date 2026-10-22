@@ -58,6 +58,8 @@ export function SignUpSheet({
   const [error, setError] = useState<ErrorKey | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [captchaKey, setCaptchaKey] = useState(0);
+  // The account step worked but the session could not be settled (network): retry only the refresh.
+  const [syncFailed, setSyncFailed] = useState(false);
   const [captchaFailed, setCaptchaFailed] = useState(false);
 
   const hookRan = useRef(false);
@@ -119,11 +121,34 @@ export function SignUpSheet({
     const res = await signInWithGoogle();
     if (res.ok) {
       if ('givenName' in res && res.givenName) setFirstName((cur) => cur || (res.givenName ?? ''));
-      await session.refresh();
+      await settle();
     } else {
       showError(res.error);
     }
     setBusy(false);
+  }
+
+  /** Re-reads the session; if it cannot be settled, offers a retry that never repeats the used step. */
+  async function settle() {
+    const st = await session.refresh();
+    setSyncFailed(st === 'loading');
+  }
+
+  async function onRetrySync() {
+    setBusy(true);
+    await settle();
+    setBusy(false);
+  }
+
+  async function sendCode(value: string): Promise<boolean> {
+    if (token === null) return false;
+    setBusy(true);
+    setError(null);
+    const res = await sendEmailCode(value, token);
+    if (!res.ok) showError(res.error);
+    freshCaptcha(); // a Turnstile token is single use
+    setBusy(false);
+    return res.ok;
   }
 
   async function onSendCode() {
@@ -132,26 +157,18 @@ export function SignUpSheet({
       setError('invalidEmail');
       return;
     }
-    if (token === null) return;
-    setBusy(true);
-    setError(null);
-    const res = await sendEmailCode(value, token);
-    if (res.ok) {
+    if (await sendCode(value)) {
       setSentTo(value);
       setCode('');
       setStep('code');
-    } else {
-      showError(res.error);
     }
-    freshCaptcha(); // a Turnstile token is single use
-    setBusy(false);
   }
 
   async function onVerify() {
     setBusy(true);
     setError(null);
     const res = await verifyEmailCode(sentTo, code.trim());
-    if (res.ok) await session.refresh();
+    if (res.ok) await settle();
     else showError(res.error);
     setBusy(false);
   }
@@ -168,7 +185,7 @@ export function SignUpSheet({
     });
     if (res.ok) {
       await runHook(session.userId);
-      await session.refresh();
+      await settle();
     } else {
       showError(res.error);
     }
@@ -182,6 +199,7 @@ export function SignUpSheet({
 
   const profileValid = firstName.trim().length > 0 && firstName.trim().length <= MAX_FIRST_NAME && ageOk;
   const captchaPending = token === null && !captchaFailed;
+  const captchaBlocked = captchaFailed || error === 'captcha'; // retry is the only action
 
   return (
     <Modal transparent animationType="slide" visible onRequestClose={() => close(false)}>
@@ -230,7 +248,7 @@ export function SignUpSheet({
                 <Button
                   label={t('account.sendCode')}
                   onPress={onSendCode}
-                  disabled={busy || captchaPending}
+                  disabled={busy || captchaPending || captchaBlocked}
                   icon={<Mail size={18} color="#fff" />}
                 />
               </View>
@@ -263,8 +281,7 @@ export function SignUpSheet({
                   disabled={busy || captchaPending}
                   style={styles.linkButton}
                   onPress={() => {
-                    setEmail(sentTo);
-                    onSendCodeAgain();
+                    void sendCode(sentTo);
                   }}
                 >
                   <Text style={styles.linkText}>{t('account.resend')}</Text>
@@ -316,6 +333,14 @@ export function SignUpSheet({
               </View>
             ) : null}
 
+            {syncFailed && !error ? (
+              <>
+                <Text accessibilityRole="alert" style={styles.error}>
+                  {t('account.errors.network')}
+                </Text>
+                <Button label={t('account.retry')} onPress={onRetrySync} disabled={busy} secondary />
+              </>
+            ) : null}
             {error ? (
               <Text accessibilityRole="alert" style={styles.error}>
                 {t(`account.errors.${error}`)}
@@ -341,22 +366,6 @@ export function SignUpSheet({
       </KeyboardAvoidingView>
     </Modal>
   );
-
-  function onSendCodeAgain() {
-    // Same path as the first send, from the code step.
-    const value = sentTo;
-    if (token === null) return;
-    setBusy(true);
-    setError(null);
-    sendEmailCode(value, token)
-      .then((res) => {
-        if (!res.ok) showError(res.error);
-      })
-      .finally(() => {
-        freshCaptcha();
-        setBusy(false);
-      });
-  }
 }
 
 function Button({

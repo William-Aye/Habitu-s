@@ -34,6 +34,14 @@ export function mapAuthError(error: unknown): AuthError {
   return 'unknown';
 }
 
+/** For calls that involve no one-time code: only network, rate-limit and cancel are meaningful. */
+function mapGeneralError(error: unknown): AuthError {
+  const mapped = mapAuthError(error);
+  return mapped === 'network' || mapped === 'rate_limited' || mapped === 'cancelled'
+    ? mapped
+    : 'unknown';
+}
+
 let googleConfigured = false;
 function configureGoogle() {
   if (googleConfigured) return;
@@ -51,13 +59,13 @@ export async function signInWithGoogle(): Promise<
     const idToken = res.data.idToken;
     if (!idToken) return { ok: false, error: 'unknown' };
     const { error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: idToken });
-    if (error) return { ok: false, error: mapAuthError(error) };
+    if (error) return { ok: false, error: mapGeneralError(error) };
     const givenName = res.data.user?.givenName?.trim();
     return givenName ? { ok: true, givenName } : { ok: true };
   } catch (error) {
     const code = (error as { code?: unknown } | null)?.code;
     if (code === 'SIGN_IN_CANCELLED') return { ok: false, error: 'cancelled' };
-    return { ok: false, error: mapAuthError(error) };
+    return { ok: false, error: mapGeneralError(error) };
   }
 }
 
@@ -119,9 +127,9 @@ export async function completeProfile(input: {
       patch.home_area_label = input.homeArea.label;
     }
     const { error } = await supabase.from('profiles').update(patch).eq('id', userId);
-    return error ? { ok: false, error: mapAuthError(error) } : { ok: true };
+    return error ? { ok: false, error: mapGeneralError(error) } : { ok: true };
   } catch (error) {
-    return { ok: false, error: mapAuthError(error) };
+    return { ok: false, error: mapGeneralError(error) };
   }
 }
 

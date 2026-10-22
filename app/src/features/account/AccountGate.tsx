@@ -15,6 +15,9 @@ export type GateReason = 'join' | 'message' | 'create' | 'wait' | 'category';
 
 type RequireAccount = (reason: GateReason) => Promise<boolean>;
 
+/** How long a pending session may delay the decision to open the sheet. */
+const LOADING_WAIT_MS = 5000;
+
 const GateContext = createContext<RequireAccount>(async () => false);
 
 export function AccountGateProvider({
@@ -34,8 +37,13 @@ export function AccountGateProvider({
   const [reason, setReason] = useState<GateReason | null>(null);
   const resolver = useRef<((ok: boolean) => void) | null>(null);
 
-  const requireAccount = useCallback<RequireAccount>((r) => {
-    if (statusRef.current === 'ready') return Promise.resolve(true);
+  const requireAccount = useCallback<RequireAccount>(async (r) => {
+    // A session still loading may turn out to be ready: wait for it (bounded) before asking.
+    const deadline = Date.now() + LOADING_WAIT_MS;
+    while (statusRef.current === 'loading' && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    if (statusRef.current === 'ready') return true;
     resolver.current?.(false);
     return new Promise<boolean>((resolve) => {
       resolver.current = resolve;

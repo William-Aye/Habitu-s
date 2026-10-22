@@ -4,9 +4,11 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
+import { AppState } from 'react-native';
 import { supabase } from '../../lib/supabase';
 
 export type SessionStatus = 'loading' | 'signed_out' | 'needs_profile' | 'ready';
@@ -22,14 +24,21 @@ export interface SessionValue {
   status: SessionStatus;
   userId: string | null;
   profile: SessionProfile | null;
-  refresh(): Promise<void>;
+  /** True when the profile could not be fetched (status stays 'loading' while it is retried). */
+  error: boolean;
+  /** Re-reads the session and profile once; resolves with the settled status ('loading' on failure). */
+  refresh(): Promise<SessionStatus>;
 }
+
+/** Delays before each automatic retry of a failed profile fetch; later retries wait for the app to return to the foreground. */
+const RETRY_DELAYS_MS = [2000, 5000, 15000];
 
 const SessionContext = createContext<SessionValue>({
   status: 'loading',
   userId: null,
   profile: null,
-  refresh: async () => {},
+  error: false,
+  refresh: async () => 'loading',
 });
 
 interface Loaded {
@@ -65,7 +74,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // undefined: not known yet; null: signed out.
   const [authUserId, setAuthUserId] = useState<string | null | undefined>(undefined);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
-  const [tick, setTick] = useState(0);
+  const inflight = useRef<{ userId: string; promise: Promise<Loaded> } | null>(null);
+  const failedRef = useRef(false);
+
+  // One fetch per user at a time: concurrent callers share the same request.
+  const loadOnce = useCallback((userId: string): Promise<Loaded> => {
+    if (inflight.current?.userId === userId) return inflight.current.promise;
+    const promise = loadProfile(userId).finally(() => {
+      if (inflight.current?.promise === promise) inflight.current = null;
+    });
+    inflight.current = { userId, promise };
+    return promise;
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -86,34 +106,62 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!authUserId) return;
     let active = true;
-    loadProfile(authUserId).then((l) => active && setLoaded(l));
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const attempt = async (i: number) => {
+      const l = await loadOnce(authUserId);
+      if (!active) return;
+      failedRef.current = l.failed;
+      setLoaded(l);
+      if (l.failed && i < RETRY_DELAYS_MS.length) {
+        timer = setTimeout(() => attempt(i + 1), RETRY_DELAYS_MS[i]);
+      }
+    };
+    attempt(0);
+    const appState = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && failedRef.current) {
+        clearTimeout(timer);
+        attempt(RETRY_DELAYS_MS.length);
+      }
+    });
     return () => {
       active = false;
+      clearTimeout(timer);
+      appState.remove();
     };
-  }, [authUserId, tick]);
+  }, [authUserId, loadOnce]);
 
-  const refresh = useCallback(async () => {
-    const { data } = await supabase.auth.getSession();
-    const id = data.session?.user.id ?? null;
-    setAuthUserId(id);
-    if (id) setLoaded(await loadProfile(id));
-    setTick((n) => n + 1);
-  }, []);
+  const refresh = useCallback(async (): Promise<SessionStatus> => {
+    try {
+      const { data } = await supabase.auth.getSession();
+      const id = data.session?.user.id ?? null;
+      setAuthUserId(id);
+      if (!id) return 'signed_out';
+      const l = await loadOnce(id);
+      failedRef.current = l.failed;
+      setLoaded(l);
+      if (l.failed) return 'loading';
+      return l.needsProfile ? 'needs_profile' : 'ready';
+    } catch {
+      return 'loading';
+    }
+  }, [loadOnce]);
 
   const value = useMemo<SessionValue>(() => {
     if (authUserId === undefined) {
-      return { status: 'loading', userId: null, profile: null, refresh };
+      return { status: 'loading', userId: null, profile: null, error: false, refresh };
     }
     if (authUserId === null) {
-      return { status: 'signed_out', userId: null, profile: null, refresh };
+      return { status: 'signed_out', userId: null, profile: null, error: false, refresh };
     }
     if (!loaded || loaded.userId !== authUserId || loaded.failed) {
-      return { status: 'loading', userId: authUserId, profile: null, refresh };
+      const error = !!loaded && loaded.userId === authUserId && loaded.failed;
+      return { status: 'loading', userId: authUserId, profile: null, error, refresh };
     }
     return {
       status: loaded.needsProfile ? 'needs_profile' : 'ready',
       userId: authUserId,
       profile: loaded.profile,
+      error: false,
       refresh,
     };
   }, [authUserId, loaded, refresh]);

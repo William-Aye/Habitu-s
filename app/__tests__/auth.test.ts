@@ -101,6 +101,16 @@ describe('signInWithGoogle', () => {
     expect(await signInWithGoogle()).toEqual({ ok: false, error: 'unknown' });
   });
 
+  it('never reports a code error for a Google failure', async () => {
+    gsi.signIn.mockResolvedValue({ type: 'success', data: { idToken: 'idt', user: {} } });
+    auth.signInWithIdToken.mockResolvedValue({ error: { message: 'Invalid token' } });
+    expect(await signInWithGoogle()).toEqual({ ok: false, error: 'unknown' });
+    auth.signInWithIdToken.mockResolvedValue({ error: { message: 'Token has expired' } });
+    expect(await signInWithGoogle()).toEqual({ ok: false, error: 'unknown' });
+    auth.signInWithIdToken.mockResolvedValue({ error: { status: 429, message: 'rate' } });
+    expect(await signInWithGoogle()).toEqual({ ok: false, error: 'rate_limited' });
+  });
+
   it('maps a Supabase failure', async () => {
     gsi.signIn.mockResolvedValue({ type: 'success', data: { idToken: 'idt', user: {} } });
     auth.signInWithIdToken.mockResolvedValue({
@@ -163,6 +173,19 @@ describe('completeProfile', () => {
     });
   });
 
+  it('never reports a code error for a profile failure', async () => {
+    eq.mockResolvedValueOnce({ error: { message: 'invalid input syntax for type geography' } });
+    expect(await completeProfile({ ...base, firstName: 'Ana' })).toEqual({
+      ok: false,
+      error: 'unknown',
+    });
+    eq.mockResolvedValueOnce({ error: { message: 'captcha failed' } });
+    expect(await completeProfile({ ...base, firstName: 'Ana' })).toEqual({
+      ok: false,
+      error: 'unknown',
+    });
+  });
+
   it('maps a database failure and a missing session', async () => {
     eq.mockResolvedValueOnce({ error: { message: 'Failed to fetch' } });
     expect(await completeProfile({ ...base, firstName: 'Ana' })).toEqual({
@@ -209,6 +232,23 @@ describe('resolveHomeArea', () => {
       lon: 4.88,
       lat: 45.77,
     });
+  });
+
+  it('gives up on the commune lookup after 10 seconds', async () => {
+    jest.useFakeTimers();
+    try {
+      global.fetch = jest.fn(
+        (_url: unknown, init?: { signal?: AbortSignal }) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+          }),
+      ) as unknown as typeof fetch;
+      const pending = resolveHomeArea({ label: 'x', lon: 1, lat: 2, source: 'gps' });
+      await jest.advanceTimersByTimeAsync(10500);
+      expect(await pending).toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('returns null when the commune cannot be found', async () => {

@@ -154,6 +154,24 @@ it('offers a retry after a captcha failure', async () => {
   await fireEvent.press(screen.getByText('Recevoir un code par e-mail'));
   expect(await screen.findByText('La vérification de sécurité a échoué.')).toBeTruthy();
   expect(screen.getByText('Réessayer')).toBeTruthy();
+  const send = screen.getByRole('button', { name: 'Recevoir un code par e-mail' });
+  expect(isDisabled(send)).toBe(true);
+});
+
+it('after a verified code with an unsettled session, shows a network message and retries only the refresh', async () => {
+  await toCodeStep();
+  mocked.verifyEmailCode.mockResolvedValue({ ok: true });
+  store.value.refresh.mockResolvedValueOnce('loading');
+  await fireEvent.changeText(screen.getByLabelText('Code à 6 chiffres'), '123456');
+  await fireEvent.press(screen.getByText('Valider'));
+  expect(await screen.findByText('Pas de connexion. Vérifiez votre réseau et réessayez.')).toBeTruthy();
+  store.value.refresh.mockImplementation(async () => {
+    await setSession({ status: 'needs_profile', userId: 'u1' });
+    return 'needs_profile';
+  });
+  await fireEvent.press(screen.getByText('Réessayer'));
+  expect(await screen.findByLabelText('Votre prénom')).toBeTruthy();
+  expect(mocked.verifyEmailCode).toHaveBeenCalledTimes(1);
 });
 
 it('disables the button while a request is pending and re-enables it after', async () => {
@@ -208,6 +226,27 @@ describe('profile step', () => {
 });
 
 describe('requireAccount', () => {
+  it('waits for a loading session to settle before deciding', async () => {
+    await open('loading');
+    expect(screen.queryByText('Créez votre compte en 1 minute')).toBeNull();
+    await setSession({ status: 'ready', userId: 'u1' });
+    await waitFor(() => expect(result).toBe(true));
+    expect(screen.queryByText('Créez votre compte en 1 minute')).toBeNull();
+  });
+
+  it('opens the sheet when the session is still loading after 5 seconds', async () => {
+    jest.useFakeTimers();
+    try {
+      await open('loading');
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(5200);
+      });
+      expect(screen.getByText('Créez votre compte en 1 minute')).toBeTruthy();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('resolves true at once when already ready', async () => {
     await open('ready');
     await waitFor(() => expect(result).toBe(true));
