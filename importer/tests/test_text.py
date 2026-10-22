@@ -5,6 +5,11 @@ from importer.text import normalise_name, is_likely_not_public, clean_website
     ("Association Le Club de Go d'Évry !", "go evry"),
     ("CLUB D'ÉCHECS DE LYON", "echecs lyon"),
     ("  Amicale  des   Boulistes ", "boulistes"),
+    ("Club N°1 Gym", "n 1 gym"),
+    ("Les Cœurs Vaillants", "coeurs vaillants"),
+    ("L’Atelier d’Écriture", "atelier ecriture"),
+    ("Saint-Étienne Basket", "saint etienne basket"),
+    ("Ærø Straße Łódź Đ €1", "aero strasse lodz 1"),
 ])
 def test_normalise_name_matches_sql_rule(raw, expected):
     assert normalise_name(raw) == expected
@@ -21,6 +26,7 @@ def test_is_likely_not_public(name, purpose, expected):
     ("www.clubgo-lyon.fr", "https://www.clubgo-lyon.fr"),
     ("http://exemple.org/", "http://exemple.org/"),
     ("contact@exemple.org", None), ("", None), ("néant", None), (None, None),
+    (".", None), ("N.C.", None), ("non.", None), ("mailto:a.b", None),
 ])
 def test_clean_website(raw, expected):
     assert clean_website(raw) == expected
