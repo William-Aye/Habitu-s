@@ -354,13 +354,11 @@ def build(
                 embedding = excluded.embedding, model = excluded.model, doc_freq = excluded.doc_freq,
                 source = case when v.source = 'request' then v.source else excluded.source end,
                 updated_at = now()""")
-            inserted = conn.execute(f"""
+            report.embedded_new = conn.execute(f"""
                 insert into search.query_vocab as v (phrase, embedding, source, doc_freq, model)
                 select phrase, embedding, source, doc_freq, %s from vocab_build
                 where embedding is not null
-                on conflict (phrase) {conflict}
-                returning v.source, (xmax = 0) as is_new""", (MODEL,)).fetchall()
-            report.embedded_new = len(inserted)
+                on conflict (phrase) {conflict}""", (MODEL,)).rowcount
             newly = [p for p in promoted if existing.get(p, (None, None))[1] != "request"]
             report.requests_added = conn.execute(
                 "select count(*)::int from search.query_vocab where phrase = any(%s) and source = 'request'",
