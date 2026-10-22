@@ -6,6 +6,9 @@ import { useExploreLocation } from '../src/features/explore/useExploreLocation';
 import { useExploreSearch } from '../src/features/explore/useExploreSearch';
 
 jest.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'fr-FR' }] }));
+jest.mock('../src/features/interests/store', () => ({
+  useInterests: () => ({ interests: {}, setLevel: jest.fn(), loading: false, error: false }),
+}));
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 jest.mock('../src/features/explore/api', () => ({ searchTowns: jest.fn(async () => []) }));
 jest.mock('../src/features/explore/useExploreLocation', () => ({

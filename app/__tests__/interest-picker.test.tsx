@@ -123,3 +123,24 @@ it('shows the invalid message for a 1-character request', async () => {
   expect(await screen.findByText('Le nom doit faire entre 2 et 80 caractères.')).toBeTruthy();
   expect(mockInsert).not.toHaveBeenCalled();
 });
+
+it('lets the user send another category after one was sent', async () => {
+  mockGate.mockResolvedValue(true);
+  mockSession.value = { user: { id: 'u1' } };
+  await show();
+  await fireEvent.press(screen.getByText('Vous ne trouvez pas ? Proposer une catégorie'));
+  await fireEvent.changeText(await screen.findByLabelText('Nom de la catégorie'), 'Pétanque');
+  await fireEvent.press(screen.getByRole('button', { name: 'Envoyer' }));
+  await fireEvent.press(await screen.findByText('Proposer une autre catégorie'));
+  await fireEvent.changeText(await screen.findByLabelText('Nom de la catégorie'), 'Bridge');
+  await fireEvent.press(screen.getByRole('button', { name: 'Envoyer' }));
+  await waitFor(() => expect(mockInsert).toHaveBeenCalledTimes(2));
+});
+
+it('exposes a Curieux accessibility action as the screen-reader path for long-press', async () => {
+  await show();
+  const tile = screen.getByLabelText('Musique');
+  expect(tile.props.accessibilityActions).toEqual([{ name: 'curious', label: 'Curieux' }]);
+  await fireEvent(tile, 'accessibilityAction', { nativeEvent: { actionName: 'curious' } });
+  expect(await screen.findByText('Curieux')).toBeTruthy();
+});

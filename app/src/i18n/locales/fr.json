@@ -155,6 +155,7 @@
     "requestInvalid": "Le nom doit faire entre 2 et 80 caractères.",
     "requestSent": "Merci, votre proposition a été envoyée.",
     "requestSignedOut": "Connectez-vous pour proposer une catégorie.",
-    "requestError": "Envoi impossible. Réessayez."
+    "requestError": "Envoi impossible. Réessayez.",
+    "proposeAnother": "Proposer une autre catégorie"
   }
 }

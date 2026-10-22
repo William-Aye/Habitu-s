@@ -20,7 +20,7 @@ import { useInterests } from '../../features/interests/store';
 export default function Explore() {
   const { t } = useTranslation();
   const { location, status, requestGps, setTown } = useExploreLocation();
-  const { interests } = useInterests();
+  const { interests, loading: interestsLoading } = useInterests();
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<FilterState>({
     kinds: ['activity', 'association'],
@@ -34,7 +34,8 @@ export default function Explore() {
   const [notice, setNotice] = useState(false);
 
   const hasQuery = normaliseQuery(query) !== '';
-  const params: ExploreParams | null = location
+  // Without a query the interests shape the results: wait for them so the search runs once.
+  const params: ExploreParams | null = location && (hasQuery || !interestsLoading)
     ? {
         query,
         center: { lon: location.lon, lat: location.lat },

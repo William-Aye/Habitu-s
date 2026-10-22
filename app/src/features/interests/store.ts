@@ -30,6 +30,14 @@ async function readLocal(): Promise<Interests> {
   }
 }
 
+// Local read-modify-write cycles run one after another so quick taps never overwrite each other.
+let localQueue: Promise<unknown> = Promise.resolve();
+function serialised<T>(job: () => Promise<T>): Promise<T> {
+  const run = localQueue.then(job, job);
+  localQueue = run.catch(() => undefined);
+  return run;
+}
+
 // Listeners told when the stored interests changed behind the hooks' back (the sign-in merge).
 const listeners = new Set<() => void>();
 export function subscribeInterestsChanged(fn: () => void): () => void {
@@ -63,11 +71,12 @@ export async function setLevel(
   level: Level | null,
 ): Promise<void> {
   if (!userId) {
-    const local = await readLocal();
-    if (level === null) delete local[categoryId];
-    else local[categoryId] = level;
-    await AsyncStorage.setItem(LOCAL_KEY, JSON.stringify(local));
-    return;
+    return serialised(async () => {
+      const local = await readLocal();
+      if (level === null) delete local[categoryId];
+      else local[categoryId] = level;
+      await AsyncStorage.setItem(LOCAL_KEY, JSON.stringify(local));
+    });
   }
   if (level === null) {
     const { error } = await supabase
@@ -100,20 +109,35 @@ export async function mergeLocalIntoAccount(userId: string): Promise<void> {
       if (error) throw new Error('interests merge failed');
     }
   }
-  await AsyncStorage.removeItem(LOCAL_KEY);
+  // Drop only what was merged: a tap made while the upload ran stays for the next merge.
+  await serialised(async () => {
+    const rest = await readLocal();
+    for (const id of ids) if (rest[id] === local[id]) delete rest[id];
+    if (Object.keys(rest).length === 0) await AsyncStorage.removeItem(LOCAL_KEY);
+    else await AsyncStorage.setItem(LOCAL_KEY, JSON.stringify(rest));
+  });
   listeners.forEach((fn) => fn());
+}
+
+interface Loaded {
+  key: string;
+  interests: Interests;
+  error: boolean;
 }
 
 export function useInterests(): {
   interests: Interests;
   setLevel(categoryId: string, level: Level | null): void;
   loading: boolean;
+  error: boolean;
 } {
   const { status, userId } = useSession();
-  const [interests, setInterests] = useState<Interests>({});
-  const [loading, setLoading] = useState(true);
+  const key = userId ?? 'local';
+  const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [reloads, setReloads] = useState(0);
   const userRef = useRef<string | null>(userId);
+  const latest = useRef<Interests>({});
+  const versions = useRef<Record<string, number>>({});
   useEffect(() => {
     userRef.current = userId;
   }, [userId]);
@@ -126,33 +150,49 @@ export function useInterests(): {
   useEffect(() => {
     if (unknown) return;
     let active = true;
+    latest.current = {};
     getInterests(userId)
-      .then((v) => active && setInterests(v))
-      .catch(() => active && setInterests({}))
-      .finally(() => active && setLoading(false));
+      .then((v) => {
+        if (!active) return;
+        latest.current = v;
+        setLoaded({ key, interests: v, error: false });
+      })
+      .catch(() => {
+        if (!active) return;
+        // Keep what is shown for the same user; never wipe it on a failed read.
+        setLoaded((cur) => ({ key, interests: cur?.key === key ? cur.interests : {}, error: true }));
+      });
     return () => {
       active = false;
     };
-  }, [unknown, userId, reloads]);
+  }, [unknown, userId, key, reloads]);
+
+  const current = loaded && loaded.key === key ? loaded : null;
 
   const set = useCallback((categoryId: string, level: Level | null) => {
-    let previous: Level | null = null;
-    setInterests((cur) => {
-      previous = cur[categoryId] ?? null;
+    const apply = (cur: Interests, value: Level | null): Interests => {
       const next = { ...cur };
-      if (level === null) delete next[categoryId];
-      else next[categoryId] = level;
+      if (value === null) delete next[categoryId];
+      else next[categoryId] = value;
       return next;
-    });
+    };
+    const k = userRef.current ?? 'local';
+    const previous = latest.current[categoryId] ?? null;
+    const version = (versions.current[categoryId] = (versions.current[categoryId] ?? 0) + 1);
+    latest.current = apply(latest.current, level);
+    setLoaded((cur) => ({ key: k, interests: latest.current, error: cur?.error ?? false }));
     setLevel(userRef.current, categoryId, level).catch(() => {
-      setInterests((cur) => {
-        const next = { ...cur };
-        if (previous === null) delete next[categoryId];
-        else next[categoryId] = previous;
-        return next;
-      });
+      // Only undo if nothing newer touched this category since.
+      if (versions.current[categoryId] !== version) return;
+      latest.current = apply(latest.current, previous);
+      setLoaded((cur) => ({ key: k, interests: latest.current, error: cur?.error ?? false }));
     });
   }, []);
 
-  return { interests, setLevel: set, loading };
+  return {
+    interests: current?.interests ?? {},
+    setLevel: set,
+    loading: unknown || !current,
+    error: current?.error ?? false,
+  };
 }

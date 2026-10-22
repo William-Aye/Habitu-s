@@ -155,6 +155,7 @@
     "requestInvalid": "The name must be between 2 and 80 characters.",
     "requestSent": "Thank you, your suggestion was sent.",
     "requestSignedOut": "Sign in to suggest a category.",
-    "requestError": "Could not send. Try again."
+    "requestError": "Could not send. Try again.",
+    "proposeAnother": "Suggest another category"
   }
 }

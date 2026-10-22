@@ -144,6 +144,12 @@ export function InterestPicker({ compact = false }: { compact?: boolean }) {
                 accessibilityLabel={label}
                 accessibilityState={{ selected: on }}
                 accessibilityValue={level ? { text: levelText(level) } : undefined}
+                accessibilityActions={[{ name: 'curious', label: levelText('curious') }]}
+                onAccessibilityAction={(e) => {
+                  if (e.nativeEvent.actionName === 'curious') {
+                    setLevel(c.id, level === 'curious' ? null : 'curious');
+                  }
+                }}
                 style={[styles.tile, c.parentId === null && styles.parent, on && styles.tileOn]}
                 onPress={() => setLevel(c.id, nextTapLevel(level))}
                 onLongPress={() => setLevel(c.id, level === 'curious' ? null : 'curious')}
@@ -191,6 +197,11 @@ export function InterestPicker({ compact = false }: { compact?: boolean }) {
           ) : null}
           {message[request] ? (
             <Text accessibilityLiveRegion="polite">{message[request]}</Text>
+          ) : null}
+          {request === 'sent' ? (
+            <Pressable accessibilityRole="button" style={styles.link} onPress={() => setRequest('form')}>
+              <Text style={styles.linkText}>{t('interests.proposeAnother')}</Text>
+            </Pressable>
           ) : null}
         </View>
       )}
