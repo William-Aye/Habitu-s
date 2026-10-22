@@ -194,3 +194,75 @@ def test_full_build_counts_converted_requests(conn):
     # Already 'request': not counted again.
     conn.execute("insert into search.vocab_requests (phrase, hits) values ('kazoo', 5)")
     assert vocab.build(conn, FakeEmbedder(), min_df_unigram=1, min_df_multi=1).requests_added == 0
+
+
+def _requests(c):
+    return sorted(r[0] for r in c.execute("select phrase from search.vocab_requests"))
+
+
+def test_requests_promoted_at_most_max_requests_per_run(conn):
+    conn.execute("insert into search.vocab_requests (phrase, hits, last_seen) values "
+                 "('ukulélé', 5, current_date - 3), ('kazoo', 3, current_date), "
+                 "('banjo', 3, current_date - 1), ('appeau', 3, current_date - 1)")
+    report = vocab.build(conn, FakeEmbedder(), min_df_unigram=1, min_df_multi=1, max_requests=2)
+    v = _vocab(conn)
+    assert v["ukulélé"][0] == v["kazoo"][0] == "request"
+    assert "banjo" not in v and "appeau" not in v
+    assert report.requests_added == 2
+    assert _requests(conn) == ["appeau", "banjo"]
+    # The next run takes the next ones (equal hits and day: alphabetical).
+    vocab.build(conn, FakeEmbedder(), requests_only=True, max_requests=1)
+    assert _vocab(conn)["appeau"][0] == "request" and _requests(conn) == ["banjo"]
+
+
+def test_default_request_limit_is_2000(conn):
+    conn.execute("insert into search.vocab_requests (phrase, hits) "
+                 "select 'demande ' || lpad(i::text, 4, '0'), 2 from generate_series(0, 2000) i")
+    report = vocab.build(conn, FakeEmbedder(), requests_only=True)
+    assert report.requests_added == 2000
+    assert _requests(conn) == ["demande 2000"]
+
+
+def test_invalid_requests_are_never_promoted(conn):
+    conn.execute("insert into search.vocab_requests (phrase, hits) values ('x', 3), ('42', 3), ('!!', 3), "
+                 "('kazoo', 2)")
+    report = vocab.build(conn, FakeEmbedder(), min_df_unigram=1, min_df_multi=1)
+    v = _vocab(conn)
+    assert "x" not in v and "42" not in v and "" not in v
+    assert v["kazoo"][0] == "request" and report.requests_added == 1
+    assert _requests(conn) == []
+
+
+def test_requests_count_against_the_cap(conn):
+    vocab.build(conn, FakeEmbedder(), min_df_unigram=1, min_df_multi=1, cap=0)
+    curated = len(_vocab(conn))  # cap 0: only the curated phrases, which are always kept
+    conn.execute("insert into search.vocab_requests (phrase, hits) values ('ukulélé', 3), ('kazoo', 2)")
+    report = vocab.build(conn, FakeEmbedder(), min_df_unigram=1, min_df_multi=1, cap=curated + 1)
+    v = _vocab(conn)
+    assert len(v) == curated + 1 == report.phrases_total
+    assert v["ukulélé"][0] == "request" and "kazoo" not in v and "falaise" not in v
+    assert _requests(conn) == ["kazoo"]
+    # Requests-only respects the cap too.
+    conn.execute("insert into search.vocab_requests (phrase, hits) values ('banjo', 2)")
+    vocab.build(conn, FakeEmbedder(), requests_only=True, cap=curated + 2)
+    v = _vocab(conn)
+    assert len(v) == curated + 2 and v["banjo"][0] == "request" and "kazoo" not in v
+    assert _requests(conn) == ["kazoo"]
+
+
+def test_unseen_requests_expire_after_a_year(conn):
+    conn.execute("insert into search.vocab_requests (phrase, hits) values "
+                 "('kazoo', 2), ('banjo', 2), ('falaise', 2), ('coder', 2)")
+    vocab.build(conn, FakeEmbedder(), min_df_unigram=1, min_df_multi=1)
+    v = _vocab(conn)
+    assert all(v[p][0] == "request" for p in ("kazoo", "banjo", "falaise", "coder"))
+    conn.execute("update search.query_vocab set updated_at = now() - interval '366 days' "
+                 "where phrase in ('kazoo', 'falaise', 'coder')")
+    conn.execute("update search.query_vocab set updated_at = now() - interval '364 days' where phrase = 'banjo'")
+    report = vocab.build(conn, FakeEmbedder(), min_df_unigram=1, min_df_multi=1)
+    v = _vocab(conn)
+    # kazoo: in no association text for over a year. falaise is in one; coder is curated (watch-list);
+    # banjo is not a year old yet.
+    assert "kazoo" not in v
+    assert v["falaise"] == ("request", 1) and v["coder"][0] == "request" and v["banjo"] == ("request", 0)
+    assert report.removed == 1

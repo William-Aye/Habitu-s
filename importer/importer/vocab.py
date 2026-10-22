@@ -4,7 +4,8 @@ stored in search.query_vocab so the database resolves a query's meaning without 
 
 Sources: 1-3 token phrases of association names and purposes (kept by document frequency),
 category names, tag labels, tagging keywords, the watch-list (data/vocab_watchlist.txt) and the
-anonymised requests of search.vocab_requests seen at least vocab_request_min_hits times.
+anonymised requests of search.vocab_requests seen on at least vocab_request_min_hits days (at most
+MAX_REQUESTS a run; promoted requests count against the cap, right after the curated phrases).
 
 Every stored phrase is `" ".join(tokens(...))`: search.resolve_query builds its candidate units by
 joining search.tokens(...) with single spaces, so any other spelling could never match.
@@ -48,6 +49,10 @@ STOPWORDS: frozenset[str] = frozenset(
 SHARDS = 64
 FETCH_ROWS = 10_000
 PROGRESS_EVERY = 250_000
+# Requests promoted per run (most hits, then most recently seen, then alphabetical); the rest wait.
+MAX_REQUESTS = 2_000
+# A promoted request that no association text contains is dropped by a full build after this long.
+REQUEST_KEEP_DAYS = 365
 
 
 class QueryEmbedder(Protocol):
@@ -171,12 +176,18 @@ def select_phrases(
     min_df_multi: int = 5,
     cap: int = 150_000,
     always: Iterable[str] = (),
+    then: Iterable[str] = (),
 ) -> dict[str, int]:
     """phrase -> document frequency. `always` phrases are kept regardless and count against the
-    cap first (all of them are kept even beyond it); the rest by descending frequency, ties
-    alphabetical."""
+    cap first (all of them are kept even beyond it); then the `then` phrases in order while there
+    is room; the rest by descending frequency, ties alphabetical."""
     out: dict[str, int] = {}
     for p in always:
+        if p and p not in out:
+            out[p] = counts.get(p, 0)
+    for p in then:
+        if len(out) >= cap:
+            break
         if p and p not in out:
             out[p] = counts.get(p, 0)
     room = cap - len(out)
@@ -188,6 +199,29 @@ def select_phrases(
         for c, p in heapq.nsmallest(room, eligible, key=lambda cp: (-cp[0], cp[1])):
             out[p] = c
     return out
+
+
+def pick_requests(
+    rows: Iterable[tuple[str, int, object]], limit: int = MAX_REQUESTS,
+) -> tuple[dict[str, list[str]], list[str]]:
+    """Requests (phrase, hits, last_seen) -> ({stored phrase: request phrases}, invalid phrases).
+
+    At most `limit` stored phrases, by most hits, then most recent last_seen, then alphabetical.
+    A request whose stored phrase fails the phrase checks (a letter, 2 characters) is invalid."""
+    ranked = sorted(rows, key=lambda r: r[0])
+    ranked.sort(key=lambda r: r[2], reverse=True)
+    ranked.sort(key=lambda r: r[1], reverse=True)
+    picked: dict[str, list[str]] = {}
+    invalid: list[str] = []
+    for raw, _, _ in ranked:
+        p = unit_phrase(raw)
+        if not _ok(p):
+            invalid.append(raw)
+        elif p in picked:
+            picked[p].append(raw)
+        elif len(picked) < limit:
+            picked[p] = [raw]
+    return picked, invalid
 
 
 def watchlist(path: Path = DATA / "vocab_watchlist.txt") -> list[str]:
@@ -216,6 +250,7 @@ def build(
     min_df_multi: int = 5,
     cap: int = 150_000,
     batch_size: int = 512,
+    max_requests: int = MAX_REQUESTS,
 ) -> BuildReport:
     """Rebuild search.query_vocab (or, with requests_only, add the requests and the watch-list).
 
@@ -225,47 +260,63 @@ def build(
         raise ValueError("vocab.build needs an autocommit connection")
     report = BuildReport()
     min_hits = conn.execute("select (search.params()).vocab_request_min_hits").fetchone()[0]
-    requests_raw = [r[0] for r in conn.execute(
-        "select phrase from search.vocab_requests where hits >= %s order by phrase", (min_hits,))]
-    existing: dict[str, tuple[str, str]] = {
-        p: (m, s) for p, m, s in conn.execute("select phrase, model, source from search.query_vocab")
+    picked, invalid = pick_requests(conn.execute(
+        "select phrase, hits, last_seen from search.vocab_requests where hits >= %s", (min_hits,)),
+        max_requests)
+    # phrase -> (model, source, older than REQUEST_KEEP_DAYS)
+    existing: dict[str, tuple[str, str, bool]] = {
+        p: (m, s, old) for p, m, s, old in conn.execute(
+            "select phrase, model, source, updated_at < now() - make_interval(days => %s) "
+            "from search.query_vocab", (REQUEST_KEEP_DAYS,))
     }
 
-    # Sources in priority order: a phrase found in several keeps the first one.
-    sources: dict[str, str] = {}
+    # Curated phrases, in priority order: a phrase found in several keeps the first source.
+    curated: dict[str, str] = {}
 
     def add(texts: Iterable[str], source: str) -> None:
         for t in texts:
             p = unit_phrase(t)
-            if p and p not in sources:
-                sources[p] = source
+            if p and p not in curated:
+                curated[p] = source
 
-    # Requests come first: a promoted request is marked 'request' (and never removed) even when
-    # it is also a category, a keyword or an ngram.
-    add(requests_raw, "request")
-    promoted = set(sources)
     if requests_only:
         add(watchlist(), "watchlist")
-        selected = {p: 0 for p in sources if p not in existing}
+        new_curated = [p for p in curated if p not in existing]
+        # Requests count against the cap, after the curated phrases.
+        room = max(cap - len(existing) - len(new_curated), 0)
+        new_requests = [p for p in picked if p not in existing][:room]
+        selected = {p: 0 for p in [*new_curated, *new_requests]}
         # A request already in the vocabulary stays in search.vocab_requests: this mode leaves
         # existing rows alone, and the next full build marks it 'request' and removes it.
-        requests_done = [r for r in requests_raw if unit_phrase(r) not in existing]
+        request_phrases = new_requests
     else:
-        # Requests promoted earlier are kept (the delete below spares them) and re-embedded on a
-        # model change.
-        add((p for p, (_, s) in existing.items() if s == "request"), "request")
         add((r[0] for r in conn.execute("select name_fr from public.categories order by sort_order, slug")),
             "category")
         add((r[0] for r in conn.execute("select label_fr from public.tags order by slug")), "tag")
         add(_keywords(), "keyword")
         add(watchlist(), "watchlist")
-        requests_done = requests_raw
+        earlier = [p for p, (_, s, _) in existing.items() if s == "request"]
         counts = count_document_phrases(_documents(conn), min_df_unigram=min_df_unigram,
-                                        min_df_multi=min_df_multi, top=cap, keep=sources)
+                                        min_df_multi=min_df_multi, top=cap,
+                                        keep=[*curated, *earlier, *picked])
         log.info("vocab: %d phrases counted above the thresholds", len(counts))
+        # Requests promoted earlier are kept and re-embedded on a model change, unless no
+        # association text contains them and they are older than REQUEST_KEEP_DAYS.
+        kept = [p for p in sorted(earlier)
+                if p in curated or counts.get(p, 0) > 0 or not existing[p][2]]
+        request_phrases = [*kept, *(p for p in picked if p not in kept)]
         selected = select_phrases(counts, min_df_unigram=min_df_unigram, min_df_multi=min_df_multi,
-                                  cap=cap, always=sources)
+                                  cap=cap, always=curated, then=request_phrases)
         del counts
+    # A selected request is marked 'request' (and kept by later builds) even when it is also a
+    # category, a keyword or an ngram.
+    sources = {p: "request" for p in request_phrases if p in selected}
+    for p, src in curated.items():
+        sources.setdefault(p, src)
+    promoted = [p for p in picked if p in sources and sources[p] == "request"]
+    # Promoted requests leave search.vocab_requests, and so do invalid ones (never promotable);
+    # requests over max_requests or the cap wait for a later run.
+    requests_done = [*invalid, *(raw for p in promoted for raw in picked[p])]
     todo = [p for p in selected if existing.get(p, (None,))[0] != MODEL]
     log.info("vocab: %d phrases selected, %d to embed", len(selected), len(todo))
 
@@ -317,8 +368,7 @@ def build(
             if not requests_only:
                 report.removed = conn.execute("""
                     delete from search.query_vocab v
-                    where v.source <> 'request'
-                      and not exists (select 1 from vocab_build t where t.phrase = v.phrase)""").rowcount
+                    where not exists (select 1 from vocab_build t where t.phrase = v.phrase)""").rowcount
             conn.execute("delete from search.vocab_requests where phrase = any(%s)", (requests_done,))
     finally:
         try:

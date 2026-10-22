@@ -3,6 +3,7 @@ import json
 import random
 import re
 from collections import Counter
+from datetime import date
 from pathlib import Path
 
 from importer import cli, vocab
@@ -133,6 +134,31 @@ def test_select_phrases_cap_and_ties():
 def test_select_phrases_keeps_always_beyond_cap():
     sel = vocab.select_phrases(Counter({"yoga": 10}), cap=1, always=["a1", "a2"])
     assert set(sel) == {"a1", "a2"}
+
+
+def test_select_phrases_then_fills_room_after_always_and_before_ngrams():
+    counts = Counter({"yoga": 10, "danse": 8, "kazoo": 0})
+    sel = vocab.select_phrases(counts, min_df_unigram=1, cap=4, always=["coder"], then=["kazoo", "banjo"])
+    assert list(sel) == ["coder", "kazoo", "banjo", "yoga"]
+    # `then` counts against the cap, `always` does not stop for it.
+    sel = vocab.select_phrases(counts, min_df_unigram=1, cap=2, always=["coder"], then=["kazoo", "banjo"])
+    assert list(sel) == ["coder", "kazoo"]
+    sel = vocab.select_phrases(counts, min_df_unigram=1, cap=1, always=["a1", "a2"], then=["kazoo"])
+    assert list(sel) == ["a1", "a2"]
+
+
+def test_pick_requests_order_limit_and_validity():
+    d1, d2 = date(2026, 10, 20), date(2026, 10, 21)
+    rows = [("banjo", 3, d1), ("kazoo", 3, d2), ("ukulélé", 5, d1), ("appeau", 3, d1),
+            ("Ukulélé !", 2, d2), ("x", 9, d2), ("42", 9, d2), ("!!", 9, d2)]
+    picked, invalid = vocab.pick_requests(rows, limit=3)
+    # Most hits, then most recent, then alphabetical; "Ukulélé !" is stored as "ukulélé".
+    assert list(picked) == ["ukulélé", "kazoo", "appeau"]
+    assert picked["ukulélé"] == ["ukulélé", "Ukulélé !"]
+    assert sorted(invalid) == ["!!", "42", "x"]
+    assert vocab.MAX_REQUESTS == 2000
+    picked, _ = vocab.pick_requests([(f"demande {i:04d}", 2, d1) for i in range(2001)])
+    assert len(picked) == 2000 and "demande 2000" not in picked
 
 
 def test_unit_phrase():
