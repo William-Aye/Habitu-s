@@ -1,16 +1,17 @@
-"""Edge-vs-Python query embedding parity. Needs `npx supabase functions serve embed-query`."""
-import math
-import os
+"""Edge-vs-Python query embedding parity. Needs `npx supabase functions serve embed-query`.
 
-import httpx
+The ranking rule was tuned on Python (fp32) query embeddings; production embeds queries in the
+Edge Function (Transformers.js, q8). CI serves the function and runs this file.
+"""
+import math
+
+import edge_client
 import pytest
 
 from importer.embed import E5Embedder
 
 pytestmark = pytest.mark.edge
 
-URL = os.environ.get("EMBED_QUERY_URL", "http://127.0.0.1:55321/functions/v1/embed-query")
-KEY = os.environ.get("SUPABASE_ANON_KEY", "")
 QUERIES = ["coder", "jeu de go", "danse bretonne", "escalade"]
 
 
@@ -21,18 +22,7 @@ def _cos(a, b):
 
 @pytest.fixture(scope="module")
 def edge():
-    headers = {"Authorization": f"Bearer {KEY}"} if KEY else {}
-
-    def call(q):
-        r = httpx.post(URL, json={"text": q}, headers=headers, timeout=120)
-        r.raise_for_status()
-        return r.json()["embedding"]
-
-    try:
-        call("test")
-    except (httpx.ConnectError, httpx.ConnectTimeout) as e:
-        pytest.skip(f"embed-query not reachable at {URL} (run `npx supabase functions serve embed-query`): {e}")
-    return call
+    return edge_client.connect()
 
 
 @pytest.mark.parametrize("q", QUERIES)

@@ -121,3 +121,35 @@ jobs:
         env:
           RANKING_REPORT: '1'
         run: cd importer && uv sync && uv run pytest -m ranking -s
+
+      # Production embeds queries in the Edge Function (Transformers.js, q8); the ranking rule was
+      # tuned on Python fp32 query embeddings. Serve the function and check that they agree.
+      - name: Serve embed-query
+        run: |
+          nohup npx supabase functions serve embed-query > "$RUNNER_TEMP/functions.log" 2>&1 &
+          eval "$(npx supabase status -o env)"
+          test -n "$ANON_KEY"
+          echo "SUPABASE_ANON_KEY=$ANON_KEY" >> "$GITHUB_ENV"
+
+      - name: Wait for embed-query (the first call downloads the model)
+        run: |
+          for i in $(seq 1 120); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+              -H "Authorization: Bearer $SUPABASE_ANON_KEY" -H 'Content-Type: application/json' \
+              -d '{"text":"test"}' http://127.0.0.1:55321/functions/v1/embed-query || true)
+            if [ "$code" = 200 ]; then exit 0; fi
+            sleep 5
+          done
+          cat "$RUNNER_TEMP/functions.log"
+          exit 1
+
+      - name: Embedding parity (Edge vs Python)
+        run: cd importer && uv run pytest -m edge tests/ranking/test_embed_parity.py
+
+      # Informational until the rule is checked on q8 query embeddings: the step's own result
+      # shows whether the ranking set also holds on the production query path.
+      - name: Ranking set with Edge query embeddings (informational)
+        continue-on-error: true
+        env:
+          RANKING_QUERY_EMBEDDER: edge
+        run: cd importer && uv run pytest -m ranking

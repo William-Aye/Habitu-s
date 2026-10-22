@@ -66,10 +66,15 @@ can be judged, not just pass/fail. CI runs the same job (`ranking`).
 ### Checks
 
 - Edge unit tests (CI job `edge`): `deno test supabase/functions/embed-query`
-- Perf (local only, not in CI): `cd importer && uv run pytest -m perf`. Last measured
-  p95 about 1.43 s at 150k rows, jit off, on a local PG16.
-- Parity with Python (local, function served, needs the model):
-  `cd importer && SUPABASE_ANON_KEY=<local anon key> uv run pytest -m edge`
+- Perf (local only, not in CI): `cd importer && uv run pytest -m perf -s` (150k associations
+  near Paris, document vectors clustered around cosine 0.8 to the query direction; target p95
+  < 1.5 s). Last measured on a local PG16 (4 cores), 2026-10-22: radius 50 with an unrelated
+  query p95 971 ms; radius 10 with the widen count over 50 km p95 895 ms.
+- Parity with Python (`importer/tests/ranking/test_embed_parity.py`; CI job `ranking` serves the
+  function and runs it): locally `npx supabase functions serve embed-query`, then
+  `cd importer && SUPABASE_ANON_KEY=<local anon key> uv run pytest -m edge tests/ranking/test_embed_parity.py`.
+  `RANKING_QUERY_EMBEDDER=edge uv run pytest -m ranking` runs the ranking set on the function's
+  query embeddings (the production path).
 
 ### Hosted migration note
 

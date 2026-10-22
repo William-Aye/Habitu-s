@@ -3,6 +3,7 @@
 Needs local Supabase (`npm run db:reset`). The model is downloaded on first use (slow).
 """
 import json
+import os
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -80,9 +81,20 @@ def conn(embedder):
 
 
 @pytest.fixture(scope="session")
-def search(conn, embedder):
+def query_embed(embedder):
+    """Python (fp32) query embeddings by default; RANKING_QUERY_EMBEDDER=edge uses the Edge Function,
+    as production does (Transformers.js, q8)."""
+    if os.environ.get("RANKING_QUERY_EMBEDDER") == "edge":
+        import edge_client
+
+        return edge_client.connect()
+    return lambda q: embedder.embed_queries([q])[0]
+
+
+@pytest.fixture(scope="session")
+def search(conn, query_embed):
     def run(q, radius_km=10, **kw):
-        qv = embedder.embed_queries([q])[0]
+        qv = query_embed(q)
         row = conn.execute(
             "select public.search_explore(%s, %s, %s, %s, %s::vector, p_limit => 50)",
             (CENTER[0], CENTER[1], radius_km, q, _vec(qv)),

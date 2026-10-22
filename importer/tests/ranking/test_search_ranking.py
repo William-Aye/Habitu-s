@@ -95,13 +95,13 @@ QUERIES = ["coder", "jeu de go", "danse bretonne", "escalade"]
 
 
 @pytest.mark.parametrize("q", QUERIES)
-def test_not_public_never_above_more_similar_unflagged(search, conn, embedder, vec, q):
+def test_not_public_never_above_more_similar_unflagged(search, conn, query_embed, vec, q):
     """"Copropriété Les Tilleuls" (likely_not_public) never outranks an unflagged result that is
     more similar to the query."""
     t = titles(search(q))
     if "Copropriété Les Tilleuls" not in t:
         return  # filtered out entirely: nothing can be ranked below it
-    qv = vec(embedder.embed_queries([q])[0])
+    qv = vec(query_embed(q))
     sims = dict(conn.execute(
         """select name, 1 - (embedding <=> %s::vector) from public.associations
            where attribution @> '{"fixture": "ranking"}' and not likely_not_public""", (qv,)).fetchall())
@@ -115,7 +115,7 @@ def test_not_public_never_above_more_similar_unflagged(search, conn, embedder, v
 
 
 @pytest.mark.skipif(os.environ.get("RANKING_REPORT") != "1", reason="set RANKING_REPORT=1 for the tuning report")
-def test_ranking_report(search, conn, embedder, vec):
+def test_ranking_report(search, conn, query_embed, vec):
     """Always passes. Prints, per query, the ranked results and every fixture row's raw cosine
     similarity and keyword hit, so params can be tuned from one CI log (run with -s)."""
     for q in QUERIES:
@@ -124,7 +124,7 @@ def test_ranking_report(search, conn, embedder, vec):
         print("rank | title | kind | score | label | is_weak | distance_km")
         for i, r in enumerate(res, 1):
             print(f"{i:>3} | {r['title']} | {r['kind']} | {r['score']} | {r['label']} | {r['is_weak']} | {r['distance_km']}")
-        qv = vec(embedder.embed_queries([q])[0])
+        qv = vec(query_embed(q))
         rows = conn.execute(
             """select kind, title, sim, kw, name_sim from (
                  select 'association' as kind, name as title, 1 - (embedding <=> %(v)s::vector) as sim,
