@@ -58,14 +58,14 @@
     "loading": "Loading",
     "error": "Could not load results. Try again.",
     "days": {
-      "all": "Every day",
       "1": "Monday",
       "2": "Tuesday",
       "3": "Wednesday",
       "4": "Thursday",
       "5": "Friday",
       "6": "Saturday",
-      "7": "Sunday"
+      "7": "Sunday",
+      "all": "Every day"
     },
     "retry": "Try again"
   },
@@ -100,5 +100,40 @@
   },
   "common": {
     "comingSoon": "Coming soon"
+  },
+  "account": {
+    "title": "Create your account in 1 minute",
+    "google": "Continue with Google",
+    "sendCode": "Get a code by email",
+    "validate": "Confirm",
+    "codeSent": "Enter the code sent to {{email}}",
+    "emailLabel": "Email address",
+    "codeLabel": "6-digit code",
+    "firstName": "Your first name",
+    "age": "I am 18 or older",
+    "privacy": "Privacy policy",
+    "close": "Close",
+    "retry": "Try again",
+    "resend": "Send the code again",
+    "changeEmail": "Change address",
+    "or": "or",
+    "reasons": {
+      "join": "Create an account to join this activity",
+      "message": "Create an account to write to the group",
+      "create": "Create an account to create an activity",
+      "wait": "Create an account to be notified",
+      "category": "Create an account to suggest a category"
+    },
+    "errors": {
+      "invalidEmail": "Invalid email address",
+      "invalid_code": "Wrong code. Check it and try again.",
+      "expired_code": "This code has expired. Request a new one.",
+      "captcha": "The security check failed.",
+      "network": "No connection. Check your network and try again.",
+      "rate_limited": "Too many attempts. Please wait a little before trying again.",
+      "unknown": "Something went wrong. Please try again.",
+      "first_name": "Enter a first name of 40 characters or fewer.",
+      "age": "You must be 18 or older."
+    }
   }
 }

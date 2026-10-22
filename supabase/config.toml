@@ -212,10 +212,13 @@ token_verifications = 30
 web3 = 30
 
 # Configure one of the supported captcha providers: `hcaptcha`, `turnstile`.
-# [auth.captcha]
-# enabled = true
-# provider = "hcaptcha"
-# secret = ""
+# Production: enable it in the Supabase dashboard (Authentication > Attack Protection > Turnstile)
+# with the Cloudflare secret key. It stays off here because, with enabled = true and no
+# TURNSTILE_SECRET in the environment, local email sign-in is rejected ("no captcha_token found").
+[auth.captcha]
+enabled = false
+provider = "turnstile"
+secret = ""
 
 [auth.email]
 # Allow/disallow new user signups via email to your project.
@@ -228,7 +231,7 @@ enable_confirmations = false
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
-max_frequency = "1s"
+max_frequency = "60s"
 # Number of characters used in the email OTP.
 otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
@@ -320,6 +323,13 @@ max_frequency = "5s"
 # Use an external OAuth provider. The full list of providers are: `apple`, `azure`, `bitbucket`,
 # `discord`, `facebook`, `github`, `gitlab`, `google`, `keycloak`, `linkedin_oidc`, `notion`, `twitch`,
 # `twitter`, `x`, `slack`, `spotify`, `workos`, `zoom`.
+[auth.external.google]
+enabled = true
+client_id = "env(GOOGLE_WEB_CLIENT_ID)"
+secret = "env(GOOGLE_WEB_CLIENT_SECRET)"
+# The native Android sign-in sends an id token whose nonce Supabase cannot check.
+skip_nonce_check = true
+
 [auth.external.apple]
 enabled = false
 client_id = ""

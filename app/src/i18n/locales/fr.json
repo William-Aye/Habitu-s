@@ -58,14 +58,14 @@
     "loading": "Chargement",
     "error": "Impossible de charger les résultats. Réessayez.",
     "days": {
-      "all": "Tous les jours",
       "1": "Lundi",
       "2": "Mardi",
       "3": "Mercredi",
       "4": "Jeudi",
       "5": "Vendredi",
       "6": "Samedi",
-      "7": "Dimanche"
+      "7": "Dimanche",
+      "all": "Tous les jours"
     },
     "retry": "Réessayer"
   },
@@ -100,5 +100,40 @@
   },
   "common": {
     "comingSoon": "Bientôt disponible"
+  },
+  "account": {
+    "title": "Créez votre compte en 1 minute",
+    "google": "Continuer avec Google",
+    "sendCode": "Recevoir un code par e-mail",
+    "validate": "Valider",
+    "codeSent": "Entrez le code reçu à {{email}}",
+    "emailLabel": "Adresse e-mail",
+    "codeLabel": "Code à 6 chiffres",
+    "firstName": "Votre prénom",
+    "age": "J'ai 18 ans ou plus",
+    "privacy": "Politique de confidentialité",
+    "close": "Fermer",
+    "retry": "Réessayer",
+    "resend": "Renvoyer le code",
+    "changeEmail": "Modifier l'adresse",
+    "or": "ou",
+    "reasons": {
+      "join": "Créez un compte pour rejoindre cette activité",
+      "message": "Créez un compte pour écrire au groupe",
+      "create": "Créez un compte pour créer une activité",
+      "wait": "Créez un compte pour être prévenu",
+      "category": "Créez un compte pour proposer une catégorie"
+    },
+    "errors": {
+      "invalidEmail": "Adresse e-mail invalide",
+      "invalid_code": "Code incorrect. Vérifiez et réessayez.",
+      "expired_code": "Ce code a expiré. Demandez-en un nouveau.",
+      "captcha": "La vérification de sécurité a échoué.",
+      "network": "Pas de connexion. Vérifiez votre réseau et réessayez.",
+      "rate_limited": "Trop de tentatives. Patientez un peu avant de réessayer.",
+      "unknown": "Une erreur est survenue. Réessayez.",
+      "first_name": "Entrez un prénom de 40 caractères au maximum.",
+      "age": "Vous devez avoir 18 ans ou plus."
+    }
   }
 }
