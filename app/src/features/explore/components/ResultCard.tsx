@@ -16,10 +16,17 @@ export function ResultCard({ result, onPress }: { result: ExploreResult; onPress
       maximumFractionDigits: 1,
     }).format(result.distanceKm),
   });
+  const label = result.label ? t(LABEL_KEY[result.label]) : null;
+  const isNew = result.isNew ? t('explore.new') : null;
+  const source = result.sourceLabel ? t(`explore.source.${result.sourceLabel}`) : null;
+  // Screen readers read the card as one button: give them every visible text.
+  const a11yLabel = [result.title, result.subtitle, distance, label, isNew, source]
+    .filter(Boolean)
+    .join(', ');
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={result.title}
+      accessibilityLabel={a11yLabel}
       onPress={onPress}
       style={[styles.card, result.isWeak && styles.weak]}
     >
@@ -29,11 +36,9 @@ export function ResultCard({ result, onPress }: { result: ExploreResult; onPress
       </View>
       {result.subtitle ? <Text style={styles.subtitle}>{result.subtitle}</Text> : null}
       <View style={styles.badges}>
-        {result.label ? <Text style={styles.badge}>{t(LABEL_KEY[result.label])}</Text> : null}
-        {result.isNew ? <Text style={styles.badge}>{t('explore.new')}</Text> : null}
-        {result.sourceLabel ? (
-          <Text style={styles.badge}>{t(`explore.source.${result.sourceLabel}`)}</Text>
-        ) : null}
+        {label ? <Text style={styles.badge}>{label}</Text> : null}
+        {isNew ? <Text style={styles.badge}>{isNew}</Text> : null}
+        {source ? <Text style={styles.badge}>{source}</Text> : null}
       </View>
     </Pressable>
   );

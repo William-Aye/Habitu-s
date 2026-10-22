@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { FilterChips, effectiveKinds, type FilterState } from '../../features/explore/components/FilterChips';
 import { LocationPicker } from '../../features/explore/components/LocationPicker';
 import { ResultsMap } from '../../features/explore/components/ResultsMap';
-import { ResultsList } from '../../features/explore/components/ResultsList';
+import { ResultsList, WidenBanner } from '../../features/explore/components/ResultsList';
 import { SearchBar } from '../../features/explore/components/SearchBar';
 import type { ExploreParams, ExploreResult } from '../../features/explore/types';
 import { normaliseQuery } from '../../features/explore/types';
@@ -44,7 +44,9 @@ export default function Explore() {
         sort: hasQuery ? sort : 'best',
       }
     : null;
-  const { response, results, loading, error, loadMore } = useExploreSearch(params);
+  const { response, results, loading, error, loadMoreError, loadMore, retry } =
+    useExploreSearch(params);
+  const widen = () => setFilters((f) => ({ ...f, radiusKm: 50 }));
 
   const open = (r: ExploreResult) =>
     r.kind === 'association'
@@ -79,6 +81,7 @@ export default function Explore() {
           await setTown(town);
           setEditingLocation(false);
         }}
+        onCancel={status === 'ready' ? () => setEditingLocation(false) : undefined}
       />
     );
   } else if (view === 'map') {
@@ -91,12 +94,25 @@ export default function Explore() {
       />
     ) : null;
   } else if (error) {
-    body = <Text>{t('explore.error')}</Text>;
+    body = (
+      <View style={styles.empty} accessibilityLiveRegion="polite">
+        <Text>{t('explore.error')}</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('explore.retry')}
+          style={styles.outline}
+          onPress={retry}
+        >
+          <Text style={styles.outlineText}>{t('explore.retry')}</Text>
+        </Pressable>
+      </View>
+    );
   } else if (loading && !response) {
     body = <ActivityIndicator accessibilityLabel={t('explore.loading')} />;
   } else if (response && results.length === 0) {
     body = (
       <View style={styles.empty}>
+        <WidenBanner response={response} radiusKm={filters.radiusKm} onWiden={widen} />
         <Text style={styles.heading}>{t('explore.empty')}</Text>
         {comingSoon}
         <Pressable accessibilityRole="button" style={styles.outline} onPress={() => setNotice(true)}>
@@ -113,8 +129,10 @@ export default function Explore() {
           response={response}
           results={results}
           radiusKm={filters.radiusKm}
+          loadMoreError={loadMoreError}
           onEndReached={loadMore}
-          onWiden={() => setFilters((f) => ({ ...f, radiusKm: 50 }))}
+          onRetryMore={loadMore}
+          onWiden={widen}
           onOpen={open}
         />
       </>

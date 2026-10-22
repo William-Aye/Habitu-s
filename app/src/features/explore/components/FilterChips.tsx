@@ -22,17 +22,20 @@ function Chip({
   label,
   selected,
   disabled,
+  hint,
   onPress,
 }: {
   label: string;
   selected: boolean;
   disabled?: boolean;
+  hint?: string;
   onPress(): void;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityHint={hint}
       accessibilityState={{ selected, disabled: !!disabled }}
       disabled={disabled}
       onPress={onPress}
@@ -105,6 +108,9 @@ export function FilterChips({
   const kinds = effectiveKinds(params);
 
   const toggleKind = (kind: ExploreKind) => {
+    // While a day or newcomer filter applies, the chips show the effective kinds (activities only);
+    // changing the stored kinds then would not match what is shown.
+    if (restricted) return;
     const has = params.kinds.includes(kind);
     if (has && params.kinds.length === 1) return; // never both off
     onChange({
@@ -134,6 +140,7 @@ export function FilterChips({
           label={t('explore.filters.associations')}
           selected={kinds.includes('association')}
           disabled={restricted}
+          hint={restricted ? t('explore.activitiesOnly') : undefined}
           onPress={() => toggleKind('association')}
         />
         <Chip label={dayLabel} selected={params.weekday !== null} onPress={() => setSheet('day')} />

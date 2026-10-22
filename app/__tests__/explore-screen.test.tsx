@@ -78,10 +78,66 @@ it('renders the five chips and never lets both kinds be off', async () => {
 
 it('disables associations with a hint when a day or newcomer filter is set', async () => {
   await render(<Explore />);
+  expect(screen.getByLabelText('Clubs et associations').props.accessibilityHint).toBeUndefined();
   await fireEvent.press(screen.getByText('Débutants bienvenus'));
   expect(lastParams().newcomerFriendly).toBe(true);
   expect(lastParams().kinds).toEqual(['activity']);
   expect(screen.getByText('Ce filtre concerne les activités')).toBeTruthy();
+  expect(screen.getByLabelText('Clubs et associations').props.accessibilityHint).toBe(
+    'Ce filtre concerne les activités',
+  );
+});
+
+it('ignores kind toggles while a day or newcomer filter restricts to activities', async () => {
+  await render(<Explore />);
+  await fireEvent.press(screen.getByText('Débutants bienvenus'));
+  await fireEvent.press(screen.getByText('Activités'));
+  expect(lastParams().kinds).toEqual(['activity']);
+  await fireEvent.press(screen.getByText('Débutants bienvenus'));
+  expect(lastParams().kinds).toEqual(['activity', 'association']);
+});
+
+it('cancels a location change opened by Modifier', async () => {
+  await render(<Explore />);
+  await fireEvent.press(screen.getByText('Modifier'));
+  expect(screen.getByText('Utiliser ma position')).toBeTruthy();
+  await fireEvent.press(screen.getByText('Annuler'));
+  expect(screen.queryByText('Utiliser ma position')).toBeNull();
+  expect(screen.getByText('Autour de Lyon')).toBeTruthy();
+});
+
+it('offers no cancel when no location is set yet', async () => {
+  mockLocation.mockReturnValue({
+    location: null, status: 'needed', requestGps: jest.fn(), setTown: jest.fn(),
+  });
+  setSearch(null);
+  await render(<Explore />);
+  expect(screen.queryByText('Annuler')).toBeNull();
+});
+
+it('shows a retry button when the first page fails', async () => {
+  const retry = jest.fn();
+  mockSearch.mockReturnValue({
+    response: null, results: [], loading: false, error: true, loadMoreError: false,
+    loadMore: jest.fn(), retry,
+  });
+  await render(<Explore />);
+  expect(screen.getByText('Impossible de charger les résultats. Réessayez.')).toBeTruthy();
+  await fireEvent.press(screen.getByText('Réessayer'));
+  expect(retry).toHaveBeenCalledTimes(1);
+});
+
+it('keeps the results when the next page fails, with an inline retry', async () => {
+  const loadMore = jest.fn();
+  const res = response([result('a', { title: 'Alpha' })], { hasMore: true });
+  mockSearch.mockReturnValue({
+    response: res, results: res.results, loading: false, error: false, loadMoreError: true,
+    loadMore, retry: jest.fn(),
+  });
+  await render(<Explore />);
+  expect(screen.getByText('Alpha')).toBeTruthy();
+  await fireEvent.press(screen.getByText('Réessayer'));
+  expect(loadMore).toHaveBeenCalledTimes(1);
 });
 
 it('opens the day and distance sheets', async () => {
@@ -123,6 +179,31 @@ it('shows the widen banner and widens to 50 km', async () => {
   expect(lastParams().radiusKm).toBe(50);
 });
 
+it('shows the widen banner on an empty result when there are matches at 50 km', async () => {
+  setSearch(response([], { strongCount: 0, strongCount50km: 4, suggestRadiusKm: 50 }));
+  await render(<Explore />);
+  await fireEvent.changeText(screen.getByPlaceholderText(PLACEHOLDER), 'curling');
+  expect(screen.getByText("Aucun résultat pertinent près d'ici")).toBeTruthy();
+  expect(screen.getByText('0 résultat pertinent à 10 km — 4 à 50 km')).toBeTruthy();
+  await fireEvent.press(screen.getByText('Élargir à 50 km'));
+  expect(lastParams().radiusKm).toBe(50);
+});
+
+it('gives screen readers every visible text of a result card', async () => {
+  setSearch(
+    response([
+      result('a', {
+        kind: 'association', title: 'Club de Go', subtitle: 'Lyon', distanceKm: 2.4,
+        label: 'very_relevant', isNew: true, sourceLabel: 'unverified',
+      }),
+    ]),
+  );
+  await render(<Explore />);
+  expect(
+    screen.getByLabelText('Club de Go, Lyon, 2,4 km, Très pertinent, Nouvelle, non vérifié'),
+  ).toBeTruthy();
+});
+
 it('shows Nouvelle, community label and French distance', async () => {
   setSearch(
     response([
@@ -152,7 +233,7 @@ it('offers create and feedback buttons on an empty search, with a coming-soon no
   setSearch(response([]));
   await render(<Explore />);
   await fireEvent.changeText(screen.getByPlaceholderText(PLACEHOLDER), 'zzz');
-  expect(screen.getByText('Aucun résultat pertinent près d’ici')).toBeTruthy();
+  expect(screen.getByText("Aucun résultat pertinent près d'ici")).toBeTruthy();
   expect(screen.getByText('Créer une activité')).toBeTruthy();
   await fireEvent.press(screen.getByText('Créer une activité'));
   expect(screen.getByText('Bientôt disponible')).toBeTruthy();

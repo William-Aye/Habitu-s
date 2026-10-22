@@ -28,7 +28,11 @@ export function useExploreSearch(params: ExploreParams | null): {
   results: ExploreResult[];
   loading: boolean;
   error: boolean;
+  /** The next page failed; the results so far stay. loadMore() retries. */
+  loadMoreError: boolean;
   loadMore(): void;
+  /** Runs the first-page search again (after `error`). */
+  retry(): void;
 } {
   const normalised = params ? normaliseQuery(params.query) : '';
   const [debounced, setDebounced] = useState(normalised);
@@ -36,6 +40,8 @@ export function useExploreSearch(params: ExploreParams | null): {
   const [results, setResults] = useState<ExploreResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const requestId = useRef(0);
   const current = useRef<{ params: ExploreParams; embedding: number[] | null } | null>(null);
   const loadingMore = useRef(false);
@@ -56,6 +62,7 @@ export function useExploreSearch(params: ExploreParams | null): {
         params.newcomerFriendly,
         params.interestCategoryIds,
         params.sort,
+        attempt,
       ])
     : null;
 
@@ -80,11 +87,13 @@ export function useExploreSearch(params: ExploreParams | null): {
       setResults([]);
       setLoading(false);
       setError(false);
+      setLoadMoreError(false);
       return;
     }
     const effective = { ...p, query: debounced };
     setLoading(true);
     setError(false);
+    setLoadMoreError(false);
     (async () => {
       try {
         const embedding = await getEmbedding(debounced);
@@ -111,6 +120,7 @@ export function useExploreSearch(params: ExploreParams | null): {
     const cur = current.current;
     if (!cur || loadingMore.current || !responseRef.current?.hasMore) return;
     loadingMore.current = true;
+    setLoadMoreError(false);
     const id = requestId.current;
     const offset = resultsRef.current.length;
     searchExplore(cur.params, { limit: PAGE_SIZE, offset }, cur.embedding)
@@ -120,12 +130,14 @@ export function useExploreSearch(params: ExploreParams | null): {
         setResults((prev) => [...prev, ...res.results]);
       })
       .catch(() => {
-        if (id === requestId.current) setError(true);
+        if (id === requestId.current) setLoadMoreError(true);
       })
       .finally(() => {
         if (id === requestId.current) loadingMore.current = false;
       });
   }, []);
 
-  return { response, results, loading, error, loadMore };
+  const retry = useCallback(() => setAttempt((n) => n + 1), []);
+
+  return { response, results, loading, error, loadMoreError, loadMore, retry };
 }

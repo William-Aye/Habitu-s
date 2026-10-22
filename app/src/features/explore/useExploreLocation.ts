@@ -4,6 +4,11 @@ import { useCallback, useEffect, useState } from 'react';
 import type { StoredLocation, Town } from './types';
 
 const KEY = 'explore.location';
+
+/** GPS is kept and sent to search only at ~1 km precision (0.01 degree). */
+function roundKm(v: number): number {
+  return Math.round(v * 100) / 100;
+}
 export const MY_POSITION_KEY = 'explore.location.myPosition';
 
 export function useExploreLocation(): {
@@ -50,8 +55,8 @@ export function useExploreLocation(): {
       const pos = await Location.getCurrentPositionAsync({});
       await save({
         label: MY_POSITION_KEY,
-        lon: pos.coords.longitude,
-        lat: pos.coords.latitude,
+        lon: roundKm(pos.coords.longitude),
+        lat: roundKm(pos.coords.latitude),
         source: 'gps',
       });
       return 'ok';

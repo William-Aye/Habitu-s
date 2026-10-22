@@ -8,7 +8,7 @@ import { TownMap } from '../../features/explore/components/TownMap';
 import type { AssociationDetail } from '../../features/explore/types';
 
 type Load = { state: 'loading' } | { state: 'error' } | { state: 'ready'; data: AssociationDetail | null };
-type Wait = 'idle' | 'signed_out' | 'waiting' | 'error';
+type Wait = 'idle' | 'signed_out' | 'waiting';
 
 const ATTRIBUTIONS = ['rna', 'osm'] as const;
 
@@ -17,6 +17,7 @@ export default function AssociationPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [wait, setWait] = useState<Wait>('idle');
+  const [waitError, setWaitError] = useState(false);
   const [soon, setSoon] = useState(false);
 
   useEffect(() => {
@@ -47,19 +48,22 @@ export default function AssociationPage() {
       : (a.city ?? '');
   const keys = ATTRIBUTIONS.filter((k) => a.attributionKeys.includes(k));
 
+  // A failed write keeps the current view (still waiting, or not) and says so.
   const startWaiting = async () => {
+    setWaitError(false);
     try {
       setWait((await addWaiter(a.id)) === 'added' ? 'waiting' : 'signed_out');
     } catch {
-      setWait('error');
+      setWaitError(true);
     }
   };
   const stopWaiting = async () => {
+    setWaitError(false);
     try {
       await removeWaiter(a.id);
       setWait('idle');
     } catch {
-      setWait('error');
+      setWaitError(true);
     }
   };
 
@@ -75,7 +79,10 @@ export default function AssociationPage() {
         accessibilityRole="link"
         accessibilityLabel={`${label} : ${value}`}
         style={styles.row}
-        onPress={() => Linking.openURL(url(value))}
+        onPress={() => {
+          // No app for this link (e.g. no mail client): nothing to open, never an unhandled rejection.
+          Linking.openURL(url(value)).catch(() => {});
+        }}
       >
         <Icon size={18} color="#1a56db" />
         <Text style={styles.linkText}>{value}</Text>
@@ -158,9 +165,9 @@ export default function AssociationPage() {
                 <Text style={styles.outlineText}>{t('association.waitButton')}</Text>
               </Pressable>
               {wait === 'signed_out' ? <Text>{t('association.signInToWait')}</Text> : null}
-              {wait === 'error' ? <Text>{t('association.error')}</Text> : null}
             </>
           )}
+          {waitError ? <Text>{t('association.waitError')}</Text> : null}
         </View>
       ) : null}
 

@@ -8,9 +8,12 @@ import type { Town } from '../types';
 export function LocationPicker({
   onGps,
   onTown,
+  onCancel,
 }: {
   onGps(): Promise<'ok' | 'denied'>;
   onTown(town: Town): void;
+  /** Shown when a location is already set (opened by "Modifier"): keep it and go back. */
+  onCancel?(): void;
 }) {
   const { t } = useTranslation();
   const [typing, setTyping] = useState(false);
@@ -76,6 +79,16 @@ export function LocationPicker({
           ))}
         </View>
       ) : null}
+      {onCancel ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('explore.location.cancel')}
+          style={styles.cancel}
+          onPress={onCancel}
+        >
+          <Text style={styles.secondaryText}>{t('explore.location.cancel')}</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -102,5 +115,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingHorizontal: 16,
   },
+  cancel: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   town: { minHeight: 48, justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: '#eee' },
 });

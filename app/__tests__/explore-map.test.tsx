@@ -86,6 +86,16 @@ it('shows a compact card on marker tap that opens the result', async () => {
   expect(onOpen).toHaveBeenCalledWith(RESULTS[0]);
 });
 
+it('keeps the selected marker by id when the results are refetched', async () => {
+  const props = { center: { lon: 4.8, lat: 45.7 }, radiusKm: 10 as const, onOpen: jest.fn() };
+  const view = await render(<ResultsMap results={RESULTS} {...props} />);
+  await fireEvent.press(screen.getAllByTestId('marker')[1]);
+  expect(screen.getAllByTestId('marker')[1].props.accessibilityState).toEqual({ selected: true });
+  expect(screen.getAllByTestId('marker')[0].props.accessibilityState).toEqual({ selected: false });
+  await view.rerender(<ResultsMap results={RESULTS.map((r) => ({ ...r }))} {...props} />);
+  expect(screen.getAllByTestId('marker')[1].props.accessibilityState).toEqual({ selected: true });
+});
+
 it('TownMap renders a circle layer, no point marker, fixed zoom 12, non-interactive, attributed', async () => {
   await render(<TownMap lon={4.8} lat={45.7} label="Lyon" />);
   expect(screen.getByTestId('layer-circle')).toBeTruthy();

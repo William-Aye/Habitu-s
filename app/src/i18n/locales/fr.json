@@ -14,7 +14,8 @@
       "enterTown": "Saisir une ville",
       "townPlaceholder": "Nom de la ville",
       "denied": "Position refusée. Saisissez une ville.",
-      "myPosition": "Ma position"
+      "myPosition": "Ma position",
+      "cancel": "Annuler"
     },
     "filters": {
       "activities": "Activités",
@@ -49,7 +50,7 @@
       "unverified": "non vérifié"
     },
     "nearby": "Près de chez vous",
-    "empty": "Aucun résultat pertinent près d’ici",
+    "empty": "Aucun résultat pertinent près d'ici",
     "createActivity": "Créer une activité",
     "feedback": "Une idée ? Un problème ?",
     "activitiesOnly": "Ce filtre concerne les activités",
@@ -65,7 +66,8 @@
       "5": "Vendredi",
       "6": "Samedi",
       "7": "Dimanche"
-    }
+    },
+    "retry": "Réessayer"
   },
   "association": {
     "verified": "Association vérifiée",
@@ -88,7 +90,8 @@
     "source": {
       "rna": "Source : Répertoire national des associations (Licence Ouverte / Etalab 2.0)",
       "osm": "© les contributeurs d'OpenStreetMap (ODbL)"
-    }
+    },
+    "waitError": "Impossible d'enregistrer votre demande. Réessayez."
   },
   "activity": {
     "placeholder": {

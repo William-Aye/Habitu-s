@@ -20,17 +20,22 @@ export function ResultsMap({ results, center, radiusKm, onOpen }: Props) {
       <View style={styles.map}>
         <Map mapStyle={MAP_STYLE_URL} attribution onPress={() => setSelected(null)} style={styles.map}>
           <Camera bounds={boundsAround(center, radiusKm)} padding={{ top: 24, right: 24, bottom: 24, left: 24 }} />
-          {results.map((r) => (
-            <Marker
-              key={`${r.kind}-${r.id}`}
-              id={`${r.kind}-${r.id}`}
-              lngLat={[r.lon, r.lat]}
-              accessibilityLabel={r.title}
-              onPress={() => setSelected(r)}
-            >
-              <MapPin size={28} color={selected === r ? '#1a56db' : '#c2410c'} />
-            </Marker>
-          ))}
+          {results.map((r) => {
+            // By identity of the row, not the object: a new page or refetch brings new objects.
+            const on = selected?.kind === r.kind && selected.id === r.id;
+            return (
+              <Marker
+                key={`${r.kind}-${r.id}`}
+                id={`${r.kind}-${r.id}`}
+                lngLat={[r.lon, r.lat]}
+                accessibilityLabel={r.title}
+                accessibilityState={{ selected: on }}
+                onPress={() => setSelected(r)}
+              >
+                <MapPin size={28} color={on ? '#1a56db' : '#c2410c'} />
+              </Marker>
+            );
+          })}
         </Map>
       </View>
       {selected ? (

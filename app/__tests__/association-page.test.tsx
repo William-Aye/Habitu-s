@@ -74,6 +74,39 @@ it('opens the phone with Linking', async () => {
   expect(spy).toHaveBeenCalledWith('tel:0102030405');
 });
 
+it('catches a failed Linking.openURL', async () => {
+  const unhandled = jest.fn();
+  process.on('unhandledRejection', unhandled);
+  const spy = jest.spyOn(Linking, 'openURL').mockRejectedValue(new Error('no mail app'));
+  try {
+    await show(assoc({ email: 'club@exemple.fr', canWait: false }));
+    await fireEvent.press(screen.getByText('club@exemple.fr'));
+    expect(spy).toHaveBeenCalledWith('mailto:club@exemple.fr');
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(unhandled).not.toHaveBeenCalled();
+  } finally {
+    process.off('unhandledRejection', unhandled);
+    spy.mockRestore();
+  }
+});
+
+it('keeps the waiting view and shows an error when cancelling fails', async () => {
+  mockRemove.mockRejectedValue(new Error('network'));
+  await show(assoc({ isWaiting: true }));
+  await fireEvent.press(screen.getByText('Annuler'));
+  expect(await screen.findByText("Impossible d'enregistrer votre demande. Réessayez.")).toBeTruthy();
+  expect(screen.getByText('Nous vous préviendrons')).toBeTruthy();
+  expect(screen.queryByText(WAIT)).toBeNull();
+});
+
+it('shows the waiter error when registering fails', async () => {
+  mockAdd.mockRejectedValue(new Error('network'));
+  await show(assoc());
+  await fireEvent.press(screen.getByText(WAIT));
+  expect(await screen.findByText("Impossible d'enregistrer votre demande. Réessayez.")).toBeTruthy();
+  expect(screen.getByText(WAIT)).toBeTruthy();
+});
+
 it('shows the waiter button for a contactless unclaimed listing', async () => {
   await show(assoc());
   expect(screen.getByText(WAIT)).toBeTruthy();

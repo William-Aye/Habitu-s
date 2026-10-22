@@ -113,6 +113,36 @@ describe('useExploreSearch', () => {
     expect(hook.current.results[20].id).toBe('b0');
   });
 
+  it('a failed next page keeps the results and sets loadMoreError, and loadMore retries', async () => {
+    const first = Array.from({ length: 20 }, (_, i) => `a${i}`);
+    mockSearch
+      .mockResolvedValueOnce(response(first, true))
+      .mockRejectedValueOnce(new Error('network'))
+      .mockResolvedValueOnce(response(['b0'], false));
+    const { result: hook } = await renderHook(() => useExploreSearch({ ...base }));
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+    await act(async () => { hook.current.loadMore(); await jest.advanceTimersByTimeAsync(0); });
+    expect(hook.current.results).toHaveLength(20);
+    expect(hook.current.error).toBe(false);
+    expect(hook.current.loadMoreError).toBe(true);
+    await act(async () => { hook.current.loadMore(); await jest.advanceTimersByTimeAsync(0); });
+    expect(mockSearch.mock.calls[2][1]).toEqual({ limit: 20, offset: 20 });
+    expect(hook.current.loadMoreError).toBe(false);
+    expect(hook.current.results).toHaveLength(21);
+  });
+
+  it('retry runs a failed first page again', async () => {
+    mockSearch.mockRejectedValueOnce(new Error('network')).mockResolvedValueOnce(response(['x']));
+    const { result: hook } = await renderHook(() => useExploreSearch({ ...base }));
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+    expect(hook.current.error).toBe(true);
+    await act(async () => { hook.current.retry(); await jest.advanceTimersByTimeAsync(0); });
+    expect(mockSearch).toHaveBeenCalledTimes(2);
+    expect(mockSearch.mock.calls[1][1]).toEqual({ limit: 20, offset: 0 });
+    expect(hook.current.error).toBe(false);
+    expect(hook.current.results.map((r) => r.id)).toEqual(['x']);
+  });
+
   it('discards a slower earlier response', async () => {
     let resolveSlow!: (r: ExploreResponse) => void;
     mockSearch
@@ -143,16 +173,16 @@ describe('useExploreLocation', () => {
     expect(Location.getCurrentPositionAsync).not.toHaveBeenCalled();
   });
 
-  it('requestGps granted stores the position with the translation key label', async () => {
+  it('requestGps granted stores the position rounded to ~1 km, with the translation key label', async () => {
     (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: 'granted', granted: true });
-    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue({ coords: { longitude: 2.35, latitude: 48.85 } });
+    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue({ coords: { longitude: 2.35219, latitude: 48.85661 } });
     const { result: hook } = await renderHook(() => useExploreLocation());
     await waitFor(() => expect(hook.current.status).toBe('needed'));
     await act(async () => { await hook.current.requestGps(); });
     expect(hook.current.status).toBe('ready');
-    expect(hook.current.location).toEqual({
-      label: 'explore.location.myPosition', lon: 2.35, lat: 48.85, source: 'gps',
-    });
+    const rounded = { label: 'explore.location.myPosition', lon: 2.35, lat: 48.86, source: 'gps' };
+    expect(hook.current.location).toEqual(rounded);
+    expect(JSON.parse((await AsyncStorage.getItem('explore.location')) as string)).toEqual(rounded);
   });
 
   it('setTown persists to explore.location', async () => {
