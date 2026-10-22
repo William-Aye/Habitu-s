@@ -50,14 +50,22 @@ def geocoder_handler(request):
     return httpx.Response(200, text=out.getvalue())
 
 
+def _clear_imported(c):
+    c.execute("delete from public.associations where source in ('rna', 'osm', 'rna+osm')")
+    c.execute("delete from public.import_runs")
+    c.execute("delete from importer.geocode_cache")
+
+
 @pytest.fixture
 def conn():
     with psycopg.connect(URL, autocommit=True) as c:
-        # Clean slate for imported data so the test can be re-run without a reset.
-        c.execute("delete from public.associations where source in ('rna', 'osm', 'rna+osm')")
-        c.execute("delete from public.import_runs")
-        c.execute("delete from importer.geocode_cache")
-        yield c
+        # Clean slate before (the test can be re-run without a reset) and after (pgTAP expects
+        # no imported data).
+        _clear_imported(c)
+        try:
+            yield c
+        finally:
+            _clear_imported(c)
 
 
 @pytest.fixture
