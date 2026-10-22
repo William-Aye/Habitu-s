@@ -185,8 +185,9 @@ class _NullConn:
         pass
 
 
-def test_cli_vocab_warns_on_uncovered_watchlist_phrase(monkeypatch, capsys):
-    report = vocab.BuildReport(phrases_total=3, coverage={"yoga": "exact", "arduino": "none"})
+def test_cli_vocab_warns_on_watchlist_phrase_not_exact(monkeypatch, capsys):
+    coverage = {"yoga": "exact", "arduino": "none", "jeu de go": "fuzzy", "danse bretonne": "words"}
+    report = vocab.BuildReport(phrases_total=3, coverage=coverage)
     seen = {}
     monkeypatch.setattr(cli.psycopg, "connect", lambda url, autocommit: _NullConn())
     monkeypatch.setattr(cli.vocab, "build",
@@ -194,8 +195,10 @@ def test_cli_vocab_warns_on_uncovered_watchlist_phrase(monkeypatch, capsys):
     assert cli.main(["vocab", "--db-url", "postgresql://x", "--embedder", "fake",
                      "--requests-only", "--cap", "7"]) == 0
     out, err = capsys.readouterr()
-    assert json.loads(out)["coverage"] == {"yoga": "exact", "arduino": "none"}
-    assert "warning: watch-list phrase not covered by the vocabulary: arduino" in err
+    assert json.loads(out)["coverage"] == coverage
+    assert "warning: watch-list phrase resolves as none, not exact: arduino" in err
+    assert "warning: watch-list phrase resolves as fuzzy, not exact: jeu de go" in err
+    assert "warning: watch-list phrase resolves as words, not exact: danse bretonne" in err
     assert "yoga" not in err
     assert seen == {"ro": True, "cap": 7}
 

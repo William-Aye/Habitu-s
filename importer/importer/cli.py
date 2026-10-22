@@ -133,9 +133,11 @@ def run_vocab(args: argparse.Namespace) -> int:
         log.exception("vocabulary build failed")
         return 1
     print(json.dumps(dataclasses.asdict(report), ensure_ascii=False))
+    # Every watch-list phrase is stored, so anything but 'exact' means the builder's and the
+    # database's normalisation or resolution have drifted apart.
     for phrase, method in report.coverage.items():
-        if method == "none":
-            print(f"warning: watch-list phrase not covered by the vocabulary: {phrase}", file=sys.stderr)
+        if method != "exact":
+            print(f"warning: watch-list phrase resolves as {method}, not exact: {phrase}", file=sys.stderr)
     return 0
 
 
