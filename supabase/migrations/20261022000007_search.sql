@@ -43,8 +43,9 @@ create type search.param_set as (
 --   jeu de go       .869 (Soiree) .861 .854 (go clubs) .849 (copropriete) .828 (Gogo) .. decoys <= .821 .. .770
 --   danse bretonne  .873 (Cercle celtique) .868 (Bretons) .830 (Gogo) .829 (Salsa) .. decoys <= .819 .. .777
 --   escalade        .866 .863 .852 (the three climbing rows) .835 (L'Escale solidaire) .. decoys <= .821 .. .765
--- Expected rows need no keyword boost to clear 70 (Arduino, 72); the closest decoy (L'Escale
--- solidaire) scores 68. Change these only together with a green ranking run.
+-- Most expected rows clear 70 on similarity alone (Arduino, 72), but not all: Club informatique
+-- (.836, 69) needs the +8 keyword boost. The closest decoy (L'Escale solidaire) scores 68.
+-- Change these only together with a green ranking run.
 create function search.params() returns search.param_set
 language sql immutable
 as $$
@@ -130,6 +131,8 @@ revoke all on all functions in schema search from public, anon, authenticated;
 grant usage on schema search to authenticated;
 grant execute on function search.unaccent(text), search.normalise_name(text) to authenticated;
 grant usage on schema search to service_role;
+-- The service role (Edge Functions, admin tools) writes rows too, so it evaluates them as well.
+grant execute on function search.unaccent(text), search.normalise_name(text) to service_role;
 
 -- ---------------------------------------------------------------------------------------------
 -- Town-level columns and full-text search
@@ -151,13 +154,36 @@ alter table public.activities
 create index activities_search_tsv_gin on public.activities using gin (search_tsv);
 
 -- The API never exposes the exact address or position. Admin access to the address comes through
--- an admin RPC (sub-project 7).
+-- an admin RPC (sub-project 7). Nor who created or claimed an association: that links people to
+-- associations (the page exposes only `claimed`).
 revoke select on public.associations from anon, authenticated;
 grant select (id, name, purpose, rna_id, osm_id, website, phone, email, opening_hours, confidence,
-  likely_not_public, source, claimed_by, verified, locked_fields, attribution, created_by, created_at,
+  likely_not_public, source, verified, locked_fields, attribution, created_at,
   updated_at, insee_code, postcode, city, rna_published_on, geocode_precision, last_import_run,
   town_point, name_norm)
   on public.associations to anon, authenticated;
+-- The activity guard (run as the inserting user) read claimed_by, which API roles no longer can:
+-- it asks this definer helper instead. Same rule: a verified association someone else claimed.
+create function public.association_locked_for_me(p_id uuid) returns boolean
+language sql stable security definer set search_path = public, pg_temp
+as $$
+  select exists (select 1 from public.associations a
+                 where a.id = p_id and a.verified and a.claimed_by is distinct from auth.uid())
+$$;
+revoke all on function public.association_locked_for_me(uuid) from public, anon;
+grant execute on function public.association_locked_for_me(uuid) to authenticated;
+create or replace function public.activities_guard_association() returns trigger
+language plpgsql set search_path = public, pg_temp as $$
+begin
+  if current_user in ('anon', 'authenticated') and not public.is_admin()
+     and new.organised_by_association_id is not null
+     and (tg_op = 'INSERT'
+          or new.organised_by_association_id is distinct from old.organised_by_association_id)
+     and public.association_locked_for_me(new.organised_by_association_id) then
+    raise exception 'association not linkable' using errcode = '42501';
+  end if;
+  return new;
+end $$;
 
 -- ---------------------------------------------------------------------------------------------
 -- Waiters: "Me prévenir quand ce club arrive"
@@ -229,47 +255,51 @@ create function search.explore_rows(
   source_label text
 )
 language sql stable
-set search_path = public, search, extensions, pg_temp
+-- No SET clause and every name qualified: PostgreSQL inlines a SQL function only without one, and
+-- inlined into search_explore's query the planner sees the caller's values (mode, kinds, filters)
+-- and folds the branches they rule out. Called as a function it ran about twice as slow.
 as $$
   with p as (
     select prm.*, search.normalise_name(p_query) as q_norm,
            case when p_query is not null
-             then websearch_to_tsquery('french', search.unaccent(p_query)) end as tsq
+             then pg_catalog.websearch_to_tsquery('french', search.unaccent(p_query)) end as tsq
     from search.params() prm
   ),
   assoc as (
-    select 'association'::text as kind, a.id, ST_Distance(a.town_point, p_point) as distance_m,
+    select 'association'::text as kind, a.id, extensions.ST_Distance(a.town_point, p_point) as distance_m,
            search.penalty(a.likely_not_public, a.confidence, a.source, a.verified) as penalty,
            false as is_new,
            search.is_dormant(a.website, a.osm_id, a.claimed_by, a.rna_published_on, a.source, current_date)
              as dormant,
            search.source_label(a.source, a.verified, a.confidence) as source_label,
-           case when p_query is not null then word_similarity(p.q_norm, a.name_norm) end as name_sim,
+           case when p_query is not null then extensions.word_similarity(p.q_norm, a.name_norm) end as name_sim,
            case when p_query is not null then a.search_tsv @@ p.tsq end as fts,
-           case when p_query is not null then 1 - (a.embedding <=> p_query_embedding) end as sim
-    from associations a, p
+           case when p_query is not null then 1 - (a.embedding operator(extensions.<=>) p_query_embedding) end as sim
+    from public.associations a, p
     where 'association' = any(p_kinds) and p_weekday is null and not p_newcomer_friendly
-      and ST_DWithin(a.town_point, p_point, p_radius_m)
+      and extensions.ST_DWithin(a.town_point, p_point, p_radius_m)
       and not search.is_hidden(a.confidence, a.source)
       and (p_query is not null or cardinality(p_interest_slugs) = 0
-           or exists (select 1 from association_tags at join tags t on t.id = at.tag_id
+           or exists (select 1 from public.association_tags at join public.tags t on t.id = at.tag_id
                       where at.association_id = a.id and t.slug = any(p_interest_slugs)))
   ),
   act as (
-    select 'activity'::text, x.id, ST_Distance(x.place, p_point), 0,
-           x.published_at > now() - make_interval(days => p.new_days),
+    select 'activity'::text, x.id, extensions.ST_Distance(x.place, p_point), 0,
+           x.published_at > now() - pg_catalog.make_interval(days => p.new_days),
            false, null::text,
-           case when p_query is not null then word_similarity(p.q_norm, search.normalise_name(x.title)) end,
+           case when p_query is not null then extensions.word_similarity(p.q_norm, search.normalise_name(x.title)) end,
            case when p_query is not null then x.search_tsv @@ p.tsq end,
-           case when p_query is not null then 1 - (x.embedding <=> p_query_embedding) end
-    from activities x, p
+           case when p_query is not null then 1 - (x.embedding operator(extensions.<=>) p_query_embedding) end
+    from public.activities x, p
     where 'activity' = any(p_kinds)
-      and ST_DWithin(x.place, p_point, p_radius_m)
+      and extensions.ST_DWithin(x.place, p_point, p_radius_m)
       and x.archived_at is null and x.published_at <= now()
       and (auth.uid() is null or not public.is_blocked_between(x.organiser_id))
       and (not p_newcomer_friendly or x.newcomer_friendly)
       and (p_query is not null or cardinality(p_interest_slugs) = 0
-           or exists (select 1 from activity_tags at join tags t on t.id = at.tag_id
+           or exists (select 1 from public.categories c
+                      where c.id = x.category_id and c.slug = any(p_interest_slugs))
+           or exists (select 1 from public.activity_tags at join public.tags t on t.id = at.tag_id
                       where at.activity_id = x.id and t.slug = any(p_interest_slugs)))
       and (p_weekday is null or case x.recurrence_kind
              when 'weekly' then extract(isodow from x.start_date) = p_weekday
@@ -315,6 +345,9 @@ set search_path = public, search, extensions, pg_temp
 -- JIT compiles the scoring expressions for ~450 ms of the scan over a 150k-row candidate set and
 -- never pays back on this workload (measured: p95 1.6 s with it, 1.35 s without).
 set jit = off
+-- A generic plan (chosen after five calls in a session) cannot fold the inlined explore_rows on
+-- the call's mode and filters: measured 1.3 s against 0.75 s per radius-10 search at 150k rows.
+set plan_cache_mode = force_custom_plan
 as $$
 declare
   prm record;
@@ -412,7 +445,9 @@ begin
   )
   select coalesce((select jsonb_agg(item order by rn) from items), '[]'::jsonb),
          (select count(*) from ranked where score >= prm.strong),
-         exists (select 1 from ranked where rn = p_offset + p_limit + 1)
+         -- No next page past max_offset: the app would request an offset the guard rejects.
+         p_offset + p_limit < prm.max_offset
+           and exists (select 1 from ranked where rn = p_offset + p_limit + 1)
     into v_results, v_strong, v_has_more;
 
   if v_mode <> 'browse' and v_strong < prm.widen_min and p_radius_km < 50 then
@@ -427,12 +462,13 @@ begin
   if v_mode <> 'browse' and p_offset = 0 and v_strong = 0 then
     v_miss := search.anonymise_query(v_query);
     if char_length(v_miss) >= 2 then
-      insert into search_misses (query, area_label, day)
+      -- created_at carries the day only, like `day`: a miss never records when it was searched.
+      insert into search_misses (query, area_label, day, created_at)
       values (v_miss,
               (select a.city from associations a
                where a.city is not null and a.town_point is not null
                order by a.town_point <-> v_point limit 1),
-              current_date)
+              current_date, current_date::timestamptz)
       on conflict (query, (coalesce(area_label, '')), day)
         do update set hits = search_misses.hits + 1;
     end if;
@@ -468,7 +504,10 @@ as $$
     'activities', coalesce((select jsonb_agg(jsonb_build_object('id', x.id, 'title', x.title)
                                              order by x.start_date, x.id)
                             from activities x
-                            where x.organised_by_association_id = a.id and x.archived_at is null), '[]'::jsonb),
+                            where x.organised_by_association_id = a.id and x.archived_at is null
+                              and x.published_at <= now()
+                              and (auth.uid() is null or not public.is_blocked_between(x.organiser_id))),
+                           '[]'::jsonb),
     'can_wait', a.claimed_by is null and a.website is null and a.phone is null and a.email is null,
     'is_waiting', exists (select 1 from association_waiters w
                           where w.association_id = a.id and w.user_id = auth.uid())

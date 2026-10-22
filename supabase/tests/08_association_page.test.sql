@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(30);
+select plan(31);
 
 select tests.create_user('u@page.fr') as u \gset
 select tests.create_user('v@page.fr') as v \gset
@@ -29,11 +29,16 @@ insert into association_tags (association_id, tag_id)
 values ('00000000-0000-0000-0000-00000000c001', '00000000-0000-0000-0000-00000000a701');
 
 insert into activities (id, organiser_id, organised_by_association_id, category_id, title, place_label, place,
-  recurrence_kind, start_date, start_time, archived_at)
-select v.id::uuid, :'u', '00000000-0000-0000-0000-00000000c001', (select id from categories limit 1), v.title,
-       'Lyon', 'SRID=4326;POINT(4.83 45.77)', 'weekly', '2026-11-01', '19:00', v.arch::timestamptz
-from (values ('00000000-0000-0000-0000-00000000ac01', 'Initiation au go', null),
-             ('00000000-0000-0000-0000-00000000ac02', 'Ancien atelier', '2026-01-01')) v(id, title, arch);
+  recurrence_kind, start_date, start_time, archived_at, published_at)
+select v.id::uuid, v.orga::uuid, '00000000-0000-0000-0000-00000000c001', (select id from categories limit 1), v.title,
+       'Lyon', 'SRID=4326;POINT(4.83 45.77)', 'weekly', v.start::date, '19:00', v.arch::timestamptz,
+       now() + make_interval(days => v.pub_in)
+from (values ('00000000-0000-0000-0000-00000000ac01', 'Initiation au go', null, :'u', '2026-11-01', -1),
+             ('00000000-0000-0000-0000-00000000ac02', 'Ancien atelier', '2026-01-01', :'u', '2026-11-01', -1),
+             ('00000000-0000-0000-0000-00000000ac03', 'Pas encore publiée', null, :'u', '2026-11-01', 2),
+             ('00000000-0000-0000-0000-00000000ac04', 'Partie de V', null, :'v', '2026-11-02', -1))
+     v(id, title, arch, orga, start, pub_in);
+insert into blocks (blocker_id, blocked_id) values (:'v', :'u');
 
 -- anon
 select tests.act_as_anon();
@@ -60,14 +65,18 @@ select is((public.get_association('00000000-0000-0000-0000-00000000c006') ->> 'c
 select is((public.get_association('00000000-0000-0000-0000-00000000c001') ->> 'can_wait')::boolean, true, 'contactless: can wait');
 select is((public.get_association('00000000-0000-0000-0000-00000000c001') ->> 'is_waiting')::boolean, false, 'anon is not waiting');
 select is(public.get_association('00000000-0000-0000-0000-00000000c001') -> 'activities',
-          '[{"id": "00000000-0000-0000-0000-00000000ac01", "title": "Initiation au go"}]'::jsonb,
-          'only non-archived activities');
+          '[{"id": "00000000-0000-0000-0000-00000000ac01", "title": "Initiation au go"},
+            {"id": "00000000-0000-0000-0000-00000000ac04", "title": "Partie de V"}]'::jsonb,
+          'only published, non-archived activities');
 
 -- waiters
 select tests.act_as(:'u');
 select lives_ok($$ insert into association_waiters (association_id, user_id)
   values ('00000000-0000-0000-0000-00000000c001', auth.uid()) $$, 'U waits');
 select is((public.get_association('00000000-0000-0000-0000-00000000c001') ->> 'is_waiting')::boolean, true, 'is_waiting for U');
+select is(public.get_association('00000000-0000-0000-0000-00000000c001') -> 'activities',
+          '[{"id": "00000000-0000-0000-0000-00000000ac01", "title": "Initiation au go"}]'::jsonb,
+          'activities of a user who blocked U are hidden from U');
 select throws_ok($$ insert into association_waiters (association_id, user_id)
   values ('00000000-0000-0000-0000-00000000c001', '$$ || :'v' || $$') $$, '42501', null, 'cannot wait for someone else');
 select tests.act_as(:'v');

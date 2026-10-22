@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(87);
+select plan(96);
 select has_schema('search');
 select is(search.score(0.865, false, 0, 0, false), 100::smallint, 'top similarity = 100');
 select is(search.score(0.77, false, 0, 0, false), 0::smallint, 'floor similarity = 0');
@@ -45,9 +45,27 @@ select ok(not has_function_privilege('authenticated', f, 'execute'), f || ' not 
     'search.params()']) f;
 select ok(has_function_privilege('authenticated', f, 'execute'), f || ' callable by authenticated')
   from unnest(array['search.unaccent(text)', 'search.normalise_name(text)']) f;
+select tests.create_user('svc-orga@test.fr') as svc_orga \gset
+set local role service_role;
+select lives_ok($$ insert into associations (name, source, location)
+                    values ('Club du service', 'community', 'SRID=4326;POINT(0.5 0.5)') $$,
+                'service_role inserts an association (name_norm, search_tsv)');
+select lives_ok(format($f$ insert into activities (organiser_id, category_id, title, place_label, place,
+                    recurrence_kind, start_date, start_time)
+                  values (%L, (select id from categories where slug = 'games-go'), 'Partie du service', 'Nulle part',
+                          'SRID=4326;POINT(0.5 0.5)', 'weekly', '2026-11-01', '19:00') $f$, :'svc_orga'),
+                'service_role inserts an activity (search_tsv)');
+reset role;
+select ok(not has_function_privilege('service_role', 'search.score(float8,boolean,real,int,boolean)', 'execute'),
+          'search.score not callable by service_role');
+select is((select proconfig from pg_proc
+           where oid = 'search.explore_rows(geography,float8,text,extensions.vector,text[],smallint,boolean,text[])'::regprocedure),
+          null, 'explore_rows has no SET clause, so it is inlined into search_explore');
 select tests.act_as_anon();
 select throws_ok($$ select address from associations $$, '42501', null, 'anon cannot read address');
 select throws_ok($$ select location from associations $$, '42501', null, 'anon cannot read location');
+select throws_ok($$ select created_by from associations $$, '42501', null, 'anon cannot read created_by');
+select throws_ok($$ select claimed_by from associations $$, '42501', null, 'anon cannot read claimed_by');
 select lives_ok($$ select name, city, town_point from associations $$, 'anon reads public columns');
 select throws_ok($$ select * from query_embedding_cache $$, '42501', null, 'cache is service-only');
 select throws_ok($$ insert into association_waiters (association_id, user_id)
@@ -109,6 +127,10 @@ from (values
 update associations set osm_id = 'node/9010' where id = '00000000-0000-0000-0000-0000000e0010';
 insert into association_tags (association_id, tag_id)
 select '00000000-0000-0000-0000-0000000e0015', id from tags where slug = 'games-go';
+-- Only the purpose mentions the query, with an accent; similarity below the floor.
+insert into associations (id, name, purpose, source, confidence, rna_published_on, city, location, embedding)
+values ('00000000-0000-0000-0000-0000000e0016', 'Cercle de la Tour Prends', 'Parties d''échecs le samedi',
+        'rna', 85, '2020-01-01', 'Lyon', tests.pt(2.5), tests.vec(0.70));
 
 -- Lyon activities: (suffix, title, published days ago, recurrence, start_date, weekdays, newcomer, organiser, s)
 create temp table fx_users as
@@ -119,7 +141,8 @@ insert into activities (id, organiser_id, category_id, title, place_label, place
   recurrence_interval_days, recurrence_weekdays, start_date, start_time, newcomer_friendly, published_at, embedding)
 select ('00000000-0000-0000-0000-0000000a0' || v.n)::uuid,
        case when v.blocked then f.blocker else f.orga end,
-       (select id from categories where slug = 'games-go'), v.title, 'Place Bellecour', tests.pt(3.0),
+       (select id from categories where slug = case when v.n = '006' then 'games-go' else 'culture-cinema' end),
+       v.title, 'Place Bellecour', tests.pt(3.0),
        v.kind, case when v.kind = 'every_n_days' then 3 end, v.wd::smallint[], v.start::date, '19:00',
        v.newcomer, now() - make_interval(days => v.ago), tests.vec(v.s)
 from fx_users f, (values
@@ -186,8 +209,11 @@ select is((tests.item(r, '00000000-0000-0000-0000-0000000a0002')->>'score')::int
           - (tests.item(r, '00000000-0000-0000-0000-0000000a0003')->>'score')::int, 5, 'new: +5 over the 20-day twin')
   from tests.lyon('zorglub') r;
 -- keyword
-select ok(r->>'mode' = 'search' and tests.pos(r, '00000000-0000-0000-0000-0000000e0014') is not null,
-          'keyword: echecs matches Club d''Échecs de Lyon')
+select is((tests.item(r, '00000000-0000-0000-0000-0000000e0014')->>'score')::int, 61,
+          'keyword: echecs boosts Club d''Échecs de Lyon (similarity 53 + 8)')
+  from tests.lyon('echecs') r;
+select is((tests.item(r, '00000000-0000-0000-0000-0000000e0016')->>'score')::int, 8,
+          'keyword: French FTS on the purpose (échecs) returns a row below the similarity floor')
   from tests.lyon('echecs') r;
 select ok(tests.pos(tests.lyon('arduinno'), '00000000-0000-0000-0000-0000000a0001') is not null,
           'keyword: arduinno matches Atelier Arduino by name similarity');
@@ -229,10 +255,12 @@ select is(tests.ids(public.search_explore(4.835, 45.764, p_newcomer_friendly => 
 -- interests
 select is(tests.ids(public.search_explore(4.835, 45.764,
             p_interest_category_ids => array[(select id from categories where slug = 'games-go')], p_limit => 50)),
-          array['00000000-0000-0000-0000-0000000e0015'::uuid], 'interests: games-go returns the go-tagged row');
+          array['00000000-0000-0000-0000-0000000e0015'::uuid, '00000000-0000-0000-0000-0000000a0006'::uuid],
+          'interests: games-go returns the go-tagged row and the games-go category activity');
 select is(tests.ids(public.search_explore(4.835, 45.764,
             p_interest_category_ids => array[(select parent_id from categories where slug = 'games-go')], p_limit => 50)),
-          array['00000000-0000-0000-0000-0000000e0015'::uuid], 'interests: a parent category covers its children');
+          array['00000000-0000-0000-0000-0000000e0015'::uuid, '00000000-0000-0000-0000-0000000a0006'::uuid],
+          'interests: a parent category covers its children');
 -- blocks
 select tests.act_as((select u from fx_users));
 select ok(tests.pos(public.search_explore(4.835, 45.764, p_limit => 50), '00000000-0000-0000-0000-0000000a0007') is null,
@@ -256,10 +284,20 @@ select is((select count(distinct i) from unnest(tests.ids(p1) || tests.ids(p2) |
   from public.search_explore(5.04, 47.32, 5, 'zorglub', tests.vec(1.0), p_limit => 10, p_offset => 0) p1,
        public.search_explore(5.04, 47.32, 5, 'zorglub', tests.vec(1.0), p_limit => 10, p_offset => 10) p2,
        public.search_explore(5.04, 47.32, 5, 'zorglub', tests.vec(1.0), p_limit => 10, p_offset => 20) p3;
+-- has_more stops before max_offset (Nantes, 502 rows)
+insert into associations (name, source, confidence, rna_published_on, city, location, embedding)
+select 'Nantes ' || i, 'rna', 85, '2020-01-01', 'Nantes', tests.pt(i * 0.005, 0, -1.55, 47.22), tests.vec(0.9)
+from generate_series(1, 502) i;
+select is(array[(a->>'has_more')::boolean, (b->>'has_more')::boolean], array[true, false],
+          'pagination: has_more at offset 440, never past max_offset 500 at offset 450')
+  from public.search_explore(-1.55, 47.22, 5, 'zorglub', tests.vec(1.0), p_limit => 50, p_offset => 440) a,
+       public.search_explore(-1.55, 47.22, 5, 'zorglub', tests.vec(1.0), p_limit => 50, p_offset => 450) b;
 -- misses
 select public.search_explore(4.835, 45.764, 10, 'curling', null);
 select results_eq($$ select query, area_label, day, hits from search_misses where query = 'curling' $$,
                   $$ values ('curling'::text, 'Lyon'::text, current_date, 1) $$, 'misses: first miss logged');
+select is((select created_at from search_misses where query = 'curling'), current_date::timestamptz,
+          'misses: created_at carries the day only');
 select public.search_explore(4.835, 45.764, 10, 'curling', null);
 select results_eq($$ select hits from search_misses where query = 'curling' $$, $$ values (2) $$,
                   'misses: same miss increments hits');
