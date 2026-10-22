@@ -124,6 +124,19 @@ as $$
               else pg_catalog.left(p_insee, 2) end
 $$;
 
+-- Same position within 1e-7 degree (~1 cm): a point read back from the geocode cache can differ
+-- from the freshly geocoded one in the last bit, which must not count as a change.
+create function importer.same_point(a extensions.geography, b extensions.geography) returns boolean
+language sql immutable
+as $$
+  select (a is null and b is null)
+      or (a is not null and b is not null
+          and pg_catalog.abs(extensions.st_x(a::extensions.geometry) operator(pg_catalog.-)
+                             extensions.st_x(b::extensions.geometry)) operator(pg_catalog.<) 1e-7
+          and pg_catalog.abs(extensions.st_y(a::extensions.geometry) operator(pg_catalog.-)
+                             extensions.st_y(b::extensions.geometry)) operator(pg_catalog.<) 1e-7)
+$$;
+
 -- null scope = all of France; otherwise a listing without a known département is out of scope.
 create function importer.in_scope(p_insee text, p_scope text[]) returns boolean
 language sql immutable
@@ -338,14 +351,15 @@ begin
       embedding_hash = excluded.embedding_hash, source = excluded.source,
       attribution = excluded.attribution, last_import_run = p_run
     where importer.in_scope(a.insee_code, p_scope)
-      and (a.name, a.purpose, a.address, a.postcode, a.city, a.insee_code, a.location::text,
-           a.geocode_precision, a.website, a.rna_published_on, a.likely_not_public, a.embedding_hash,
-           a.source, a.attribution)
-          is distinct from
-          (excluded.name, excluded.purpose, excluded.address, excluded.postcode, excluded.city,
-           excluded.insee_code, excluded.location::text, excluded.geocode_precision, excluded.website,
-           excluded.rna_published_on, excluded.likely_not_public, excluded.embedding_hash,
-           excluded.source, excluded.attribution)
+      and ((a.name, a.purpose, a.address, a.postcode, a.city, a.insee_code,
+            a.geocode_precision, a.website, a.rna_published_on, a.likely_not_public, a.embedding_hash,
+            a.source, a.attribution)
+           is distinct from
+           (excluded.name, excluded.purpose, excluded.address, excluded.postcode, excluded.city,
+            excluded.insee_code, excluded.geocode_precision, excluded.website,
+            excluded.rna_published_on, excluded.likely_not_public, excluded.embedding_hash,
+            excluded.source, excluded.attribution)
+           or not importer.same_point(a.location, excluded.location))
     returning (xmax = 0) as is_insert
   )
   select count(*) filter (where is_insert), count(*) filter (where not is_insert)
@@ -445,11 +459,12 @@ begin
     from _ar_match x join _ar_osm o on o.osm_id = x.osm_id join associations b on b.id = x.assoc_id
   ) v
   where a.id = v.id
-    and (a.osm_id, a.source, a.phone, a.email, a.opening_hours, a.website, a.location::text,
-         a.geocode_precision, a.attribution)
-        is distinct from
-        (v.osm_id, 'rna+osm', v.phone, v.email, v.opening_hours, v.website, v.location::text,
-         v.geocode_precision, v.attribution);
+    and ((a.osm_id, a.source, a.phone, a.email, a.opening_hours, a.website, a.geocode_precision,
+          a.attribution)
+         is distinct from
+         (v.osm_id, 'rna+osm', v.phone, v.email, v.opening_hours, v.website, v.geocode_precision,
+          v.attribution)
+         or not importer.same_point(a.location, v.location));
 
   -- An in-scope rna+osm listing whose RNA record disappeared but whose OSM feature is still
   -- mapped (and unmatched) lives on as an OSM listing; step 4 then refreshes it.
@@ -492,12 +507,13 @@ begin
     embedding = excluded.embedding, embedding_hash = excluded.embedding_hash,
     attribution = excluded.attribution, last_import_run = p_run
   where a.source = 'osm' and importer.in_scope(a.insee_code, p_scope)
-    and (a.name, a.location::text, a.insee_code, a.website, a.phone, a.email, a.opening_hours,
-         a.likely_not_public, a.embedding_hash, a.attribution)
-        is distinct from
-        (excluded.name, excluded.location::text, excluded.insee_code, excluded.website, excluded.phone,
-         excluded.email, excluded.opening_hours, excluded.likely_not_public, excluded.embedding_hash,
-         excluded.attribution);
+    and ((a.name, a.insee_code, a.website, a.phone, a.email, a.opening_hours,
+          a.likely_not_public, a.embedding_hash, a.attribution)
+         is distinct from
+         (excluded.name, excluded.insee_code, excluded.website, excluded.phone,
+          excluded.email, excluded.opening_hours, excluded.likely_not_public, excluded.embedding_hash,
+          excluded.attribution)
+         or not importer.same_point(a.location, excluded.location));
 
   insert into _ar_rows (id)
   select a.id
@@ -592,6 +608,7 @@ end $$;
 
 revoke all on function importer.departement(text) from public, anon, authenticated;
 revoke all on function importer.in_scope(text, text[]) from public, anon, authenticated;
+revoke all on function importer.same_point(extensions.geography, extensions.geography) from public, anon, authenticated;
 revoke all on function importer.pick_pairs() from public, anon, authenticated;
 revoke all on function importer.merge_into(uuid, uuid) from public, anon, authenticated;
 revoke all on function importer.apply_run(uuid, text[]) from public, anon, authenticated;

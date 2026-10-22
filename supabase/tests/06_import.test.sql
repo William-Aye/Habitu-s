@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(111);
+select plan(113);
 select has_schema('importer');
 select has_table('public', 'import_runs', 'import_runs exists');
 select has_column('public', 'associations', 'embedding_hash', 'associations.embedding_hash');
@@ -18,6 +18,11 @@ select is(importer.normalise_name('Gym™'), 'gym', 'normalise_name parity: Gym�
 select is(importer.normalise_name('Fit ﬁt'), 'fit fit', 'normalise_name parity: Fit ﬁt');
 select is(importer.normalise_name('ＡＢＣ club'), 'abc', 'normalise_name parity: ＡＢＣ club');
 select is(importer.confidence(current_date - 365, true, true, true, current_date), 100::smallint, 'max confidence');
+select ok(importer.same_point('SRID=4326;POINT(4.8229999999999995 45.761)', 'SRID=4326;POINT(4.823 45.761)'),
+  'same_point: a last-bit difference is the same point');
+select ok(not importer.same_point('SRID=4326;POINT(4.822 45.761)', 'SRID=4326;POINT(4.8221 45.761)')
+          and not importer.same_point(null, 'SRID=4326;POINT(4.822 45.761)') and importer.same_point(null, null),
+  'same_point: 1e-4 degree apart or one side null is a change');
 select is(importer.confidence(null, false, false, false, current_date), 20::smallint, 'base confidence');
 select is(importer.confidence(current_date - 6*365, false, false, false, current_date), 20::smallint, 'old publication adds nothing');
 
