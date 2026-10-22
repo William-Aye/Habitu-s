@@ -93,29 +93,52 @@ export async function setLevel(
   if (error) throw new Error('interests write failed');
 }
 
-/** Upserts local entries that are stronger than the stored ones (love > like > curious), then clears the local key. */
-export async function mergeLocalIntoAccount(userId: string): Promise<void> {
+/**
+ * One merge pass. Removes from the local list only what it merged unchanged; a tap made while the upload
+ * ran stays local, and a deletion made meanwhile is applied to the account. Returns true if entries remain.
+ */
+async function mergePass(userId: string): Promise<boolean> {
   const local = await readLocal();
   const ids = Object.keys(local);
-  if (ids.length > 0) {
-    const account = await getInterests(userId);
-    const rows = ids
-      .filter((id) => !account[id] || STRENGTH[local[id]] > STRENGTH[account[id]])
-      .map((id) => ({ user_id: userId, category_id: id, level: local[id] }));
-    if (rows.length > 0) {
-      const { error } = await supabase
-        .from('user_interests')
-        .upsert(rows, { onConflict: 'user_id,category_id' });
-      if (error) throw new Error('interests merge failed');
-    }
+  if (ids.length === 0) {
+    await serialised(() => AsyncStorage.removeItem(LOCAL_KEY));
+    return false;
   }
-  // Drop only what was merged: a tap made while the upload ran stays for the next merge.
+  const account = await getInterests(userId);
+  const rows = ids
+    .filter((id) => !account[id] || STRENGTH[local[id]] > STRENGTH[account[id]])
+    .map((id) => ({ user_id: userId, category_id: id, level: local[id] }));
+  if (rows.length > 0) {
+    const { error } = await supabase
+      .from('user_interests')
+      .upsert(rows, { onConflict: 'user_id,category_id' });
+    if (error) throw new Error('interests merge failed');
+  }
+  let deleted: string[] = [];
+  let leftover = false;
   await serialised(async () => {
     const rest = await readLocal();
+    deleted = ids.filter((id) => !(id in rest));
     for (const id of ids) if (rest[id] === local[id]) delete rest[id];
-    if (Object.keys(rest).length === 0) await AsyncStorage.removeItem(LOCAL_KEY);
-    else await AsyncStorage.setItem(LOCAL_KEY, JSON.stringify(rest));
+    leftover = Object.keys(rest).length > 0;
+    if (leftover) await AsyncStorage.setItem(LOCAL_KEY, JSON.stringify(rest));
+    else await AsyncStorage.removeItem(LOCAL_KEY);
   });
+  for (const id of deleted) {
+    const { error } = await supabase
+      .from('user_interests')
+      .delete()
+      .eq('user_id', userId)
+      .eq('category_id', id);
+    if (error) throw new Error('interests merge failed');
+  }
+  return leftover;
+}
+
+/** Upserts local entries that are stronger than the stored ones (love > like > curious), then clears the local key. */
+export async function mergeLocalIntoAccount(userId: string): Promise<void> {
+  // One extra pass picks up taps made during the first upload; anything later waits for the next sign-in.
+  if (await mergePass(userId)) await mergePass(userId);
   listeners.forEach((fn) => fn());
 }
 

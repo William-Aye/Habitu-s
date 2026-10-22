@@ -44,8 +44,22 @@ beforeEach(async () => {
   await AsyncStorage.clear();
 });
 
-it('serialises concurrent signed-out writes so none is lost', async () => {
-  await Promise.all([setLevel(null, 'a', 'like'), setLevel(null, 'b', 'love'), setLevel(null, 'c', 'curious')]);
+it('serialises concurrent signed-out writes even when reads resolve in reverse order', async () => {
+  const get = AsyncStorage.getItem as jest.Mock;
+  const real = get.getMockImplementation() as (k: string) => Promise<string | null>;
+  // Each read sees the stored value at call time but resolves later the earlier it was issued.
+  for (const delay of [60, 40, 20]) {
+    get.mockImplementationOnce(async (k: string) => {
+      const value = await real(k);
+      await new Promise((r) => setTimeout(r, delay));
+      return value;
+    });
+  }
+  await Promise.all([
+    setLevel(null, 'a', 'like'),
+    setLevel(null, 'b', 'love'),
+    setLevel(null, 'c', 'curious'),
+  ]);
   expect(await getInterests(null)).toEqual({ a: 'like', b: 'love', c: 'curious' });
 });
 

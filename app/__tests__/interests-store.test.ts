@@ -8,7 +8,7 @@ import {
 } from '../src/features/interests/store';
 
 type Row = { user_id: string; category_id: string; level: string };
-const db = { rows: [] as Row[], failUpsert: false };
+const db = { rows: [] as Row[], failUpsert: false, onUpsert: null as null | (() => Promise<void>) };
 
 jest.mock('../src/lib/supabase', () => {
   const fake = {
@@ -23,6 +23,8 @@ jest.mock('../src/lib/supabase', () => {
         }),
         upsert: async (input: Row | Row[]) => {
           if (db.failUpsert) return { error: { message: 'boom' } };
+          const hook = db.onUpsert;
+          await hook?.();
           for (const r of Array.isArray(input) ? input : [input]) {
             db.rows = db.rows.filter(
               (x) => !(x.user_id === r.user_id && x.category_id === r.category_id),
@@ -52,6 +54,7 @@ const U = 'user-1';
 beforeEach(async () => {
   db.rows = [];
   db.failUpsert = false;
+  db.onUpsert = null;
   await AsyncStorage.clear();
 });
 
@@ -120,5 +123,39 @@ describe('mergeLocalIntoAccount', () => {
       b: 'like',
       c: 'curious',
     });
+  });
+
+  it('keeps an entry changed during the upload and removes the unchanged merged ones', async () => {
+    await AsyncStorage.setItem('interests.local', JSON.stringify({ a: 'like', b: 'curious' }));
+    // b is tapped again during each of the two bounded passes: it must stay local, a must go.
+    const taps: Level[] = ['love', 'like'];
+    db.onUpsert = () => setLevel(null, 'b', taps.shift() ?? 'like');
+    await mergeLocalIntoAccount(U);
+    expect(await getInterests(null)).toEqual({ b: 'like' });
+    expect(await getInterests(U)).toEqual({ a: 'like', b: 'love' });
+  });
+
+  it('merges a tap made during the upload in one extra pass', async () => {
+    await AsyncStorage.setItem('interests.local', JSON.stringify({ a: 'like' }));
+    let fired = false;
+    db.onUpsert = async () => {
+      if (!fired) await setLevel(null, 'z', 'love');
+      fired = true;
+    };
+    await mergeLocalIntoAccount(U);
+    expect(await getInterests(U)).toEqual({ a: 'like', z: 'love' });
+    expect(await AsyncStorage.getItem('interests.local')).toBeNull();
+  });
+
+  it('applies a deletion made during the upload to the account', async () => {
+    await AsyncStorage.setItem('interests.local', JSON.stringify({ a: 'like', b: 'love' }));
+    let fired = false;
+    db.onUpsert = async () => {
+      if (!fired) await setLevel(null, 'b', null);
+      fired = true;
+    };
+    await mergeLocalIntoAccount(U);
+    expect(await getInterests(U)).toEqual({ a: 'like' });
+    expect(await AsyncStorage.getItem('interests.local')).toBeNull();
   });
 });
