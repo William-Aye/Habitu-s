@@ -60,7 +60,7 @@ jest.mock('../src/features/account/auth', () => ({ signOut: jest.fn(async () => 
 jest.mock('../src/lib/supabase', () => ({
   supabase: {
     rpc: jest.fn(),
-    auth: { getSession: jest.fn() },
+    auth: { getSession: jest.fn(), signOut: jest.fn(async () => ({ error: null })) },
     from: jest.fn(),
     storage: { from: jest.fn() },
   },
@@ -114,11 +114,22 @@ describe('exportMyData', () => {
     expect(mockDeleted).toEqual(['habitues-mes-donnees-2026-10-01.json']);
   });
 
-  it('deletes the cached file when sharing fails', async () => {
+  it('keeps the cached file when sharing fails (the chooser may have handed it out)', async () => {
     rpc.mockResolvedValue({ data: { a: 1 }, error: null });
     Sharing.shareAsync.mockRejectedValueOnce(new Error('share failed'));
     expect(await exportMyData()).toEqual({ ok: false });
-    expect(mockDeleted).toEqual([mockWrites[0].uri]);
+    expect(mockDeleted).toEqual([]);
+  });
+
+  it('deletes the cached file when writing it fails', async () => {
+    rpc.mockResolvedValue({ data: { a: 1 }, error: null });
+    const { File } = jest.requireMock('expo-file-system');
+    const spy = jest.spyOn(File.prototype, 'write').mockImplementationOnce(() => {
+      throw new Error('disk full');
+    });
+    expect(await exportMyData()).toEqual({ ok: false });
+    expect(mockDeleted).toHaveLength(1);
+    spy.mockRestore();
   });
 
   it('returns ok:false and writes nothing when the RPC fails', async () => {
@@ -185,6 +196,12 @@ describe('deleteMyAccount', () => {
     mockCache.push('habitues-mes-donnees-2026-10-01.json');
     await deleteMyAccount();
     expect(mockDeleted).toContain('habitues-mes-donnees-2026-10-01.json');
+  });
+
+  it('clears the local session as a fallback even when the full sign-out fails', async () => {
+    (signOut as jest.Mock).mockRejectedValueOnce(new Error('network'));
+    expect(await deleteMyAccount()).toEqual({ ok: true });
+    expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
   });
 
   it('still resolves ok and resets in-memory state when signOut throws', async () => {

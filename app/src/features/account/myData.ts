@@ -28,7 +28,7 @@ export function cleanupExportFiles(): void {
 
 export async function exportMyData(): Promise<{ ok: true; path: string } | { ok: false }> {
   let file: File | null = null;
-  let shared = false;
+  let handedOut = false;
   cleanupExportFiles();
   try {
     const { data, error } = await supabase.rpc('export_my_data');
@@ -37,19 +37,19 @@ export async function exportMyData(): Promise<{ ok: true; path: string } | { ok:
     file = new File(Paths.cache, `habitues-mes-donnees-${day}.json`);
     file.create({ overwrite: true });
     file.write(JSON.stringify(data, null, 2));
+    handedOut = true;
     await Sharing.shareAsync(file.uri, {
       mimeType: 'application/json',
       UTI: 'public.json',
     });
-    shared = true;
     return { ok: true, path: file.uri };
   } catch {
     return { ok: false };
   } finally {
-    // After a successful share the file stays (the receiving app may still read it);
-    // cleanupExportFiles() removes it at the next export or app start. A failure leaves nothing behind.
+    // Once the share sheet was opened the file stays (the receiving app may still read it, even if
+    // sharing reported an error); cleanupExportFiles() removes it at the next export or app start.
     try {
-      if (!shared) file?.delete();
+      if (!handedOut) file?.delete();
     } catch {
       // Already gone or never created.
     }
@@ -100,7 +100,14 @@ export async function deleteMyAccount(): Promise<{ ok: boolean }> {
   try {
     await signOut();
   } catch {
-    // The server side is already deleted: the session dies on its own.
+    // Handled below.
+  }
+  // supabase-js only drops the stored session after a successful (or 401/403/404) server call;
+  // on a network failure it keeps it. The account is already gone, so always clear it locally too.
+  try {
+    await supabase.auth.signOut({ scope: 'local' });
+  } catch {
+    // Nothing more can be done from here.
   } finally {
     notifyInterestsChanged();
     notifyExploreLocationReset();
