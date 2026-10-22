@@ -268,9 +268,12 @@ begin
       purpose = case when 'purpose' = any(a.locked_fields) then a.purpose else excluded.purpose end,
       address = case when 'address' = any(a.locked_fields) then a.address else excluded.address end,
       insee_code = case when 'insee_code' = any(a.locked_fields) then a.insee_code else excluded.insee_code end,
-      location = case when 'location' = any(a.locked_fields) then a.location else excluded.location end,
+      -- A row whose geocoding failed this month (null location) keeps its previous position.
+      location = case when 'location' = any(a.locked_fields) or excluded.location is null
+                      then a.location else excluded.location end,
       geocode_precision = case when 'geocode_precision' = any(a.locked_fields)
                                  or 'location' = any(a.locked_fields)
+                                 or excluded.location is null
                                then a.geocode_precision else excluded.geocode_precision end,
       website = case when 'website' = any(a.locked_fields) then a.website else excluded.website end,
       rna_published_on = case when 'rna_published_on' = any(a.locked_fields) then a.rna_published_on

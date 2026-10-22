@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(90);
+select plan(93);
 select has_schema('importer');
 select has_table('public', 'import_runs', 'import_runs exists');
 select has_column('public', 'associations', 'embedding_hash', 'associations.embedding_hash');
@@ -380,5 +380,21 @@ select is((select count(*) from associations
   'null scope: unclaimed listings of every département absent from staging are removed');
 select is((select confidence from associations where rna_id = 'W691000003'), 0::smallint,
   'null scope: claimed listing absent from staging kept at 0');
+-- ---------------------------------------------------------------------------------------------
+-- Run 7, scope {'33'}: a staged RNA row without a location (geocoding failed) keeps the
+-- listing's existing location and precision.
+insert into import_runs (scope) values (array['33']) returning id as run7 \gset
+insert into importer.staged_rna (run_id, rna_id, name, insee_code, location, geocode_precision,
+                                 published_on, likely_not_public, embedding_hash)
+values (:'run7', 'W331000001', 'Club de Go de Bordeaux', '33063', null, null, current_date - 100, false, 'b1'),
+       (:'run7', 'W331000002', 'Chorale de Bordeaux', '33063', null, null, current_date - 100, false, 'b3');
+select importer.apply_run(:'run7', array['33']) as counts7 \gset
+select ok((select extensions.st_equals(location::extensions.geometry, 'SRID=4326;POINT(-0.580 44.840)'::extensions.geometry)
+           from associations where rna_id = 'W331000001'),
+  'null staged location: existing location kept');
+select is((select geocode_precision from associations where rna_id = 'W331000001'), 'address',
+  'null staged location: existing geocode_precision kept');
+select ok((select location is null and geocode_precision is null from associations where rna_id = 'W331000002'),
+  'null staged location: new listing inserted without a location');
 select * from finish();
 rollback;
