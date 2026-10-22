@@ -26,6 +26,7 @@ packages = ["importer"]
 markers = [
     "integration: needs local Supabase",
     "slow: downloads the embedding model",
+    "edge: needs `supabase functions serve embed-query`",
 ]
-addopts = "-m \"not integration and not slow\""
+addopts = "-m \"not integration and not slow and not edge\""
 testpaths = ["tests"]

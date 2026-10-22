@@ -1,6 +1,7 @@
 """Document embeddings (multilingual-e5-small, 384 dims, "passage: " prefix)."""
 import hashlib
 import re
+import unicodedata
 import struct
 from collections.abc import Sequence
 from typing import Protocol
@@ -8,6 +9,12 @@ from typing import Protocol
 DIM = 384
 _SPACES = re.compile(r"\s+")
 _MAX_CHARS = 1000
+_MAX_QUERY_CHARS = 200
+
+
+def normalise_query(text: str) -> str:
+    """NFC, trim, collapse whitespace, lower-case, cut to 200 chars (same rule as the edge function)."""
+    return _SPACES.sub(" ", unicodedata.normalize("NFC", text).strip()).lower()[:_MAX_QUERY_CHARS]
 
 
 class Embedder(Protocol):
@@ -34,6 +41,15 @@ class E5Embedder:
         ).astype("float32", copy=False)
 
 
+    def embed_queries(self, texts: list[str]):
+        return self.model.encode(
+            ["query: " + normalise_query(t) for t in texts],
+            batch_size=self.batch_size,
+            normalize_embeddings=True,
+            convert_to_numpy=True,
+        ).astype("float32", copy=False)
+
+
 class FakeEmbedder:
     """Deterministic unit vectors derived from sha256(text); for tests."""
 
@@ -41,6 +57,9 @@ class FakeEmbedder:
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         return [self._one(t) for t in texts]
+
+    def embed_queries(self, texts: list[str]) -> list[list[float]]:
+        return self.embed(["query: " + t for t in texts])
 
     def _one(self, text: str) -> list[float]:
         raw = b""

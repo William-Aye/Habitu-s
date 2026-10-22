@@ -37,3 +37,11 @@ def test_e5_semantic_similarity():
     )
     cos = lambda u, v: sum(x * y for x, y in zip(u, v))
     assert cos(q, near) > cos(q, far)
+
+
+def test_normalise_query():
+    from importer.embed import normalise_query
+
+    assert normalise_query("  Jeu  de GO ") == "jeu de go"
+    assert normalise_query("école") == "école"
+    assert len(normalise_query("a" * 300)) == 200
