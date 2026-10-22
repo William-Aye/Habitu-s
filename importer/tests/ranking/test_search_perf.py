@@ -38,10 +38,8 @@ def perf_db():
     mean = _unit(rng.standard_normal(384))
     with psycopg.connect(URL, autocommit=True) as c:
         c.execute(CLEAR)
-        # search_explore never uses the HNSW index (post-filtering by distance would lose results),
-        # and building it row by row over 150k vectors takes tens of minutes. Drop it for the load
-        # and recreate it (on the emptied table: instant) afterwards.
-        c.execute("drop index if exists public.associations_embedding_hnsw")
+        # No HNSW index here: migration 007 drops it (search_explore never uses it), so the table
+        # matches production.
         try:
             with c.cursor() as cur, cur.copy(
                 """copy public.associations (name, purpose, source, confidence, location, website,
@@ -62,12 +60,8 @@ def perf_db():
             c.execute("analyze public.associations")
             yield c, mean, rng
         finally:
-            try:
-                c.execute(CLEAR)
-                c.execute("vacuum public.associations")
-            finally:
-                c.execute("create index if not exists associations_embedding_hnsw on public.associations"
-                          " using hnsw (embedding vector_cosine_ops)")
+            c.execute(CLEAR)
+            c.execute("vacuum public.associations")
 
 
 def _p95(c, sql, args, label):
