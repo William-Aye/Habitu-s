@@ -63,15 +63,20 @@ Both jobs run `python -m importer vocab` and use the same model as documents
 end, so a failure leaves the previous vocabulary in place (and fails the job).
 
 - **Monthly** (`import.yml`, 5th, after the association import): full build from all
-  associations (names, categories, words) plus user requests. Estimate: 30-60 minutes.
+  associations (names, categories, words) plus user requests. Estimate: 30-60 minutes. If the
+  vocabulary step fails, the monthly import run is marked failed although the imported data is
+  committed; the previous vocabulary stays in place.
 - **Nightly** (`vocab.yml`, 02:17 UTC): `--requests-only`, adds the anonymised phrases users
-  searched that the vocabulary did not know. Estimate: about 3 minutes (mostly setup).
+  searched that the vocabulary did not already understand (exact and fuzzy matches are not
+  logged). A phrase is learned only after it was searched at least twice
+  (`vocab_request_min_hits`). Estimate: about 3 minutes (mostly setup).
 - **Manual**: Actions, "Query vocabulary", Run workflow; tick `full` for a full build.
   `vocab.yml` shares the `import` concurrency group, so it never runs alongside an import.
 
 Measured on 150,000 synthetic associations with the fake embedder: counting 21.7 s, first
 build 79.8 s, rebuild 23.5 s, peak memory 123 MB, temporary disk 138 MB (about 1.4 GB at
-1.5 M associations). The real e5 model embeds roughly 5 times slower than the fake one.
+1.5 M associations, an extrapolation). The real e5 model embeds roughly 5 times slower than the fake
+one (an estimate).
 
 ### Coverage report and adding a phrase
 

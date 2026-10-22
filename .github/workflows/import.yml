@@ -18,7 +18,7 @@ permissions:
 jobs:
   import:
     runs-on: ubuntu-latest
-    timeout-minutes: 350
+    timeout-minutes: 440
     steps:
       - uses: actions/checkout@v4
 
@@ -58,6 +58,7 @@ jobs:
           uv run --project importer python -m importer run "${args[@]}"
 
       - name: Build query vocabulary
+        timeout-minutes: 90
         env:
           IMPORTER_DB_URL: ${{ secrets.IMPORTER_DB_URL }}
         run: uv run --project importer python -m importer vocab --db-url "$IMPORTER_DB_URL"
