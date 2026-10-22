@@ -63,7 +63,8 @@ create table search.query_vocab (
 );
 create index query_vocab_phrase_trgm on search.query_vocab using gist (phrase extensions.gist_trgm_ops);
 
--- Queries the vocabulary did not know, anonymised (search.anonymise_query) and counted per phrase.
+-- Queries the vocabulary did not know, anonymised (search.anonymise_query) and counted per phrase,
+-- at most once a day (search.log_vocab_request).
 -- No user, no position, and days rather than times.
 create table search.vocab_requests (
   phrase text primary key,
@@ -165,8 +166,10 @@ end
 $$;
 
 -- A query the vocabulary approximated (words) or missed (none) is counted, anonymised, so the
--- nightly job can add the ones seen vocab_request_min_hits times. p_method is the query's
--- resolve_query method, which search_explore already holds.
+-- nightly job can add the ones seen on vocab_request_min_hits different days (one hit per phrase
+-- per day: a single person repeating a query cannot promote it). A phrase with 6 or more digits in
+-- total is never stored ("06 12 34 56 78" survives anonymise_query token by token). p_method is
+-- the query's resolve_query method, which search_explore already holds.
 create function search.log_vocab_request(p_query text, p_method text) returns void
 language plpgsql volatile
 set search_path = pg_catalog, pg_temp
@@ -178,11 +181,12 @@ begin
     return;
   end if;
   v_phrase := search.anonymise_query(p_query);
-  if char_length(v_phrase) < 2 then
+  if char_length(v_phrase) < 2 or char_length(regexp_replace(v_phrase, '[^0-9]', '', 'g')) >= 6 then
     return;
   end if;
   insert into search.vocab_requests as r (phrase) values (v_phrase)
-  on conflict (phrase) do update set hits = r.hits + 1, last_seen = current_date;
+  on conflict (phrase) do update
+    set hits = r.hits + case when r.last_seen < current_date then 1 else 0 end, last_seen = current_date;
 end
 $$;
 

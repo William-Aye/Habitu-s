@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(63);
+select plan(66);
 
 -- Same helper as 07: similarity of tests.vec(s) to tests.vec(1.0) is exactly s.
 create function tests.vec(s float8) returns extensions.vector language sql immutable as $$
@@ -103,12 +103,22 @@ delete from search.vocab_requests;
 select is(r->>'query_match', 'words', 'words via search_explore')
   from public.search_explore(4.835, 45.764, 10, 'cours de danse bretonne') r;
 select public.search_explore(4.835, 45.764, 10, 'Cours  de danse bretonne') is not null;
-select is((select hits from search.vocab_requests where phrase = 'cours de danse bretonne'), 2,
-          'two searches, one request with 2 hits');
+select is((select hits from search.vocab_requests where phrase = 'cours de danse bretonne'), 1,
+          'two searches the same day: one request, 1 hit');
+update search.vocab_requests set last_seen = current_date - 1 where phrase = 'cours de danse bretonne';
+select search.log_vocab_request('cours de danse bretonne', 'words');
+select is((select (hits, last_seen) from search.vocab_requests where phrase = 'cours de danse bretonne'),
+          (2, current_date), 'seen yesterday and today: 2 hits');
 select public.search_explore(4.835, 45.764, 10, 'appelez 0612345678 yoga') is not null;
 select is((select count(*)::int from search.vocab_requests where phrase = 'appelez yoga'), 1,
           'phone number removed before storing');
-select is((select count(*)::int from search.vocab_requests where phrase ~ '[0-9]'), 0, 'no digits stored');
+select is((select count(*)::int from search.vocab_requests where phrase ~ '[0-9]'), 0, 'phone number digits not stored');
+select search.log_vocab_request('appelez le 06 12 34 56 78', 'none');
+select is((select count(*)::int from search.vocab_requests where phrase like 'appelez le%'), 0,
+          'spaced phone number (10 digits in total) not stored');
+select search.log_vocab_request('course 10 km', 'none');
+select is((select count(*)::int from search.vocab_requests where phrase = 'course 10 km'), 1,
+          'a few digits are kept');
 select public.search_explore(4.835, 45.764, 10, 'yoga') is not null;
 select is((select count(*)::int from search.vocab_requests where phrase = 'yoga'), 0, 'exact match not stored');
 select search.log_vocab_request('pilates', 'exact');
