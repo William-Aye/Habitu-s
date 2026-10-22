@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(50);
+select plan(58);
 
 -- Same helper as 07: similarity of tests.vec(s) to tests.vec(1.0) is exactly s.
 create function tests.vec(s float8) returns extensions.vector language sql immutable as $$
@@ -57,8 +57,12 @@ select is((select (method, matched) from search.resolve_query('escalde')), ('fuz
 select ok((select embedding = tests.vec(0.99) from search.resolve_query('escalde')), 'fuzzy embedding');
 select is((select (method, matched) from search.resolve_query('go')), ('exact'::text, 'go'::text), 'short exact');
 select is((select method from search.resolve_query('gol')), 'none', 'short query: no fuzzy match');
+select is(extensions.similarity('yog', 'yoga'), 0.5::real, 'yog -> yoga is exactly at the fuzzy threshold');
+select is((select method from search.resolve_query('yog')), 'none', 'under 4 characters: never fuzzy');
 select ok((select method = 'words' and matched like '%danse bretonne%' and embedding is not null
            from search.resolve_query('cours de danse bretonne')), 'words: pair and tokens averaged');
+select ok((select method = 'words' and matched like '%jeu de go%' and embedding is not null
+           from search.resolve_query('jeu de go club')), 'words: adjacent token triple');
 select is((select (embedding, method, matched) from search.resolve_query('xyzzy plugh')),
           (null::extensions.vector, 'none'::text, null::text), 'unknown words: none, no embedding');
 select is((select method from search.resolve_query('yoda')), 'none', 'yoda is not yoga (similarity 0.25)');
@@ -90,6 +94,12 @@ select is((select count(*)::int from search.vocab_requests where phrase = 'appel
 select is((select count(*)::int from search.vocab_requests where phrase ~ '[0-9]'), 0, 'no digits stored');
 select public.search_explore(4.835, 45.764, 10, 'yoga') is not null;
 select is((select count(*)::int from search.vocab_requests where phrase = 'yoga'), 0, 'exact match not stored');
+select search.log_vocab_request('pilates', 'exact');
+select is((select count(*)::int from search.vocab_requests where phrase = 'pilates'), 0,
+          'two-argument form: exact is not stored');
+select search.log_vocab_request('yoga', 'none');
+select is((select count(*)::int from search.vocab_requests where phrase = 'yoga'), 1,
+          'two-argument form trusts the given method (no second resolution)');
 select public.search_explore(4.835, 45.764, 10, 'quelque chose', p_offset => 20) is not null;
 select is((select count(*)::int from search.vocab_requests where phrase = 'quelque chose'), 0,
           'page 2 not stored');
@@ -106,9 +116,9 @@ select is(array(select phrase from search.vocab_requests where phrase in ('ancie
 -- ---------------------------------------------------------------------------------------------
 -- Access
 select ok(not has_function_privilege(r, f, 'execute'), f || ' not executable by ' || r)
-  from unnest(array['search.resolve_query(text)', 'search.log_vocab_request(text)']) f,
-       unnest(array['anon', 'authenticated']) r
-  where f = 'search.resolve_query(text)' or r = 'authenticated';
+  from unnest(array['search.resolve_query(text)', 'search.log_vocab_request(text)',
+                    'search.log_vocab_request(text,text)']) f,
+       unnest(array['anon', 'authenticated']) r;
 select tests.create_user('vocab@test.fr') as vocab_user \gset
 select tests.act_as_anon();
 select throws_ok($$ select * from search.query_vocab $$, '42501', null, 'anon cannot read query_vocab');

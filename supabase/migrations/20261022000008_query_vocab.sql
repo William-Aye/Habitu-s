@@ -33,7 +33,7 @@ language sql immutable
 as $$
   select left(pg_catalog.lower(pg_catalog.btrim(pg_catalog.regexp_replace(
            normalize(x, nfc),
-           '[ \t\n\r\f\v   -     　﻿]+', ' ', 'g'), ' ')),
+           '[ \t\n\r\f\v\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+', ' ', 'g'), ' ')),
          200)
 $$;
 
@@ -122,7 +122,8 @@ begin
     end if;
   end if;
 
-  -- Units: every non-stop-word token and every adjacent token pair with a non-stop-word in it.
+  -- Units: every non-stop-word token, and every run of 2 or 3 adjacent tokens (vocabulary phrases are
+  -- 1-3 tokens joined by single spaces) with a non-stop-word in it: "jeu de go club" finds "jeu de go".
   with t as (
     select u.tok, u.n, exists (select 1 from search.stopwords s where s.word = u.tok) as stop
     from unnest(v_tokens) with ordinality as u(tok, n)
@@ -132,6 +133,10 @@ begin
     union all
     select a.tok || ' ' || b.tok, a.n, 2 from t a join t b on b.n = a.n + 1
     where not (a.stop and b.stop)
+    union all
+    select a.tok || ' ' || b.tok || ' ' || c.tok, a.n, 3
+    from t a join t b on b.n = a.n + 1 join t c on c.n = a.n + 2
+    where not (a.stop and b.stop and c.stop)
   ),
   hit as (
     select u.unit, u.pos, u.len, v.embedding from units u join search.query_vocab v on v.phrase = u.unit
@@ -156,15 +161,16 @@ end
 $$;
 
 -- A query the vocabulary approximated (words) or missed (none) is counted, anonymised, so the
--- nightly job can add the ones seen vocab_request_min_hits times.
-create function search.log_vocab_request(p_query text) returns void
+-- nightly job can add the ones seen vocab_request_min_hits times. p_method is the query's
+-- resolve_query method, which search_explore already holds.
+create function search.log_vocab_request(p_query text, p_method text) returns void
 language plpgsql volatile
 set search_path = pg_catalog, pg_temp
 as $$
 declare
   v_phrase text;
 begin
-  if (select r.method from search.resolve_query(p_query) r) not in ('words', 'none') then
+  if p_method is null or p_method not in ('words', 'none') then
     return;
   end if;
   v_phrase := search.anonymise_query(p_query);
@@ -176,8 +182,16 @@ begin
 end
 $$;
 
+-- Same, resolving the query first.
+create function search.log_vocab_request(p_query text) returns void
+language sql volatile
+set search_path = pg_catalog, pg_temp
+as $$
+  select search.log_vocab_request(p_query, (select r.method from search.resolve_query(p_query) r))
+$$;
+
 revoke all on function search.normalise_query(text), search.tokens(text), search.resolve_query(text),
-  search.log_vocab_request(text) from public, anon, authenticated, service_role;
+  search.log_vocab_request(text), search.log_vocab_request(text, text) from public, anon, authenticated, service_role;
 
 select cron.schedule('prune-vocab-requests', '20 4 * * *',
   $$ delete from search.vocab_requests
@@ -342,7 +356,7 @@ begin
   end if;
 
   if v_mode <> 'browse' and p_offset = 0 and v_match in ('words', 'none') then
-    perform search.log_vocab_request(v_query);
+    perform search.log_vocab_request(v_query, v_match);
   end if;
 
   return jsonb_build_object('mode', v_mode, 'query_match', v_match, 'results', v_results,
