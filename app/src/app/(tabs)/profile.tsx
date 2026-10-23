@@ -8,7 +8,7 @@ import { useRequireAccount } from '../../features/account/AccountGate';
 import { MAX_FIRST_NAME, signOut } from '../../features/account/auth';
 import { pickAndUploadAvatar } from '../../features/account/avatar';
 import { currentCommune } from '../../features/account/homeArea';
-import { deleteMyAccount, exportMyData } from '../../features/account/myData';
+import { deleteMessagesInLeftActivities, deleteMyAccount, exportMyData } from '../../features/account/myData';
 import { MyCollectifs } from '../../features/collectifs/MyCollectifs';
 import { LocationPicker } from '../../features/explore/components/LocationPicker';
 import type { HomeAreaInput } from '../../features/account/auth';
@@ -16,7 +16,7 @@ import { useSession, type SessionProfile } from '../../features/account/useSessi
 import { setLanguage, type AppLanguage } from '../../i18n';
 import { supabase } from '../../lib/supabase';
 
-type Notice = { kind: 'ok' | 'error'; key: string } | null;
+type Notice = { kind: 'ok' | 'error'; key: string; params?: Record<string, unknown> } | null;
 
 function LanguageSwitch({ onChange }: { onChange(lng: AppLanguage): void | Promise<unknown> }) {
   const { t, i18n } = useTranslation();
@@ -296,7 +296,7 @@ function SignedInProfile({ userId, profile }: { userId: string; profile: Session
   const [firstName, setFirstName] = useState(profile.firstName);
   const [bio, setBio] = useState(profile.bio ?? '');
   const [notice, setNotice] = useState<Notice>(null);
-  const [busy, setBusy] = useState<null | 'save' | 'photo' | 'export' | 'delete'>(null);
+  const [busy, setBusy] = useState<null | 'save' | 'photo' | 'export' | 'delete' | 'messages'>(null);
 
   const save = async () => {
     const name = firstName.trim();
@@ -344,6 +344,27 @@ function SignedInProfile({ userId, profile }: { userId: string; profile: Session
     const res = await exportMyData();
     setBusy(null);
     if (!res.ok) setNotice({ kind: 'error', key: 'profile.downloadError' });
+  };
+
+  const confirmDeleteMessages = () => {
+    Alert.alert(t('profile.deleteMessagesConfirm'), undefined, [
+      { text: t('profile.cancel'), style: 'cancel' },
+      {
+        text: t('profile.deleteAction'),
+        style: 'destructive',
+        onPress: async () => {
+          setBusy('messages');
+          setNotice(null);
+          const res = await deleteMessagesInLeftActivities();
+          setBusy(null);
+          setNotice(
+            res.ok
+              ? { kind: 'ok', key: 'profile.messagesDeleted', params: { count: res.count } }
+              : { kind: 'error', key: 'profile.deleteMessagesError' },
+          );
+        },
+      },
+    ]);
   };
 
   const confirmDelete = useConfirmDelete(
@@ -417,7 +438,7 @@ function SignedInProfile({ userId, profile }: { userId: string; profile: Session
       </Pressable>
       {notice ? (
         <Text accessibilityLiveRegion="polite" style={notice.kind === 'error' ? styles.error : styles.ok}>
-          {t(notice.key)}
+          {t(notice.key, notice.params)}
         </Text>
       ) : null}
 
@@ -458,6 +479,15 @@ function SignedInProfile({ userId, profile }: { userId: string; profile: Session
           onPress={download}
         >
           <Text style={styles.outlineText}>{t('profile.download')}</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('profile.deleteMessages')}
+          disabled={busy !== null}
+          style={styles.outline}
+          onPress={confirmDeleteMessages}
+        >
+          <Text style={styles.outlineText}>{t('profile.deleteMessages')}</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"

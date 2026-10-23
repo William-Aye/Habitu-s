@@ -8,13 +8,15 @@ import {
   activityRoster,
   archiveActivity,
   decideJoinRequest,
+  getChatHistory,
+  setChatHistory,
   setWelcomeMember,
   updateSession,
   type RosterEntry,
 } from './api';
 import { isRealDate, isValidTime, PLACE_LABEL_MAX } from './form';
 import { instantOf, wallTime } from './time';
-import type { ActivityPage, ApiError, SessionInfo } from './types';
+import type { ActivityPage, ApiError, ChatHistory, SessionInfo } from './types';
 
 const KNOWN: ApiError[] = ['limit_reached', 'not_allowed', 'session_full', 'network', 'association_unavailable'];
 
@@ -41,6 +43,18 @@ export function OrganiserPanel({ activity, onChanged, onArchived }: PanelProps) 
   const [rosterError, setRosterError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmArchive, setConfirmArchive] = useState(false);
+  const [history, setHistory] = useState<ChatHistory>('all');
+  useEffect(() => {
+    let active = true;
+    getChatHistory(activity.id).then((r) => {
+      if (active && r.ok) setHistory(r.chatHistory);
+    });
+    return () => {
+      active = false;
+    };
+  }, [activity.id]);
+  const chooseHistory = (next: ChatHistory) =>
+    run(() => setChatHistory(activity.id, next), () => setHistory(next));
 
   const [rosterKey, setRosterKey] = useState(0);
   const loadRoster = useCallback(async () => setRosterKey((k) => k + 1), []);
@@ -144,6 +158,28 @@ export function OrganiserPanel({ activity, onChanged, onArchived }: PanelProps) 
             <Text style={styles.smallText}>{o.name}</Text>
           </Pressable>
         ))}
+      </View>
+
+      <Text accessibilityRole="header" style={styles.subheading}>{t('activity.organiser.history')}</Text>
+      <Text style={styles.hint}>{t('activity.organiser.historyHint')}</Text>
+      <View style={styles.wrap} accessibilityRole="radiogroup">
+        {(['all', 'since_join'] as const).map((h) => {
+          const on = history === h;
+          const label = t(`create.settings.history_${h}`);
+          return (
+            <Pressable
+              key={h}
+              accessibilityRole="radio"
+              accessibilityLabel={label}
+              accessibilityState={{ selected: on, disabled: busy }}
+              disabled={busy}
+              style={[styles.chip, on && styles.chipOn, busy && styles.dim]}
+              onPress={() => (on ? undefined : chooseHistory(h))}
+            >
+              <Text style={[styles.smallText, on && styles.chipOnText]}>{label}</Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       {confirmArchive ? (
@@ -365,6 +401,8 @@ const styles = StyleSheet.create({
   small: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44, paddingHorizontal: 8 },
   smallText: { color: '#1a56db', fontWeight: '600' },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44, paddingHorizontal: 12, borderRadius: 22, borderWidth: 1, borderColor: '#1a56db' },
+  chipOn: { backgroundColor: '#1a56db' },
+  chipOnText: { color: '#fff' },
   dim: { opacity: 0.5 },
   form: { gap: 8 },
   input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, paddingHorizontal: 12, minHeight: 44 },

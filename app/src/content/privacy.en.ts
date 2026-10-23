@@ -35,7 +35,7 @@ We use no third-party advertising trackers. Usage statistics are totals, not lin
 - Group messages: 12 months, then deleted automatically (once this feature is available).
 - Private messages: 12 months, then deleted automatically (once this feature is available).
 - Feedback answers after sessions: aggregated into statistics, then the raw answers are deleted after 6 months (once this feature is available).
-- Reports and moderation decisions: 3 years, then deleted (once this feature is available).
+- Reports and moderation decisions: 3 years, then deleted (once this feature is available). When a message is reported, a copy is kept with the report for moderation, for the same period.
 - Accounts inactive for 3 years: warning email, then deletion 30 days later (once this feature is available).
 - Notifications: 30 days on our servers after they are sent, then deleted.
 - Technical logs (including IP addresses): our host's default retention, at most 90 days.

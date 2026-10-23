@@ -6,6 +6,8 @@ import ActivityScreen from '../src/app/activites/[id]';
 import {
   activityRoster,
   archiveActivity,
+  getChatHistory,
+  setChatHistory,
   decideJoinRequest,
   getActivity,
   joinActivity,
@@ -36,6 +38,8 @@ jest.mock('../src/features/activities/api', () => ({
   decideJoinRequest: jest.fn(),
   setWelcomeMember: jest.fn(),
   archiveActivity: jest.fn(),
+  getChatHistory: jest.fn(),
+  setChatHistory: jest.fn(),
   activityRoster: jest.fn(),
 }));
 jest.mock('../src/features/notifications/registerPush', () => ({ askForPush: jest.fn(async () => {}) }));
@@ -89,6 +93,8 @@ beforeEach(() => {
   (decideJoinRequest as jest.Mock).mockResolvedValue(ok);
   (setWelcomeMember as jest.Mock).mockResolvedValue(ok);
   (archiveActivity as jest.Mock).mockResolvedValue(ok);
+  (getChatHistory as jest.Mock).mockResolvedValue({ ok: true, chatHistory: 'all' });
+  (setChatHistory as jest.Mock).mockResolvedValue(ok);
   (activityRoster as jest.Mock).mockResolvedValue({ ok: true, people: [] });
   (createEventInCalendarAsync as jest.Mock).mockResolvedValue({ action: 'saved' });
 });
@@ -224,6 +230,24 @@ it('lets an organiser mark a discovery session and cancel it after confirming', 
   expect(updateSession).toHaveBeenCalledTimes(1);
   await fireEvent.press(screen.getByLabelText("Confirmer l'annulation de la séance"));
   expect(updateSession).toHaveBeenLastCalledWith('s1', { status: 'cancelled_by_organiser' });
+});
+
+it('lets an organiser change the chat history for newcomers', async () => {
+  await open(activity({ isOrganiser: true }));
+  expect(getChatHistory).toHaveBeenCalledWith('act1');
+  const all = await screen.findByLabelText("Tout l'historique");
+  expect(all.props.accessibilityState.selected).toBe(true);
+  await fireEvent.press(screen.getByLabelText('Seulement depuis leur arrivée'));
+  expect(setChatHistory).toHaveBeenCalledWith('act1', 'since_join');
+  expect(screen.getByLabelText('Seulement depuis leur arrivée').props.accessibilityState.selected).toBe(true);
+});
+
+it('keeps the chat history setting when saving it fails', async () => {
+  (setChatHistory as jest.Mock).mockResolvedValue({ ok: false, error: 'network' });
+  await open(activity({ isOrganiser: true }));
+  await screen.findByLabelText("Tout l'historique");
+  await fireEvent.press(screen.getByLabelText('Seulement depuis leur arrivée'));
+  expect(screen.getByLabelText("Tout l'historique").props.accessibilityState.selected).toBe(true);
 });
 
 it('lets an organiser archive after a confirmation', async () => {

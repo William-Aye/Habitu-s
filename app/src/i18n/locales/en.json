@@ -144,6 +144,8 @@
       "calendarAria": "Add the session on {{date}} to my calendar"
     },
     "organiser": {
+      "history": "Discussion history for new members",
+      "historyHint": "Current members keep what they already see; you always see everything.",
       "requests": "Requests to join",
       "noRequests": "No pending request",
       "accept": "Accept",
@@ -266,6 +268,11 @@
     "deleteAction": "Delete",
     "cancel": "Cancel",
     "deleteError": "Could not delete. Try again.",
+    "deleteMessages": "Delete my messages in activities I left",
+    "deleteMessagesConfirm": "Your messages in the activities you have left will be deleted for everyone. Continue?",
+    "messagesDeleted_one": "{{count}} message deleted",
+    "messagesDeleted_other": "{{count}} messages deleted",
+    "deleteMessagesError": "Could not delete your messages. Try again.",
     "signOut": "Sign out",
     "photoTooLarge": "This photo is too large (1 MB maximum).",
     "photoError": "Could not upload the photo. Try again.",
@@ -417,7 +424,10 @@
       "newcomers": "Beginners welcome",
       "access": "Access",
       "open": "Open to all",
-      "approval": "On request"
+      "approval": "On request",
+      "history": "Discussion history for new members",
+      "history_all": "Whole history",
+      "history_since_join": "Only since they joined"
     },
     "done": {
       "title": "Share it with your friends",

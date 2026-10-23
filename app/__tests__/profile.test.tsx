@@ -3,7 +3,7 @@ import i18next from 'i18next';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import Profile from '../src/app/(tabs)/profile';
 import { initI18n } from '../src/i18n';
-import { deleteMyAccount, exportMyData } from '../src/features/account/myData';
+import { deleteMessagesInLeftActivities, deleteMyAccount, exportMyData } from '../src/features/account/myData';
 import { pickAndUploadAvatar } from '../src/features/account/avatar';
 import { signOut } from '../src/features/account/auth';
 
@@ -79,6 +79,7 @@ jest.mock('../src/features/account/AccountGate', () => ({
 jest.mock('../src/features/account/myData', () => ({
   exportMyData: jest.fn(),
   deleteMyAccount: jest.fn(),
+  deleteMessagesInLeftActivities: jest.fn(),
 }));
 jest.mock('../src/features/account/avatar', () => ({ pickAndUploadAvatar: jest.fn() }));
 jest.mock('../src/features/explore/components/LocationPicker', () => {
@@ -273,6 +274,33 @@ it('shows an error and stays signed in when the deletion fails', async () => {
   });
   expect(await screen.findByText('Suppression impossible. Réessayez.')).toBeTruthy();
   expect(screen.getByText('Mes données')).toBeTruthy();
+});
+
+it('deletes my messages in left activities after a confirmation, then shows the count', async () => {
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  (deleteMessagesInLeftActivities as jest.Mock).mockResolvedValue({ ok: true, count: 3 });
+  await render(<Profile />);
+  await fireEvent.press(screen.getByText('Supprimer mes messages des activités quittées'));
+  expect(alert.mock.calls[0][0]).toBe(
+    'Vos messages dans les activités que vous avez quittées seront supprimés pour tout le monde. Continuer ?',
+  );
+  expect(deleteMessagesInLeftActivities).not.toHaveBeenCalled();
+  const buttons = alert.mock.calls[0][2] as { text: string; onPress?: () => void }[];
+  await act(async () => buttons[buttons.length - 1].onPress?.());
+  expect(deleteMessagesInLeftActivities).toHaveBeenCalledTimes(1);
+  expect(await screen.findByText('3 messages supprimés')).toBeTruthy();
+  alert.mockRestore();
+});
+
+it('shows an error when deleting left-activity messages fails', async () => {
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  (deleteMessagesInLeftActivities as jest.Mock).mockResolvedValue({ ok: false });
+  await render(<Profile />);
+  await fireEvent.press(screen.getByText('Supprimer mes messages des activités quittées'));
+  const buttons = alert.mock.calls[0][2] as { text: string; onPress?: () => void }[];
+  await act(async () => buttons[buttons.length - 1].onPress?.());
+  expect(await screen.findByText('Impossible de supprimer vos messages. Réessayez.')).toBeTruthy();
+  alert.mockRestore();
 });
 
 it('downloads my data and reports a failure', async () => {

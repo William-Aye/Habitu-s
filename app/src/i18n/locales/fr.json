@@ -144,6 +144,8 @@
       "calendarAria": "Ajouter la séance du {{date}} à mon agenda"
     },
     "organiser": {
+      "history": "Historique de la discussion pour les nouveaux membres",
+      "historyHint": "Les membres actuels gardent ce qu'ils voient déjà ; vous voyez toujours tout.",
       "requests": "Demandes de participation",
       "noRequests": "Aucune demande en attente",
       "accept": "Accepter",
@@ -266,6 +268,11 @@
     "deleteAction": "Supprimer",
     "cancel": "Annuler",
     "deleteError": "Suppression impossible. Réessayez.",
+    "deleteMessages": "Supprimer mes messages des activités quittées",
+    "deleteMessagesConfirm": "Vos messages dans les activités que vous avez quittées seront supprimés pour tout le monde. Continuer ?",
+    "messagesDeleted_one": "{{count}} message supprimé",
+    "messagesDeleted_other": "{{count}} messages supprimés",
+    "deleteMessagesError": "Impossible de supprimer vos messages. Réessayez.",
     "signOut": "Se déconnecter",
     "photoTooLarge": "Cette photo est trop lourde (1 Mo maximum).",
     "photoError": "Envoi de la photo impossible. Réessayez.",
@@ -417,7 +424,10 @@
       "newcomers": "Débutants bienvenus",
       "access": "Accès",
       "open": "Ouvert à tous",
-      "approval": "Sur demande"
+      "approval": "Sur demande",
+      "history": "Historique de la discussion pour les nouveaux membres",
+      "history_all": "Tout l'historique",
+      "history_since_join": "Seulement depuis leur arrivée"
     },
     "done": {
       "title": "Partagez-la avec vos amis",
