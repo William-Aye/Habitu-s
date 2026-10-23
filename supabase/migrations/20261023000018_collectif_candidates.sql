@@ -1,11 +1,11 @@
--- People an active collectif organiser may invite as organiser: members of the collectif's
+-- People the collectif's responsable may invite as organiser: members of the collectif's
 -- activities who could organise themselves (same rule as can_organise(), applied to them).
 -- Profiles are owner-only, so first names and photos come through this definer function.
 create function public.collectif_candidates(p_collectif uuid)
 returns table (user_id uuid, first_name text, photo_url text)
 language plpgsql stable security definer set search_path = public, pg_temp as $$
 begin
-  if auth.uid() is null or not public.is_collectif_member(p_collectif) then
+  if auth.uid() is null or not public.is_collectif_responsable(p_collectif) then
     raise exception 'not allowed' using errcode = '42501';
   end if;
   return query

@@ -13,7 +13,21 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'fr-FR' }] }));
 
 const mockPush = jest.fn();
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
+const mockFocusListeners = new Set<() => void>();
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: mockPush }),
+  // Runs the effect on mount and again each time the test says the screen regained focus.
+  useFocusEffect: (cb: () => void) => {
+    const React = require('react');
+    React.useEffect(() => {
+      cb();
+      mockFocusListeners.add(cb);
+      return () => {
+        mockFocusListeners.delete(cb);
+      };
+    }, [cb]);
+  },
+}));
 
 type Sess = {
   status: 'signed_out' | 'ready' | 'needs_profile' | 'loading';
@@ -154,6 +168,20 @@ describe('mes collectifs', () => {
     await render(<Profile />);
     await fireEvent.press(await screen.findByText('Les Boulistes'));
     expect(mockPush).toHaveBeenCalledWith({ pathname: '/collectifs/[id]', params: { id: 'c1' } });
+  });
+
+  it('refreshes the list when the screen regains focus', async () => {
+    await render(<Profile />);
+    await screen.findByText("Vous n'organisez aucun collectif pour l'instant.");
+    mockMine.mockResolvedValue({
+      ok: true,
+      collectifs: [{ id: 'c2', name: 'Les Joueurs', townLabel: 'Lyon', role: 'organiser' }],
+    });
+    await act(async () => {
+      mockFocusListeners.forEach((l) => l());
+    });
+    await screen.findByText('Les Joueurs');
+    expect(screen.queryByText("Vous n'organisez aucun collectif pour l'instant.")).toBeNull();
   });
 
   it('says so when I organise none and offers to create one', async () => {

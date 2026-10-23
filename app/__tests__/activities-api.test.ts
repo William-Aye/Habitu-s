@@ -553,6 +553,7 @@ describe('collectifs', () => {
   it('leaves and deletes', async () => {
     await leaveCollectif('c1');
     expect(eqs()).toEqual([['collectif_id', 'c1'], ['user_id', 'me']]);
+    expect(lastCall('select')).toBeDefined();
     calls.length = 0;
     await deleteCollectif('c1');
     expect(mockFrom).toHaveBeenLastCalledWith('collectifs');
@@ -574,6 +575,9 @@ describe('writes filtered out by row level security', () => {
   });
   it('setWelcomeMember', async () => {
     expect(await setWelcomeMember('a1', 'u2')).toEqual(denied);
+  });
+  it('leaveCollectif', async () => {
+    expect(await leaveCollectif('c1')).toEqual(denied);
   });
   it('deleteCollectif', async () => {
     expect(await deleteCollectif('c1')).toEqual(denied);

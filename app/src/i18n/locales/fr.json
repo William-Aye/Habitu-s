@@ -453,6 +453,8 @@
     "leave": "Quitter le collectif",
     "leaveConfirm": "Quitter ce collectif ?",
     "leaveBody": "Vous n'en serez plus organisateur. Le collectif et ses activités restent en ligne.",
+    "leaveBodyPassOn": "Le rôle de responsable passera à l'organisateur le plus ancien. Le collectif et ses activités restent en ligne.",
+    "leaveBodyDelete": "Vous êtes la seule personne à organiser : le collectif sera supprimé. Ses activités restent en ligne et affichent leur organisateur.",
     "leaveAction": "Quitter",
     "delete": "Supprimer le collectif",
     "deleteConfirm": "Supprimer ce collectif ?",

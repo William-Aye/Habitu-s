@@ -45,7 +45,7 @@ select is((select count(*)::int from public.collectif_candidates('00000000-0000-
 select is((select count(*)::int from public.collectif_candidates('00000000-0000-0000-0000-00000000c0a1') where first_name in ('Nael', 'Hugo')), 0, 'accounts that cannot organise yet and pending requesters are excluded');
 
 select tests.act_as(:'orgn');
-select is((select array_agg(first_name) from public.collectif_candidates('00000000-0000-0000-0000-00000000c0a1')), array['Berta','Bruno','Camille'], 'an active organiser can list candidates (blocks are per caller)');
+select throws_ok($$ select * from public.collectif_candidates('00000000-0000-0000-0000-00000000c0a1') $$, '42501', null, 'a plain organiser is denied');
 
 select tests.act_as(:'inv');
 select throws_ok($$ select * from public.collectif_candidates('00000000-0000-0000-0000-00000000c0a1') $$, '42501', null, 'an invited person is denied');

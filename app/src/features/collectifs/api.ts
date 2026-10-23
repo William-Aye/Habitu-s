@@ -114,8 +114,14 @@ export function answerInvitation(collectifId: string, accept: boolean): Promise<
 export function leaveCollectif(id: string): Promise<ApiResult> {
   return runAsUser(
     (userId) =>
-      supabase.from('collectif_members').delete().eq('collectif_id', id).eq('user_id', userId),
+      supabase
+        .from('collectif_members')
+        .delete()
+        .eq('collectif_id', id)
+        .eq('user_id', userId)
+        .select('user_id'),
     none,
+    { expectRows: true },
   );
 }
 

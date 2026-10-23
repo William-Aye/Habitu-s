@@ -1,6 +1,6 @@
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { MyCollectif } from '../activities/types';
@@ -15,17 +15,24 @@ export function MyCollectifs() {
   const [failed, setFailed] = useState(false);
   const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    myCollectifs().then((r) => {
-      if (!active) return;
-      if (r.ok) setItems(r.collectifs);
-      else setFailed(true);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
+  // Re-read each time Profil is shown again: a delete, leave or answered invitation changes the list.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      myCollectifs().then((r) => {
+        if (!active) return;
+        if (r.ok) {
+          setItems(r.collectifs);
+          setFailed(false);
+        } else {
+          setFailed(true);
+        }
+      });
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
 
   const open = (id: string) => router.push({ pathname: '/collectifs/[id]', params: { id } });
 

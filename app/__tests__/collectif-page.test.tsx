@@ -20,7 +20,8 @@ jest.mock('expo-router', () => ({
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn() },
   useLocalSearchParams: () => ({ id: 'c1' }),
 }));
-jest.mock('../src/features/explore/components/TownMap', () => ({ TownMap: () => null }));
+const mockTownMap = jest.fn((_props: unknown) => null);
+jest.mock('../src/features/explore/components/TownMap', () => ({ TownMap: (p: unknown) => mockTownMap(p) }));
 jest.mock('../src/features/explore/components/LocationPicker', () => {
   const { Pressable, Text } = require('react-native');
   return {
@@ -107,6 +108,11 @@ it('always shows the no-legal-status label with the description, organisers and 
   expect(screen.getByText('Rita')).toBeTruthy();
   expect(screen.getByText('Responsable')).toBeTruthy();
   expect(screen.getByText('Pétanque du dimanche')).toBeTruthy();
+});
+
+it('shows the town as a town-level map only', async () => {
+  await show(page());
+  expect(mockTownMap).toHaveBeenCalledWith({ lon: 4.83, lat: 45.76, label: 'Carte de Lyon (69001)' });
 });
 
 it('shows a visitor no edit, invite, create or leave controls', async () => {
@@ -225,6 +231,42 @@ it('keeps the page and says so when the deletion fails', async () => {
   await screen.findByText(/Connexion impossible/);
   expect(router.replace).not.toHaveBeenCalled();
   alert.mockRestore();
+});
+
+it('tells the responsable who takes over when another organiser exists', async () => {
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  await show(page({ myRole: 'responsable' }));
+  await fireEvent.press(screen.getByText('Quitter le collectif'));
+  expect(alert.mock.calls[0][1]).toBe(
+    "Le rôle de responsable passera à l'organisateur le plus ancien. Le collectif et ses activités restent en ligne.",
+  );
+  alert.mockRestore();
+});
+
+it('warns the sole responsable that leaving deletes the collectif', async () => {
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  await show(page({ myRole: 'responsable', organisers: [{ firstName: 'Rita', photoUrl: null, role: 'responsable' }] }));
+  await fireEvent.press(screen.getByText('Quitter le collectif'));
+  expect(alert.mock.calls[0][1]).toBe(
+    'Vous êtes la seule personne à organiser : le collectif sera supprimé. Ses activités restent en ligne et affichent leur organisateur.',
+  );
+  alert.mockRestore();
+});
+
+it('shows a plain organiser the simple leave message', async () => {
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  await show(page({ myRole: 'organiser' }));
+  await fireEvent.press(screen.getByText('Quitter le collectif'));
+  expect(alert.mock.calls[0][1]).toBe("Vous n'en serez plus organisateur. Le collectif et ses activités restent en ligne.");
+  alert.mockRestore();
+});
+
+it('marks the edit button busy while a write runs', async () => {
+  let release: (v: unknown) => void = () => {};
+  mockAnswer.mockReturnValue(new Promise((r) => (release = r)));
+  await show(page({ myRole: 'organiser' }), false);
+  expect(screen.getByLabelText('Modifier le collectif').props.accessibilityState).toEqual({ disabled: false, busy: false });
+  release({ ok: true });
 });
 
 it('leaves the collectif after a confirmation', async () => {

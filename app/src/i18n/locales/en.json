@@ -453,6 +453,8 @@
     "leave": "Leave the collectif",
     "leaveConfirm": "Leave this collectif?",
     "leaveBody": "You will no longer be an organiser. The collectif and its activities stay online.",
+    "leaveBodyPassOn": "The person-in-charge role will pass to the longest-serving organiser. The collectif and its activities stay online.",
+    "leaveBodyDelete": "You are the only organiser: the collectif will be deleted. Its activities stay online and show their organiser.",
     "leaveAction": "Leave",
     "delete": "Delete the collectif",
     "deleteConfirm": "Delete this collectif?",

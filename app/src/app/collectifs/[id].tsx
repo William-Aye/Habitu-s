@@ -108,8 +108,15 @@ export default function CollectifScreen() {
 
   const backToProfile = () => router.replace('/profile' as Href);
 
+  // The database promotes the longest-serving organiser, or deletes the collectif when there is none.
+  const leaveBodyKey = !isResponsable
+    ? 'collectif.leaveBody'
+    : c.organisers.some((o) => o.role === 'organiser')
+      ? 'collectif.leaveBodyPassOn'
+      : 'collectif.leaveBodyDelete';
+
   const confirmLeave = () =>
-    Alert.alert(t('collectif.leaveConfirm'), t('collectif.leaveBody'), [
+    Alert.alert(t('collectif.leaveConfirm'), t(leaveBodyKey), [
       { text: t('collectif.cancel'), style: 'cancel' },
       {
         text: t('collectif.leaveAction'),
@@ -134,6 +141,10 @@ export default function CollectifScreen() {
         {c.name}
       </Text>
       <Text style={styles.badge}>{t('collectif.label')}</Text>
+      <View accessibilityLiveRegion="polite">
+        {notice ? <Text>{notice}</Text> : null}
+        {error ? <Text style={styles.error}>{errorText(error)}</Text> : null}
+      </View>
 
       {load.invited ? (
         <View style={styles.banner}>
@@ -234,6 +245,7 @@ export default function CollectifScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t('collectif.edit')}
+              accessibilityState={{ disabled: busy, busy }}
               disabled={busy}
               style={[styles.outline, styles.withIcon]}
               onPress={() => setEditing(true)}
@@ -269,10 +281,6 @@ export default function CollectifScreen() {
         </View>
       ) : null}
 
-      <View accessibilityLiveRegion="polite">
-        {notice ? <Text>{notice}</Text> : null}
-        {error ? <Text style={styles.error}>{errorText(error)}</Text> : null}
-      </View>
     </ScrollView>
   );
 }
