@@ -174,7 +174,8 @@
       "archiveNo": "No, keep it",
       "tools": "Organiser tools"
     },
-    "reminderFailed": "Your answer could not be saved. Please give it below."
+    "reminderFailed": "Your answer could not be saved. Please give it below.",
+    "discussion": "Discussion"
   },
   "common": {
     "comingSoon": "Coming soon"
@@ -496,5 +497,47 @@
     "imThere": "I'll be there",
     "imThereAria": "I'll be there on {{date}}",
     "actionError": "Could not save your answer. Try again."
+  },
+  "chat": {
+    "title": "Discussion",
+    "loading": "Loading the discussion",
+    "loadError": "Could not load the discussion. Try again.",
+    "retry": "Try again",
+    "empty": "Be the first to write.",
+    "placeholder": "Write a message…",
+    "send": "Send",
+    "count": "{{count}} / 2000",
+    "nonMember": "Join the activity to take part in the discussion.",
+    "backToActivity": "View the activity",
+    "archived": "This activity is archived: the discussion is read-only.",
+    "mute": "Mute notifications",
+    "unmute": "Turn notifications back on",
+    "sending": "Sending…",
+    "unsent": "Not sent — tap to retry",
+    "limit": "You are sending a lot of messages. Please wait a minute.",
+    "actions": {
+      "title": "Message actions",
+      "report": "Report",
+      "block": "Block {{prenom}}",
+      "blockTitle": "Block {{prenom}}?",
+      "blockBody": "You will no longer see their messages.",
+      "delete": "Delete message",
+      "deleteConfirm": "Delete this message for everyone?",
+      "discard": "Do not send",
+      "cancel": "Cancel",
+      "reportTitle": "Why are you reporting this message?",
+      "reportSent": "Thank you, your report has been sent.",
+      "error": "That did not work. Try again.",
+      "back": "Back"
+    },
+    "reasons": {
+      "inappropriate": "Inappropriate content",
+      "harassment": "Harassment",
+      "scam": "Scam or spam",
+      "other": "Other"
+    },
+    "bubbleOther": "{{name}}, {{time}}: {{body}}",
+    "bubbleMine": "You, {{time}}: {{body}}",
+    "actionsHint": "Long press for actions"
   }
 }

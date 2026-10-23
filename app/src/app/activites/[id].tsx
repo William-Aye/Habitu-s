@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams, type Href } from 'expo-router';
-import { Share2 } from 'lucide-react-native';
+import { MessageCircle, Share2 } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -193,6 +193,18 @@ export default function ActivityScreen() {
           </Pressable>
           {error ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
         </View>
+      ) : null}
+
+      {a.isOrganiser || a.myStatus === 'member' ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('activity.discussion')}
+          style={styles.outline}
+          onPress={() => router.push(`/discussions/${a.id}` as Href)}
+        >
+          <MessageCircle size={18} color="#1a56db" />
+          <Text style={styles.outlineText}>{t('activity.discussion')}</Text>
+        </Pressable>
       ) : null}
 
       <Text accessibilityRole="header" style={styles.heading}>{t('activity.sessions')}</Text>

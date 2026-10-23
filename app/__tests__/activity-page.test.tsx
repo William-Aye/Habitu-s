@@ -391,3 +391,24 @@ it('tells the user when a reminder answer could not be recorded', async () => {
     delete mockParams.reminder;
   }
 });
+
+describe('discussion button', () => {
+  it('shows Discussion to a member and opens the discussion', async () => {
+    await open(activity({ myStatus: 'member' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Discussion' }));
+    expect(require('expo-router').router.push).toHaveBeenCalledWith('/discussions/act1');
+  });
+
+  it('shows Discussion to the organiser', async () => {
+    await open(activity({ isOrganiser: true, myStatus: 'none' }));
+    expect(screen.getByRole('button', { name: 'Discussion' })).toBeTruthy();
+  });
+
+  it('hides Discussion from a visitor and from a pending request', async () => {
+    await open(activity({ myStatus: 'none' }));
+    expect(screen.queryByRole('button', { name: 'Discussion' })).toBeNull();
+    await screen.unmount();
+    await open(activity({ myStatus: 'pending' }));
+    expect(screen.queryByRole('button', { name: 'Discussion' })).toBeNull();
+  });
+});
