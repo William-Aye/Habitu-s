@@ -14,6 +14,40 @@ create index collectifs_search_tsv_gin on public.collectifs using gin (search_ts
 -- Activities already have `embedding`; the nightly job needs to know which text it was computed from.
 alter table public.activities add column embedding_hash text;
 
+-- Fingerprints are written by the nightly job (service role / postgres) only: API roles cannot
+-- set or change them, otherwise a forged vector would rank a listing and its public hash would
+-- stop the job from ever correcting it. Admins keep access.
+create function public.pin_embedding() returns trigger
+language plpgsql set search_path = public, pg_temp as $$
+begin
+  if current_user in ('anon', 'authenticated') and not public.is_admin() then
+    if tg_op = 'INSERT' then
+      new.embedding := null;
+      new.embedding_hash := null;
+    else
+      new.embedding := old.embedding;
+      new.embedding_hash := old.embedding_hash;
+    end if;
+  end if;
+  return new;
+end $$;
+revoke all on function public.pin_embedding() from public, anon, authenticated;
+create trigger activities_pin_embedding before insert or update on public.activities
+  for each row execute function public.pin_embedding();
+create trigger collectifs_pin_embedding before insert or update on public.collectifs
+  for each row execute function public.pin_embedding();
+
+-- A collectif is blocked for the caller when any of its active members has a block with the caller.
+create function public.collectif_blocked_for_me(p_collectif uuid) returns boolean
+language sql stable security definer set search_path = public, pg_temp as $$
+  select auth.uid() is not null
+     and exists (select 1 from public.collectif_members m
+                  where m.collectif_id = p_collectif and m.status = 'active'
+                    and public.is_blocked_between(m.user_id))
+$$;
+revoke all on function public.collectif_blocked_for_me(uuid) from public, anon;
+grant execute on function public.collectif_blocked_for_me(uuid) to authenticated;
+
 -- ---------------------------------------------------------------------------------------------
 -- explore_rows: + collectifs, + discovery filter. Same attributes as before (no SET clause, so it
 -- is inlined into search_explore). The new trailing parameter has a default so the old 8-argument
@@ -31,6 +65,9 @@ create function search.explore_rows(
   source_label text
 )
 language sql stable
+-- No SET clause and every name qualified: PostgreSQL inlines a SQL function only without one, and
+-- inlined into search_explore's query the planner sees the caller's values (mode, kinds, filters)
+-- and folds the branches they rule out. Called as a function it ran about twice as slow.
 as $$
   with p as (
     select prm.*, search.normalise_name(p_query) as q_norm,
@@ -97,7 +134,7 @@ as $$
     where 'association' = any(p_kinds) and p_weekday is null and not p_newcomer_friendly
       and not p_discovery_only and cardinality(p_interest_slugs) = 0
       and extensions.ST_DWithin(c.town_point, p_point, p_radius_m)
-      and (auth.uid() is null or c.created_by is null or not public.is_blocked_between(c.created_by))
+      and (auth.uid() is null or not public.collectif_blocked_for_me(c.id))
   ),
   scored as (
     select c.*, k.keyword,
@@ -329,7 +366,7 @@ language sql stable security definer set search_path = public, extensions, pg_te
     'my_role', (select m.role from public.collectif_members m
                  where m.collectif_id = c.id and m.user_id = auth.uid() and m.status = 'active'))
   from public.collectifs c
-  where c.id = p_id
+  where c.id = p_id and not public.collectif_blocked_for_me(c.id)
 $$;
 revoke all on function public.get_collectif(uuid) from public;
 grant execute on function public.get_collectif(uuid) to anon, authenticated;

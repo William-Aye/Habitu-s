@@ -1,9 +1,12 @@
 begin;
 \ir helpers.inc
-select plan(23);
+select plan(35);
 select tests.create_user('resp@sc.fr', 'Rose') as resp \gset
 select tests.create_user('org1@sc.fr', 'Oscar') as org1 \gset
 select tests.create_user('inv@sc.fr', 'Ines') as inv \gset
+select tests.create_user('plain@sc.fr', 'Paul') as plain \gset
+select tests.create_user('blk@sc.fr', 'Bob') as blk \gset
+select tests.create_user('blkd@sc.fr', 'Bea') as blkd \gset
 update profiles set age_confirmed = true, created_at = now() - interval '2 days';
 update profiles set photo_url = 'https://example.org/rose.jpg' where id = :'resp';
 insert into categories (id, slug, name_fr, name_en, icon) values ('00000000-0000-0000-0000-0000000000c1', 'go', 'Jeu de go', 'Go', 'grid-3x3');
@@ -87,6 +90,55 @@ select is((select jsonb_array_length(public.get_collectif('00000000-0000-0000-00
           'non-archived activities only');
 select tests.act_as(:'org1');
 select is((public.get_collectif('00000000-0000-0000-0000-00000000c0a1')->>'my_role'), 'organiser', 'my_role for an organiser');
+
+-- my_role is null for anon, non-members and invited-only users
+select tests.act_as_anon();
+select is((public.get_collectif('00000000-0000-0000-0000-00000000c0a1')->>'my_role'), null, 'anon has no role');
+select tests.act_as(:'plain');
+select is((public.get_collectif('00000000-0000-0000-0000-00000000c0a1')->>'my_role'), null, 'non-member has no role');
+select tests.act_as(:'inv');
+select is((public.get_collectif('00000000-0000-0000-0000-00000000c0a1')->>'my_role'), null, 'invited-only has no role');
+
+-- blocks: any active member blocked with the caller hides the collectif (both directions)
+select tests.act_as_superuser();
+insert into blocks (blocker_id, blocked_id) values (:'blk', :'org1'), (:'org1', :'blkd');
+select tests.act_as(:'blk');
+select is((select count(*)::int from jsonb_array_elements(public.search_explore(4.85, 45.77, 10, 'jeu de go')->'results') r
+            where r->>'kind' = 'collectif'), 0, 'search: hidden from someone who blocked an organiser');
+select is(public.get_collectif('00000000-0000-0000-0000-00000000c0a1'), null, 'page: null for someone who blocked an organiser');
+select tests.act_as(:'blkd');
+select is((select count(*)::int from jsonb_array_elements(public.search_explore(4.85, 45.77, 10, 'jeu de go')->'results') r
+            where r->>'kind' = 'collectif'), 0, 'search: hidden from someone an organiser blocked');
+select is(public.get_collectif('00000000-0000-0000-0000-00000000c0a1'), null, 'page: null for someone an organiser blocked');
+select tests.act_as(:'plain');
+select is((select count(*)::int from jsonb_array_elements(public.search_explore(4.85, 45.77, 10, 'jeu de go')->'results') r
+            where r->>'kind' = 'collectif'), 1, 'search: still visible to everyone else');
+
+-- ranking forgery: embedding and hash cannot be written through the API
+select tests.act_as_superuser();
+update activities set embedding_hash = 'real' where id = '00000000-0000-0000-0000-0000000000f1';
+select tests.act_as(:'resp');
+update activities set embedding = array_fill(0.1::float8, array[384])::extensions.vector, embedding_hash = 'forged'
+ where id = '00000000-0000-0000-0000-0000000000f1';
+select tests.act_as_superuser();
+select is((select (embedding is null, embedding_hash) from activities where id = '00000000-0000-0000-0000-0000000000f1'),
+          (true, 'real'::text), 'activity update: embedding and hash unchanged');
+select tests.act_as(:'org1');
+insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time,
+  embedding, embedding_hash) values
+  ('00000000-0000-0000-0000-0000000000f9', :'org1', '00000000-0000-0000-0000-0000000000c1', 'Go forge', 'Cafe',
+   'POINT(4.85 45.77)', 'weekly', current_date + 100, '19:00', array_fill(0.1::float8, array[384])::extensions.vector, 'forged');
+insert into collectifs (id, name, town_label, town_point, created_by, embedding, embedding_hash) values
+  ('00000000-0000-0000-0000-00000000c0f9', 'Collectif forge', 'Lyon', 'POINT(4.85 45.77)', :'org1',
+   array_fill(0.1::float8, array[384])::extensions.vector, 'forged');
+select tests.act_as_superuser();
+select is((select (embedding is null, embedding_hash is null) from activities where id = '00000000-0000-0000-0000-0000000000f9'),
+          (true, true), 'activity insert: embedding and hash dropped');
+select is((select (embedding is null, embedding_hash is null) from collectifs where id = '00000000-0000-0000-0000-00000000c0f9'),
+          (true, true), 'collectif insert: embedding and hash dropped');
+select tests.act_as(:'resp');
+select throws_ok($$ update collectifs set embedding_hash = 'forged' where id = '00000000-0000-0000-0000-00000000c0a1' $$,
+  '42501', null, 'collectif update of the hash is refused');
 
 select * from finish();
 rollback;

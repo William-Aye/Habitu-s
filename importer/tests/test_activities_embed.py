@@ -38,23 +38,23 @@ def conn():
         # vectors, embed them with the fake embedder so only our rows are pending, restore at the end.
         for t in ("activities", "collectifs"):
             c.execute(f"create temp table ae_snap_{t} as select id, embedding, embedding_hash from public.{t}")
-        embed_pending_activities(c, FakeEmbedder())
-        user = uuid.uuid4()
-        c.execute(
-            "insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, "
-            "raw_user_meta_data) values (%s, '00000000-0000-0000-0000-000000000000', 'authenticated', "
-            "'authenticated', 'aetest@test.fr', '', '{}', '{\"first_name\": \"Test\"}')", (user,))
-        cat = c.execute(
-            "insert into public.categories (slug, name_fr, name_en, icon) values ('aetest-go', 'Go', 'Go', 'x') "
-            "returning id").fetchone()[0]
-        c.execute(
-            "insert into public.activities (organiser_id, category_id, title, description, place_label, place, "
-            "recurrence_kind, start_date, start_time) values (%s, %s, %s, 'Pour debutants', 'Cafe', "
-            "'SRID=4326;POINT(4.85 45.77)', 'weekly', current_date + 100, '19:00')", (user, cat, TITLE))
-        c.execute(
-            "insert into public.collectifs (name, description, town_label, town_point, created_by) "
-            "values ('AETEST Joueurs de go', 'Parties de go', 'Lyon', 'SRID=4326;POINT(4.85 45.77)', %s)", (user,))
         try:
+            embed_pending_activities(c, FakeEmbedder())
+            user = uuid.uuid4()
+            c.execute(
+                "insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, "
+                "raw_user_meta_data) values (%s, '00000000-0000-0000-0000-000000000000', 'authenticated', "
+                "'authenticated', 'aetest@test.fr', '', '{}', '{\"first_name\": \"Test\"}')", (user,))
+            cat = c.execute(
+                "insert into public.categories (slug, name_fr, name_en, icon) values ('aetest-go', 'Go', 'Go', 'x') "
+                "returning id").fetchone()[0]
+            c.execute(
+                "insert into public.activities (organiser_id, category_id, title, description, place_label, place, "
+                "recurrence_kind, start_date, start_time) values (%s, %s, %s, 'Pour debutants', 'Cafe', "
+                "'SRID=4326;POINT(4.85 45.77)', 'weekly', current_date + 100, '19:00')", (user, cat, TITLE))
+            c.execute(
+                "insert into public.collectifs (name, description, town_label, town_point, created_by) "
+                "values ('AETEST Joueurs de go', 'Parties de go', 'Lyon', 'SRID=4326;POINT(4.85 45.77)', %s)", (user,))
             yield c
         finally:
             _clear(c)
