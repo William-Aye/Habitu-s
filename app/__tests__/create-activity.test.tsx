@@ -4,6 +4,7 @@ import NewActivity from '../src/app/activites/new';
 import { createActivity } from '../src/features/activities/api';
 import { addCommunityAssociation, searchLinkableAssociations } from '../src/features/activities/associationDirectory';
 import { shareActivity } from '../src/features/activities/share';
+import { askForPush } from '../src/features/notifications/registerPush';
 import { createCollectif, myCollectifs } from '../src/features/collectifs/api';
 import { fetchCategories } from '../src/features/interests/categories';
 import { initI18n } from '../src/i18n';
@@ -18,6 +19,7 @@ jest.mock('../src/features/activities/associationDirectory', () => ({
   searchLinkableAssociations: jest.fn(),
   addCommunityAssociation: jest.fn(),
 }));
+jest.mock('../src/features/notifications/registerPush', () => ({ askForPush: jest.fn(async () => {}) }));
 jest.mock('../src/features/activities/share', () => ({ shareActivity: jest.fn(async () => {}) }));
 jest.mock('../src/features/collectifs/api', () => ({ createCollectif: jest.fn(), myCollectifs: jest.fn() }));
 jest.mock('../src/features/interests/categories', () => ({
@@ -153,6 +155,29 @@ it('moves the pin when the map is touched', async () => {
   await fireEvent.press(screen.getByLabelText('Publier'));
   await screen.findByText('Partagez-la avec vos amis');
   expect(mockCreate.mock.calls[0][0].place).toEqual({ label: 'Café des Arts', lon: 4.9, lat: 45.8 });
+});
+
+async function publishFlow() {
+  await toWhere();
+  await fillWhere();
+  await fireEvent.press(next());
+  await fireEvent.changeText(screen.getByLabelText('Date de début'), '2030-05-14');
+  await fireEvent.press(next());
+  await fireEvent.press(screen.getByLabelText('Publier'));
+}
+
+it('asks for push permission after a successful creation only', async () => {
+  mockCreate.mockResolvedValue({ ok: true, id: 'act9' });
+  await publishFlow();
+  await screen.findByText('Partagez-la avec vos amis');
+  expect(askForPush).toHaveBeenCalledTimes(1);
+});
+
+it('does not ask for push permission when the creation fails', async () => {
+  mockCreate.mockResolvedValue({ ok: false, error: 'limit_reached' });
+  await publishFlow();
+  await waitFor(() => expect(mockCreate).toHaveBeenCalled());
+  expect(askForPush).not.toHaveBeenCalled();
 });
 
 it('rejects a past date and a bad time on "Quand ?"', async () => {

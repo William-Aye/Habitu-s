@@ -16,6 +16,7 @@ import {
 } from '../src/features/activities/api';
 import { addSessionToCalendar } from '../src/features/activities/calendar';
 import { shareActivity } from '../src/features/activities/share';
+import { askForPush } from '../src/features/notifications/registerPush';
 import type { ActivityPage, SessionInfo } from '../src/features/activities/types';
 
 jest.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'fr-FR' }] }));
@@ -36,6 +37,7 @@ jest.mock('../src/features/activities/api', () => ({
   archiveActivity: jest.fn(),
   activityRoster: jest.fn(),
 }));
+jest.mock('../src/features/notifications/registerPush', () => ({ askForPush: jest.fn(async () => {}) }));
 const mockGate = jest.fn();
 jest.mock('../src/features/account/AccountGate', () => ({ useRequireAccount: () => mockGate }));
 jest.mock('../src/features/account/useSession', () => ({
@@ -125,6 +127,7 @@ it('lets a member confirm, then shows Confirmé, the guest toggle and the calend
   });
   await fireEvent.press(screen.getAllByText('Je serai là')[0]);
   expect(setAttendance).toHaveBeenCalledWith('s1', 'confirmed', 0);
+  expect(askForPush).toHaveBeenCalledTimes(1);
   await screen.findByText('Confirmé');
   expect(screen.getByText('À votre arrivée, demandez Sophie')).toBeTruthy();
   await fireEvent.press(screen.getByRole('switch', { name: /Je viens avec quelqu'un/ }));
@@ -138,6 +141,7 @@ it('shows Complet when the session turns out to be full', async () => {
   await open(activity({ myStatus: 'member' }));
   await fireEvent.press(screen.getAllByText('Je serai là')[0]);
   await screen.findByText('Complet');
+  expect(askForPush).not.toHaveBeenCalled();
 });
 
 it('shows Complet from the data and hides Je serai là', async () => {

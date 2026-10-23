@@ -465,5 +465,27 @@
       "network": "Cannot connect. Check your network and try again.",
       "unknown": "Something went wrong. Try again."
     }
+  },
+  "notifications": {
+    "yes": "Yes",
+    "no": "Not this time"
+  },
+  "mine": {
+    "organising": "I organise",
+    "participating": "I take part",
+    "empty": "No activities yet",
+    "create": "Create an activity",
+    "explore": "Explore",
+    "loading": "Loading",
+    "error": "Could not load your activities. Try again.",
+    "retry": "Try again",
+    "open": "Open the activity {{title}}",
+    "noSession": "No upcoming session",
+    "next": "Next session: {{date}}",
+    "confirmed": "Confirmed",
+    "requested": "Request sent",
+    "imThere": "I'll be there",
+    "imThereAria": "I'll be there on {{date}}",
+    "actionError": "Could not save your answer. Try again."
   }
 }

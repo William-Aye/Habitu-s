@@ -3,6 +3,7 @@ import { Share2 } from 'lucide-react-native';
 import { useCallback, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { askForPush } from '../notifications/registerPush';
 import { createActivity } from './api';
 import { STEP_COUNT, initialForm, stepValid, toDraft, type FormState } from './form';
 import { shareActivity } from './share';
@@ -74,6 +75,7 @@ export function CreateActivityFlow({ initialCollectifId }: { initialCollectifId?
     setBusy(false);
     if (!result.ok) return setError(result.error);
     setCreated({ id: result.id, title: draft.title });
+    void askForPush();
   };
 
   const go = (to: number) => {

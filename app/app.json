@@ -18,7 +18,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "fr.friendapp.app"
+      "package": "fr.friendapp.app",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "server",
@@ -49,7 +50,13 @@
           "iosUrlScheme": "com.googleusercontent.apps.REPLACE_WITH_IOS_CLIENT_ID"
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-notifications",
+        {
+          "color": "#1a56db"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

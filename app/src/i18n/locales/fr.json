@@ -465,5 +465,27 @@
       "network": "Connexion impossible. Vérifiez votre réseau et réessayez.",
       "unknown": "Une erreur est survenue. Réessayez."
     }
+  },
+  "notifications": {
+    "yes": "Oui",
+    "no": "Pas cette fois"
+  },
+  "mine": {
+    "organising": "J'organise",
+    "participating": "Je participe",
+    "empty": "Aucune activité pour l'instant",
+    "create": "Créer une activité",
+    "explore": "Explorer",
+    "loading": "Chargement",
+    "error": "Impossible de charger vos activités. Réessayez.",
+    "retry": "Réessayer",
+    "open": "Ouvrir l'activité {{title}}",
+    "noSession": "Aucune séance à venir",
+    "next": "Prochaine séance : {{date}}",
+    "confirmed": "Confirmé",
+    "requested": "Demande envoyée",
+    "imThere": "Je serai là",
+    "imThereAria": "Je serai là le {{date}}",
+    "actionError": "Impossible d'enregistrer votre réponse. Réessayez."
   }
 }

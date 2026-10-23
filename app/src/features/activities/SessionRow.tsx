@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { SessionTools } from './OrganiserTools';
 import { PersonAvatar } from './PersonAvatar';
 import { setAttendance } from './api';
+import { askForPush } from '../notifications/registerPush';
 import { addSessionToCalendar } from './calendar';
 import { formatSessionDate } from './recurrence';
 import type { ActivityPage, ApiError, SessionInfo } from './types';
@@ -48,6 +49,7 @@ export function SessionRow({ session, activity, showWelcome, onChanged }: Props)
       return;
     }
     setKnownFull(false);
+    if (status === 'confirmed') void askForPush();
     onChanged();
   };
 
