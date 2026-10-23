@@ -1,11 +1,14 @@
-import { CalendarPlus, Check, Square, SquareCheck } from 'lucide-react-native';
+import { CalendarPlus, Check, Flag, Square, SquareCheck } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { SessionTools } from './OrganiserTools';
 import { PersonAvatar } from './PersonAvatar';
 import { setAttendance } from './api';
+import { useSession } from '../account/useSession';
 import { askForPush } from '../notifications/registerPush';
+import { usePersonActions } from '../safety/PersonActions';
+import { useReportSheet } from '../safety/ReportSheet';
 import { addSessionToCalendar } from './calendar';
 import { formatSessionDate } from './recurrence';
 import type { ActivityPage, ApiError, SessionInfo } from './types';
@@ -28,6 +31,14 @@ export function SessionRow({ session, activity, showWelcome, onChanged }: Props)
   const [error, setError] = useState<string | null>(null);
   const [calendarMsg, setCalendarMsg] = useState<string | null>(null);
   const [knownFull, setKnownFull] = useState(false);
+  const { userId: me } = useSession();
+  const { openReport, reportSheet } = useReportSheet();
+  const { openPerson, personSheet } = usePersonActions({
+    // Blocking the organiser ends my membership; the organiser blocking a member removes them.
+    effectOf: (p) =>
+      p.id === activity.organiser?.id ? 'leaves_activity' : activity.isOrganiser ? 'removes_member' : 'plain',
+    onBlocked: onChanged,
+  });
 
   const date = formatSessionDate(session.startsAt, lang);
   const cancelled = session.status !== 'scheduled';
@@ -72,12 +83,31 @@ export function SessionRow({ session, activity, showWelcome, onChanged }: Props)
 
       {session.attendees && session.attendees.length > 0 ? (
         <View style={styles.wrap} accessibilityLabel={t('activity.session.attendees')}>
-          {session.attendees.map((p, i) => (
-            <View key={`${p.firstName}-${i}`} style={styles.person}>
-              <PersonAvatar name={p.firstName} photoUrl={p.photoUrl} size={28} />
-              <Text>{p.firstName}</Text>
-            </View>
-          ))}
+          {session.attendees.map((p, i) => {
+            const body = (
+              <>
+                <PersonAvatar name={p.firstName} photoUrl={p.photoUrl} size={28} />
+                <Text>{p.firstName}</Text>
+              </>
+            );
+            const id = p.id;
+            // Long press: report or block someone else (not myself, not someone the server did not identify).
+            return id && id !== me ? (
+              <Pressable
+                key={`${id}-${i}`}
+                accessibilityLabel={p.firstName}
+                accessibilityHint={t('safety.personHint')}
+                style={styles.person}
+                onLongPress={() => void openPerson({ id, firstName: p.firstName })}
+              >
+                {body}
+              </Pressable>
+            ) : (
+              <View key={`${p.firstName}-${i}`} accessibilityLabel={id ? p.firstName : undefined} style={styles.person}>
+                {body}
+              </View>
+            );
+          })}
         </View>
       ) : null}
 
@@ -142,6 +172,18 @@ export function SessionRow({ session, activity, showWelcome, onChanged }: Props)
           ) : null}
         </View>
       ) : null}
+
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel={t('safety.reportSession')}
+        style={styles.link}
+        onPress={() => void openReport({ type: 'session', id: session.id })}
+      >
+        <Flag size={16} color="#1a56db" />
+        <Text style={styles.linkText}>{t('safety.reportSession')}</Text>
+      </Pressable>
+      {personSheet}
+      {reportSheet}
 
       {calendarMsg ? <Text accessibilityLiveRegion="polite">{calendarMsg}</Text> : null}
       {error ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}

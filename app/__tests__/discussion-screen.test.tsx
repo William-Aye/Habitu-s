@@ -3,7 +3,9 @@ import { Alert, AppState } from 'react-native';
 import { useEffect as mockUseEffect } from 'react';
 import { initI18n } from '../src/i18n';
 import Discussion from '../src/app/discussions/[activityId]';
-import { blockUser, deleteMessage, fetchMessages, markRead, reportMessage, sendMessage, setMuted } from '../src/features/chat/api';
+import { deleteMessage, fetchMessages, markRead, sendMessage, setMuted } from '../src/features/chat/api';
+import { block as blockUser } from '../src/features/safety/blocks';
+import { reportTarget } from '../src/features/safety/reports';
 import { onUnreadChanged } from '../src/features/chat/unreadEvents';
 import { clearOutbox, initOutbox } from '../src/features/chat/outbox';
 import type { ChatMessage } from '../src/features/chat/types';
@@ -56,9 +58,9 @@ jest.mock('../src/features/chat/api', () => ({
   deleteMessage: jest.fn(),
   markRead: jest.fn(),
   setMuted: jest.fn(),
-  reportMessage: jest.fn(),
-  blockUser: jest.fn(),
 }));
+jest.mock('../src/features/safety/reports', () => ({ reportTarget: jest.fn() }));
+jest.mock('../src/features/safety/blocks', () => ({ block: jest.fn() }));
 const mockHandlers: { filter: any; cb: (p: any) => void }[] = [];
 // Like realtime-js: the same topic returns the same channel, and callbacks cannot be added once subscribed.
 const mockChannels = new Map<string, any>();
@@ -156,7 +158,7 @@ beforeEach(async () => {
   }) as never);
   (markRead as jest.Mock).mockResolvedValue(ok);
   (setMuted as jest.Mock).mockResolvedValue(ok);
-  (reportMessage as jest.Mock).mockResolvedValue(ok);
+  (reportTarget as jest.Mock).mockResolvedValue(ok);
   (blockUser as jest.Mock).mockResolvedValue(ok);
   (deleteMessage as jest.Mock).mockResolvedValue(ok);
   mSend.mockReset();
@@ -333,9 +335,11 @@ describe('discussion screen', () => {
     expect(screen.queryByRole('button', { name: 'Supprimer le message' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Bloquer Camille' })).toBeTruthy();
     await fireEvent.press(screen.getByRole('button', { name: 'Signaler' }));
-    await fireEvent.press(screen.getByRole('button', { name: 'Harcèlement' }));
+    await fireEvent.press(await screen.findByRole('radio', { name: 'Harcèlement' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Envoyer le signalement' }));
     await settle();
-    expect(reportMessage).toHaveBeenCalledWith('m1', 'harassment');
+    expect(reportTarget).toHaveBeenCalledWith('message', 'm1', 'harassment', undefined);
+    expect(screen.getByText('Merci, votre signalement a été envoyé.')).toBeTruthy();
   });
 
   it('blocks after a confirmation, then reloads the list', async () => {

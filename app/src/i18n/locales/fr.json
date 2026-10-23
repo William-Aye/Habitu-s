@@ -537,16 +537,8 @@
       "deleteConfirm": "Supprimer ce message pour tout le monde ?",
       "discard": "Ne pas envoyer",
       "cancel": "Annuler",
-      "reportTitle": "Pourquoi signalez-vous ce message ?",
-      "reportSent": "Merci, votre signalement a été envoyé.",
       "error": "Action impossible. Réessayez.",
       "back": "Retour"
-    },
-    "reasons": {
-      "inappropriate": "Contenu inapproprié",
-      "harassment": "Harcèlement",
-      "scam": "Arnaque ou spam",
-      "other": "Autre"
     },
     "bubbleOther": "{{name}}, {{time}} : {{body}}",
     "bubbleMine": "Vous, {{time}} : {{body}}",
@@ -571,5 +563,37 @@
     "yesterday": "hier",
     "previewOther": "{{prenom}} : {{texte}}",
     "previewMine": "Vous : {{texte}}"
+  },
+  "safety": {
+    "report": "Signaler",
+    "reportActivity": "Signaler cette activité",
+    "reportPerson": "Signaler cette personne",
+    "reportCollectif": "Signaler ce collectif",
+    "reportSession": "Signaler cette séance",
+    "reasons": {
+      "unsafe_place": "Lieu dangereux ou inadapté",
+      "inappropriate_behaviour": "Comportement inapproprié",
+      "harassment": "Harcèlement",
+      "fake_or_spam": "Faux ou spam",
+      "did_not_happen": "N'a pas eu lieu",
+      "other": "Autre"
+    },
+    "details": "Précisez (facultatif)",
+    "send": "Envoyer le signalement",
+    "sent": "Merci, votre signalement a été envoyé.",
+    "limit": "Vous avez atteint la limite de signalements. Réessayez plus tard.",
+    "error": "Action impossible. Réessayez.",
+    "close": "Fermer",
+    "cancel": "Annuler",
+    "back": "Retour",
+    "retry": "Réessayer",
+    "block": "Bloquer",
+    "unblock": "Débloquer",
+    "unblockAria": "Débloquer {{prenom}}",
+    "blockedTitle": "Personnes bloquées",
+    "blockedEmpty": "Aucune personne bloquée",
+    "blockedLoading": "Chargement des personnes bloquées",
+    "blockedError": "Impossible de charger les personnes bloquées. Réessayez.",
+    "personHint": "Appui long pour signaler ou bloquer"
   }
 }

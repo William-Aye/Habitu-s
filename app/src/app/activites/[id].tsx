@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams, type Href } from 'expo-router';
-import { MessageCircle, Share2 } from 'lucide-react-native';
+import { Flag, MessageCircle, Share2 } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRequireAccount } from '../../features/account/AccountGate';
+import { useSession } from '../../features/account/useSession';
 import { OrganiserPanel } from '../../features/activities/OrganiserTools';
 import { PersonAvatar } from '../../features/activities/PersonAvatar';
 import { SessionRow } from '../../features/activities/SessionRow';
@@ -12,6 +13,7 @@ import { describeRecurrence } from '../../features/activities/recurrence';
 import { shareActivity } from '../../features/activities/share';
 import type { ActivityPage, ApiError } from '../../features/activities/types';
 import { TownMap } from '../../features/explore/components/TownMap';
+import { useReportSheet } from '../../features/safety/ReportSheet';
 
 type Load = { state: 'loading' } | { state: 'error' } | { state: 'ready'; activity: ActivityPage | null };
 
@@ -21,6 +23,8 @@ export default function ActivityScreen() {
   const { t, i18n } = useTranslation();
   const { id, reminder } = useLocalSearchParams<{ id: string; reminder?: string }>();
   const requireAccount = useRequireAccount();
+  const { userId: me } = useSession();
+  const { openReport, reportSheet } = useReportSheet();
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,6 +99,7 @@ export default function ActivityScreen() {
   const category = a.category ? (lang === 'en' ? a.category.nameEn : a.category.nameFr) : null;
   const by = a.organisedBy;
   const organiserName = a.organiser?.firstName ?? '';
+  const organiserId = a.organiser?.id;
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -129,6 +134,17 @@ export default function ActivityScreen() {
         <View style={styles.person}>
           <PersonAvatar name={organiserName} photoUrl={a.organiser.photoUrl} size={44} />
           <Text>{t(by ? 'activity.hostedBy' : 'activity.organisedBy', { name: organiserName })}</Text>
+          {organiserId && organiserId !== me && !a.isOrganiser ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('safety.reportPerson')}
+              style={[styles.link, styles.row]}
+              onPress={() => void openReport({ type: 'user', id: organiserId })}
+            >
+              <Flag size={16} color="#1a56db" />
+              <Text style={styles.linkText}>{t('safety.reportPerson')}</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
 
@@ -207,6 +223,18 @@ export default function ActivityScreen() {
         </Pressable>
       ) : null}
 
+      {!a.isOrganiser ? (
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={t('safety.reportActivity')}
+          style={[styles.link, styles.row]}
+          onPress={() => void openReport({ type: 'activity', id: a.id })}
+        >
+          <Flag size={16} color="#1a56db" />
+          <Text style={styles.linkText}>{t('safety.reportActivity')}</Text>
+        </Pressable>
+      ) : null}
+
       <Text accessibilityRole="header" style={styles.heading}>{t('activity.sessions')}</Text>
       {a.nextSessions.length === 0 ? (
         <Text>{t('activity.noSessions')}</Text>
@@ -225,6 +253,7 @@ export default function ActivityScreen() {
       {a.isOrganiser && !archived ? (
         <OrganiserPanel activity={a} onChanged={reload} onArchived={reload} />
       ) : null}
+      {reportSheet}
     </ScrollView>
   );
 }
@@ -235,7 +264,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: '700' },
   heading: { fontSize: 18, fontWeight: '600' },
   block: { gap: 8 },
-  person: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  person: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   badge: { alignSelf: 'flex-start', backgroundColor: '#eef2ff', color: '#1a3a9e', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, overflow: 'hidden' },
   notice: { backgroundColor: '#fef2f2', color: '#b91c1c', padding: 12, borderRadius: 8 },
   link: { minHeight: 44, justifyContent: 'center' },

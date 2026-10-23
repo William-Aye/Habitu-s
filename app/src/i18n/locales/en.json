@@ -537,16 +537,8 @@
       "deleteConfirm": "Delete this message for everyone?",
       "discard": "Do not send",
       "cancel": "Cancel",
-      "reportTitle": "Why are you reporting this message?",
-      "reportSent": "Thank you, your report has been sent.",
       "error": "That did not work. Try again.",
       "back": "Back"
-    },
-    "reasons": {
-      "inappropriate": "Inappropriate content",
-      "harassment": "Harassment",
-      "scam": "Scam or spam",
-      "other": "Other"
     },
     "bubbleOther": "{{name}}, {{time}}: {{body}}",
     "bubbleMine": "You, {{time}}: {{body}}",
@@ -571,5 +563,37 @@
     "yesterday": "yesterday",
     "previewOther": "{{prenom}}: {{texte}}",
     "previewMine": "You: {{texte}}"
+  },
+  "safety": {
+    "report": "Report",
+    "reportActivity": "Report this activity",
+    "reportPerson": "Report this person",
+    "reportCollectif": "Report this collective",
+    "reportSession": "Report this session",
+    "reasons": {
+      "unsafe_place": "Unsafe or unsuitable place",
+      "inappropriate_behaviour": "Inappropriate behaviour",
+      "harassment": "Harassment",
+      "fake_or_spam": "Fake or spam",
+      "did_not_happen": "Did not happen",
+      "other": "Other"
+    },
+    "details": "Tell us more (optional)",
+    "send": "Send report",
+    "sent": "Thank you, your report has been sent.",
+    "limit": "You have reached the reporting limit. Try again later.",
+    "error": "Action failed. Try again.",
+    "close": "Close",
+    "cancel": "Cancel",
+    "back": "Back",
+    "retry": "Retry",
+    "block": "Block",
+    "unblock": "Unblock",
+    "unblockAria": "Unblock {{prenom}}",
+    "blockedTitle": "Blocked people",
+    "blockedEmpty": "No blocked people",
+    "blockedLoading": "Loading blocked people",
+    "blockedError": "Could not load blocked people. Try again.",
+    "personHint": "Long press to report or block"
   }
 }

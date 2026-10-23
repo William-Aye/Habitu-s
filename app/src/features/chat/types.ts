@@ -42,5 +42,3 @@ export interface PendingMessage {
   /** Derived: still sending after 3 attempts or 2 minutes, so the UI can offer a manual retry. */
   stalled: boolean;
 }
-
-export type ReportReason = 'inappropriate' | 'harassment' | 'scam' | 'other';

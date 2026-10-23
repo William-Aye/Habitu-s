@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams, type Href } from 'expo-router';
-import { CalendarPlus, LogOut, Pencil, Trash2, UserPlus } from 'lucide-react-native';
+import { CalendarPlus, Flag, LogOut, Pencil, Trash2, UserPlus } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +17,7 @@ import { useCollectifErrorText } from '../../features/collectifs/errors';
 import { InviteOrganiser } from '../../features/collectifs/InviteOrganiser';
 import { OrganisersList } from '../../features/collectifs/OrganisersList';
 import { TownMap } from '../../features/explore/components/TownMap';
+import { useReportSheet } from '../../features/safety/ReportSheet';
 
 type Load =
   | { state: 'loading' }
@@ -34,6 +35,7 @@ export default function CollectifScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const { openReport, reportSheet } = useReportSheet();
 
   // Keeps the current page on screen while it is re-read, and on a failed re-read.
   const [version, setVersion] = useState(0);
@@ -230,6 +232,18 @@ export default function CollectifScreen() {
         </Pressable>
       ))}
 
+      {!isOrganiser ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('safety.reportCollectif')}
+          style={[styles.link, styles.withIcon]}
+          onPress={() => void openReport({ type: 'collectif', id: c.id })}
+        >
+          <Flag size={16} color="#1a56db" />
+          <Text style={styles.linkText}>{t('safety.reportCollectif')}</Text>
+        </Pressable>
+      ) : null}
+
       {isOrganiser ? (
         <View style={styles.tools}>
           <Pressable
@@ -281,6 +295,7 @@ export default function CollectifScreen() {
         </View>
       ) : null}
 
+      {reportSheet}
     </ScrollView>
   );
 }

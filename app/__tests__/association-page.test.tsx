@@ -150,7 +150,7 @@ it('registers the waiter when signed in, and can cancel', async () => {
   expect(await screen.findByText(WAIT)).toBeTruthy();
 });
 
-it('shows coming-soon controls labelled for screen readers', async () => {
+it('labels the claim and report controls for screen readers; the claim is still coming soon', async () => {
   await show(assoc());
   const claim = screen.getByLabelText("C'est mon association");
   const report = screen.getByLabelText('Signaler une erreur / Retirer cette fiche');
