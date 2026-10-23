@@ -67,6 +67,9 @@ create trigger collectifs_snap_town before insert or update of town_point on pub
 create function public.collectifs_limit() returns trigger
 language plpgsql set search_path = public, pg_temp as $$
 begin
+  if current_user in ('anon', 'authenticated') and not public.is_admin() then
+    perform pg_advisory_xact_lock(hashtext('limits:' || coalesce(auth.uid()::text, '')));
+  end if;
   if current_user in ('anon', 'authenticated') and not public.is_admin()
      and (select count(*) from public.collectifs c
            where c.created_by = new.created_by and c.created_at > now() - interval '24 hours') >= 2 then
@@ -175,6 +178,9 @@ create trigger activities_guard_collectif before insert or update on public.acti
 create function public.activities_limit() returns trigger
 language plpgsql set search_path = public, pg_temp as $$
 begin
+  if current_user in ('anon', 'authenticated') and not public.is_admin() then
+    perform pg_advisory_xact_lock(hashtext('limits:' || coalesce(auth.uid()::text, '')));
+  end if;
   if current_user in ('anon', 'authenticated') and not public.is_admin()
      and (select count(*) from public.activities a
            where a.organiser_id = new.organiser_id and a.created_at > now() - interval '24 hours') >= 3 then
@@ -185,6 +191,27 @@ end $$;
 revoke all on function public.activities_limit() from public, anon, authenticated;
 create trigger activities_limit before insert on public.activities
   for each row execute function public.activities_limit();
+
+-- Timestamps cannot be forged by API roles: they drive the daily limits and the "Nouvelle" ranking.
+create function public.pin_creation_dates() returns trigger
+language plpgsql set search_path = public, pg_temp as $$
+begin
+  if current_user in ('anon', 'authenticated') and not public.is_admin() then
+    if tg_op = 'INSERT' then
+      new.created_at := now();
+      if tg_table_name = 'activities' then new.published_at := now(); end if;
+    else
+      new.created_at := old.created_at;
+      if tg_table_name = 'activities' then new.published_at := old.published_at; end if;
+    end if;
+  end if;
+  return new;
+end $$;
+revoke all on function public.pin_creation_dates() from public, anon, authenticated;
+create trigger activities_pin_dates before insert or update on public.activities
+  for each row execute function public.pin_creation_dates();
+create trigger collectifs_pin_dates before insert or update on public.collectifs
+  for each row execute function public.pin_creation_dates();
 
 alter table public.sessions add column is_discovery boolean not null default false;
 alter table public.attendances

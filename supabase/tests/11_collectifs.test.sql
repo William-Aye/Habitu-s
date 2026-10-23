@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(38);
+select plan(59);
 select tests.create_user('resp@col.fr', 'Rose') as resp \gset
 select tests.create_user('org1@col.fr', 'Oscar') as org1 \gset
 select tests.create_user('org2@col.fr', 'Olga') as org2 \gset
@@ -106,10 +106,58 @@ select throws_ok($$ insert into activities (organiser_id, category_id, title, pl
   values (auth.uid(), '00000000-0000-0000-0000-0000000000c1', 'Go quatre', 'Cafe', 'POINT(4.85 45.77)', 'weekly', '2026-11-03', '19:00') $$,
   '42501', 'limit_reached', 'fourth activity in 24h refused');
 
+-- limits cannot be dodged with timestamps
+select tests.act_as(:'outsider');
+select lives_ok($$ insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time, created_at, published_at)
+  select case g when 1 then '00000000-0000-0000-0000-0000000000e1'::uuid else gen_random_uuid() end, auth.uid(), '00000000-0000-0000-0000-0000000000c1', 'Go ancien ' || g, 'Cafe', 'POINT(4.85 45.77)', 'weekly', '2026-11-03', '19:00', '2020-01-01', '2020-01-01' from generate_series(1, 3) g $$,
+  'backdated inserts are accepted but counted as now');
+select is((select count(*)::int from activities where organiser_id = :'outsider' and created_at = now() and published_at = now()), 3, 'created_at and published_at pinned to now on insert');
+select throws_ok($$ insert into activities (organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time, created_at)
+  values (auth.uid(), '00000000-0000-0000-0000-0000000000c1', 'Go quatre', 'Cafe', 'POINT(4.85 45.77)', 'weekly', '2026-11-03', '19:00', '2020-01-01') $$,
+  '42501', 'limit_reached', 'fourth backdated activity refused');
+select lives_ok($$ update activities set created_at = '2020-01-01', published_at = '2020-01-01' where id = '00000000-0000-0000-0000-0000000000e1' $$, 'updating dates is accepted');
+select is((select created_at = now() and published_at = now() from activities where id = '00000000-0000-0000-0000-0000000000e1'), true, 'created_at and published_at unchanged by update');
+select throws_ok($$ update activities set organised_by_collectif_id = '00000000-0000-0000-0000-00000000c0a1' where id = '00000000-0000-0000-0000-0000000000e1' $$,
+  '42501', null, 'non-member cannot update organised_by_collectif_id');
+select tests.act_as(:'org2');
+select lives_ok($$ insert into collectifs (name, town_label, town_point, created_by, created_at)
+  select 'Ancien ' || g, 'Lyon', 'POINT(4.85 45.77)', auth.uid(), '2020-01-01' from generate_series(1, 2) g $$, 'two backdated collectifs');
+select throws_ok($$ insert into collectifs (name, town_label, town_point, created_by, created_at) values ('Ancien trois', 'Lyon', 'POINT(4.85 45.77)', auth.uid(), '2020-01-01') $$,
+  '42501', 'limit_reached', 'third backdated collectif refused');
+select throws_ok($$ update collectifs set created_at = '2020-01-01' where created_by = auth.uid() $$, '42501', null, 'collectif created_at cannot be updated');
+
+-- a real activity member can be the welcome person
+select lives_ok(format($f$ insert into activity_members (activity_id, user_id) values ('00000000-0000-0000-0000-0000000000f1', %L) $f$, :'org2'), 'org2 joins f1');
+select tests.act_as(:'org1');
+select lives_ok(format($f$ update activities set welcome_member_id = %L where id = '00000000-0000-0000-0000-0000000000f1' $f$, :'org2'), 'a real member can be the welcome person');
+select throws_ok(format($f$ update collectif_members set role = 'responsable' where user_id = %L $f$, :'org1'), '42501', null, 'member cannot change own role');
+select throws_ok(format($f$ update collectif_members set user_id = %L where user_id = %L $f$, :'outsider', :'org1'), '42501', null, 'member cannot change user_id');
+
 -- responsable deletion: promote the oldest organiser; alone, the collectif goes and activities stay
 select tests.act_as_superuser();
 update collectif_members set accepted_at = now() - interval '2 days' where user_id = :'org1';
 update collectif_members set status = 'active', accepted_at = now() - interval '1 day' where user_id = :'org2';
+select tests.act_as(:'org2');
+select lives_ok(format($f$ delete from collectif_members where user_id = %L and collectif_id = '00000000-0000-0000-0000-00000000c0a1' $f$, :'org2'), 'a member can leave');
+select tests.act_as_superuser();
+select is((select count(*)::int from collectif_members where user_id = :'org2' and collectif_id = '00000000-0000-0000-0000-00000000c0a1'), 0, 'member row gone after leaving');
+insert into collectif_members (collectif_id, user_id, role, status, accepted_at) values ('00000000-0000-0000-0000-00000000c0a1', :'org2', 'organiser', 'active', now() - interval '1 day');
+select tests.act_as(:'resp');
+select lives_ok(format($f$ delete from collectif_members where user_id = %L and collectif_id = '00000000-0000-0000-0000-00000000c0a1' $f$, :'org2'), 'the responsable removes a member');
+select tests.act_as_superuser();
+select is((select count(*)::int from collectif_members where user_id = :'org2' and collectif_id = '00000000-0000-0000-0000-00000000c0a1'), 0, 'removed member row gone');
+insert into collectif_members (collectif_id, user_id, role, status, accepted_at) values ('00000000-0000-0000-0000-00000000c0a1', :'org2', 'organiser', 'active', now() - interval '1 day');
+select tests.act_as(:'resp');
+select lives_ok($$ update collectifs set town_point = 'POINT(2.3522 48.8566)' where id = '00000000-0000-0000-0000-00000000c0a2' $$, 'responsable updates the town');
+select is((select ST_AsText(town_point::geometry) from collectifs where id = '00000000-0000-0000-0000-00000000c0a2'), 'POINT(2.35 48.86)', 'town snapped on update');
+select tests.act_as_superuser();
+insert into collectifs (id, name, town_label, town_point, created_by) values ('00000000-0000-0000-0000-00000000c0a3', 'Troisieme', 'Lyon', 'POINT(4.85 45.77)', :'resp');
+insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time, organised_by_collectif_id)
+  values ('00000000-0000-0000-0000-0000000000f3', :'org1', '00000000-0000-0000-0000-0000000000c1', 'Go troisieme', 'Cafe', 'POINT(4.85 45.77)', 'weekly', '2026-11-03', '19:00', '00000000-0000-0000-0000-00000000c0a3');
+select tests.act_as(:'resp');
+select lives_ok($$ delete from collectifs where id = '00000000-0000-0000-0000-00000000c0a3' $$, 'the responsable deletes the collectif');
+select tests.act_as_superuser();
+select is((select organised_by_collectif_id from activities where id = '00000000-0000-0000-0000-0000000000f3'), null, 'its activity stays with a null link');
 insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time, organised_by_collectif_id)
   values ('00000000-0000-0000-0000-0000000000f2', :'outsider', '00000000-0000-0000-0000-0000000000c1', 'Go second', 'Cafe', 'POINT(4.85 45.77)', 'weekly', '2026-11-03', '19:00', '00000000-0000-0000-0000-00000000c0a2');
 delete from auth.users where id = :'resp';
