@@ -81,11 +81,16 @@ export default function ActivityScreen() {
   const join = async () => {
     if (busy) return;
     // Signed out: ask for an account first; the page is re-read after (the visitor's view differs).
-    if (!(await requireAccount('join'))) return;
+    setBusy(true);
+    const ready = await requireAccount('join');
+    setBusy(false);
+    if (!ready) return;
     await act(() => joinActivity(a.id));
   };
 
-  const firstConfirmed = a.nextSessions.find((s) => s.myAttendance?.status === 'confirmed')?.id;
+  const firstConfirmed = [...a.nextSessions]
+    .sort((x, y) => x.startsAt.localeCompare(y.startsAt))
+    .find((s) => s.myAttendance?.status === 'confirmed')?.id;
   const place = a.placeLabel;
   const category = a.category ? (lang === 'en' ? a.category.nameEn : a.category.nameFr) : null;
   const by = a.organisedBy;
@@ -196,7 +201,7 @@ export default function ActivityScreen() {
             key={s.id}
             session={s}
             activity={a}
-            showWelcome={!a.isOrganiser && s.id === firstConfirmed}
+            showWelcome={!a.isOrganiser && a.myPastAttendanceCount === 0 && s.id === firstConfirmed}
             onChanged={reload}
           />
         ))

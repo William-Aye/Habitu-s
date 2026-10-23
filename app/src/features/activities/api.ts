@@ -81,6 +81,9 @@ function mapActivity(a: any): ActivityPage {
     myStatus: a.my_status,
     nextSessions: (a.next_sessions ?? []).map(mapSession),
     ...('welcome_first_name' in a ? { welcomeFirstName: a.welcome_first_name ?? null } : {}),
+    ...(typeof a.my_past_attendance_count === 'number'
+      ? { myPastAttendanceCount: a.my_past_attendance_count as number }
+      : {}),
   };
 }
 

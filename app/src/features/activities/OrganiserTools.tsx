@@ -38,6 +38,7 @@ export function OrganiserPanel({ activity, onChanged, onArchived }: PanelProps) 
   const errorText = useErrorText();
   const [people, setPeople] = useState<RosterEntry[]>([]);
   const [busy, setBusy] = useState(false);
+  const [rosterError, setRosterError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmArchive, setConfirmArchive] = useState(false);
 
@@ -46,11 +47,19 @@ export function OrganiserPanel({ activity, onChanged, onArchived }: PanelProps) 
   useEffect(() => {
     let active = true;
     activityRoster(activity.id).then((r) => {
-      if (active && r.ok) setPeople(r.people);
+      if (!active) return;
+      if (r.ok) {
+        setPeople(r.people);
+        setRosterError(null);
+      } else {
+        setRosterError(errorText(r.error));
+      }
     });
     return () => {
       active = false;
     };
+    // errorText only reads translations.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activity.id, rosterKey]);
 
   const run = async (call: () => Promise<{ ok: true } | { ok: false; error: ApiError }>, after?: () => void) => {
@@ -76,7 +85,9 @@ export function OrganiserPanel({ activity, onChanged, onArchived }: PanelProps) 
       <Text accessibilityRole="header" style={styles.heading}>{t('activity.organiser.tools')}</Text>
 
       <Text accessibilityRole="header" style={styles.subheading}>{t('activity.organiser.requests')}</Text>
-      {pending.length === 0 ? (
+      {rosterError ? (
+        <Text accessibilityLiveRegion="polite" style={styles.error}>{rosterError}</Text>
+      ) : pending.length === 0 ? (
         <Text>{t('activity.organiser.noRequests')}</Text>
       ) : (
         pending.map((p) => (
@@ -239,6 +250,12 @@ export function SessionTools({ session, activity, onChanged }: SessionToolsProps
           accessibilityState={{ expanded: editing }}
           style={styles.small}
           onPress={() => {
+            if (!editing) {
+              const w = wallTime(session.startsAt, activity.timezone);
+              setDate(w.date);
+              setTime(w.time);
+              setPlace(session.placeLabel);
+            }
             setEditing((v) => !v);
             setError(null);
           }}

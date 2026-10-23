@@ -299,6 +299,7 @@ describe('getActivity', () => {
         is_organiser: false, my_status: 'pending',
         next_sessions: [sessionJson],
         welcome_first_name: 'Zoé',
+        my_past_attendance_count: 2,
       },
     });
     const r = await getActivity('a1');
@@ -319,6 +320,7 @@ describe('getActivity', () => {
         isOrganiser: false, myStatus: 'pending',
         nextSessions: [sessionInfo],
         welcomeFirstName: 'Zoé',
+        myPastAttendanceCount: 2,
       },
     });
   });
@@ -342,6 +344,7 @@ describe('getActivity', () => {
     expect(a.activity.nextSessions[0].attendees).toBeUndefined();
     expect(a.activity.nextSessions[0].myAttendance).toBeNull();
     expect(a.activity.welcomeFirstName).toBeUndefined();
+    expect(a.activity.myPastAttendanceCount).toBeUndefined();
     expect(a.activity.organisedBy).toBeNull();
   });
 

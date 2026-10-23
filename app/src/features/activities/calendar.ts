@@ -3,6 +3,7 @@ import type { ActivityPage, SessionInfo } from './types';
 
 export type CalendarResult = 'added' | 'cancelled' | 'unavailable';
 
+// On iOS below 17 the system event editor needs calendar access we do not request: it falls back to 'unavailable' on purpose.
 /** Opens the phone's own "new event" screen, prefilled; nothing is written without the user saving. */
 export async function addSessionToCalendar(
   session: Pick<SessionInfo, 'startsAt' | 'placeLabel'>,

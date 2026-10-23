@@ -80,6 +80,8 @@ export interface ActivityPage {
   nextSessions: SessionInfo[];
   /** Present only for members and the organiser. */
   welcomeFirstName?: string | null;
+  /** Present only for members: confirmed attendances on past sessions of this activity. */
+  myPastAttendanceCount?: number;
 }
 
 export interface MyActivity {

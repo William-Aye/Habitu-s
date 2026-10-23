@@ -115,11 +115,11 @@ it('shows Demande envoyée to a pending applicant', async () => {
 });
 
 it('lets a member confirm, then shows Confirmé, the guest toggle and the calendar', async () => {
-  await open(activity({ myStatus: 'member', welcomeFirstName: 'Sophie' }));
+  await open(activity({ myStatus: 'member', welcomeFirstName: 'Sophie', myPastAttendanceCount: 0 }));
   mockGet.mockResolvedValue({
     ok: true,
     activity: activity({
-      myStatus: 'member', welcomeFirstName: 'Sophie',
+      myStatus: 'member', welcomeFirstName: 'Sophie', myPastAttendanceCount: 0,
       nextSessions: [session({ myAttendance: { status: 'confirmed', guestCount: 0 }, confirmedCount: 5 })],
     }),
   });
@@ -324,4 +324,53 @@ it('lets a member leave', async () => {
   await fireEvent.press(screen.getByLabelText("Quitter l'activité"));
   expect(leaveActivity).toHaveBeenCalledWith('act1');
   await screen.findByLabelText('Rejoindre');
+});
+
+it('does not show the welcome hint to a returning member', async () => {
+  await open(activity({
+    myStatus: 'member', welcomeFirstName: 'Sophie', myPastAttendanceCount: 3,
+    nextSessions: [session({ myAttendance: { status: 'confirmed', guestCount: 0 } })],
+  }));
+  expect(screen.queryByText(/demandez/)).toBeNull();
+});
+
+it('shows the welcome hint only on the earliest confirmed session', async () => {
+  const later = new Date(Date.now() + 10 * 86_400_000).toISOString();
+  await open(activity({
+    myStatus: 'member', welcomeFirstName: 'Sophie', myPastAttendanceCount: 0,
+    nextSessions: [
+      session({ myAttendance: { status: 'confirmed', guestCount: 0 } }),
+      session({ id: 's2', startsAt: later, myAttendance: { status: 'confirmed', guestCount: 0 } }),
+    ],
+  }));
+  expect(screen.getAllByText('À votre arrivée, demandez Sophie')).toHaveLength(1);
+});
+
+it('says so when the requests cannot be loaded, instead of claiming there are none', async () => {
+  (activityRoster as jest.Mock).mockResolvedValue({ ok: false, error: 'network' });
+  await open(activity({ isOrganiser: true }));
+  await screen.findByText('Connexion impossible. Vérifiez votre réseau et réessayez.');
+  expect(screen.queryByText('Aucune demande en attente')).toBeNull();
+});
+
+it('reseeds the session editor from the session each time it opens', async () => {
+  await open(activity({ isOrganiser: true }));
+  await fireEvent.press(screen.getByLabelText('Modifier la séance'));
+  await fireEvent.changeText(screen.getByLabelText('Heure (HH:MM)'), '23:45');
+  await fireEvent.press(screen.getByLabelText('Modifier la séance'));
+  await fireEvent.press(screen.getByLabelText('Modifier la séance'));
+  expect(screen.getByLabelText('Heure (HH:MM)').props.value).not.toBe('23:45');
+});
+
+it('ignores a second tap on Rejoindre while the account gate is open', async () => {
+  let resolveGate: (v: boolean) => void = () => {};
+  mockGate.mockReturnValue(new Promise<boolean>((r) => { resolveGate = r; }));
+  await open(activity());
+  // The first tap stays pending on the gate, so it is not awaited until the gate closes.
+  const first = fireEvent.press(screen.getByLabelText('Rejoindre'));
+  await waitFor(() => expect(mockGate).toHaveBeenCalledTimes(1));
+  await fireEvent.press(screen.getByLabelText('Rejoindre'));
+  expect(mockGate).toHaveBeenCalledTimes(1);
+  resolveGate(false);
+  await first;
 });
