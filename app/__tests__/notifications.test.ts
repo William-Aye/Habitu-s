@@ -273,3 +273,29 @@ describe('handleNotificationResponse', () => {
     expect(router.push).not.toHaveBeenCalled();
   });
 });
+
+describe('chat notification taps', () => {
+  const chatResponse = (action = Notifications.DEFAULT_ACTION_IDENTIFIER, id = 'c1') =>
+    ({
+      actionIdentifier: action,
+      notification: { request: { identifier: id, content: { data: { activity_id: 'a7', kind: 'chat_message' } } } },
+    }) as never;
+
+  it('opens the discussion instead of the activity page', async () => {
+    await handleNotificationResponse(chatResponse());
+    expect(router.push).toHaveBeenCalledTimes(1);
+    expect(router.push).toHaveBeenCalledWith('/discussions/a7');
+  });
+
+  it('does not navigate again when already opened, and records nothing', async () => {
+    await handleNotificationResponse(chatResponse(Notifications.DEFAULT_ACTION_IDENTIFIER, 'c2'), { alreadyOpened: true });
+    expect(router.push).not.toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(mockSetAttendance).not.toHaveBeenCalled();
+  });
+
+  it('openActivityFor goes to the discussion for a chat message', () => {
+    openActivityFor(chatResponse());
+    expect(router.push).toHaveBeenCalledWith('/discussions/a7');
+  });
+});

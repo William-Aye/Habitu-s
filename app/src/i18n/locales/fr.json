@@ -542,5 +542,19 @@
     "listLabel": "Messages de la discussion",
     "syncError": "Impossible de mettre à jour la discussion. Réessayez.",
     "muteError": "Impossible de modifier les notifications. Réessayez."
+  },
+  "messages": {
+    "title": "Messages",
+    "loading": "Chargement des discussions",
+    "empty": "Aucune discussion pour l'instant",
+    "emptyHint": "Rejoignez une activité pour discuter avec le groupe.",
+    "explore": "Explorer",
+    "error": "Impossible de charger vos discussions. Réessayez.",
+    "retry": "Réessayer",
+    "open": "Ouvrir la discussion {{title}}",
+    "muted": "Notifications coupées",
+    "unread_one": "{{count}} message non lu",
+    "unread_other": "{{count}} messages non lus",
+    "noMessage": "Aucun message pour l'instant"
   }
 }

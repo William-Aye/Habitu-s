@@ -195,6 +195,26 @@ the `embed-activities` step of the nightly `vocab.yml` GitHub workflow
 meaning from the next morning. To run it by hand:
 `uv run --project importer python -m importer embed-activities --db-url "$IMPORTER_DB_URL"`.
 
+### Group chat
+
+Each activity has a text-only discussion for its organiser and members (Messages tab, and the
+"Discussion" button on the activity page).
+
+- **Realtime is a signal only.** An open discussion listens to Supabase Realtime for new or deleted
+  rows, then re-reads through the `chat_messages` RPC, so access and blocks stay enforced in the
+  database. The free tier allows 200 simultaneous connections and 2 million Realtime messages a
+  month; past that, live updates stop but the discussion still refreshes when reopened.
+- **Retention:** messages are kept 12 months. The nightly pg_cron job `prune-messages` (04:10)
+  deletes older ones.
+- **Rate limit:** 30 messages per user per rolling minute (admins exempt); beyond it the send is
+  refused with `limit_reached`.
+- **Notifications** are discreet ("Nouveau message", no names or text): at most one per
+  discussion every 15 minutes per person, none if the discussion was read in the last 2 minutes,
+  and none when the person muted it ("Couper les notifications"). A tap opens the discussion.
+- **Offline outbox:** unsent messages are kept on the phone under the sender's account, sent in
+  order when the network returns (also after a restart), and marked as failed, not retried
+  forever, if refused for good. Each message has a client-made id, so a retry never duplicates it.
+
 ## Search
 
 Search combines keyword matching with semantic ranking. The semantic side needs an

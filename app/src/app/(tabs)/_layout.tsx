@@ -1,11 +1,16 @@
 import { Tabs } from 'expo-router';
 import { CalendarDays, MessageCircle, Search, User } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
+import { useUnreadCount } from '../../features/chat/useUnreadCount';
 
 export default function TabsLayout() {
   const { t } = useTranslation();
+  const { count, refresh } = useUnreadCount();
   return (
-    <Tabs screenOptions={{ tabBarShowLabel: true, headerShown: false }}>
+    <Tabs
+      screenOptions={{ tabBarShowLabel: true, headerShown: false }}
+      screenListeners={{ focus: refresh }}
+    >
       <Tabs.Screen
         name="index"
         options={{
@@ -24,6 +29,9 @@ export default function TabsLayout() {
         name="messages"
         options={{
           title: t('tabs.messages'),
+          tabBarBadge: count > 0 ? (count > 99 ? '99+' : count) : undefined,
+          tabBarAccessibilityLabel:
+            count > 0 ? `${t('tabs.messages')}, ${t('messages.unread', { count })}` : t('tabs.messages'),
           tabBarIcon: ({ color, size }) => <MessageCircle color={color} size={size} />,
         }}
       />

@@ -542,5 +542,19 @@
     "listLabel": "Discussion messages",
     "syncError": "Could not update the discussion. Try again.",
     "muteError": "Could not change notifications. Try again."
+  },
+  "messages": {
+    "title": "Messages",
+    "loading": "Loading discussions",
+    "empty": "No discussions yet",
+    "emptyHint": "Join an activity to chat with the group.",
+    "explore": "Explore",
+    "error": "Could not load your discussions. Try again.",
+    "retry": "Try again",
+    "open": "Open the discussion {{title}}",
+    "muted": "Notifications muted",
+    "unread_one": "{{count}} unread message",
+    "unread_other": "{{count}} unread messages",
+    "noMessage": "No messages yet"
   }
 }
