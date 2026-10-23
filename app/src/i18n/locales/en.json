@@ -596,5 +596,113 @@
     "blockedError": "Could not load blocked people. Try again.",
     "personHint": "Long press to report or block",
     "gone": "This content is no longer available."
+  },
+  "admin": {
+    "title": "Administration",
+    "back": "Back",
+    "loading": "Loading",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "approve": "Approve",
+    "reject": "Reject",
+    "note": "Note (optional)",
+    "unknownPerson": "Unknown",
+    "queueAria": "{{nom}}, {{count}} pending",
+    "queues": {
+      "reports": "Reports",
+      "claims": "Claims",
+      "clubs": "Added clubs",
+      "categories": "Categories",
+      "feedback": "Ideas and problems"
+    },
+    "errors": {
+      "load": "Could not load the list.",
+      "network": "Cannot connect. Try again.",
+      "unknown": "Something went wrong. Try again.",
+      "invalid": "Decision refused. Check the fields (statement of at least 10 characters).",
+      "not_found": "This item no longer exists.",
+      "already_decided": "This item has already been handled.",
+      "not_allowed": "Action not allowed."
+    },
+    "mfa": {
+      "enrollTitle": "Turn on two-factor authentication",
+      "enrollIntro": "Scan this code with an authenticator app, then enter the code it shows.",
+      "qrAlt": "QR code to scan with your authenticator app",
+      "secretLabel": "Or enter this key in your app:",
+      "verifyTitle": "Two-factor authentication",
+      "verifyIntro": "Enter the code shown by your authenticator app.",
+      "code": "6-digit code",
+      "verify": "Verify",
+      "wrong": "Wrong code. Try again."
+    },
+    "reports": {
+      "empty": "No reports to handle.",
+      "noPreview": "Content unavailable",
+      "sourceAuto": "Automatic",
+      "sourceUser": "Reported by {{prenom}}",
+      "owner": "Concerns: {{prenom}}",
+      "statement": "Statement of reasons (required)",
+      "statementHelp": "Between {{min}} and {{max}} characters. The statement is sent to the people concerned.",
+      "banConfirm": "Confirm the ban",
+      "decisions": {
+        "dismiss": "Dismiss",
+        "warn": "Warn",
+        "remove": "Remove",
+        "ban": "Ban"
+      }
+    },
+    "claims": {
+      "empty": "No pending claims.",
+      "claimant": "Requested by {{prenom}}",
+      "role": "Role: {{role}}",
+      "email": "Email: {{email}}",
+      "viewDocument": "View the document"
+    },
+    "clubs": {
+      "empty": "No clubs to review.",
+      "by": "Added by {{prenom}}",
+      "activities_one": "{{count}} activity",
+      "activities_other": "{{count}} activities",
+      "merge": "Merge",
+      "mergeInto": "Merge into",
+      "search": "Search for an association",
+      "mergeConfirm": "Confirm the merge",
+      "rejectNote": "Reason for rejecting",
+      "rejectHelp": "At least 10 characters if there are reports on this club.",
+      "rejectConfirm": "Confirm the rejection"
+    },
+    "categories": {
+      "empty": "No category requests.",
+      "by": "Requested by {{prenom}}",
+      "parent": "Parent category",
+      "nameEn": "English name",
+      "approveConfirm": "Create the category",
+      "merge": "Merge",
+      "mergeInto": "Merge into",
+      "mergeConfirm": "Confirm the merge"
+    },
+    "feedback": {
+      "empty": "No messages to read.",
+      "from": "From {{prenom}}",
+      "anonymous": "Anonymous",
+      "screenshot": "View the screenshot",
+      "types": {
+        "idea": "Idea",
+        "problem": "Problem",
+        "other": "Other"
+      },
+      "statuses": {
+        "planned": "Planned",
+        "done": "Done",
+        "wont_do": "Won't do"
+      }
+    },
+    "bannedWords": {
+      "title": "Banned words",
+      "add": "Add a word",
+      "addAction": "Add",
+      "empty": "No banned words.",
+      "remove": "Remove the word {{mot}}"
+    }
   }
 }

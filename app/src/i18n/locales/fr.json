@@ -596,5 +596,113 @@
     "blockedError": "Impossible de charger les personnes bloquées. Réessayez.",
     "personHint": "Appui long pour signaler ou bloquer",
     "gone": "Ce contenu n'est plus disponible."
+  },
+  "admin": {
+    "title": "Administration",
+    "back": "Retour",
+    "loading": "Chargement",
+    "retry": "Réessayer",
+    "cancel": "Annuler",
+    "approve": "Approuver",
+    "reject": "Refuser",
+    "note": "Note (facultatif)",
+    "unknownPerson": "Inconnu",
+    "queueAria": "{{nom}}, {{count}} en attente",
+    "queues": {
+      "reports": "Signalements",
+      "claims": "Revendications",
+      "clubs": "Clubs ajoutés",
+      "categories": "Catégories",
+      "feedback": "Idées et problèmes"
+    },
+    "errors": {
+      "load": "Impossible de charger la liste.",
+      "network": "Connexion impossible. Réessayez.",
+      "unknown": "Une erreur est survenue. Réessayez.",
+      "invalid": "Décision refusée. Vérifiez les champs (motif de 10 caractères minimum).",
+      "not_found": "Cet élément n'existe plus.",
+      "already_decided": "Cet élément a déjà été traité.",
+      "not_allowed": "Action non autorisée."
+    },
+    "mfa": {
+      "enrollTitle": "Activer la double authentification",
+      "enrollIntro": "Scannez ce code avec une application d'authentification, puis saisissez le code qu'elle affiche.",
+      "qrAlt": "Code QR à scanner avec votre application d'authentification",
+      "secretLabel": "Ou saisissez cette clé dans votre application :",
+      "verifyTitle": "Double authentification",
+      "verifyIntro": "Saisissez le code affiché par votre application d'authentification.",
+      "code": "Code à 6 chiffres",
+      "verify": "Vérifier",
+      "wrong": "Code incorrect. Réessayez."
+    },
+    "reports": {
+      "empty": "Aucun signalement à traiter.",
+      "noPreview": "Contenu indisponible",
+      "sourceAuto": "Automatique",
+      "sourceUser": "Signalé par {{prenom}}",
+      "owner": "Concerne : {{prenom}}",
+      "statement": "Motif de la décision (obligatoire)",
+      "statementHelp": "Entre {{min}} et {{max}} caractères. Le motif est transmis aux personnes concernées.",
+      "banConfirm": "Confirmer le bannissement",
+      "decisions": {
+        "dismiss": "Classer sans suite",
+        "warn": "Avertir",
+        "remove": "Retirer",
+        "ban": "Bannir"
+      }
+    },
+    "claims": {
+      "empty": "Aucune revendication en attente.",
+      "claimant": "Demandé par {{prenom}}",
+      "role": "Rôle : {{role}}",
+      "email": "E-mail : {{email}}",
+      "viewDocument": "Voir le justificatif"
+    },
+    "clubs": {
+      "empty": "Aucun club à vérifier.",
+      "by": "Ajouté par {{prenom}}",
+      "activities_one": "{{count}} activité",
+      "activities_other": "{{count}} activités",
+      "merge": "Fusionner",
+      "mergeInto": "Fusionner dans",
+      "search": "Rechercher une association",
+      "mergeConfirm": "Confirmer la fusion",
+      "rejectNote": "Motif du refus",
+      "rejectHelp": "10 caractères minimum s'il existe des signalements sur ce club.",
+      "rejectConfirm": "Confirmer le refus"
+    },
+    "categories": {
+      "empty": "Aucune demande de catégorie.",
+      "by": "Demandée par {{prenom}}",
+      "parent": "Catégorie parente",
+      "nameEn": "Nom en anglais",
+      "approveConfirm": "Créer la catégorie",
+      "merge": "Fusionner",
+      "mergeInto": "Fusionner dans",
+      "mergeConfirm": "Confirmer la fusion"
+    },
+    "feedback": {
+      "empty": "Aucun message à lire.",
+      "from": "De {{prenom}}",
+      "anonymous": "Anonyme",
+      "screenshot": "Voir la capture d'écran",
+      "types": {
+        "idea": "Idée",
+        "problem": "Problème",
+        "other": "Autre"
+      },
+      "statuses": {
+        "planned": "Prévu",
+        "done": "Fait",
+        "wont_do": "Non retenu"
+      }
+    },
+    "bannedWords": {
+      "title": "Mots interdits",
+      "add": "Ajouter un mot",
+      "addAction": "Ajouter",
+      "empty": "Aucun mot interdit.",
+      "remove": "Retirer le mot {{mot}}"
+    }
   }
 }
