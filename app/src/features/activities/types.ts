@@ -8,6 +8,8 @@ export type OrganisedByChoice =
   | { kind: 'collectif'; id: string }
   | { kind: 'association'; id: string };
 
+export type ChatHistory = 'all' | 'since_join';
+
 export interface ActivityDraft {
   organisedBy: OrganisedByChoice;
   categoryId: string;
@@ -20,6 +22,8 @@ export interface ActivityDraft {
   maxSize: number | null;
   newcomerFriendly: boolean;
   approvalMode: 'open' | 'approval';
+  /** What new members see of the discussion: everything, or only what follows their arrival. */
+  chatHistory: ChatHistory;
 }
 
 export type ApiError =

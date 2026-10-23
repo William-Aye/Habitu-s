@@ -1,4 +1,4 @@
-import type { ActivityDraft, OrganisedByChoice, Recurrence } from './types';
+import type { ActivityDraft, ChatHistory, OrganisedByChoice, Recurrence } from './types';
 
 export const STEP_COUNT = 5;
 export const TITLE_MIN = 3;
@@ -28,6 +28,7 @@ export interface FormState {
   maxSize: string;
   newcomerFriendly: boolean;
   approvalMode: 'open' | 'approval';
+  chatHistory: ChatHistory;
 }
 
 const PARIS_DAY = new Intl.DateTimeFormat('en-GB', {
@@ -67,6 +68,7 @@ export function initialForm(collectifId?: string | null, now = new Date()): Form
     maxSize: '',
     newcomerFriendly: false,
     approvalMode: 'open',
+    chatHistory: 'all',
   };
 }
 
@@ -152,5 +154,6 @@ export function toDraft(f: FormState, today?: string): ActivityDraft | null {
     maxSize,
     newcomerFriendly: f.newcomerFriendly,
     approvalMode: f.approvalMode,
+    chatHistory: f.chatHistory,
   };
 }

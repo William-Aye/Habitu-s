@@ -56,6 +56,17 @@ export async function exportMyData(): Promise<{ ok: true; path: string } | { ok:
   }
 }
 
+/** Deletes the user's own messages in activities they have left; returns how many went. */
+export async function deleteMessagesInLeftActivities(): Promise<{ ok: true; count: number } | { ok: false }> {
+  try {
+    const { data, error } = await supabase.rpc('delete_my_messages_in_left_activities');
+    if (error) return { ok: false };
+    return { ok: true, count: typeof data === 'number' ? data : 0 };
+  } catch {
+    return { ok: false };
+  }
+}
+
 /** Removes the user's avatar files through the Storage API (the SQL delete only drops metadata). */
 async function removeAvatarFiles(userId: string): Promise<'none' | 'removed' | 'failed'> {
   const bucket = supabase.storage.from('avatars');

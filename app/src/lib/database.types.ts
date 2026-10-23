@@ -25,14 +25,14 @@ export type Database = {
           Tables: {
             "activities": {
                   Row: {
-                    "approval_mode": string,"archived_at": string | null,"category_id": string,"created_at": string,"description": string | null,"duration_minutes": number,"embedding": string | null,"embedding_hash": string | null,"id": string,"max_size": number | null,"min_participants": number | null,"newcomer_friendly": boolean,"organised_by_association_id": string | null,"organised_by_collectif_id": string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at": string,"recurrence_interval_days": number | null,"recurrence_kind": string,"recurrence_weekdays": (number)[] | null,"search_tsv": unknown,"start_date": string,"start_time": string,"timezone": string,"title": string,"welcome_member_id": string | null
+                    "approval_mode": string,"archived_at": string | null,"category_id": string,"chat_history": string,"created_at": string,"description": string | null,"duration_minutes": number,"embedding": string | null,"embedding_hash": string | null,"id": string,"max_size": number | null,"min_participants": number | null,"newcomer_friendly": boolean,"organised_by_association_id": string | null,"organised_by_collectif_id": string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at": string,"recurrence_interval_days": number | null,"recurrence_kind": string,"recurrence_weekdays": (number)[] | null,"search_tsv": unknown,"start_date": string,"start_time": string,"timezone": string,"title": string,"welcome_member_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "approval_mode"?: string,"archived_at"?: string | null,"category_id": string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"embedding_hash"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organised_by_collectif_id"?: string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind": string,"recurrence_weekdays"?: (number)[] | null,"search_tsv"?: never,"start_date": string,"start_time": string,"timezone"?: string,"title": string,"welcome_member_id"?: string | null
+                    "approval_mode"?: string,"archived_at"?: string | null,"category_id": string,"chat_history"?: string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"embedding_hash"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organised_by_collectif_id"?: string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind": string,"recurrence_weekdays"?: (number)[] | null,"search_tsv"?: never,"start_date": string,"start_time": string,"timezone"?: string,"title": string,"welcome_member_id"?: string | null
                   }
                   Update: {
-                    "approval_mode"?: string,"archived_at"?: string | null,"category_id"?: string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"embedding_hash"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organised_by_collectif_id"?: string | null,"organiser_id"?: string,"place"?: unknown,"place_label"?: string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind"?: string,"recurrence_weekdays"?: (number)[] | null,"search_tsv"?: never,"start_date"?: string,"start_time"?: string,"timezone"?: string,"title"?: string,"welcome_member_id"?: string | null
+                    "approval_mode"?: string,"archived_at"?: string | null,"category_id"?: string,"chat_history"?: string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"embedding_hash"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organised_by_collectif_id"?: string | null,"organiser_id"?: string,"place"?: unknown,"place_label"?: string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind"?: string,"recurrence_weekdays"?: (number)[] | null,"search_tsv"?: never,"start_date"?: string,"start_time"?: string,"timezone"?: string,"title"?: string,"welcome_member_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -427,16 +427,100 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"collectif_members": {
+                },"chat_send_log": {
                   Row: {
-                    "accepted_at": string | null,"collectif_id": string,"invited_at": string,"role": string,"status": string,"user_id": string
+                    "sent_at": string,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "accepted_at"?: string | null,"collectif_id": string,"invited_at"?: string,"role": string,"status"?: string,"user_id": string
+                    "sent_at"?: string,"user_id": string
                   }
                   Update: {
-                    "accepted_at"?: string | null,"collectif_id"?: string,"invited_at"?: string,"role"?: string,"status"?: string,"user_id"?: string
+                    "sent_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "chat_send_log_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "chat_send_log_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "public_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"chat_states": {
+                  Row: {
+                    "activity_id": string,"last_read_at": string,"muted": boolean,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "activity_id": string,"last_read_at"?: string,"muted"?: boolean,"user_id": string
+                  }
+                  Update: {
+                    "activity_id"?: string,"last_read_at"?: string,"muted"?: boolean,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "chat_states_activity_id_fkey"
+      columns: ["activity_id"]
+isOneToOne: false
+      referencedRelation: "activities"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "chat_states_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "chat_states_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "public_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"collectif_invite_log": {
+                  Row: {
+                    "invited_at": string,"invited_by": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "invited_at"?: string,"invited_by": string
+                  }
+                  Update: {
+                    "invited_at"?: string,"invited_by"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "collectif_invite_log_invited_by_fkey"
+      columns: ["invited_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "collectif_invite_log_invited_by_fkey"
+      columns: ["invited_by"]
+isOneToOne: false
+      referencedRelation: "public_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"collectif_members": {
+                  Row: {
+                    "accepted_at": string | null,"collectif_id": string,"invited_at": string,"invited_by": string | null,"role": string,"status": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "accepted_at"?: string | null,"collectif_id": string,"invited_at"?: string,"invited_by"?: string | null,"role": string,"status"?: string,"user_id": string
+                  }
+                  Update: {
+                    "accepted_at"?: string | null,"collectif_id"?: string,"invited_at"?: string,"invited_by"?: string | null,"role"?: string,"status"?: string,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -444,6 +528,18 @@ isOneToOne: false
       columns: ["collectif_id"]
 isOneToOne: false
       referencedRelation: "collectifs"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "collectif_members_invited_by_fkey"
+      columns: ["invited_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "collectif_members_invited_by_fkey"
+      columns: ["invited_by"]
+isOneToOne: false
+      referencedRelation: "public_profiles"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "collectif_members_user_id_fkey"
@@ -684,6 +780,26 @@ isOneToOne: false
       columns: ["user_id"]
 isOneToOne: false
       referencedRelation: "public_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"report_snapshots": {
+                  Row: {
+                    "report_id": string,"snapshot": NonNullable<Json>
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "report_id": string,"snapshot": NonNullable<Json>
+                  }
+                  Update: {
+                    "report_id"?: string,"snapshot"?: NonNullable<Json>
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "report_snapshots_report_id_fkey"
+      columns: ["report_id"]
+isOneToOne: true
+      referencedRelation: "reports"
       referencedColumns: ["id"]
     }
                   ]
@@ -969,6 +1085,15 @@ isOneToOne: true
 "can_organise":
 { Args: Record<PropertyKey, never>; Returns: boolean
                            },
+"chat_joined_at":
+{ Args: { "p_activity": string,"p_user": string }; Returns: string
+                           },
+"chat_messages":
+{ Args: { "p_activity": string,"p_after_at"?: string,"p_after_id"?: string,"p_before_at"?: string,"p_before_id"?: string,"p_limit"?: number }; Returns: Json
+                           },
+"chat_visible_since":
+{ Args: { "p_activity": string }; Returns: string
+                           },
 "claim_outbox":
 { Args: { "p_limit"?: number }; Returns: Json
                            },
@@ -980,8 +1105,14 @@ isOneToOne: true
               "first_name": string,"photo_url": string,"user_id": string
             }[]
                            },
+"collectif_invite_register":
+{ Args: { "p_collectif": string,"p_user": string }; Returns: undefined
+                           },
 "delete_my_account":
 { Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"delete_my_messages_in_left_activities":
+{ Args: Record<PropertyKey, never>; Returns: number
                            },
 "drain_outbox":
 { Args: Record<PropertyKey, never>; Returns: undefined
@@ -1034,17 +1165,37 @@ isOneToOne: true
 "is_session_organiser":
 { Args: { "p_session": string }; Returns: boolean
                            },
+"mark_chat_read":
+{ Args: { "p_activity": string }; Returns: undefined
+                           },
 "my_activities":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"my_chats":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
 "my_recent_community_clubs":
 { Args: Record<PropertyKey, never>; Returns: number
+                           },
+"my_unread_total":
+{ Args: Record<PropertyKey, never>; Returns: number
+                           },
+"notif_text":
+{ Args: { "p_kind": string,"p_lang": string }; Returns: {
+              "body": string,"title": string
+            }[]
                            },
 "notif_when":
 { Args: { "p_lang": string,"p_time_only"?: boolean,"p_ts": string,"p_tz": string }; Returns: string
                            },
 "notify_user":
 { Args: { "p_actor"?: string,"p_body_en": string,"p_body_fr": string,"p_data"?: Json,"p_dedupe"?: string,"p_kind": string,"p_send_after"?: string,"p_title_en": string,"p_title_fr": string,"p_user": string }; Returns: undefined
+                           },
+"prune_chat_send_log":
+{ Args: Record<PropertyKey, never>; Returns: number
+                           },
+"prune_messages":
+{ Args: Record<PropertyKey, never>; Returns: number
                            },
 "prune_outbox":
 { Args: Record<PropertyKey, never>; Returns: undefined
@@ -1071,6 +1222,9 @@ isOneToOne: true
                            },
 "session_matches_rule":
 { Args: { "a": Omit<Database["public"]['Tables']["activities"]['Row'], Database["public"]['Tables']["activities"]['ComputedFields']>,"p_starts_at": string }; Returns: boolean
+                           },
+"set_chat_muted":
+{ Args: { "p_activity": string,"p_muted": boolean }; Returns: undefined
                            },
 "touch_last_seen":
 { Args: Record<PropertyKey, never>; Returns: undefined

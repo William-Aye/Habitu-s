@@ -144,6 +144,8 @@
       "calendarAria": "Add the session on {{date}} to my calendar"
     },
     "organiser": {
+      "history": "Discussion history for new members",
+      "historyHint": "Current members keep what they already see; you always see everything.",
       "requests": "Requests to join",
       "noRequests": "No pending request",
       "accept": "Accept",
@@ -174,7 +176,8 @@
       "archiveNo": "No, keep it",
       "tools": "Organiser tools"
     },
-    "reminderFailed": "Your answer could not be saved. Please give it below."
+    "reminderFailed": "Your answer could not be saved. Please give it below.",
+    "discussion": "Discussion"
   },
   "common": {
     "comingSoon": "Coming soon"
@@ -265,6 +268,11 @@
     "deleteAction": "Delete",
     "cancel": "Cancel",
     "deleteError": "Could not delete. Try again.",
+    "deleteMessages": "Delete my messages in activities I left",
+    "deleteMessagesConfirm": "Your messages in the activities you have left will be deleted for everyone. Continue?",
+    "messagesDeleted_one": "{{count}} message deleted",
+    "messagesDeleted_other": "{{count}} messages deleted",
+    "deleteMessagesError": "Could not delete your messages. Try again.",
     "signOut": "Sign out",
     "photoTooLarge": "This photo is too large (1 MB maximum).",
     "photoError": "Could not upload the photo. Try again.",
@@ -416,7 +424,10 @@
       "newcomers": "Beginners welcome",
       "access": "Access",
       "open": "Open to all",
-      "approval": "On request"
+      "approval": "On request",
+      "history": "Discussion history for new members",
+      "history_all": "Whole history",
+      "history_since_join": "Only since they joined"
     },
     "done": {
       "title": "Share it with your friends",
@@ -496,5 +507,69 @@
     "imThere": "I'll be there",
     "imThereAria": "I'll be there on {{date}}",
     "actionError": "Could not save your answer. Try again."
+  },
+  "chat": {
+    "title": "Discussion",
+    "loading": "Loading the discussion",
+    "loadError": "Could not load the discussion. Try again.",
+    "retry": "Try again",
+    "empty": "Be the first to write.",
+    "placeholder": "Write a message…",
+    "send": "Send",
+    "count": "{{count}} / 2000",
+    "nonMember": "Join the activity to take part in the discussion.",
+    "backToActivity": "View the activity",
+    "archived": "This activity is archived: the discussion is read-only.",
+    "mute": "Mute notifications",
+    "unmute": "Turn notifications back on",
+    "sending": "Sending…",
+    "unsent": "Not sent — tap to retry",
+    "limit": "You are sending a lot of messages. Please wait a minute.",
+    "actions": {
+      "title": "Message actions",
+      "report": "Report",
+      "block": "Block {{prenom}}",
+      "blockTitle": "Block {{prenom}}?",
+      "blockBody": "You will no longer see their messages.",
+      "blockBodyOrganiser": "You will no longer see their messages and you will leave this activity.",
+      "blockBodyMember": "You will no longer see their messages and this person will be removed from the activity.",
+      "delete": "Delete message",
+      "deleteConfirm": "Delete this message for everyone?",
+      "discard": "Do not send",
+      "cancel": "Cancel",
+      "reportTitle": "Why are you reporting this message?",
+      "reportSent": "Thank you, your report has been sent.",
+      "error": "That did not work. Try again.",
+      "back": "Back"
+    },
+    "reasons": {
+      "inappropriate": "Inappropriate content",
+      "harassment": "Harassment",
+      "scam": "Scam or spam",
+      "other": "Other"
+    },
+    "bubbleOther": "{{name}}, {{time}}: {{body}}",
+    "bubbleMine": "You, {{time}}: {{body}}",
+    "actionsHint": "Long press for actions",
+    "listLabel": "Discussion messages",
+    "syncError": "Could not update the discussion. Try again.",
+    "muteError": "Could not change notifications. Try again."
+  },
+  "messages": {
+    "title": "Messages",
+    "loading": "Loading discussions",
+    "empty": "No discussions yet",
+    "emptyHint": "Join an activity to chat with the group.",
+    "explore": "Explore",
+    "error": "Could not load your discussions. Try again.",
+    "retry": "Try again",
+    "open": "Open the discussion {{title}}",
+    "muted": "Notifications muted",
+    "unread_one": "{{count}} unread message",
+    "unread_other": "{{count}} unread messages",
+    "noMessage": "No messages yet",
+    "yesterday": "yesterday",
+    "previewOther": "{{prenom}}: {{texte}}",
+    "previewMine": "You: {{texte}}"
   }
 }

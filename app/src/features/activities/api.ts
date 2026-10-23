@@ -4,6 +4,7 @@ import type {
   ActivityDraft,
   ActivityPage,
   ApiResult,
+  ChatHistory,
   MyActivity,
   MyStatus,
   Recurrence,
@@ -113,6 +114,7 @@ export function createActivity(d: ActivityDraft): Promise<ApiResult<{ id: string
           max_size: d.maxSize,
           newcomer_friendly: d.newcomerFriendly,
           approval_mode: d.approvalMode,
+          chat_history: d.chatHistory,
         })
         .select('id')
         .single(),
@@ -263,6 +265,22 @@ export function activityRoster(activityId: string): Promise<ApiResult<{ people: 
         status: r.status as 'member' | 'pending',
       })),
     }),
+  );
+}
+
+/** The organiser's choice of chat history for new members (readable by anyone, writable by the organiser). */
+export function getChatHistory(activityId: string): Promise<ApiResult<{ chatHistory: ChatHistory }>> {
+  return run(
+    () => supabase.from('activities').select('chat_history').eq('id', activityId).single(),
+    (row) => ({ chatHistory: (row?.chat_history === 'since_join' ? 'since_join' : 'all') as ChatHistory }),
+  );
+}
+
+export function setChatHistory(activityId: string, chatHistory: ChatHistory): Promise<ApiResult> {
+  return run(
+    () => supabase.from('activities').update({ chat_history: chatHistory }).eq('id', activityId).select('id'),
+    none,
+    { expectRows: true },
   );
 }
 

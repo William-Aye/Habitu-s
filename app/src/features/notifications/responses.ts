@@ -1,5 +1,5 @@
 import * as Notifications from 'expo-notifications';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { setAttendanceStatus } from '../activities/api';
 
 const handled = new Set<string>();
@@ -19,18 +19,21 @@ function payload(response: Notifications.NotificationResponse) {
     session_id?: unknown;
     activity_id?: unknown;
     collectif_id?: unknown;
+    kind?: unknown;
   };
   return {
     sessionId: typeof data.session_id === 'string' ? data.session_id : null,
     activityId: typeof data.activity_id === 'string' ? data.activity_id : null,
     collectifId: typeof data.collectif_id === 'string' ? data.collectif_id : null,
+    isChat: data.kind === 'chat_message',
   };
 }
 
 /** Only navigates to the activity (its page shows the account gate to a signed-out user); records nothing. */
 export function openActivityFor(response: Notifications.NotificationResponse): void {
-  const { activityId, collectifId } = payload(response);
-  if (activityId) router.push({ pathname: '/activites/[id]', params: { id: activityId } });
+  const { activityId, collectifId, isChat } = payload(response);
+  if (isChat && activityId) router.push(`/discussions/${activityId}` as Href);
+  else if (activityId) router.push({ pathname: '/activites/[id]', params: { id: activityId } });
   else if (collectifId) router.push({ pathname: '/collectifs/[id]', params: { id: collectifId } });
 }
 
@@ -46,12 +49,12 @@ export async function handleNotificationResponse(
   const key = responseKey(response);
   if (handled.has(key) || inFlight.has(key)) return;
   inFlight.add(key);
-  const { sessionId, activityId, collectifId } = payload(response);
+  const { sessionId, activityId, collectifId, isChat } = payload(response);
   let failed = false;
   try {
     const answer =
       response.actionIdentifier === 'yes' ? 'confirmed' : response.actionIdentifier === 'no' ? 'cancelled' : null;
-    if (sessionId && answer) {
+    if (sessionId && answer && !isChat) {
       try {
         const r = await setAttendanceStatus(sessionId, answer);
         failed = !r.ok;
@@ -68,6 +71,11 @@ export async function handleNotificationResponse(
     if (collectifId && !opts.alreadyOpened) {
       router.push({ pathname: '/collectifs/[id]', params: { id: collectifId } });
     }
+    return;
+  }
+  if (isChat) {
+    // The reminder actions do not apply to chat: a tap just opens the discussion, once.
+    if (!opts.alreadyOpened) router.push(`/discussions/${activityId}` as Href);
     return;
   }
   if (!opts.alreadyOpened) {

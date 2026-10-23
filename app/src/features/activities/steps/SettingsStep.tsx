@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { stepStyles as s, type StepProps } from './styles';
 
 const MODES = ['open', 'approval'] as const;
+const HISTORIES = ['all', 'since_join'] as const;
 
 export function SettingsStep({ form, set }: StepProps) {
   const { t } = useTranslation();
@@ -42,6 +43,26 @@ export function SettingsStep({ form, set }: StepProps) {
               accessibilityState={{ selected: on }}
               style={[s.option, on && s.optionOn]}
               onPress={() => set({ approvalMode: mode })}
+            >
+              <Text style={[s.optionText, on && s.optionTextOn]}>{label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <Text style={s.label}>{t('create.settings.history')}</Text>
+      <View style={s.wrap} accessibilityRole="radiogroup">
+        {HISTORIES.map((h) => {
+          const on = form.chatHistory === h;
+          const label = t(`create.settings.history_${h}`);
+          return (
+            <Pressable
+              key={h}
+              accessibilityRole="radio"
+              accessibilityLabel={label}
+              accessibilityState={{ selected: on }}
+              style={[s.option, on && s.optionOn]}
+              onPress={() => set({ chatHistory: h })}
             >
               <Text style={[s.optionText, on && s.optionTextOn]}>{label}</Text>
             </Pressable>

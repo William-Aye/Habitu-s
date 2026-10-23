@@ -36,7 +36,7 @@ Nous n'utilisons aucun traceur publicitaire tiers. Les statistiques de fréquent
 - Messages de groupe : 12 mois, puis supprimés automatiquement (dès que cette fonctionnalité sera disponible).
 - Messages privés : 12 mois, puis supprimés automatiquement (dès que cette fonctionnalité sera disponible).
 - Réponses aux avis après séance : regroupées en statistiques, puis les réponses brutes sont supprimées après 6 mois (dès que cette fonctionnalité sera disponible).
-- Signalements et décisions de modération : 3 ans, puis supprimés (dès que cette fonctionnalité sera disponible).
+- Signalements et décisions de modération : 3 ans, puis supprimés (dès que cette fonctionnalité sera disponible). Lorsqu'un message est signalé, une copie est conservée avec le signalement pour la modération, pendant la même durée.
 - Comptes inactifs depuis 3 ans : e-mail d'avertissement, puis suppression 30 jours plus tard (dès que cette fonctionnalité sera disponible).
 - Notifications : 30 jours sur nos serveurs après leur envoi, puis supprimées.
 - Journaux techniques (dont adresses IP) : durée par défaut de notre hébergeur, au plus 90 jours.

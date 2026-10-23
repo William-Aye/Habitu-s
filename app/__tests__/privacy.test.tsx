@@ -96,3 +96,8 @@ it('names the suggestion form instead of the ambiguous reviews, and mentions the
   expect(privacyFr).toContain('adresse e-mail');
   expect(privacyEn).toContain('sign-in methods');
 });
+
+it('says a copy of a reported message is kept with the report, in both languages', () => {
+  expect(privacyFr).toContain('Lorsqu\'un message est signalé, une copie est conservée avec le signalement');
+  expect(privacyEn).toContain('When a message is reported, a copy is kept with the report');
+});

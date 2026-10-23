@@ -144,6 +144,8 @@
       "calendarAria": "Ajouter la séance du {{date}} à mon agenda"
     },
     "organiser": {
+      "history": "Historique de la discussion pour les nouveaux membres",
+      "historyHint": "Les membres actuels gardent ce qu'ils voient déjà ; vous voyez toujours tout.",
       "requests": "Demandes de participation",
       "noRequests": "Aucune demande en attente",
       "accept": "Accepter",
@@ -174,7 +176,8 @@
       "archiveNo": "Non, la garder",
       "tools": "Outils de l'organisateur"
     },
-    "reminderFailed": "Votre réponse n'a pas pu être enregistrée. Indiquez-la ci-dessous."
+    "reminderFailed": "Votre réponse n'a pas pu être enregistrée. Indiquez-la ci-dessous.",
+    "discussion": "Discussion"
   },
   "common": {
     "comingSoon": "Bientôt disponible"
@@ -265,6 +268,11 @@
     "deleteAction": "Supprimer",
     "cancel": "Annuler",
     "deleteError": "Suppression impossible. Réessayez.",
+    "deleteMessages": "Supprimer mes messages des activités quittées",
+    "deleteMessagesConfirm": "Vos messages dans les activités que vous avez quittées seront supprimés pour tout le monde. Continuer ?",
+    "messagesDeleted_one": "{{count}} message supprimé",
+    "messagesDeleted_other": "{{count}} messages supprimés",
+    "deleteMessagesError": "Impossible de supprimer vos messages. Réessayez.",
     "signOut": "Se déconnecter",
     "photoTooLarge": "Cette photo est trop lourde (1 Mo maximum).",
     "photoError": "Envoi de la photo impossible. Réessayez.",
@@ -416,7 +424,10 @@
       "newcomers": "Débutants bienvenus",
       "access": "Accès",
       "open": "Ouvert à tous",
-      "approval": "Sur demande"
+      "approval": "Sur demande",
+      "history": "Historique de la discussion pour les nouveaux membres",
+      "history_all": "Tout l'historique",
+      "history_since_join": "Seulement depuis leur arrivée"
     },
     "done": {
       "title": "Partagez-la avec vos amis",
@@ -496,5 +507,69 @@
     "imThere": "Je serai là",
     "imThereAria": "Je serai là le {{date}}",
     "actionError": "Impossible d'enregistrer votre réponse. Réessayez."
+  },
+  "chat": {
+    "title": "Discussion",
+    "loading": "Chargement de la discussion",
+    "loadError": "Impossible de charger la discussion. Réessayez.",
+    "retry": "Réessayer",
+    "empty": "Soyez la première personne à écrire.",
+    "placeholder": "Écrire un message…",
+    "send": "Envoyer",
+    "count": "{{count}} / 2000",
+    "nonMember": "Rejoignez l'activité pour participer à la discussion.",
+    "backToActivity": "Voir l'activité",
+    "archived": "Cette activité est archivée : la discussion est en lecture seule.",
+    "mute": "Couper les notifications",
+    "unmute": "Réactiver les notifications",
+    "sending": "Envoi…",
+    "unsent": "Non envoyé — touchez pour réessayer",
+    "limit": "Vous envoyez beaucoup de messages. Patientez une minute.",
+    "actions": {
+      "title": "Actions sur le message",
+      "report": "Signaler",
+      "block": "Bloquer {{prenom}}",
+      "blockTitle": "Bloquer {{prenom}} ?",
+      "blockBody": "Vous ne verrez plus ses messages.",
+      "blockBodyOrganiser": "Vous ne verrez plus ses messages et vous quitterez cette activité.",
+      "blockBodyMember": "Vous ne verrez plus ses messages et cette personne sera retirée de l'activité.",
+      "delete": "Supprimer le message",
+      "deleteConfirm": "Supprimer ce message pour tout le monde ?",
+      "discard": "Ne pas envoyer",
+      "cancel": "Annuler",
+      "reportTitle": "Pourquoi signalez-vous ce message ?",
+      "reportSent": "Merci, votre signalement a été envoyé.",
+      "error": "Action impossible. Réessayez.",
+      "back": "Retour"
+    },
+    "reasons": {
+      "inappropriate": "Contenu inapproprié",
+      "harassment": "Harcèlement",
+      "scam": "Arnaque ou spam",
+      "other": "Autre"
+    },
+    "bubbleOther": "{{name}}, {{time}} : {{body}}",
+    "bubbleMine": "Vous, {{time}} : {{body}}",
+    "actionsHint": "Appui long pour les actions",
+    "listLabel": "Messages de la discussion",
+    "syncError": "Impossible de mettre à jour la discussion. Réessayez.",
+    "muteError": "Impossible de modifier les notifications. Réessayez."
+  },
+  "messages": {
+    "title": "Messages",
+    "loading": "Chargement des discussions",
+    "empty": "Aucune discussion pour l'instant",
+    "emptyHint": "Rejoignez une activité pour discuter avec le groupe.",
+    "explore": "Explorer",
+    "error": "Impossible de charger vos discussions. Réessayez.",
+    "retry": "Réessayer",
+    "open": "Ouvrir la discussion {{title}}",
+    "muted": "Notifications coupées",
+    "unread_one": "{{count}} message non lu",
+    "unread_other": "{{count}} messages non lus",
+    "noMessage": "Aucun message pour l'instant",
+    "yesterday": "hier",
+    "previewOther": "{{prenom}} : {{texte}}",
+    "previewMine": "Vous : {{texte}}"
   }
 }

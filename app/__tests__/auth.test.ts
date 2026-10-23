@@ -11,6 +11,7 @@ import { resolveHomeArea } from '../src/features/account/homeArea';
 import { unregisterThisDevice } from '../src/features/notifications/registerPush';
 import { supabase } from '../src/lib/supabase';
 
+jest.mock('../src/features/chat/outbox', () => ({ clearOutbox: jest.fn(async () => {}) }));
 jest.mock('../src/features/notifications/registerPush', () => ({ unregisterThisDevice: jest.fn(async () => {}) }));
 jest.mock('../src/lib/supabase', () => ({
   supabase: {
@@ -215,6 +216,23 @@ describe('signOut', () => {
     await signOut();
     expect(order).toEqual(['unregister', 'signOut']);
     (unregisterThisDevice as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+    await signOut();
+    expect(auth.signOut).toHaveBeenCalledTimes(2);
+  });
+
+  it('clears the chat outbox before ending the session, and survives a failure', async () => {
+    const { clearOutbox } = require('../src/features/chat/outbox');
+    const order: string[] = [];
+    clearOutbox.mockImplementationOnce(async () => {
+      order.push('clear');
+    });
+    auth.signOut.mockImplementationOnce(async () => {
+      order.push('signOut');
+      return { error: null };
+    });
+    await signOut();
+    expect(order).toEqual(['clear', 'signOut']);
+    clearOutbox.mockRejectedValueOnce(new Error('boom'));
     await signOut();
     expect(auth.signOut).toHaveBeenCalledTimes(2);
   });

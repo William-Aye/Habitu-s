@@ -1,3 +1,4 @@
+import { clearOutbox, flush } from '../chat/outbox';
 import {
   createContext,
   useCallback,
@@ -120,7 +121,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         void attempt(RETRY_DELAYS_MS.length);
       }
     });
+    let lastUserId: string | null = null;
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      // Unsent chat messages belong to one account: forget them on sign-out or when another account signs in.
+      // (No Supabase call: the callback runs inside the auth lock, and clearOutbox only touches local storage.)
+      const nextUserId = session?.user.id ?? null;
+      if (event === 'SIGNED_OUT' || (lastUserId && nextUserId && nextUserId !== lastUserId)) {
+        Promise.resolve(clearOutbox()).catch(() => {});
+      }
+      if (nextUserId || event === 'SIGNED_OUT') lastUserId = nextUserId;
+      // Messages queued while signed out (or before a token refresh) can go now.
+      if (event === 'SIGNED_IN' && nextUserId) Promise.resolve(flush()).catch(() => {});
       // No Supabase call here: the callback runs inside the auth lock.
       // A null INITIAL_SESSION can mean the stored session could not be refreshed offline: getSession decides.
       if (event === 'INITIAL_SESSION' && !session) return;

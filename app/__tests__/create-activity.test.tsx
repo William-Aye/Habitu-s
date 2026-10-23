@@ -330,6 +330,7 @@ it('publishes the expected draft and offers to share', async () => {
     maxSize: 10,
     newcomerFriendly: false,
     approvalMode: 'approval',
+    chatHistory: 'all',
   });
   await fireEvent.press(screen.getByLabelText('Partager'));
   expect(shareActivity).toHaveBeenCalledWith('act1', 'Soirée jeux au bar');
@@ -338,6 +339,18 @@ it('publishes the expected draft and offers to share', async () => {
     pathname: '/activites/[id]',
     params: { id: 'act1', title: 'Soirée jeux au bar' },
   });
+});
+
+it('lets the organiser choose the chat history for newcomers, whole history by default', async () => {
+  mockCreate.mockResolvedValue({ ok: true, id: 'act3' });
+  await reachPublish();
+  expect(screen.getByText('Historique de la discussion pour les nouveaux membres')).toBeTruthy();
+  expect(screen.getByLabelText("Tout l'historique").props.accessibilityState.selected).toBe(true);
+  await fireEvent.press(screen.getByLabelText('Seulement depuis leur arrivée'));
+  expect(screen.getByLabelText('Seulement depuis leur arrivée').props.accessibilityState.selected).toBe(true);
+  await fireEvent.press(screen.getByLabelText('Publier'));
+  await screen.findByText('Partagez-la avec vos amis');
+  expect(mockCreate.mock.calls[0][0]).toMatchObject({ chatHistory: 'since_join' });
 });
 
 it('sends no limit and an every-N-days recurrence', async () => {

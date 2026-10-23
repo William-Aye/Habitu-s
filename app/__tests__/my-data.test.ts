@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { cleanupExportFiles, deleteMyAccount, exportMyData } from '../src/features/account/myData';
+import { cleanupExportFiles, deleteMessagesInLeftActivities, deleteMyAccount, exportMyData } from '../src/features/account/myData';
 import { touchLastSeen, resetLastSeenForTests } from '../src/features/account/lastSeen';
 import { pickAndUploadAvatar } from '../src/features/account/avatar';
 import { signOut } from '../src/features/account/auth';
@@ -362,5 +362,20 @@ describe('pickAndUploadAvatar', () => {
   it('reports network when the upload fails', async () => {
     upload.mockResolvedValue({ error: { message: 'x' } });
     expect(await pickAndUploadAvatar('u1')).toEqual({ ok: false, error: 'network' });
+  });
+});
+
+describe('deleteMessagesInLeftActivities', () => {
+  it('calls the RPC and returns the count', async () => {
+    rpc.mockResolvedValue({ data: 4, error: null });
+    expect(await deleteMessagesInLeftActivities()).toEqual({ ok: true, count: 4 });
+    expect(rpc).toHaveBeenCalledWith('delete_my_messages_in_left_activities');
+  });
+
+  it('reports a failure', async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: 'x' } });
+    expect(await deleteMessagesInLeftActivities()).toEqual({ ok: false });
+    rpc.mockRejectedValue(new Error('network'));
+    expect(await deleteMessagesInLeftActivities()).toEqual({ ok: false });
   });
 });

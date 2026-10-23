@@ -2,6 +2,8 @@ import {
   createActivity,
   decideJoinRequest,
   getActivity,
+  getChatHistory,
+  setChatHistory,
   joinActivity,
   leaveActivity,
   myActivities,
@@ -94,6 +96,7 @@ const draft: ActivityDraft = {
   maxSize: null,
   newcomerFriendly: true,
   approvalMode: 'open',
+  chatHistory: 'all',
 };
 
 describe('mapError', () => {
@@ -174,6 +177,21 @@ describe('addCommunityAssociation', () => {
   });
 });
 
+describe('chat history setting', () => {
+  it('reads it from the activity row', async () => {
+    result = { data: { chat_history: 'since_join' }, error: null };
+    expect(await getChatHistory('a1')).toEqual({ ok: true, chatHistory: 'since_join' });
+    expect(mockFrom).toHaveBeenCalledWith('activities');
+  });
+
+  it('updates it for the activity', async () => {
+    result = { data: [{ id: 'a1' }], error: null };
+    expect(await setChatHistory('a1', 'since_join')).toEqual({ ok: true });
+    expect(lastCall('update')?.args[0]).toEqual({ chat_history: 'since_join' });
+    expect(lastCall('eq')?.args).toEqual(['id', 'a1']);
+  });
+});
+
 describe('createActivity', () => {
   it('inserts the draft with a WKT point and the organiser fields', async () => {
     result = { data: { id: 'a1' }, error: null };
@@ -196,7 +214,14 @@ describe('createActivity', () => {
       max_size: null,
       newcomer_friendly: true,
       approval_mode: 'open',
+      chat_history: 'all',
     });
+  });
+
+  it('sends the chat history choice', async () => {
+    result = { data: { id: 'a3' }, error: null };
+    await createActivity({ ...draft, chatHistory: 'since_join' });
+    expect(lastCall('insert')?.args[0]).toMatchObject({ chat_history: 'since_join' });
   });
 
   it('sets the collectif, association and recurrence columns', async () => {
