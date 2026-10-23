@@ -1,3 +1,5 @@
+import * as Location from 'expo-location';
+import { roundKm } from '../explore/round';
 import type { StoredLocation } from '../explore/types';
 import type { HomeAreaInput } from './auth';
 
@@ -38,5 +40,23 @@ export async function resolveHomeArea(
     return null;
   } finally {
     clearTimeout(timer);
+  }
+}
+
+/** The device position as its commune centre (GPS rounded to ~1 km before the lookup); 'denied' if it cannot be had. */
+export async function currentCommune(): Promise<HomeAreaInput | 'denied'> {
+  try {
+    const perm = await Location.requestForegroundPermissionsAsync();
+    if (!perm.granted) return 'denied';
+    const pos = await Location.getCurrentPositionAsync({});
+    const area = await resolveHomeArea({
+      label: 'gps',
+      lon: roundKm(pos.coords.longitude),
+      lat: roundKm(pos.coords.latitude),
+      source: 'gps',
+    });
+    return area ?? 'denied';
+  } catch {
+    return 'denied';
   }
 }

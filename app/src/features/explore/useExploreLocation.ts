@@ -2,14 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useState } from 'react';
 import { resolveHomeArea } from '../account/homeArea';
+import { roundKm } from './round';
 import type { StoredLocation, Town } from './types';
 
 const KEY = 'explore.location';
 
-/** GPS is kept and sent to search only at ~1 km precision (0.01 degree). */
-function roundKm(v: number): number {
-  return Math.round(v * 100) / 100;
-}
 // Told when the stored location was wiped (account deletion) so mounted hooks drop their copy.
 const resetListeners = new Set<() => void>();
 export function subscribeExploreLocationReset(fn: () => void): () => void {
@@ -42,7 +39,8 @@ export function useExploreLocation(): {
         const raw = await AsyncStorage.getItem(KEY);
         const v = raw ? (JSON.parse(raw) as StoredLocation) : null;
         if (!cancelled && v && typeof v.lon === 'number' && typeof v.lat === 'number') {
-          setLocation(v);
+          // A position stored before rounding existed is coarsened on load.
+          setLocation(v.source === 'gps' ? { ...v, lon: roundKm(v.lon), lat: roundKm(v.lat) } : v);
         }
       } catch {
         // unreadable storage: treat as no location
@@ -68,23 +66,16 @@ export function useExploreLocation(): {
       const perm = await Location.requestForegroundPermissionsAsync();
       if (!perm.granted) return 'denied';
       const pos = await Location.getCurrentPositionAsync({});
+      // Rounded to ~1 km before anything leaves the device (commune lookup included).
+      const lon = roundKm(pos.coords.longitude);
+      const lat = roundKm(pos.coords.latitude);
       if (opts?.toCommune) {
-        const area = await resolveHomeArea({
-          label: MY_POSITION_KEY,
-          lon: pos.coords.longitude,
-          lat: pos.coords.latitude,
-          source: 'gps',
-        });
+        const area = await resolveHomeArea({ label: MY_POSITION_KEY, lon, lat, source: 'gps' });
         if (!area) return 'denied';
         await save({ ...area, source: 'town' });
         return 'ok';
       }
-      await save({
-        label: MY_POSITION_KEY,
-        lon: roundKm(pos.coords.longitude),
-        lat: roundKm(pos.coords.latitude),
-        source: 'gps',
-      });
+      await save({ label: MY_POSITION_KEY, lon, lat, source: 'gps' });
       return 'ok';
     } catch {
       return 'denied';

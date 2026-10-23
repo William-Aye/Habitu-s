@@ -2,7 +2,8 @@
 // MARKERS: every sentence tagged "(dès que cette fonctionnalité sera disponible)" describes a feature that
 // is not built yet. Remove the marker when it ships: messages and group/private chat, post-session
 // feedback, 12-month/6-month automatic deletion, inactive-account warning and deletion, phone
-// verification for organisers, push notifications through Expo, reports and moderation (3-year purge).
+// verification for organisers, push notifications through Expo, reports and moderation (3-year purge),
+// private messages (their mention in the export paragraph).
 export const privacyFr = `Version à faire relire par une personne qualifiée avant la publication.
 
 # Politique de confidentialité
@@ -13,7 +14,7 @@ Habitués vous aide à rencontrer des gens autour d'activités régulières. Cet
 
 - Votre prénom (jamais votre nom de famille), votre adresse e-mail ou votre compte Google pour vous connecter. Aucun mot de passe n'est stocké.
 - Une confirmation que vous avez 18 ans ou plus. Nous ne demandons pas votre date de naissance.
-- Votre zone d'habitation, ramenée au centre de votre commune (environ 1 km de précision). Nous ne stockons jamais votre position précise : le GPS de votre téléphone sert seulement, sur l'appareil, à trier les résultats par distance.
+- Votre zone d'habitation, ramenée au centre de votre commune (environ 1 km de précision). Votre position GPS est arrondie à environ 1 km sur votre téléphone avant tout usage ; elle sert uniquement à chercher des activités autour de vous et à trouver votre commune (le service public geo.api.gouv.fr reçoit cette position arrondie). Elle n'est jamais enregistrée sur nos serveurs.
 - Facultatif : une photo de profil et une courte présentation. Les informations cachées de la photo (dont le lieu de prise de vue) sont supprimées avant l'envoi.
 - Vos centres d'intérêt, les activités que vous rejoignez, vos présences, vos messages de groupe et vos avis après séance (dès que cette fonctionnalité sera disponible).
 - Votre numéro de téléphone, seulement si vous organisez des activités, pour vérifier votre identité. Il est conservé par notre service de connexion et n'apparaît jamais dans l'application (dès que cette fonctionnalité sera disponible).
@@ -47,6 +48,7 @@ La suppression de votre compte est immédiate (voir plus bas).
 - Cloudflare (protection du service et vérification anti-robot à l'inscription).
 - Expo (envoi des notifications) (dès que cette fonctionnalité sera disponible).
 - GitHub (hébergement du code de l'application et du site : aucune donnée d'utilisateur).
+- geo.api.gouv.fr (service public français, data.gouv) : reçoit la position arrondie à environ 1 km pour trouver votre commune, et les noms de villes que vous tapez dans la recherche.
 
 Quand un de ces services est situé hors de l'Union européenne, le transfert est encadré par le cadre de protection des données UE–États-Unis ou par des clauses contractuelles types.
 
@@ -54,11 +56,11 @@ Quand un de ces services est situé hors de l'Union européenne, le transfert es
 
 Dans l'application, ouvrez Profil, puis « Mes données » :
 
-- Télécharger mes données : vous recevez un fichier avec toutes les données personnelles que nous avons sur vous, et rien sur les autres.
-- Corriger : modifiez votre prénom, votre présentation et votre photo directement dans Profil.
+- Télécharger mes données : vous recevez un fichier avec toutes les données personnelles que nous avons sur vous (dont votre adresse e-mail, vos dates de création de compte et de dernière connexion, et vos moyens de connexion), et rien sur les autres. Les messages privés que vous avez reçus sont supprimés avec votre compte, mais ne figurent pas dans votre export : ils appartiennent à leur expéditeur (art. 15, § 4 du RGPD) (dès que cette fonctionnalité sera disponible).
+- Corriger : modifiez votre prénom, votre présentation, votre photo et votre ville directement dans Profil (vous pouvez aussi retirer votre ville).
 - Supprimer mon compte : la suppression est immédiate et définitive, après confirmation.
 
-Supprimer votre compte supprime aussi les activités que vous organisez, avec leurs séances, leurs présences et les messages de leur groupe. Les signalements et les avis que vous avez envoyés restent, mais ne sont plus rattachés à vous.
+Supprimer votre compte supprime aussi les activités que vous organisez, avec leurs séances, leurs présences et les messages de leur groupe. Les signalements et vos suggestions « Une idée ? Un problème ? » restent, mais ne sont plus rattachés à vous.
 
 Vous pouvez aussi vous opposer à un traitement ou demander une limitation en nous écrivant : confidentialite@<domaine>. Nous répondons dans un délai d'un mois.
 
