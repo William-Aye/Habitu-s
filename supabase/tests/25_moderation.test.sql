@@ -88,7 +88,7 @@ select throws_ok($$ insert into category_requests (user_id, requested_name) valu
 select lives_ok($$ insert into feedback (user_id, type, body) select auth.uid(), 'idea', 'idee ' || n from generate_series(1, 3) n $$, '3 feedbacks in an hour are accepted');
 select throws_ok($$ insert into feedback (user_id, type, body) values (auth.uid(), 'idea', 'idee 4') $$, '42501', 'limit_reached', 'the 4th feedback is refused');
 select tests.act_as_anon();
-select lives_ok($$ insert into feedback (type, body) select 'idea', 'anonyme ' || n from generate_series(1, 5) n $$, 'anonymous feedback is not limited');
+select throws_ok($$ insert into feedback (type, body) select 'idea', 'anonyme ' || n from generate_series(1, 5) n $$, '42501', null, 'anonymous feedback goes through the Edge Function only, not the API');
 select throws_ok($$ select public.take_limit('x', 1, interval '1 hour') $$, '42501', null, 'take_limit is not callable by clients');
 select throws_ok($$ select * from public.limit_log $$, '42501', null, 'limit_log is not readable by clients');
 

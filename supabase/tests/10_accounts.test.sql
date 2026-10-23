@@ -41,8 +41,8 @@ insert into activity_interests (activity_id, user_id) values ('00000000-0000-000
 insert into associations (id, name, source, confidence, location)
 values ('00000000-0000-0000-0000-00000000ac0d', 'Asso test', 'rna', 60, 'SRID=4326;POINT(4.8 45.7)');
 insert into association_waiters (association_id, user_id) values ('00000000-0000-0000-0000-00000000ac0d', :'ana');
-insert into association_claims (association_id, claimant_id, proof_method)
-values ('00000000-0000-0000-0000-00000000ac0d', :'ana', 'document');
+insert into association_claims (association_id, claimant_id, proof_method, role_in_association, contact_email)
+values ('00000000-0000-0000-0000-00000000ac0d', :'ana', 'document', 'Presidente', 'p@club.fr');
 insert into organiser_stats (user_id, sessions_held) values (:'ana', 4)
 on conflict (user_id) do update set sessions_held = 4;
 

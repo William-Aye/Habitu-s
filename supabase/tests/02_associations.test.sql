@@ -9,8 +9,8 @@ insert into associations (id, name, source, rna_id) values ('00000000-0000-0000-
 insert into associations (id, name, source, rna_id) values ('00000000-0000-0000-0000-0000000000a2', 'Echecs Paris', 'rna', 'W751000002');
 insert into tags (id, slug, label_fr, label_en) values ('00000000-0000-0000-0000-0000000000b1', 'go', 'Go', 'Go');
 insert into association_tags (association_id, tag_id) values ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1');
-insert into association_claims (id, association_id, claimant_id, proof_method)
-  values ('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000a2', :'dave', 'document');
+insert into association_claims (id, association_id, claimant_id, proof_method, role_in_association, contact_email)
+  values ('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000a2', :'dave', 'document', 'Presidente', 'p@club.fr');
 
 -- structure
 select has_index('public', 'associations', 'associations_location_gist', 'GiST index on location');
@@ -37,8 +37,8 @@ select throws_ok(format($f$ insert into associations (name, source, created_by, 
 select throws_ok(format($f$ insert into associations (name, source, created_by) values ('Fake', 'community', %L) $f$, :'dave'), '42501', null, 'cannot insert as someone else');
 select is_empty($$ update associations set purpose = 'x' where id = '00000000-0000-0000-0000-0000000000a1' returning 1 $$,
   'cannot edit unclaimed association');
-select lives_ok($$ insert into association_claims (association_id, claimant_id, proof_method) values ('00000000-0000-0000-0000-0000000000a1', auth.uid(), 'domain_email') $$, 'can file a claim');
-select throws_ok($$ insert into association_claims (association_id, claimant_id, proof_method, status) values ('00000000-0000-0000-0000-0000000000a1', auth.uid(), 'document', 'approved') $$, '42501', null, 'cannot self-approve claim');
+select lives_ok($$ insert into association_claims (association_id, claimant_id, proof_method, role_in_association, contact_email) values ('00000000-0000-0000-0000-0000000000a1', auth.uid(), 'domain_email', 'Presidente', 'p@club.fr') $$, 'can file a claim');
+select throws_ok($$ insert into association_claims (association_id, claimant_id, proof_method, role_in_association, contact_email, status) values ('00000000-0000-0000-0000-0000000000a1', auth.uid(), 'document', 'Presidente', 'p@club.fr', 'approved') $$, '42501', null, 'cannot self-approve claim');
 select is((select count(*) from association_claims)::int, 1, 'user sees only own claims');
 select throws_ok($$ insert into association_tags (association_id, tag_id) values ('00000000-0000-0000-0000-0000000000a2', '00000000-0000-0000-0000-0000000000b1') $$, '42501', null, 'user cannot write association_tags');
 
