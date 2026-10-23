@@ -9,7 +9,9 @@ begin
     new.sender_id := auth.uid();
     new.created_at := now();
     if new.activity_id is not null then
-      if exists (select 1 from public.activities a where a.id = new.activity_id and a.archived_at is not null) then
+      -- membership first, so a non-member gets the same refusal whether or not the activity is archived
+      if not public.is_activity_member(new.activity_id)
+         or exists (select 1 from public.activities a where a.id = new.activity_id and a.archived_at is not null) then
         raise exception 'not_allowed' using errcode = '42501';
       end if;
       perform pg_advisory_xact_lock(hashtext('limits:' || coalesce(auth.uid()::text, '')));
@@ -24,6 +26,15 @@ end $$;
 revoke all on function public.messages_guard() from public, anon, authenticated;
 create trigger messages_guard before insert on public.messages
   for each row execute function public.messages_guard();
+
+-- The sender-and-date window of the limit trigger, and keyset paging of a discussion.
+drop index public.messages_sender;
+create index messages_sender_created on public.messages (sender_id, created_at);
+drop index public.messages_activity_created;
+create index messages_activity_created on public.messages (activity_id, created_at desc, id desc);
+
+-- Messages are never edited: moderation only reads and deletes.
+revoke update on public.messages from authenticated, anon;
 
 create policy messages_delete_own on public.messages for delete to authenticated
   using (sender_id = auth.uid());
@@ -43,10 +54,25 @@ grant select on public.chat_states to authenticated;
 create policy chat_states_own on public.chat_states for select to authenticated
   using (user_id = auth.uid());
 
+-- When a person joined a discussion: nothing before that counts as unread.
+create function public.chat_joined_at(p_activity uuid, p_user uuid) returns timestamptz
+language sql stable security definer set search_path = public, pg_temp as $$
+  select coalesce(
+    (select a.created_at from public.activities a where a.id = p_activity and a.organiser_id = p_user),
+    (select m.joined_at from public.activity_members m
+      where m.activity_id = p_activity and m.user_id = p_user and m.status = 'member'),
+    now());
+$$;
+revoke all on function public.chat_joined_at(uuid, uuid) from public, anon, authenticated;
+
 -- A page of the discussion, newest first. Null for anyone who is not a participant.
--- p_before pages older messages; p_after returns the oldest messages newer than it (so none is skipped).
+-- Keyset cursors on (created_at, id): the before cursor pages older messages; the after cursor returns
+-- the oldest messages newer than it (so none is skipped), still displayed newest first.
 create function public.chat_messages(
-  p_activity uuid, p_before timestamptz default null, p_after timestamptz default null, p_limit int default 50
+  p_activity uuid,
+  p_before_at timestamptz default null, p_before_id uuid default null,
+  p_after_at timestamptz default null, p_after_id uuid default null,
+  p_limit int default 50
 ) returns jsonb
 language plpgsql stable security definer set search_path = public, pg_temp as $$
 declare
@@ -58,27 +84,46 @@ begin
     return null;
   end if;
   select a.archived_at is not null into v_archived from public.activities a where a.id = p_activity;
-  select coalesce(jsonb_agg(jsonb_build_object(
-      'id', t.id, 'body', t.body, 'created_at', t.created_at,
-      'sender', jsonb_build_object('id', t.sender_id, 'first_name', t.first_name, 'photo_url', t.photo_url),
-      'is_mine', t.sender_id = auth.uid()) order by t.created_at desc, t.id desc), '[]'::jsonb)
-    into v_rows
-    from (
-      select m.id, m.body, m.created_at, m.sender_id, p.first_name, p.photo_url
-        from public.messages m
-        join public.profiles p on p.id = m.sender_id
-       where m.activity_id = p_activity
-         and (p_before is null or m.created_at < p_before)
-         and (p_after is null or m.created_at > p_after)
-         and not public.is_blocked_between(m.sender_id)
-       order by case when p_after is not null and p_before is null then m.created_at end asc,
-                m.created_at desc, m.id desc
-       limit v_limit
-    ) t;
+  if p_after_at is not null and p_before_at is null then
+    select coalesce(jsonb_agg(jsonb_build_object(
+        'id', t.id, 'body', t.body, 'created_at', t.created_at,
+        'sender', jsonb_build_object('id', t.sender_id, 'first_name', t.first_name, 'photo_url', t.photo_url),
+        'is_mine', t.sender_id = auth.uid()) order by t.created_at desc, t.id desc), '[]'::jsonb)
+      into v_rows
+      from (
+        select m.id, m.body, m.created_at, m.sender_id, p.first_name, p.photo_url
+          from public.messages m
+          join public.profiles p on p.id = m.sender_id
+         where m.activity_id = p_activity
+           and (m.created_at, m.id) > (p_after_at, coalesce(p_after_id, 'ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid))
+           and not public.is_blocked_between(m.sender_id)
+         order by m.created_at asc, m.id asc
+         limit v_limit
+      ) t;
+  else
+    select coalesce(jsonb_agg(jsonb_build_object(
+        'id', t.id, 'body', t.body, 'created_at', t.created_at,
+        'sender', jsonb_build_object('id', t.sender_id, 'first_name', t.first_name, 'photo_url', t.photo_url),
+        'is_mine', t.sender_id = auth.uid()) order by t.created_at desc, t.id desc), '[]'::jsonb)
+      into v_rows
+      from (
+        select m.id, m.body, m.created_at, m.sender_id, p.first_name, p.photo_url
+          from public.messages m
+          join public.profiles p on p.id = m.sender_id
+         where m.activity_id = p_activity
+           and (p_before_at is null
+                or (m.created_at, m.id) < (p_before_at, coalesce(p_before_id, '00000000-0000-0000-0000-000000000000'::uuid)))
+           and (p_after_at is null
+                or (m.created_at, m.id) > (p_after_at, coalesce(p_after_id, 'ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid)))
+           and not public.is_blocked_between(m.sender_id)
+         order by m.created_at desc, m.id desc
+         limit v_limit
+      ) t;
+  end if;
   return jsonb_build_object('archived', coalesce(v_archived, false), 'messages', v_rows);
 end $$;
-revoke all on function public.chat_messages(uuid, timestamptz, timestamptz, int) from public, anon;
-grant execute on function public.chat_messages(uuid, timestamptz, timestamptz, int) to authenticated;
+revoke all on function public.chat_messages(uuid, timestamptz, uuid, timestamptz, uuid, int) from public, anon;
+grant execute on function public.chat_messages(uuid, timestamptz, uuid, timestamptz, uuid, int) to authenticated;
 
 -- The discussions list: every activity I organise or belong to (archived ones only if they have messages).
 create function public.my_chats() returns jsonb
@@ -98,18 +143,22 @@ begin
              (select count(*)::int from (
                 select 1 from public.messages m
                  where m.activity_id = a.id and m.sender_id <> v_uid
-                   and m.created_at > coalesce(cs.last_read_at, '-infinity'::timestamptz)
+                   and m.created_at > greatest(coalesce(cs.last_read_at, j.joined), j.joined)
                    and not public.is_blocked_between(m.sender_id)
                  limit 99) u) as unread
-        from public.activities a
+        from (select o.id from public.activities o where o.organiser_id = v_uid
+              union
+              select am.activity_id from public.activity_members am
+               where am.user_id = v_uid and am.status = 'member') mine
+        join public.activities a on a.id = mine.id
+        cross join lateral (select public.chat_joined_at(a.id, v_uid) as joined) j
         left join public.chat_states cs on cs.activity_id = a.id and cs.user_id = v_uid
         left join lateral (
           select m.body, m.created_at, p.first_name
             from public.messages m join public.profiles p on p.id = m.sender_id
            where m.activity_id = a.id and not public.is_blocked_between(m.sender_id)
            order by m.created_at desc, m.id desc limit 1) lm on true
-       where public.is_activity_member(a.id)
-         and (a.archived_at is null or exists (select 1 from public.messages m where m.activity_id = a.id))
+       where a.archived_at is null or exists (select 1 from public.messages m where m.activity_id = a.id)
     ) c), '[]'::jsonb);
 end $$;
 revoke all on function public.my_chats() from public, anon;
@@ -128,7 +177,7 @@ end $$;
 revoke all on function public.mark_chat_read(uuid) from public, anon;
 grant execute on function public.mark_chat_read(uuid) to authenticated;
 
--- A first mute keeps everything unread: the row is created with no read mark.
+-- A first mute leaves the unread count as it was: the row starts at the join time.
 create function public.set_chat_muted(p_activity uuid, p_muted boolean) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
 begin
@@ -136,7 +185,7 @@ begin
     raise exception 'not_allowed' using errcode = '42501';
   end if;
   insert into public.chat_states (activity_id, user_id, last_read_at, muted)
-    values (p_activity, auth.uid(), '-infinity', coalesce(p_muted, false))
+    values (p_activity, auth.uid(), public.chat_joined_at(p_activity, auth.uid()), coalesce(p_muted, false))
     on conflict (activity_id, user_id) do update set muted = excluded.muted;
 end $$;
 revoke all on function public.set_chat_muted(uuid, boolean) from public, anon;

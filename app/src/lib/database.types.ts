@@ -1039,8 +1039,11 @@ isOneToOne: true
 "can_organise":
 { Args: Record<PropertyKey, never>; Returns: boolean
                            },
+"chat_joined_at":
+{ Args: { "p_activity": string,"p_user": string }; Returns: string
+                           },
 "chat_messages":
-{ Args: { "p_activity": string,"p_after"?: string,"p_before"?: string,"p_limit"?: number }; Returns: Json
+{ Args: { "p_activity": string,"p_after_at"?: string,"p_after_id"?: string,"p_before_at"?: string,"p_before_id"?: string,"p_limit"?: number }; Returns: Json
                            },
 "claim_outbox":
 { Args: { "p_limit"?: number }; Returns: Json

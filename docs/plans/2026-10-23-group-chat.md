@@ -194,7 +194,7 @@ app/src/features/notifications/responses.ts       chat_message tap → /discussi
     - `PendingMessage = {id: string; activityId: string; body: string; createdAt: string; state: 'sending' | 'failed'; error?: ChatError}`
     - `ChatError = 'not_allowed' | 'limit_reached' | 'network' | 'unknown'`
   - **`api.ts`**:
-    - `fetchMessages(activityId, opts?: {before?: string; after?: string; limit?: number}): Promise<{ok: true; page: ChatPage | null} | {ok: false; error: ChatError}>`. A `null` page means not a member.
+    - `fetchMessages(activityId, opts?: {before?: {at: string; id: string}; limit?: number}): Promise<{ok: true; page: ChatPage | null} | {ok: false; error: ChatError}>`. A `null` page means not a member. It calls `chat_messages(p_activity, p_before_at, p_before_id, …, p_limit)`, a `(created_at, id)` keyset after the Task 1 review.
     - `sendMessage(activityId, id, body): Promise<{ok: true} | {ok: false; error: ChatError}>`. A 23505 counts as `ok`.
     - `deleteMessage(id)`, with `.select()` and `expectRows`.
     - `myChats()`
@@ -245,7 +245,7 @@ app/src/features/notifications/responses.ts       chat_message tap → /discussi
 - **Consumes:** Task 3, `useSession`, `useRequireAccount()('message')`, and `supabase.channel`.
 - **Produces:**
   - `useChat(activityId)` returns `{state: 'loading' | 'not_member' | 'ready' | 'error', archived, messages (server ⊕ pending, newest last, deduped by id), loadOlder(), hasOlder, send(body), retry(id), discard(id), remove(id), muted, toggleMute()}`.
-  - It subscribes to the channel `chat:<activityId>` with `postgres_changes` (event `*`, table `messages`, filter `activity_id=eq.<id>`). On INSERT it fetches with `after = newest createdAt`. On DELETE it drops the id locally. It unsubscribes on unmount.
+  - It subscribes to the channel `chat:<activityId>` with `postgres_changes` (event `*`, table `messages`, filter `activity_id=eq.<id>`). On any INSERT signal it re-reads the latest page (no `after` cursor: `created_at` is the transaction start, so a message can commit behind a cursor) and merges by id. DELETE events on an RLS table carry only the primary key and can't be filtered by `activity_id`, so it listens to DELETE unfiltered and removes the id only if it is in the open list. It unsubscribes on unmount.
   - It calls `markRead` on open and after new messages arrive while the screen is focused.
 - **Screen:**
   - A header with the activity title and a mute toggle.
@@ -265,9 +265,9 @@ app/src/features/notifications/responses.ts       chat_message tap → /discussi
   - Loading shows the messages with the sender's first name, and the user's own messages have no name.
   - Sending shows the bubble at once as "Envoi…", then as sent.
   - An offline send shows "Envoi…" and is sent after the NetInfo connect event.
-  - A realtime INSERT event triggers a fetch `after` the newest message and appends exactly once, even if the same message is already pending locally.
-  - A DELETE event removes the bubble.
-  - Scrolling to the top calls `loadOlder` with `before` = the oldest message.
+  - A realtime INSERT event triggers a re-read of the latest page and the new message appears exactly once, even if the same message is already pending locally.
+  - A DELETE event removes the bubble only when its id is in the list; an unknown id changes nothing.
+  - Scrolling to the top calls `loadOlder` with `before` = `{at, id}` of the oldest message.
   - A non-member state shows the join text.
   - Archived hides the composer.
   - Long-pressing your own message offers only "Supprimer le message", and others' messages offer "Signaler" and "Bloquer".

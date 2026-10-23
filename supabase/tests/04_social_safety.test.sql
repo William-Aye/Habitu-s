@@ -103,8 +103,7 @@ select throws_ok($$ insert into session_feedback (session_id, user_id, went_well
 select throws_ok(format($$ insert into session_feedback (session_id, user_id, went_well) values ('00000000-0000-0000-0000-0000000000e1', %L, false) $$, :'ana'),
   '42501', null, 'cannot give feedback for someone else');
 select is(public.session_has_member('00000000-0000-0000-0000-0000000000e1', :'ana'), false, 'non-organiser gets false for another user');
-update messages set body = 'hack';
-select is((select count(*) from messages where body = 'hack')::int, 0, 'cannot update messages');
+select throws_ok($$ update messages set body = 'hack' $$, '42501', null, 'cannot update messages');
 delete from messages;
 select is((select count(*) from messages)::int, 0, 'deletes only own messages (others stay)');
 select is((select count(*) from reports)::int, 0, 'ben does not see ana reports');
