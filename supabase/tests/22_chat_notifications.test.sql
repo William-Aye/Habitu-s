@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(16);
+select plan(19);
 select tests.create_user('org@cn.fr', 'Olivier') as org \gset
 select tests.create_user('m1@cn.fr', 'Marie') as m1 \gset
 select tests.create_user('m2@cn.fr', 'Marc') as m2 \gset
@@ -61,6 +61,18 @@ select is((select count(*)::int from notification_outbox where user_id = :'rd' a
 select is((select count(*)::int from notification_outbox where user_id = :'m2' and kind = 'chat_message' and (data->>'activity_id') = '00000000-0000-0000-0000-0000000000a2'), 0, 'a member who blocked the sender gets none');
 select is((select array_agg(user_id order by user_id::text) from notification_outbox where kind = 'chat_message' and (data->>'activity_id') = '00000000-0000-0000-0000-0000000000a2'),
   (select array_agg(u order by u::text) from (values (:'org'::uuid), (:'ok'::uuid)) v(u)), 'only the organiser and the other member are notified');
+
+-- Blocks both ways, and a dedupe key that already exists -------------------------------------------
+select tests.act_as_superuser();
+delete from notification_outbox;
+insert into blocks (blocker_id, blocked_id) values (:'org', :'ok');
+insert into notification_outbox (user_id, kind, title, body, dedupe_key)
+  values (:'m2', 'chat_message', 't', 'b', 'chat:00000000-0000-0000-0000-0000000000a2:' || :'m2' || ':' || floor(extract(epoch from now()) / 900));
+select tests.act_as(:'org');
+select lives_ok(format($q$insert into messages (activity_id, sender_id, body) values (%L, %L, 'Re')$q$, '00000000-0000-0000-0000-0000000000a2', :'org'), 'the organiser writes again');
+select tests.act_as_superuser();
+select is((select count(*)::int from notification_outbox where user_id = :'ok' and kind = 'chat_message'), 0, 'a member the sender blocked gets none');
+select is((select count(*)::int from notification_outbox where user_id = :'m2' and kind = 'chat_message'), 1, 'an existing dedupe key is not duplicated and raises nothing');
 
 -- No regression ----------------------------------------------------------------------------------
 select is((select title || '|' || body from notif_text('session_reminder', 'fr')), 'Rappel|Vous avez une activité demain. Serez-vous là ?', 'session_reminder unchanged');

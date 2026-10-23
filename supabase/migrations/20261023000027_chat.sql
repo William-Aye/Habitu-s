@@ -2,10 +2,22 @@
 -- The messages table, its select/insert/admin policies and indexes exist since 20261021000005.
 -- Here: pinned sender and date, archive refusal, rate limit, own-message delete.
 
+-- The 30-per-minute limit counts an insert-only log, never the messages: deleting messages frees nothing.
+create table public.chat_send_log (
+  user_id uuid not null references public.profiles on delete cascade,
+  sent_at timestamptz not null default now()
+);
+create index chat_send_log_user_sent on public.chat_send_log (user_id, sent_at);
+alter table public.chat_send_log enable row level security;
+revoke all on public.chat_send_log from public, anon, authenticated;
+
+-- Security definer so the guard can write the log; the caller's role is read from the `role` setting, which
+-- a definer function does not change (current_user would be the owner). The service role and postgres
+-- (role none or service_role) stay fully exempt.
 create function public.messages_guard() returns trigger
-language plpgsql set search_path = public, pg_temp as $$
+language plpgsql security definer set search_path = public, pg_temp as $$
 begin
-  if current_user in ('anon', 'authenticated') and not public.is_admin() then
+  if current_setting('role', true) in ('anon', 'authenticated') then
     new.sender_id := auth.uid();
     new.created_at := now();
     if new.activity_id is not null then
@@ -14,10 +26,14 @@ begin
          or exists (select 1 from public.activities a where a.id = new.activity_id and a.archived_at is not null) then
         raise exception 'not_allowed' using errcode = '42501';
       end if;
-      perform pg_advisory_xact_lock(hashtext('limits:' || coalesce(auth.uid()::text, '')));
-      if (select count(*) from public.messages m
-           where m.sender_id = new.sender_id and m.created_at > now() - interval '1 minute') >= 30 then
-        raise exception 'limit_reached' using errcode = '42501';
+      -- Admins are exempt from the rate limit only.
+      if not public.is_admin() then
+        perform pg_advisory_xact_lock(hashtext('limits:' || coalesce(auth.uid()::text, '')));
+        if (select count(*) from public.chat_send_log l
+             where l.user_id = new.sender_id and l.sent_at > now() - interval '1 minute') >= 30 then
+          raise exception 'limit_reached' using errcode = '42501';
+        end if;
+        insert into public.chat_send_log (user_id, sent_at) values (new.sender_id, now());
       end if;
     end if;
   end if;
@@ -27,9 +43,7 @@ revoke all on function public.messages_guard() from public, anon, authenticated;
 create trigger messages_guard before insert on public.messages
   for each row execute function public.messages_guard();
 
--- The sender-and-date window of the limit trigger, and keyset paging of a discussion.
-drop index public.messages_sender;
-create index messages_sender_created on public.messages (sender_id, created_at);
+-- Keyset paging of a discussion.
 drop index public.messages_activity_created;
 create index messages_activity_created on public.messages (activity_id, created_at desc, id desc);
 
@@ -78,12 +92,17 @@ language plpgsql stable security definer set search_path = public, pg_temp as $$
 declare
   v_limit int := least(greatest(coalesce(p_limit, 50), 1), 100);
   v_archived boolean;
+  v_title text;
+  v_organiser uuid;
+  v_muted boolean;
   v_rows jsonb;
 begin
   if auth.uid() is null or not public.is_activity_member(p_activity) then
     return null;
   end if;
-  select a.archived_at is not null into v_archived from public.activities a where a.id = p_activity;
+  select a.archived_at is not null, a.title, a.organiser_id into v_archived, v_title, v_organiser
+    from public.activities a where a.id = p_activity;
+  select cs.muted into v_muted from public.chat_states cs where cs.activity_id = p_activity and cs.user_id = auth.uid();
   if p_after_at is not null and p_before_at is null then
     select coalesce(jsonb_agg(jsonb_build_object(
         'id', t.id, 'body', t.body, 'created_at', t.created_at,
@@ -120,7 +139,8 @@ begin
          limit v_limit
       ) t;
   end if;
-  return jsonb_build_object('archived', coalesce(v_archived, false), 'messages', v_rows);
+  return jsonb_build_object('archived', coalesce(v_archived, false), 'title', v_title,
+    'organiser_id', v_organiser, 'muted', coalesce(v_muted, false), 'messages', v_rows);
 end $$;
 revoke all on function public.chat_messages(uuid, timestamptz, uuid, timestamptz, uuid, int) from public, anon;
 grant execute on function public.chat_messages(uuid, timestamptz, uuid, timestamptz, uuid, int) to authenticated;
@@ -135,11 +155,12 @@ begin
   return coalesce((select jsonb_agg(jsonb_build_object(
       'activity_id', c.id, 'title', c.title,
       'last_message', case when c.lm_at is null then null else jsonb_build_object(
-          'body', c.lm_body, 'created_at', c.lm_at, 'sender_first_name', c.lm_first_name) end,
+          'body', c.lm_body, 'created_at', c.lm_at, 'sender_first_name', c.lm_first_name,
+          'is_mine', c.lm_sender = v_uid) end,
       'unread_count', c.unread, 'muted', c.muted) order by c.lm_at desc nulls last, c.title, c.id)
     from (
       select a.id, a.title, coalesce(cs.muted, false) as muted, lm.body as lm_body, lm.created_at as lm_at,
-             lm.first_name as lm_first_name,
+             lm.first_name as lm_first_name, lm.sender_id as lm_sender,
              (select count(*)::int from (
                 select 1 from public.messages m
                  where m.activity_id = a.id and m.sender_id <> v_uid
@@ -154,7 +175,7 @@ begin
         cross join lateral (select public.chat_joined_at(a.id, v_uid) as joined) j
         left join public.chat_states cs on cs.activity_id = a.id and cs.user_id = v_uid
         left join lateral (
-          select m.body, m.created_at, p.first_name
+          select m.body, m.created_at, m.sender_id, p.first_name
             from public.messages m join public.profiles p on p.id = m.sender_id
            where m.activity_id = a.id and not public.is_blocked_between(m.sender_id)
            order by m.created_at desc, m.id desc limit 1) lm on true
@@ -163,6 +184,29 @@ begin
 end $$;
 revoke all on function public.my_chats() from public, anon;
 grant execute on function public.my_chats() to authenticated;
+
+-- Total unread across my discussions for the tab badge, capped at 999.
+create function public.my_unread_total() returns int
+language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare
+  v_uid uuid := auth.uid();
+begin
+  if v_uid is null then raise exception 'not authenticated' using errcode = '42501'; end if;
+  return (select count(*)::int from (
+    select 1
+      from (select o.id from public.activities o where o.organiser_id = v_uid
+            union
+            select am.activity_id from public.activity_members am
+             where am.user_id = v_uid and am.status = 'member') mine
+      cross join lateral (select public.chat_joined_at(mine.id, v_uid) as joined) j
+      left join public.chat_states cs on cs.activity_id = mine.id and cs.user_id = v_uid
+      join public.messages m on m.activity_id = mine.id and m.sender_id <> v_uid
+       and m.created_at > greatest(coalesce(cs.last_read_at, j.joined), j.joined)
+     where not public.is_blocked_between(m.sender_id)
+     limit 999) u);
+end $$;
+revoke all on function public.my_unread_total() from public, anon;
+grant execute on function public.my_unread_total() to authenticated;
 
 create function public.mark_chat_read(p_activity uuid) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
@@ -194,17 +238,19 @@ grant execute on function public.set_chat_muted(uuid, boolean) to authenticated;
 -- Realtime: a signal only. Subscribers receive rows through the select policies.
 alter publication supabase_realtime add table public.messages;
 
--- Retention: 12 months.
+-- Retention: 12 months. The send log, only needed for the one-minute window, is kept an hour.
 create function public.prune_messages() returns int
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   v_count int;
 begin
+  delete from public.chat_send_log where sent_at < now() - interval '1 hour';
   delete from public.messages where created_at < now() - interval '12 months';
   get diagnostics v_count = row_count;
   return v_count;
 end $$;
 revoke all on function public.prune_messages() from public, anon, authenticated;
+-- pg_cron runs in UTC: 04:10 UTC is 05:10 or 06:10 in Paris, still a quiet hour.
 select cron.schedule('prune-messages', '10 4 * * *', 'select public.prune_messages()');
 
 -- Data export: migration 23's definition, plus chat_states.

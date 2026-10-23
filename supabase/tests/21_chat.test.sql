@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(84);
+select plan(101);
 select tests.create_user('org@ch.fr', 'Olivier') as org \gset
 select tests.create_user('m1@ch.fr', 'Marie') as m1 \gset
 select tests.create_user('m2@ch.fr', 'Marc') as m2 \gset
@@ -11,6 +11,7 @@ select tests.create_user('rl@ch.fr', 'Rita') as rl \gset
 select tests.create_user('sp@ch.fr', 'Sam') as sp \gset
 select tests.create_user('nm@ch.fr', 'Nina') as nm \gset
 select tests.create_user('lf@ch.fr', 'Leo') as lf \gset
+select tests.create_user('ad@ch.fr', 'Adam') as ad \gset
 update profiles set age_confirmed = true, created_at = now() - interval '2 days';
 insert into categories (id, slug, name_fr, name_en, icon) values ('00000000-0000-0000-0000-0000000000c1', 'go', 'Jeu de go', 'Go', 'grid-3x3');
 
@@ -39,6 +40,11 @@ insert into activity_members (activity_id, user_id, status) values
   ('00000000-0000-0000-0000-0000000000a7', :'lf', 'member');
 -- Everyone joined long before the messages written below, except the a7 members (joined now).
 update activity_members set joined_at = now() - interval '1 day' where activity_id <> '00000000-0000-0000-0000-0000000000a7';
+insert into activity_members (activity_id, user_id, status) values
+  ('00000000-0000-0000-0000-0000000000a1', :'ad', 'member'),
+  ('00000000-0000-0000-0000-0000000000a2', :'ad', 'member');
+update profiles set role = 'admin' where id = :'ad';
+update activity_members set joined_at = now() - interval '1 day' where user_id = :'ad';
 update activities set created_at = '2025-01-01';
 
 -- Access ----------------------------------------------------------------------------------------
@@ -222,6 +228,43 @@ select is(jsonb_array_length(public.my_chats()), 0, 'a member who left has no ch
 select tests.act_as(:'ou');
 select throws_ok(format($q$insert into messages (activity_id, sender_id, body) values (%L, %L, 'x')$q$, '00000000-0000-0000-0000-0000000000a2', :'ou'), '42501', 'not_allowed', 'non-member on an archived chat: not_allowed');
 select throws_ok(format($q$insert into messages (activity_id, sender_id, body) values (%L, %L, 'x')$q$, '00000000-0000-0000-0000-0000000000a1', :'ou'), '42501', 'not_allowed', 'non-member on a live chat: not_allowed');
+
+-- The limit survives deleting messages (insert-only log) --------------------------------------------
+select tests.act_as(:'rl');
+select lives_ok(format($q$delete from messages where sender_id = %L$q$, :'rl'), 'the sender deletes all their messages');
+select throws_ok(format($q$insert into messages (activity_id, sender_id, body) values (%L, %L, 'apres')$q$, '00000000-0000-0000-0000-0000000000a1', :'rl'), '42501', 'limit_reached', 'the 31st is still refused after deleting the 30');
+select throws_ok($q$select count(*) from chat_send_log$q$, '42501', null, 'the send log has no API access');
+select tests.act_as_superuser();
+insert into chat_send_log (user_id, sent_at) values (:'rl', now() - interval '2 hours'), (:'rl', now() - interval '10 minutes');
+select public.prune_messages();
+select is((select count(*)::int from chat_send_log where sent_at < now() - interval '1 hour'), 0, 'prune deletes log rows older than an hour');
+select is((select count(*)::int from chat_send_log where user_id = :'rl' and sent_at = now() - interval '10 minutes'), 1, 'prune keeps recent log rows');
+
+-- Admins: pinned and bound by membership and archive, exempt from the limit only ---------------------
+select tests.act_as(:'ad');
+insert into messages (activity_id, sender_id, body, created_at)
+  values ('00000000-0000-0000-0000-0000000000a1', :'m2', 'Admin usurpe', '2020-01-01');
+select tests.act_as_superuser();
+select is((select sender_id from messages where body = 'Admin usurpe'), :'ad'::uuid, 'an admin''s sender_id is pinned');
+select is((select created_at from messages where body = 'Admin usurpe'), now(), 'an admin''s created_at is pinned');
+select tests.act_as(:'ad');
+select throws_ok(format($q$insert into messages (activity_id, sender_id, body) values (%L, %L, 'x')$q$, '00000000-0000-0000-0000-0000000000a2', :'ad'), '42501', 'not_allowed', 'an admin cannot post in an archived chat');
+select throws_ok(format($q$insert into messages (activity_id, sender_id, body) values (%L, %L, 'x')$q$, '00000000-0000-0000-0000-0000000000a3', :'ad'), '42501', 'not_allowed', 'an admin who is not a member cannot post');
+select lives_ok(format($q$insert into messages (activity_id, sender_id, body) select %L, %L, 'adm' || g from generate_series(1, 31) g$q$, '00000000-0000-0000-0000-0000000000a1', :'ad'), 'an admin is exempt from the rate limit');
+
+-- Result fields for the app -----------------------------------------------------------------------
+select tests.act_as(:'m1');
+select is(public.chat_messages('00000000-0000-0000-0000-0000000000a1')->>'title', 'Go du soir', 'chat_messages returns the title');
+select is((public.chat_messages('00000000-0000-0000-0000-0000000000a1')->>'organiser_id')::uuid, :'org'::uuid, 'chat_messages returns the organiser');
+select public.set_chat_muted('00000000-0000-0000-0000-0000000000a1', false);
+select is((public.chat_messages('00000000-0000-0000-0000-0000000000a1')->>'muted')::boolean, false, 'chat_messages reports muted false');
+select public.set_chat_muted('00000000-0000-0000-0000-0000000000a1', true);
+select is((public.chat_messages('00000000-0000-0000-0000-0000000000a1')->>'muted')::boolean, true, 'chat_messages reports muted true after muting');
+select public.set_chat_muted('00000000-0000-0000-0000-0000000000a1', false);
+select is((select (c->'last_message'->>'is_mine')::boolean from jsonb_array_elements(public.my_chats()) c where c->>'activity_id' = '00000000-0000-0000-0000-0000000000a1'), false, 'my_chats flags a last message that is not mine');
+select ok(public.my_unread_total() > 0 and public.my_unread_total() = (select sum((c->>'unread_count')::int) from jsonb_array_elements(public.my_chats()) c), 'my_unread_total matches the per-chat counts');
+select tests.act_as_anon();
+select throws_ok($q$select public.my_unread_total()$q$, '42501', null, 'anon cannot call my_unread_total');
 
 -- Retention -------------------------------------------------------------------------------------
 select tests.act_as_superuser();

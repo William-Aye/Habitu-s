@@ -36,27 +36,34 @@ language sql immutable set search_path = public, pg_temp as $$
                         'chat_message');
 $$;
 
+-- One set-based statement for the whole discussion. It replicates notify_user: a recipient needs a profile
+-- (their language, fr unless en), nothing goes between two people when either blocked the other, and the
+-- dedupe key makes it idempotent.
 create function public.messages_notify() returns trigger
 language plpgsql security definer set search_path = public, pg_temp as $$
-declare
-  r record;
 begin
-  for r in
-    select u.user_id
-      from (select a.organiser_id as user_id from public.activities a where a.id = new.activity_id
-            union
-            select m.user_id from public.activity_members m
-             where m.activity_id = new.activity_id and m.status = 'member') u
-      left join public.chat_states cs on cs.activity_id = new.activity_id and cs.user_id = u.user_id
-     where u.user_id <> new.sender_id
-       and coalesce(cs.muted, false) = false
-       and (cs.last_read_at is null or cs.last_read_at <= now() - interval '2 minutes')
-  loop
-    perform public.notify_user(r.user_id, 'chat_message', null, null, null, null,
-      jsonb_build_object('activity_id', new.activity_id, 'kind', 'chat_message'),
-      'chat:' || new.activity_id || ':' || r.user_id || ':' || floor(extract(epoch from now()) / 900),
-      now(), new.sender_id);
-  end loop;
+  insert into public.notification_outbox (user_id, kind, title, body, data, dedupe_key, send_after)
+  select r.user_id, 'chat_message', x.title, x.body,
+         jsonb_build_object('activity_id', new.activity_id, 'kind', 'chat_message'), r.dedupe_key, now()
+    from (
+      select u.user_id, p.language,
+             'chat:' || new.activity_id || ':' || u.user_id || ':' || floor(extract(epoch from now()) / 900) as dedupe_key
+        from (select a.organiser_id as user_id from public.activities a where a.id = new.activity_id
+              union
+              select m.user_id from public.activity_members m
+               where m.activity_id = new.activity_id and m.status = 'member') u
+        join public.profiles p on p.id = u.user_id
+        left join public.chat_states cs on cs.activity_id = new.activity_id and cs.user_id = u.user_id
+       where u.user_id <> new.sender_id
+         and coalesce(cs.muted, false) = false
+         and (cs.last_read_at is null or cs.last_read_at <= now() - interval '2 minutes')
+         and not exists (select 1 from public.blocks b
+                          where (b.blocker_id = u.user_id and b.blocked_id = new.sender_id)
+                             or (b.blocker_id = new.sender_id and b.blocked_id = u.user_id))
+    ) r
+    cross join lateral public.notif_text('chat_message', case when r.language = 'en' then 'en' else 'fr' end) x
+   where not exists (select 1 from public.notification_outbox o where o.dedupe_key = r.dedupe_key)
+  on conflict (dedupe_key) do nothing;
   return null;
 end $$;
 revoke all on function public.messages_notify() from public, anon, authenticated;

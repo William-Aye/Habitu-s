@@ -427,6 +427,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"chat_send_log": {
+                  Row: {
+                    "sent_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "sent_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "sent_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "chat_send_log_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "chat_send_log_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "public_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"chat_states": {
                   Row: {
                     "activity_id": string,"last_read_at": string,"muted": boolean,"user_id": string
@@ -1123,6 +1149,9 @@ isOneToOne: true
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
 "my_recent_community_clubs":
+{ Args: Record<PropertyKey, never>; Returns: number
+                           },
+"my_unread_total":
 { Args: Record<PropertyKey, never>; Returns: number
                            },
 "notif_text":
