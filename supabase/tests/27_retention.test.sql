@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(67);
+select plan(84);
 select tests.create_user('adm@rt.fr', 'Admin') as adm \gset
 select tests.create_user('ina@rt.fr', 'Ines') as ina \gset
 select tests.create_user('old@rt.fr', 'Olga') as old \gset
@@ -9,6 +9,10 @@ select tests.create_user('rec@rt.fr', 'Rose') as rec \gset
 select tests.create_user('act@rt.fr', 'Aude') as act \gset
 select tests.create_user('ban@rt.fr', 'Bruno') as ban \gset
 select tests.create_user('del@rt.fr', 'Denis') as del \gset
+select tests.create_user('nul@rt.fr', 'Nul') as nul \gset
+select tests.create_user('nur@rt.fr', 'Nur') as nur \gset
+select tests.create_user('adn@rt.fr', 'Adn') as adn \gset
+select tests.create_user('sgn@rt.fr', 'Sgn') as sgn \gset
 update profiles set role = 'admin' where id = :'adm';
 update profiles set age_confirmed = true;
 insert into categories (id, slug, name_fr, name_en, icon) values
@@ -113,6 +117,29 @@ select is((select r->>'claim_documents' from r1), '2', 'claim documents count re
 select lives_ok($$ select public.run_retention() $$, 'a second run does not fail');
 select is((select count(*)::int from storage_deletions), 3, 'a second run queues nothing twice');
 
+-- decided claim: age from created_at when decided_at is null; the contact email goes with the document
+insert into association_claims (id, association_id, claimant_id, proof_method, role_in_association, document_path, contact_email, status, created_at, decided_at) values
+  ('00000000-0000-0000-0000-00000000c006', '00000000-0000-0000-0000-0000000000d1', :'act', 'document', 'Tresorier', :'act' || '/six.pdf', 'six@club.fr', 'approved', now() - interval '1 year 1 day', null);
+-- orphan uploads: unreferenced files older than 7 days (referenced and recent ones stay)
+insert into storage.objects (bucket_id, name, created_at) values
+  ('claim-documents', :'act' || '/orphan-old.pdf', now() - interval '8 days'),
+  ('claim-documents', :'act' || '/orphan-young.pdf', now() - interval '6 days'),
+  ('claim-documents', :'rec' || '/young-rejected.pdf', now() - interval '30 days'),
+  ('feedback-screenshots', :'act' || '/00000000-0000-0000-0000-0000000000ee.png', now() - interval '8 days'),
+  ('feedback-screenshots', :'act' || '/00000000-0000-0000-0000-0000000000ef.png', now() - interval '30 days');
+insert into feedback (user_id, type, body, screenshot_path, created_at) values
+  (:'act', 'idea', 'Avec capture', :'act' || '/00000000-0000-0000-0000-0000000000ef.png', now() - interval '30 days');
+create temp table r3 as select public.run_retention() as r;
+select is((select document_path from association_claims where id = '00000000-0000-0000-0000-00000000c006'), null, 'a decided claim without decided_at ages from created_at and loses its document');
+select is((select contact_email from association_claims where id = '00000000-0000-0000-0000-00000000c006'), null, 'its contact email goes with the document');
+select is((select count(*)::int from storage_deletions where path = :'act' || '/six.pdf'), 1, 'its document is queued');
+select is((select count(*)::int from storage_deletions where path = :'act' || '/orphan-old.pdf'), 1, 'an unreferenced claim document older than 7 days is queued');
+select is((select count(*)::int from storage_deletions where path = :'act' || '/00000000-0000-0000-0000-0000000000ee.png'), 1, 'an unreferenced screenshot older than 7 days is queued');
+select is((select count(*)::int from storage_deletions where path = :'act' || '/orphan-young.pdf'), 0, 'an unreferenced file younger than 7 days is kept');
+select is((select count(*)::int from storage_deletions where path = :'rec' || '/young-rejected.pdf'), 0, 'a referenced claim document is kept');
+select is((select count(*)::int from storage_deletions where path = :'act' || '/00000000-0000-0000-0000-0000000000ef.png'), 0, 'a referenced screenshot is kept');
+select is((select r->>'orphan_uploads' from r3), '2', 'orphan count reported');
+
 -- limit_log: 1 day
 insert into limit_log (user_id, kind, at) values
   (:'rec', 'report', now() - interval '1 day 1 minute'), (:'rec', 'report', now() - interval '23 hours');
@@ -151,6 +178,23 @@ select is((select count(*)::int from notification_outbox where user_id in (:'rec
 select is((select count(*)::int from storage_deletions where path like :'old' || '/%'), 3, 'the purged account''s files in all three buckets are queued');
 select is((select array_agg(distinct bucket order by bucket) from storage_deletions where path like :'old' || '/%'),
           array['avatars', 'claim-documents', 'feedback-screenshots'], 'one entry per bucket');
+
+-- never-seen accounts count from sign-in, else creation; admins are warned, never purged
+update auth.users set created_at = now() - interval '36 months' where id = :'nul';
+update auth.users set created_at = now() - interval '40 months', last_sign_in_at = now() - interval '2 days' where id = :'sgn';
+update auth.users set created_at = now() - interval '40 months' where id = :'adn';
+update profiles set last_seen_at = now() - interval '40 months', role = 'admin' where id = :'adn';
+select is((select last_seen_at from profiles where id = :'nul'), null, 'setup: the never-seen account has no last_seen_at');
+create temp table r4 as select public.run_inactive_accounts() as r;
+select is((select count(*)::int from notification_outbox where user_id = :'nul' and kind = 'inactivity_notice'), 1, 'an old never-seen account gets the notice');
+select is((select count(*)::int from notification_outbox where user_id = :'adn' and kind = 'inactivity_notice'), 1, 'an inactive admin still gets the notice');
+select is((select count(*)::int from notification_outbox where user_id in (:'nur', :'sgn') and kind = 'inactivity_notice'), 0, 'a recently created or signed-in never-seen account is untouched');
+update profiles set inactivity_notice_at = now() - interval '31 days' where id in (:'nul', :'adn', :'nur', :'sgn');
+select public.run_inactive_accounts();
+select is((select count(*)::int from auth.users where id = :'nul'), 0, 'the never-seen account is deleted after the notice period');
+select is((select count(*)::int from auth.users where id = :'adn'), 1, 'an admin is not purged');
+select is((select count(*)::int from auth.users where id in (:'nur', :'sgn')), 2, 'recent never-seen accounts survive');
+select is((select count(*)::int from profiles where id in (:'nur', :'sgn') and inactivity_notice_at is null), 2, 'their stale notice is withdrawn');
 
 -- deleting my account queues my files; a ban queues nothing
 insert into storage.objects (bucket_id, name) values

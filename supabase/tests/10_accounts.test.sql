@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(52);
+select plan(54);
 
 select tests.create_user('ana@acc.fr', 'Ana') as ana \gset
 select tests.create_user('ben@acc.fr', 'Ben') as ben \gset
@@ -177,10 +177,14 @@ select tests.act_as_superuser();
 select is((select count(*) from auth.users where id = :'ana')
   + (select count(*) from profiles where id = :'ana')
   + (select count(*) from user_interests where user_id = :'ana')
-  + (select count(*) from category_requests where user_id = :'ana')
-  + (select count(*) from storage.objects where bucket_id = 'avatars' and name like :'ana' || '/%')
-  - (select count(*) from storage_deletions where bucket = 'avatars' and path like :'ana' || '/%'), 0::bigint,
-  'Ana''s account and rows are gone and every avatar file is queued for removal');
+  + (select count(*) from category_requests where user_id = :'ana'), 0::bigint,
+  'Ana''s account and rows are gone');
+select is((select array_agg(path order by path) from storage_deletions where bucket = 'avatars' and path like :'ana' || '/%'),
+  (select array_agg(name order by name) from storage.objects where bucket_id = 'avatars' and name like :'ana' || '/%'),
+  'Ana''s avatars are queued with their exact paths');
+select is((select count(*) from storage.objects o where o.bucket_id = 'avatars' and o.name like :'ana' || '/%'
+    and not exists (select 1 from storage_deletions d where d.bucket = o.bucket_id and d.path = o.name)), 0::bigint,
+  'no Ana object is left unqueued');
 select is((select count(*) from storage_deletions where bucket = 'avatars' and path = :'ben' || '/b.jpg'), 0::bigint, 'Ben''s avatar is not queued');
 select is((select count(*) from auth.users where id = :'ben') + (select count(*) from user_interests where user_id = :'ben')
   + (select count(*) from storage.objects where bucket_id = 'avatars' and name = :'ben' || '/b.jpg'), 3::bigint,

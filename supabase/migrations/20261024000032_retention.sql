@@ -136,7 +136,7 @@ create function public.run_retention() returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   v_reports int; v_snapshots int; v_audit int; v_feedback int; v_sf int;
-  v_claims int; v_docs int; v_docs2 int;
+  v_claims int; v_docs int; v_docs2 int; v_orphans int;
 begin
   -- Reports and snapshots: 3 years after the decision, or after creation while still open.
   select count(*), coalesce(sum((select count(*) from public.report_snapshots s where s.report_id = r.id)), 0)::int
@@ -171,15 +171,28 @@ begin
 
   insert into public.storage_deletions (bucket, path)
   select 'claim-documents', c.document_path from public.association_claims c
-   where c.status <> 'pending' and c.decided_at < now() - interval '1 year' and c.document_path is not null
+   where c.status <> 'pending' and coalesce(c.decided_at, c.created_at) < now() - interval '1 year'
+     and c.document_path is not null
   on conflict (bucket, path) do nothing;
-  update public.association_claims set document_path = null
-   where status <> 'pending' and decided_at < now() - interval '1 year' and document_path is not null;
+  update public.association_claims set document_path = null, contact_email = null
+   where status <> 'pending' and coalesce(decided_at, created_at) < now() - interval '1 year'
+     and document_path is not null;
   get diagnostics v_docs2 = row_count;
+
+  -- Orphan uploads: files nothing references after 7 days (abandoned forms, failed inserts).
+  insert into public.storage_deletions (bucket, path)
+  select o.bucket_id, o.name from storage.objects o
+   where o.created_at < now() - interval '7 days'
+     and ((o.bucket_id = 'claim-documents'
+           and not exists (select 1 from public.association_claims c where c.document_path = o.name))
+       or (o.bucket_id = 'feedback-screenshots'
+           and not exists (select 1 from public.feedback f where f.screenshot_path = o.name)))
+  on conflict (bucket, path) do nothing;
+  get diagnostics v_orphans = row_count;
 
   return jsonb_build_object('reports', v_reports, 'report_snapshots', v_snapshots, 'admin_audit_log', v_audit,
                             'feedback', v_feedback, 'session_feedback', v_sf, 'claims', v_claims,
-                            'claim_documents', v_docs + v_docs2);
+                            'claim_documents', v_docs + v_docs2, 'orphan_uploads', v_orphans);
 end $$;
 revoke all on function public.run_retention() from public, anon, authenticated;
 select cron.schedule('retention', '20 3 * * *', 'select public.run_retention()');
@@ -192,12 +205,16 @@ declare
   r record;
 begin
   -- A notice the person has since answered by coming back is withdrawn.
-  update public.profiles set inactivity_notice_at = null
-   where inactivity_notice_at is not null and last_seen_at >= inactivity_notice_at;
+  update public.profiles p set inactivity_notice_at = null
+    from auth.users u
+   where u.id = p.id and p.inactivity_notice_at is not null
+     and coalesce(p.last_seen_at, u.last_sign_in_at, u.created_at) >= p.inactivity_notice_at;
   get diagnostics v_cleared = row_count;
 
-  for r in select p.id from public.profiles p
-            where p.last_seen_at < now() - interval '35 months' and p.inactivity_notice_at is null
+  -- Never-seen accounts count from their last sign-in, else from their creation.
+  for r in select p.id from public.profiles p join auth.users u on u.id = p.id
+            where coalesce(p.last_seen_at, u.last_sign_in_at, u.created_at) < now() - interval '35 months'
+              and p.inactivity_notice_at is null
             order by p.id loop
     perform public.notify_user(r.id, 'inactivity_notice', 'Compte inactif',
       'Votre compte sera supprimé dans 30 jours faute d''activité. Ouvrez l''application pour le garder.',
@@ -207,8 +224,10 @@ begin
     v_notified := v_notified + 1;
   end loop;
 
-  for r in select p.id from public.profiles p
-            where p.inactivity_notice_at < now() - interval '30 days' and p.last_seen_at < p.inactivity_notice_at
+  -- Admins are warned but never purged automatically.
+  for r in select p.id from public.profiles p join auth.users u on u.id = p.id
+            where p.inactivity_notice_at < now() - interval '30 days' and p.role <> 'admin'
+              and coalesce(p.last_seen_at, u.last_sign_in_at, u.created_at) < p.inactivity_notice_at
             order by p.id loop
     perform public.purge_account(r.id);
     v_deleted := v_deleted + 1;
@@ -244,7 +263,8 @@ begin
   perform net.http_post(
     url := v_url,
     headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization', 'Bearer ' || v_key),
-    body := '{}'::jsonb);
+    body := '{}'::jsonb,
+    timeout_milliseconds := 30000);
 end $$;
 revoke all on function public.drain_storage_deletions() from public, anon, authenticated;
 select cron.schedule('storage-cleanup', '*/10 * * * *', 'select public.drain_storage_deletions()');
