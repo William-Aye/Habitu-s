@@ -36,6 +36,8 @@ language sql immutable set search_path = public, pg_temp as $$
                         'chat_message');
 $$;
 
+-- KEEP IN SYNC with notify_user (migration 24): this set-based statement mirrors it. A pgTAP test compares
+-- both outputs for the same recipient and language.
 -- One set-based statement for the whole discussion. It replicates notify_user: a recipient needs a profile
 -- (their language, fr unless en), nothing goes between two people when either blocked the other, and the
 -- dedupe key makes it idempotent.

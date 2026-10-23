@@ -1091,6 +1091,9 @@ isOneToOne: true
 "chat_messages":
 { Args: { "p_activity": string,"p_after_at"?: string,"p_after_id"?: string,"p_before_at"?: string,"p_before_id"?: string,"p_limit"?: number }; Returns: Json
                            },
+"chat_visible_since":
+{ Args: { "p_activity": string }; Returns: string
+                           },
 "claim_outbox":
 { Args: { "p_limit"?: number }; Returns: Json
                            },
@@ -1187,6 +1190,9 @@ isOneToOne: true
                            },
 "notify_user":
 { Args: { "p_actor"?: string,"p_body_en": string,"p_body_fr": string,"p_data"?: Json,"p_dedupe"?: string,"p_kind": string,"p_send_after"?: string,"p_title_en": string,"p_title_fr": string,"p_user": string }; Returns: undefined
+                           },
+"prune_chat_send_log":
+{ Args: Record<PropertyKey, never>; Returns: number
                            },
 "prune_messages":
 { Args: Record<PropertyKey, never>; Returns: number

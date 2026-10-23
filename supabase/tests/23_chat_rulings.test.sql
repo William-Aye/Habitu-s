@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(31);
+select plan(39);
 select tests.create_user('org@cr.fr', 'Olivier') as org \gset
 select tests.create_user('ma@cr.fr', 'Anne') as ma \gset
 select tests.create_user('mb@cr.fr', 'Bruno') as mb \gset
@@ -9,6 +9,9 @@ select tests.create_user('ot@cr.fr', 'Otto') as ot \gset
 select tests.create_user('bl@cr.fr', 'Blaise') as bl \gset
 select tests.create_user('ad@cr.fr', 'Adam') as ad \gset
 select tests.create_user('st@cr.fr', 'Stan') as st \gset
+select tests.create_user('nj@cr.fr', 'Nadia') as nj \gset
+select tests.create_user('fg@cr.fr', 'Fred') as fg \gset
+select tests.create_user('rq@cr.fr', 'Rose') as rq \gset
 update profiles set age_confirmed = true, created_at = now() - interval '2 days';
 update profiles set role = 'admin' where id = :'ad';
 insert into categories (id, slug, name_fr, name_en, icon) values ('00000000-0000-0000-0000-0000000000c1', 'go', 'Jeu de go', 'Go', 'grid-3x3');
@@ -98,5 +101,40 @@ select is((select count(*)::int from report_snapshots), 0, 'the reporter cannot 
 select ok(not (public.export_my_data()::text like '%contenu secret%'), 'the export holds no snapshot');
 select tests.act_as(:'ad');
 select is((select snapshot->>'body' from report_snapshots), 'contenu secret', 'an admin reads the snapshot');
+-- N1: a direct select follows chat_history, reports too ------------------------------------------------
+select tests.act_as_superuser();
+insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time, max_size, chat_history)
+  values ('00000000-0000-0000-0000-0000000000a4', :'org', '00000000-0000-0000-0000-0000000000c1', 'Go direct', 'Cafe', 'POINT(4.85 45.77)', 'weekly', current_date + 2, '19:00', 30, 'since_join');
+update activities set created_at = '2025-01-01' where id = '00000000-0000-0000-0000-0000000000a4';
+insert into activity_members (activity_id, user_id, status, joined_at) values
+  ('00000000-0000-0000-0000-0000000000a4', :'nj', 'member', now() - interval '30 minutes');
+insert into messages (id, activity_id, sender_id, body, created_at) values
+  ('00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000a4', :'org', 'ancien4', now() - interval '2 hours'),
+  ('00000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-0000000000a4', :'org', 'nouveau4', now() - interval '10 minutes');
+select tests.act_as(:'nj');
+select is((select count(*)::int from messages where activity_id = '00000000-0000-0000-0000-0000000000a4'), 1, 'since_join: a direct select hides pre-join messages');
+select throws_ok(format($q$insert into reports (reporter_id, target_type, target_id, reason) values (%L, 'message', %L, 'other')$q$, :'nj', '00000000-0000-0000-0000-0000000000b1'), '42501', 'not_allowed', 'reporting a pre-join message is refused');
+select lives_ok(format($q$insert into reports (reporter_id, target_type, target_id, reason) values (%L, 'message', %L, 'other')$q$, :'nj', '00000000-0000-0000-0000-0000000000b2'), 'reporting a visible message works');
+select tests.act_as(:'org');
+select is((select count(*)::int from messages where activity_id = '00000000-0000-0000-0000-0000000000a4'), 2, 'the organiser selects everything directly');
+select tests.act_as(:'mb');
+select is((select count(*)::int from messages where activity_id = '00000000-0000-0000-0000-0000000000a2'), 5, 'all: a newcomer selects everything directly');
+
+-- N2: joined_at is the server's ------------------------------------------------------------------
+select tests.act_as(:'fg');
+insert into activity_members (activity_id, user_id, joined_at) values ('00000000-0000-0000-0000-0000000000a4', :'fg', now() - interval '10 days');
+select tests.act_as_superuser();
+select is((select joined_at from activity_members where user_id = :'fg' and activity_id = '00000000-0000-0000-0000-0000000000a4'), now(), 'a forged joined_at is ignored');
+insert into activity_members (activity_id, user_id, status, joined_at) values
+  ('00000000-0000-0000-0000-0000000000a4', :'rq', 'pending', now() - interval '1 hour');
+insert into messages (activity_id, sender_id, body, created_at) values
+  ('00000000-0000-0000-0000-0000000000a4', :'org', 'entre demande et accord', now() - interval '30 minutes');
+select tests.act_as(:'org');
+update activity_members set status = 'member' where user_id = :'rq' and activity_id = '00000000-0000-0000-0000-0000000000a4';
+select tests.act_as(:'rq');
+select is(jsonb_array_length(public.chat_messages('00000000-0000-0000-0000-0000000000a4')->'messages'), 0, 'an approved requester sees nothing sent before the approval');
+select tests.act_as_superuser();
+select is((select joined_at from activity_members where user_id = :'rq' and activity_id = '00000000-0000-0000-0000-0000000000a4'), now(), 'approval sets joined_at to the approval time');
+
 select * from finish();
 rollback;

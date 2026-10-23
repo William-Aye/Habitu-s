@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(19);
+select plan(21);
 select tests.create_user('org@cn.fr', 'Olivier') as org \gset
 select tests.create_user('m1@cn.fr', 'Marie') as m1 \gset
 select tests.create_user('m2@cn.fr', 'Marc') as m2 \gset
@@ -61,6 +61,19 @@ select is((select count(*)::int from notification_outbox where user_id = :'rd' a
 select is((select count(*)::int from notification_outbox where user_id = :'m2' and kind = 'chat_message' and (data->>'activity_id') = '00000000-0000-0000-0000-0000000000a2'), 0, 'a member who blocked the sender gets none');
 select is((select array_agg(user_id order by user_id::text) from notification_outbox where kind = 'chat_message' and (data->>'activity_id') = '00000000-0000-0000-0000-0000000000a2'),
   (select array_agg(u order by u::text) from (values (:'org'::uuid), (:'ok'::uuid)) v(u)), 'only the organiser and the other member are notified');
+
+-- messages_notify mirrors notify_user ----------------------------------------------------------------
+select tests.act_as_superuser();
+select public.notify_user(:'m3', 'chat_message', null, null, null, null,
+  jsonb_build_object('activity_id', '00000000-0000-0000-0000-0000000000a1', 'kind', 'chat_message'), 'mirror:m3', now(), :'org');
+select public.notify_user(:'m2', 'chat_message', null, null, null, null,
+  jsonb_build_object('activity_id', '00000000-0000-0000-0000-0000000000a1', 'kind', 'chat_message'), 'mirror:m2', now(), :'org');
+select is((select (title, body, data, kind) from notification_outbox where dedupe_key = 'mirror:m3'),
+  (select (title, body, data, kind) from notification_outbox where kind = 'chat_message' and user_id = :'m3' and dedupe_key like 'chat:%'),
+  'messages_notify and notify_user write the same row for an English recipient');
+select is((select (title, body, kind) from notification_outbox where dedupe_key = 'mirror:m2'),
+  (select (title, body, kind) from notification_outbox where kind = 'chat_message' and user_id = :'m2' and dedupe_key like 'chat:%' and (data->>'activity_id') = '00000000-0000-0000-0000-0000000000a1'),
+  'and for a French recipient');
 
 -- Blocks both ways, and a dedupe key that already exists -------------------------------------------
 select tests.act_as_superuser();

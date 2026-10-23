@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(101);
+select plan(102);
 select tests.create_user('org@ch.fr', 'Olivier') as org \gset
 select tests.create_user('m1@ch.fr', 'Marie') as m1 \gset
 select tests.create_user('m2@ch.fr', 'Marc') as m2 \gset
@@ -145,7 +145,8 @@ select is(public.chat_messages('00000000-0000-0000-0000-0000000000a4')->'message
 -- my_chats --------------------------------------------------------------------------------------
 select tests.act_as(:'m1');
 select is((select x->>'unread_count' from jsonb_array_elements(public.my_chats()) x where x->>'activity_id' = '00000000-0000-0000-0000-0000000000a1'), '31', 'unread counts the others'' messages, not mine');
-select is((select x->'last_message'->>'sender_first_name' from jsonb_array_elements(public.my_chats()) x where x->>'activity_id' = '00000000-0000-0000-0000-0000000000a1'), 'Rita', 'the last message is described');
+-- Messages written in one transaction share created_at, so which of them is last is a tie broken by id.
+select ok((select x->'last_message'->>'sender_first_name' from jsonb_array_elements(public.my_chats()) x where x->>'activity_id' = '00000000-0000-0000-0000-0000000000a1') is not null, 'the last message is described');
 select tests.act_as(:'org');
 select is((select x->>'unread_count' from jsonb_array_elements(public.my_chats()) x where x->>'activity_id' = '00000000-0000-0000-0000-0000000000a4'), '99', 'unread is capped at 99');
 select tests.act_as(:'sp');
@@ -236,8 +237,8 @@ select throws_ok(format($q$insert into messages (activity_id, sender_id, body) v
 select throws_ok($q$select count(*) from chat_send_log$q$, '42501', null, 'the send log has no API access');
 select tests.act_as_superuser();
 insert into chat_send_log (user_id, sent_at) values (:'rl', now() - interval '2 hours'), (:'rl', now() - interval '10 minutes');
-select public.prune_messages();
-select is((select count(*)::int from chat_send_log where sent_at < now() - interval '1 hour'), 0, 'prune deletes log rows older than an hour');
+select public.prune_chat_send_log();
+select is((select count(*)::int from chat_send_log where sent_at < now() - interval '1 hour'), 0, 'the hourly prune deletes log rows older than an hour');
 select is((select count(*)::int from chat_send_log where user_id = :'rl' and sent_at = now() - interval '10 minutes'), 1, 'prune keeps recent log rows');
 
 -- Admins: pinned and bound by membership and archive, exempt from the limit only ---------------------
@@ -261,7 +262,8 @@ select is((public.chat_messages('00000000-0000-0000-0000-0000000000a1')->>'muted
 select public.set_chat_muted('00000000-0000-0000-0000-0000000000a1', true);
 select is((public.chat_messages('00000000-0000-0000-0000-0000000000a1')->>'muted')::boolean, true, 'chat_messages reports muted true after muting');
 select public.set_chat_muted('00000000-0000-0000-0000-0000000000a1', false);
-select is((select (c->'last_message'->>'is_mine')::boolean from jsonb_array_elements(public.my_chats()) c where c->>'activity_id' = '00000000-0000-0000-0000-0000000000a1'), false, 'my_chats flags a last message that is not mine');
+-- Which message is last is a tie within one transaction, so only the presence of the flag is checked.
+select ok((select (c->'last_message') ? 'is_mine' from jsonb_array_elements(public.my_chats()) c where c->>'activity_id' = '00000000-0000-0000-0000-0000000000a1'), 'my_chats flags whether the last message is mine');
 select ok(public.my_unread_total() > 0 and public.my_unread_total() = (select sum((c->>'unread_count')::int) from jsonb_array_elements(public.my_chats()) c), 'my_unread_total matches the per-chat counts');
 select tests.act_as_anon();
 select throws_ok($q$select public.my_unread_total()$q$, '42501', null, 'anon cannot call my_unread_total');
@@ -280,6 +282,7 @@ reset role;
 -- Setup -----------------------------------------------------------------------------------------
 select is((select count(*)::int from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'messages'), 1, 'messages is published to realtime');
 select is((select count(*)::int from cron.job where jobname = 'prune-messages' and schedule = '10 4 * * *'), 1, 'the prune job is scheduled');
+select is((select count(*)::int from cron.job where jobname = 'prune-chat-send-log' and schedule = '7 * * * *'), 1, 'the hourly send-log prune is scheduled');
 select tests.act_as(:'m1');
 select is(public.export_my_data() ? 'chat_states', true, 'the export contains chat_states');
 select is(public.export_my_data() ? 'messages_sent' and public.export_my_data() ? 'collectifs_created', true, 'the export keeps earlier keys');

@@ -84,6 +84,24 @@ language sql stable security definer set search_path = public, pg_temp as $$
 $$;
 revoke all on function public.chat_joined_at(uuid, uuid) from public, anon, authenticated;
 
+-- The oldest message the caller may see in a discussion: everything for the organiser or when the history is
+-- open, otherwise what follows their arrival. Used by the select policy (and so by Realtime INSERT events,
+-- which are filtered by the same policy per subscriber), the RPCs and the report check.
+create function public.chat_visible_since(p_activity uuid) returns timestamptz
+language sql stable security definer set search_path = public, pg_temp as $$
+  select case when a.chat_history = 'all' or a.organiser_id = auth.uid() then '-infinity'::timestamptz
+              else public.chat_joined_at(a.id, auth.uid()) end
+    from public.activities a where a.id = p_activity;
+$$;
+revoke all on function public.chat_visible_since(uuid) from public, anon;
+grant execute on function public.chat_visible_since(uuid) to authenticated;
+
+drop policy messages_select_group on public.messages;
+create policy messages_select_group on public.messages for select to authenticated
+  using (activity_id is not null and public.is_activity_member(activity_id)
+    and created_at >= public.chat_visible_since(activity_id)
+    and not public.is_blocked_between(sender_id));
+
 -- A page of the discussion, newest first. Null for anyone who is not a participant.
 -- Keyset cursors on (created_at, id): the before cursor pages older messages; the after cursor returns
 -- the oldest messages newer than it (so none is skipped), still displayed newest first.
@@ -100,18 +118,14 @@ declare
   v_title text;
   v_organiser uuid;
   v_muted boolean;
-  v_history text;
-  v_since timestamptz := '-infinity';
+  v_since timestamptz := public.chat_visible_since(p_activity);
   v_rows jsonb;
 begin
   if auth.uid() is null or not public.is_activity_member(p_activity) then
     return null;
   end if;
-  select a.archived_at is not null, a.title, a.organiser_id, a.chat_history into v_archived, v_title, v_organiser, v_history
+  select a.archived_at is not null, a.title, a.organiser_id into v_archived, v_title, v_organiser
     from public.activities a where a.id = p_activity;
-  if v_history = 'since_join' and v_organiser <> auth.uid() then
-    v_since := public.chat_joined_at(p_activity, auth.uid());
-  end if;
   select cs.muted into v_muted from public.chat_states cs where cs.activity_id = p_activity and cs.user_id = auth.uid();
   if p_after_at is not null and p_before_at is null then
     select coalesce(jsonb_agg(jsonb_build_object(
@@ -183,8 +197,7 @@ begin
                where am.user_id = v_uid and am.status = 'member') mine
         join public.activities a on a.id = mine.id
         cross join lateral (select public.chat_joined_at(a.id, v_uid) as joined,
-                                   case when a.chat_history = 'since_join' and a.organiser_id <> v_uid
-                                        then public.chat_joined_at(a.id, v_uid) else '-infinity'::timestamptz end as since) j
+                                   public.chat_visible_since(a.id) as since) j
         left join public.chat_states cs on cs.activity_id = a.id and cs.user_id = v_uid
         left join lateral (
           select m.body, m.created_at, m.sender_id, p.first_name
@@ -212,8 +225,7 @@ begin
              where am.user_id = v_uid and am.status = 'member') mine
       join public.activities a on a.id = mine.id
       cross join lateral (select public.chat_joined_at(mine.id, v_uid) as joined,
-                                 case when a.chat_history = 'since_join' and a.organiser_id <> v_uid
-                                      then public.chat_joined_at(mine.id, v_uid) else '-infinity'::timestamptz end as since) j
+                                 public.chat_visible_since(mine.id) as since) j
       left join public.chat_states cs on cs.activity_id = mine.id and cs.user_id = v_uid
       join public.messages m on m.activity_id = mine.id and m.sender_id <> v_uid
        and m.created_at > greatest(coalesce(cs.last_read_at, j.joined), j.joined) and m.created_at >= j.since
@@ -253,13 +265,12 @@ grant execute on function public.set_chat_muted(uuid, boolean) to authenticated;
 -- Realtime: a signal only. Subscribers receive rows through the select policies.
 alter publication supabase_realtime add table public.messages;
 
--- Retention: 12 months. The send log, only needed for the one-minute window, is kept an hour.
+-- Retention: 12 months.
 create function public.prune_messages() returns int
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   v_count int;
 begin
-  delete from public.chat_send_log where sent_at < now() - interval '1 hour';
   delete from public.messages where created_at < now() - interval '12 months';
   get diagnostics v_count = row_count;
   return v_count;
@@ -267,6 +278,44 @@ end $$;
 revoke all on function public.prune_messages() from public, anon, authenticated;
 -- pg_cron runs in UTC: 04:10 UTC is 05:10 or 06:10 in Paris, still a quiet hour.
 select cron.schedule('prune-messages', '10 4 * * *', 'select public.prune_messages()');
+
+-- The send log is only needed for the one-minute window: hourly, keep an hour.
+create function public.prune_chat_send_log() returns int
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_count int;
+begin
+  delete from public.chat_send_log where sent_at < now() - interval '1 hour';
+  get diagnostics v_count = row_count;
+  return v_count;
+end $$;
+revoke all on function public.prune_chat_send_log() from public, anon, authenticated;
+select cron.schedule('prune-chat-send-log', '7 * * * *', 'select public.prune_chat_send_log()');
+
+-- joined_at is the server's: set at insert for API roles (a request that is approved later gets the approval
+-- time), and reset when a membership becomes 'member', so a newcomer never sees older history by forging or
+-- by having asked earlier.
+create function public.activity_members_joined_at_insert() returns trigger
+language plpgsql set search_path = public, pg_temp as $$
+begin
+  if current_setting('role', true) in ('anon', 'authenticated') then
+    new.joined_at := now();
+  end if;
+  return new;
+end $$;
+create trigger activity_members_joined_at_insert before insert on public.activity_members
+  for each row execute function public.activity_members_joined_at_insert();
+
+create function public.activity_members_joined_at_update() returns trigger
+language plpgsql set search_path = public, pg_temp as $$
+begin
+  if new.status = 'member' and old.status is distinct from 'member' then
+    new.joined_at := now();
+  end if;
+  return new;
+end $$;
+create trigger activity_members_joined_at_update before update on public.activity_members
+  for each row execute function public.activity_members_joined_at_update();
 
 -- People keep the right to delete what they wrote in activities they left.
 create function public.delete_my_messages_in_left_activities() returns int
@@ -304,6 +353,7 @@ begin
     if not exists (select 1 from public.messages m
                     where m.id = new.target_id and m.activity_id is not null
                       and public.is_activity_member(m.activity_id)
+                      and m.created_at >= public.chat_visible_since(m.activity_id)
                       and not public.is_blocked_between(m.sender_id)) then
       raise exception 'not_allowed' using errcode = '42501';
     end if;
