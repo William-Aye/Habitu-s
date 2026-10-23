@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(101);
+select plan(123);
 select tests.create_user('adm@mo.fr', 'Admin') as adm \gset
 select tests.create_user('org@mo.fr', 'Olga') as org \gset
 select tests.create_user('ana@mo.fr', 'Ana') as ana \gset
@@ -12,6 +12,10 @@ select tests.create_user('fay@mo.fr', 'Fay') as fay \gset
 select tests.create_user('gus@mo.fr', 'Gus') as gus \gset
 select tests.create_user('hal@mo.fr', 'Hal') as hal \gset
 select tests.create_user('pia@mo.fr', 'Pia') as pia \gset
+select tests.create_user('adm2@mo.fr', 'Admine') as adm2 \gset
+select tests.create_user('uma@mo.fr', 'Uma') as uma \gset
+select tests.create_user('vic@mo.fr', 'Vic') as vic \gset
+select tests.create_user('wen@mo.fr', 'Wen') as wen \gset
 update profiles set role = 'admin' where id = :'adm';
 update profiles set age_confirmed = true, created_at = now() - interval '2 days';
 insert into categories (id, slug, name_fr, name_en, icon) values ('00000000-0000-0000-0000-0000000000c1', 'go', 'Jeu de go', 'Go', 'grid-3x3');
@@ -43,6 +47,7 @@ select is((select source from reports where target_type = 'message'), 'user', 's
 select lives_ok(format($$ insert into reports (reporter_id, target_type, target_id, reason) values (auth.uid(), 'user', %L, 'inappropriate_behaviour') $$, :'ben'), 'a member reports a person they share an activity with');
 select lives_ok($$ insert into reports (reporter_id, target_type, target_id, reason) values (auth.uid(), 'message', '00000000-0000-0000-0000-0000000000b3', 'other') $$, 'a second message report');
 select lives_ok($$ insert into reports (reporter_id, target_type, target_id, reason) values (auth.uid(), 'activity', '00000000-0000-0000-0000-0000000000a4', 'unsafe_place') $$, 'a report on a second activity');
+select tests.act_as_superuser();
 select is((select target_owner from reports where target_type = 'message' and target_id = '00000000-0000-0000-0000-0000000000b1'), :'ben'::uuid, 'target_owner is the message author');
 select is((select target_owner from reports where target_type = 'activity' and target_id = '00000000-0000-0000-0000-0000000000a1'), :'org'::uuid, 'target_owner is the organiser');
 select tests.act_as(:'gus');
@@ -112,7 +117,7 @@ select is((select i->>'preview' from jsonb_array_elements(admin_reports()->'item
 select is((select i->'target_owner'->>'first_name' from jsonb_array_elements(admin_reports()->'items') i where i->>'id' = :'r_msg1'), 'Ben', 'the queue shows the owner');
 select is((select i->>'reporter_first_name' from jsonb_array_elements(admin_reports()->'items') i where i->>'id' = :'r_msg1'), 'Ana', 'the queue shows the reporter');
 select ok((admin_reports()->>'open_count')::int >= 10, 'the queue counts open reports');
-select is(jsonb_array_length(admin_reports('open', null, 2)->'items'), 2, 'the queue honours the limit');
+select is(jsonb_array_length(admin_reports('open', null, null, 2)->'items'), 2, 'the queue honours the limit');
 
 -- decisions
 select throws_ok(format($$ select admin_decide_report(%L, 'dismiss', 'court') $$, :'r_usr'), '23514', null, 'a statement under 10 characters is refused');
@@ -203,9 +208,78 @@ select tests.act_as_superuser();
 select is((select count(*) from reports where source = 'auto' and target_type = 'message' and reporter_id is null)::int, 1, 'it creates one automatic report');
 select is((select count(*) from reports r join report_snapshots s on s.report_id = r.id where r.source = 'auto')::int, 1, 'the automatic message report keeps its snapshot');
 
+-- hardening round: column grants, admins, word list bounds, blocks in both directions, owners
+select tests.act_as(:'gus');
+select throws_ok($$ select statement_of_reasons from reports $$, '42501', null, 'a reporter cannot read the statement through the table');
+select throws_ok($$ select target_owner from reports $$, '42501', null, 'a reporter cannot read the owner');
+select throws_ok($$ select decided_by from reports $$, '42501', null, 'a reporter cannot read the moderator');
+select lives_ok($$ select id, status, decided_at from reports $$, 'a reporter reads the granted columns');
+
+select tests.act_as_superuser();
+update profiles set role = 'admin' where id = :'adm2';
+insert into activity_members (activity_id, user_id) values
+  ('00000000-0000-0000-0000-0000000000a1', :'adm2'), ('00000000-0000-0000-0000-0000000000a1', :'uma'),
+  ('00000000-0000-0000-0000-0000000000a1', :'vic'), ('00000000-0000-0000-0000-0000000000a1', :'wen');
+insert into messages (id, activity_id, sender_id, body) values
+  ('00000000-0000-0000-0000-0000000000b5', '00000000-0000-0000-0000-0000000000a1', :'vic', 'Message de Vic'),
+  ('00000000-0000-0000-0000-0000000000b6', '00000000-0000-0000-0000-0000000000a1', :'adm2', 'Message de admin');
+insert into blocks (blocker_id, blocked_id) values (:'uma', :'vic'), (:'vic', :'wen');
+insert into associations (id, name, source, claimed_by, created_by) values
+  ('00000000-0000-0000-0000-0000000000d2', 'Club Deux', 'community', :'cat', :'ben');
+insert into associations (id, name, source, created_by) values
+  ('00000000-0000-0000-0000-0000000000d3', 'Club Trois', 'community', :'ben');
+
+-- a block made by the reporter does not stop a report; one made by the other person does
+select tests.act_as(:'uma');
+select lives_ok(format($$ insert into reports (target_type, target_id, reason) values ('user', %L, 'harassment') $$, :'vic'), 'the blocker can report the person they blocked');
+select lives_ok($$ insert into reports (target_type, target_id, reason) values ('message', '00000000-0000-0000-0000-0000000000b5', 'harassment') $$, 'the blocker can report that persons message');
+select tests.act_as(:'wen');
+select throws_ok(format($$ insert into reports (target_type, target_id, reason) values ('user', %L, 'other') $$, :'vic'), '42501', 'not_allowed', 'a person blocked by the target cannot report them');
+select throws_ok($$ insert into reports (target_type, target_id, reason) values ('message', '00000000-0000-0000-0000-0000000000b5', 'other') $$, '42501', 'not_allowed', 'nor their message');
+
+-- forged source and owner from a client are overwritten
+select tests.act_as(:'uma');
+select lives_ok(format($$ insert into reports (target_type, target_id, reason, source, target_owner) values ('user', %L, 'other', 'auto', %L) $$, :'adm2', :'uma'), 'a forged source and owner are accepted but overwritten');
+select tests.act_as_superuser();
+select is((select source || '/' || reporter_id::text || '/' || target_owner::text from reports where target_type = 'user' and target_id = :'adm2'), 'user/' || :'uma' || '/' || :'adm2', 'source, reporter and owner are set by the server');
+
+-- association owners
+select tests.act_as(:'wen');
+select lives_ok($$ insert into reports (target_type, target_id, reason) values ('association', '00000000-0000-0000-0000-0000000000d2', 'other'), ('association', '00000000-0000-0000-0000-0000000000d3', 'other'), ('association', '00000000-0000-0000-0000-0000000000d1', 'other') $$, 'associations can be reported');
+select tests.act_as_superuser();
+select is((select target_owner from reports where target_id = '00000000-0000-0000-0000-0000000000d2' and reporter_id = :'wen'), :'cat'::uuid, 'the owner of a claimed association is the claimant');
+select is((select target_owner from reports where target_id = '00000000-0000-0000-0000-0000000000d3'), :'ben'::uuid, 'otherwise it is the creator');
+select id as r_adm2 from reports where target_type = 'user' and target_id = :'adm2' \gset
+select id as r_d1 from reports where target_id = '00000000-0000-0000-0000-0000000000d1' and reporter_id = :'wen' \gset
+insert into reports (reporter_id, target_type, target_id, reason) values (:'uma', 'message', '00000000-0000-0000-0000-0000000000b6', 'other');
+select id as r_selfmsg from reports where target_id = '00000000-0000-0000-0000-0000000000b6' \gset
+
+-- admins cannot be banned or removed, nor can a moderator ban themself
+select tests.act_as_admin(:'adm');
+select throws_ok(format($$ select admin_decide_report(%L, 'ban', 'Tentative de bannir un admin.') $$, :'r_adm2'), '42501', 'not_allowed', 'banning an admin is refused');
+select throws_ok(format($$ select admin_decide_report(%L, 'remove', 'Tentative de retirer un admin.') $$, :'r_adm2'), '42501', 'not_allowed', 'removing an admin user is refused');
+select lives_ok(format($$ select admin_decide_report(%L, 'warn', 'Avertissement a un admin.') $$, :'r_adm2'), 'warning an admin is allowed');
+select tests.act_as_admin(:'adm2');
+select throws_ok(format($$ select admin_decide_report(%L, 'ban', 'Tentative de se bannir.') $$, :'r_selfmsg'), '42501', 'not_allowed', 'a moderator cannot ban themself');
+select tests.act_as_admin(:'adm');
+select lives_ok(format($$ select admin_decide_report(%L, 'ban', 'Aucun responsable connu.') $$, :'r_d1'), 'a ban with no known owner still records the decision');
+select tests.act_as_superuser();
+select is((select details ->> 'owner_missing' from admin_audit_log where target_id = :'r_d1'), 'true', 'the audit row notes the missing owner');
+
+-- the word list is bounded
+select tests.act_as_admin(:'adm');
+select throws_ok($$ select admin_set_banned_word('ab', true) $$, '23514', null, 'a two-character word is refused');
+select throws_ok($$ select admin_set_banned_word('---', true) $$, '23514', null, 'a word without letters or digits is refused');
+select tests.act_as_superuser();
+insert into banned_words (word) select 'mot' || lpad(n::text, 4, '0') from generate_series(1, 500) n;
+select tests.act_as_admin(:'adm');
+select throws_ok($$ select admin_set_banned_word('encoreun', true) $$, '42501', 'limit_reached', 'the list is capped at 500 words');
+select tests.act_as_superuser();
+delete from banned_words;
+
 -- structure
 select is(has_function_privilege('authenticated', 'public.text_has_banned_word(text)', 'execute'), false, 'the word matcher is internal');
-select is(has_function_privilege('anon', 'public.admin_reports(text, timestamptz, int)', 'execute'), false, 'anon cannot call the queue');
+select is(has_function_privilege('anon', 'public.admin_reports(text, timestamptz, uuid, int)', 'execute'), false, 'anon cannot call the queue');
 select is(has_function_privilege('authenticated', 'public.my_blocked()', 'execute'), true, 'authenticated can list blocks');
 select * from finish();
 rollback;

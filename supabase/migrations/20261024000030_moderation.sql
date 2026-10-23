@@ -78,6 +78,12 @@ alter table public.reports add constraint reports_reason_check
 alter table public.reports add column source text not null default 'user' check (source in ('user', 'auto'));
 alter table public.reports add column target_owner uuid references public.profiles on delete set null;
 
+-- Reporters read their own reports without the decision details, the owner or the moderator: those come
+-- only through my_moderation_notices and the admin RPCs.
+revoke select on public.reports from authenticated;
+grant select (id, reporter_id, target_type, target_id, reason, details, status, created_at, decided_at, source)
+  on public.reports to authenticated;
+
 -- The person responsible for a target: author, organiser, creator or the user themself.
 create function public.report_target_owner(p_type text, p_id uuid) returns uuid
 language sql stable security definer set search_path = public, pg_temp as $$
@@ -128,11 +134,11 @@ begin
                                    where m.id = new.target_id and m.activity_id is not null
                                      and public.is_activity_member(m.activity_id)
                                      and m.created_at >= public.chat_visible_since(m.activity_id)
-                                     and not public.is_blocked_between(m.sender_id)
+                                     and not exists (select 1 from public.blocks b where b.blocker_id = m.sender_id and b.blocked_id = v_uid)
                                      and not public.is_banned(m.sender_id))
       when 'user' then new.target_id <> v_uid
                        and exists (select 1 from public.profiles p where p.id = new.target_id)
-                       and not public.is_blocked_between(new.target_id)
+                       and not exists (select 1 from public.blocks b where b.blocker_id = new.target_id and b.blocked_id = v_uid)
                        and (exists (
                               select 1
                                 from (select a.id as aid, a.organiser_id as uid from public.activities a
@@ -213,7 +219,7 @@ $$;
 -- ---------------------------------------------------------------------------------------------
 -- Admin queue
 create function public.admin_reports(
-  p_status text default 'open', p_before timestamptz default null, p_limit int default 30
+  p_status text default 'open', p_before_at timestamptz default null, p_before_id uuid default null, p_limit int default 30
 ) returns jsonb
 language plpgsql stable security definer set search_path = public, pg_temp as $$
 begin
@@ -234,7 +240,7 @@ begin
                 else jsonb_build_object('id', r.target_owner,
                        'first_name', (select p.first_name from public.profiles p where p.id = r.target_owner)) end,
               'preview', case r.target_type
-                when 'activity' then (select a.title || ' - ' || a.place_label from public.activities a where a.id = r.target_id)
+                when 'activity' then (select concat_ws(' - ', a.title, a.place_label) from public.activities a where a.id = r.target_id)
                 when 'session' then (select to_char(s.starts_at at time zone a.timezone, 'YYYY-MM-DD HH24:MI')
                                        from public.sessions s join public.activities a on a.id = s.activity_id
                                       where s.id = r.target_id)
@@ -245,12 +251,12 @@ begin
                 end) as j
             from public.reports r
            where (p_status = 'all' or r.status = p_status)
-             and (p_before is null or r.created_at < p_before)
+             and (p_before_at is null or (r.created_at, r.id) < (p_before_at, coalesce(p_before_id, 'ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid)))
            order by r.created_at desc, r.id desc
            limit greatest(1, least(coalesce(p_limit, 30), 100))) x), '[]'::jsonb));
 end $$;
-revoke all on function public.admin_reports(text, timestamptz, int) from public, anon;
-grant execute on function public.admin_reports(text, timestamptz, int) to authenticated;
+revoke all on function public.admin_reports(text, timestamptz, uuid, int) from public, anon;
+grant execute on function public.admin_reports(text, timestamptz, uuid, int) to authenticated;
 
 create function public.admin_decide_report(p_report uuid, p_decision text, p_statement text) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
@@ -280,6 +286,13 @@ begin
   end if;
   v_status := case when p_decision = 'dismiss' then 'dismissed' else 'actioned' end;
   v_owner := coalesce(r.target_owner, public.report_target_owner(r.target_type, r.target_id));
+  -- Nobody bans or removes an admin (or themself) through a report.
+  if v_owner is not null
+     and (p_decision = 'ban' or (p_decision = 'remove' and r.target_type = 'user'))
+     and (v_owner = auth.uid()
+          or exists (select 1 from public.profiles p where p.id = v_owner and p.role = 'admin')) then
+    raise exception 'not_allowed' using errcode = '42501';
+  end if;
 
   -- Effects. A target that is already gone is not an error.
   if p_decision = 'remove' then
@@ -306,9 +319,6 @@ begin
         delete from public.messages where sender_id = r.target_id;
     end case;
   elsif p_decision = 'ban' and v_owner is not null then
-    if v_owner = auth.uid() then
-      raise exception 'not_allowed' using errcode = '42501';
-    end if;
     perform public.ban_user(v_owner, v_statement);
   end if;
 
@@ -337,7 +347,9 @@ begin
 
   perform public.admin_log('report_decision', 'report', p_report,
     jsonb_build_object('decision', p_decision, 'target_type', r.target_type, 'target_id', r.target_id,
-                       'closed', v_closed));
+                       'closed', v_closed)
+      || case when v_owner is null and (p_decision = 'ban' or (p_decision = 'remove' and r.target_type = 'user'))
+              then jsonb_build_object('owner_missing', true) else '{}'::jsonb end);
 end $$;
 revoke all on function public.admin_decide_report(uuid, text, text) from public, anon;
 grant execute on function public.admin_decide_report(uuid, text, text) to authenticated;
@@ -356,7 +368,7 @@ begin
     'decisions', coalesce((
       select jsonb_agg(jsonb_build_object('report_id', x.id, 'decision', x.decision,
                'statement_of_reasons', x.statement_of_reasons, 'decided_at', x.decided_at,
-               'target_type', x.target_type) order by x.decided_at desc, x.id)
+               'target_type', x.target_type, 'target_id', x.target_id) order by x.decided_at desc, x.id)
         from (select distinct on (r.target_type, r.target_id, r.decided_at) r.*
                 from public.reports r
                where r.target_owner = v_uid and r.status = 'actioned'
@@ -386,7 +398,7 @@ grant execute on function public.my_blocked() to authenticated;
 -- ---------------------------------------------------------------------------------------------
 -- Word filter
 create table public.banned_words (
-  word text primary key check (word = lower(word) and char_length(word) between 2 and 50),
+  word text primary key check (word = lower(word) and char_length(word) between 3 and 50 and word ~ '[[:alnum:]]'),
   added_by uuid references public.profiles on delete set null,
   created_at timestamptz not null default now()
 );
@@ -404,10 +416,14 @@ begin
   if not public.is_admin() then
     raise exception 'not_allowed' using errcode = '42501';
   end if;
-  if char_length(v_word) not between 2 and 50 then
+  if char_length(v_word) not between 3 and 50 or v_word !~ '[[:alnum:]]' then
     raise exception 'invalid_word' using errcode = '23514';
   end if;
   if p_add then
+    if (select count(*) from public.banned_words) >= 500
+       and not exists (select 1 from public.banned_words where word = v_word) then
+      raise exception 'limit_reached' using errcode = '42501';
+    end if;
     insert into public.banned_words (word, added_by) values (v_word, auth.uid()) on conflict do nothing;
   else
     delete from public.banned_words where word = v_word;
@@ -421,9 +437,10 @@ grant execute on function public.admin_set_banned_word(text, boolean) to authent
 -- Whole-word match, ignoring accents and case.
 create function public.text_has_banned_word(p_text text) returns boolean
 language sql stable security definer set search_path = public, extensions, pg_temp as $$
+  with t as (select lower(extensions.unaccent('extensions.unaccent'::regdictionary, p_text)) as txt)
   select p_text is not null and exists (
-    select 1 from public.banned_words w
-     where lower(extensions.unaccent('extensions.unaccent'::regdictionary, p_text))
+    select 1 from public.banned_words w, t
+     where t.txt
            ~ ('(^|[^[:alnum:]])' || regexp_replace(w.word, '([.^$*+?()\[\]{}|\\])', '\\\1', 'g') || '($|[^[:alnum:]])'));
 $$;
 revoke all on function public.text_has_banned_word(text) from public, anon, authenticated;

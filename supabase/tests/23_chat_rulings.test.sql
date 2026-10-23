@@ -91,7 +91,7 @@ delete from messages where id = '00000000-0000-0000-0000-0000000000f1';
 select is((select count(*)::int from report_snapshots), 1, 'the snapshot survives deleting the message');
 select tests.act_as(:'ma');
 select throws_ok(format($q$insert into report_snapshots (report_id, snapshot) select id, '{"body":"faux"}' from reports where reporter_id = %L$q$, :'ma'), '42501', null, 'a client cannot write a snapshot');
-select throws_ok(format($q$insert into reports (reporter_id, target_type, target_id, reason) values (%L, 'message', %L, 'other')$q$, :'ma', '00000000-0000-0000-0000-0000000000f2'), '42501', 'not_allowed', 'reporting a blocked sender''s message is refused');
+select lives_ok(format($q$insert into reports (reporter_id, target_type, target_id, reason) values (%L, 'message', %L, 'other')$q$, :'ma', '00000000-0000-0000-0000-0000000000f2'), 'a victim who blocked the sender can still report their message');
 select tests.act_as(:'st');
 select throws_ok(format($q$insert into reports (reporter_id, target_type, target_id, reason) values (%L, 'message', %L, 'other')$q$, :'st', '00000000-0000-0000-0000-0000000000f2'), '42501', 'not_allowed', 'a non-member cannot report a message');
 select tests.act_as(:'ma');
@@ -100,7 +100,7 @@ select lives_ok(format($q$insert into reports (reporter_id, target_type, target_
 select is((select count(*)::int from report_snapshots), 0, 'the reporter cannot read the snapshot');
 select ok(not (public.export_my_data()::text like '%contenu secret%'), 'the export holds no snapshot');
 select tests.act_as_admin(:'ad');
-select is((select snapshot->>'body' from report_snapshots), 'contenu secret', 'an admin reads the snapshot');
+select is((select snapshot->>'body' from report_snapshots where snapshot->>'body' = 'contenu secret'), 'contenu secret', 'an admin reads the snapshot');
 -- N1: a direct select follows chat_history, reports too ------------------------------------------------
 select tests.act_as_superuser();
 insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time, max_size, chat_history)

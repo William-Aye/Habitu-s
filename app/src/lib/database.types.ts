@@ -1179,7 +1179,7 @@ isOneToOne: true
 { Args: { "p_action": string,"p_details"?: Json,"p_target_id": string,"p_target_type": string }; Returns: undefined
                            },
 "admin_reports":
-{ Args: { "p_before"?: string,"p_limit"?: number,"p_status"?: string }; Returns: Json
+{ Args: { "p_before_at"?: string,"p_before_id"?: string,"p_limit"?: number,"p_status"?: string }; Returns: Json
                            },
 "admin_set_banned_word":
 { Args: { "p_add": boolean,"p_word": string }; Returns: undefined
