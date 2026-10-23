@@ -34,7 +34,7 @@ select is((select count(*) from import_runs)::int, 0, 'non-admin sees no runs');
 select throws_ok($$ select importer.normalise_name('x') $$, '42501', null, 'authenticated cannot execute importer functions');
 select tests.act_as_superuser();
 update public.profiles set role = 'admin' where id = :'u';
-select tests.act_as(:'u');
+select tests.act_as_admin(:'u');
 select is((select count(*) from import_runs)::int, 1, 'admin sees the run');
 select tests.act_as_anon();
 select throws_ok($$ select * from import_runs $$, '42501', null, 'anon cannot read runs');
@@ -491,7 +491,7 @@ select tests.act_as_superuser();
 select is((select locked_fields from associations where rna_id = 'W441000002'),
   array['purpose', 'website', 'phone'], 'claimant edits add the edited columns to locked_fields, once each');
 update profiles set role = 'admin' where id = :'organiser';
-select tests.act_as(:'organiser');
+select tests.act_as_admin(:'organiser');
 update associations set opening_hours = 'Mo 18:00-20:00' where rna_id = 'W441000002';
 select tests.act_as_superuser();
 select ok((select not 'opening_hours' = any(locked_fields) from associations where rna_id = 'W441000002'),

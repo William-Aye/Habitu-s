@@ -44,7 +44,7 @@ select is((select count(*) from user_interests)::int, 0, 'bob does not see alice
 
 select tests.act_as_superuser();
 update profiles set role = 'admin' where id = :'root';
-select tests.act_as(:'root');
+select tests.act_as_admin(:'root');
 select lives_ok($$ insert into categories (slug, name_fr, name_en, icon) values ('go', 'Go', 'Go', 'circle') $$, 'admin can insert category');
 select is((select count(*) from category_requests)::int, 1, 'admin reads all category requests');
 select is((select count(*) from profiles)::int, 3, 'admin reads all profiles');

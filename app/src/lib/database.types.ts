@@ -169,6 +169,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"admin_audit_log": {
+                  Row: {
+                    "action": string,"admin_id": string | null,"created_at": string,"details": NonNullable<Json>,"id": string,"target_id": string | null,"target_type": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "action": string,"admin_id"?: string | null,"created_at"?: string,"details"?: NonNullable<Json>,"id"?: string,"target_id"?: string | null,"target_type"?: string | null
+                  }
+                  Update: {
+                    "action"?: string,"admin_id"?: string | null,"created_at"?: string,"details"?: NonNullable<Json>,"id"?: string,"target_id"?: string | null,"target_type"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "admin_audit_log_admin_id_fkey"
+      columns: ["admin_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "admin_audit_log_admin_id_fkey"
+      columns: ["admin_id"]
+isOneToOne: false
+      referencedRelation: "public_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"ambiance_words": {
                   Row: {
                     "id": string,"label_en": string,"label_fr": string,"slug": string,"sort_order": number
@@ -745,14 +771,14 @@ isOneToOne: true
                   ]
                 },"profiles": {
                   Row: {
-                    "age_confirmed": boolean,"bio": string | null,"created_at": string,"first_name": string,"home_area": unknown,"home_area_label": string | null,"id": string,"language": string,"last_seen_at": string | null,"phone_verified": boolean,"photo_url": string | null,"role": string,"supporter": boolean
+                    "age_confirmed": boolean,"banned_at": string | null,"bio": string | null,"created_at": string,"first_name": string,"home_area": unknown,"home_area_label": string | null,"id": string,"language": string,"last_seen_at": string | null,"phone_verified": boolean,"photo_url": string | null,"role": string,"supporter": boolean
                   }
                   ComputedFields: never
                   Insert: {
-                    "age_confirmed"?: boolean,"bio"?: string | null,"created_at"?: string,"first_name"?: string,"home_area"?: unknown,"home_area_label"?: string | null,"id": string,"language"?: string,"last_seen_at"?: string | null,"phone_verified"?: boolean,"photo_url"?: string | null,"role"?: string,"supporter"?: boolean
+                    "age_confirmed"?: boolean,"banned_at"?: string | null,"bio"?: string | null,"created_at"?: string,"first_name"?: string,"home_area"?: unknown,"home_area_label"?: string | null,"id": string,"language"?: string,"last_seen_at"?: string | null,"phone_verified"?: boolean,"photo_url"?: string | null,"role"?: string,"supporter"?: boolean
                   }
                   Update: {
-                    "age_confirmed"?: boolean,"bio"?: string | null,"created_at"?: string,"first_name"?: string,"home_area"?: unknown,"home_area_label"?: string | null,"id"?: string,"language"?: string,"last_seen_at"?: string | null,"phone_verified"?: boolean,"photo_url"?: string | null,"role"?: string,"supporter"?: boolean
+                    "age_confirmed"?: boolean,"banned_at"?: string | null,"bio"?: string | null,"created_at"?: string,"first_name"?: string,"home_area"?: unknown,"home_area_label"?: string | null,"id"?: string,"language"?: string,"last_seen_at"?: string | null,"phone_verified"?: boolean,"photo_url"?: string | null,"role"?: string,"supporter"?: boolean
                   }
                   Relationships: [
                     
@@ -1079,8 +1105,17 @@ isOneToOne: true
               "first_name": string,"photo_url": string,"status": string,"user_id": string
             }[]
                            },
+"admin_audit_page":
+{ Args: { "p_before"?: string,"p_limit"?: number }; Returns: Json
+                           },
+"admin_log":
+{ Args: { "p_action": string,"p_details"?: Json,"p_target_id": string,"p_target_type": string }; Returns: undefined
+                           },
 "association_locked_for_me":
 { Args: { "p_id": string }; Returns: boolean
+                           },
+"ban_user":
+{ Args: { "p_reason": string,"p_user": string }; Returns: undefined
                            },
 "can_organise":
 { Args: Record<PropertyKey, never>; Returns: boolean

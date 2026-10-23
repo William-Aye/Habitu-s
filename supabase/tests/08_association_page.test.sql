@@ -83,7 +83,7 @@ select tests.act_as(:'v');
 select is((public.get_association('00000000-0000-0000-0000-00000000c001') ->> 'is_waiting')::boolean, false, 'not waiting for V');
 select is((select count(*)::int from association_waiters), 0, 'V cannot read U row');
 delete from association_waiters;
-select tests.act_as(:'root');
+select tests.act_as_admin(:'root');
 select is((select count(*)::int from association_waiters), 1, 'V delete removed nothing; admin reads all');
 select tests.act_as(:'u');
 delete from association_waiters;

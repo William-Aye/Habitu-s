@@ -242,13 +242,13 @@ select is((select count(*)::int from chat_send_log where sent_at < now() - inter
 select is((select count(*)::int from chat_send_log where user_id = :'rl' and sent_at = now() - interval '10 minutes'), 1, 'prune keeps recent log rows');
 
 -- Admins: pinned and bound by membership and archive, exempt from the limit only ---------------------
-select tests.act_as(:'ad');
+select tests.act_as_admin(:'ad');
 insert into messages (activity_id, sender_id, body, created_at)
   values ('00000000-0000-0000-0000-0000000000a1', :'m2', 'Admin usurpe', '2020-01-01');
 select tests.act_as_superuser();
 select is((select sender_id from messages where body = 'Admin usurpe'), :'ad'::uuid, 'an admin''s sender_id is pinned');
 select is((select created_at from messages where body = 'Admin usurpe'), now(), 'an admin''s created_at is pinned');
-select tests.act_as(:'ad');
+select tests.act_as_admin(:'ad');
 select throws_ok(format($q$insert into messages (activity_id, sender_id, body) values (%L, %L, 'x')$q$, '00000000-0000-0000-0000-0000000000a2', :'ad'), '42501', 'not_allowed', 'an admin cannot post in an archived chat');
 select throws_ok(format($q$insert into messages (activity_id, sender_id, body) values (%L, %L, 'x')$q$, '00000000-0000-0000-0000-0000000000a3', :'ad'), '42501', 'not_allowed', 'an admin who is not a member cannot post');
 select lives_ok(format($q$insert into messages (activity_id, sender_id, body) select %L, %L, 'adm' || g from generate_series(1, 31) g$q$, '00000000-0000-0000-0000-0000000000a1', :'ad'), 'an admin is exempt from the rate limit');

@@ -128,7 +128,7 @@ select throws_ok($$ select count(*) from messages $$, '42501', null, 'anon canno
 select throws_ok($$ select count(*) from reports $$, '42501', null, 'anon cannot read reports');
 
 -- admin
-select tests.act_as(:'root');
+select tests.act_as_admin(:'root');
 select is((select count(*) from feedback)::int, 2, 'admin reads feedback');
 select is((select count(*) from session_feedback)::int, 1, 'admin reads session_feedback');
 select is((select count(*) from reports)::int, 1, 'admin reads reports');

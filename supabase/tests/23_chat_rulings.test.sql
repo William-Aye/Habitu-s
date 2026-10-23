@@ -99,7 +99,7 @@ select throws_ok(format($q$insert into reports (reporter_id, target_type, target
 select lives_ok(format($q$insert into reports (reporter_id, target_type, target_id, reason) values (%L, 'user', %L, 'other')$q$, :'ma', :'ot'), 'other report types are unaffected');
 select is((select count(*)::int from report_snapshots), 0, 'the reporter cannot read the snapshot');
 select ok(not (public.export_my_data()::text like '%contenu secret%'), 'the export holds no snapshot');
-select tests.act_as(:'ad');
+select tests.act_as_admin(:'ad');
 select is((select snapshot->>'body' from report_snapshots), 'contenu secret', 'an admin reads the snapshot');
 -- N1: a direct select follows chat_history, reports too ------------------------------------------------
 select tests.act_as_superuser();

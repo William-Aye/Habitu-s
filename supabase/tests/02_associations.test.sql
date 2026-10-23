@@ -62,7 +62,7 @@ select throws_ok($$ insert into associations (name, source, created_by, confiden
 -- admin
 select tests.act_as_superuser();
 update profiles set role = 'admin' where id = :'root';
-select tests.act_as(:'root');
+select tests.act_as_admin(:'root');
 select lives_ok($$ update associations set verified = true, name = 'Club de Go' where id = '00000000-0000-0000-0000-0000000000a2' $$, 'admin can update/verify');
 select is((select count(*) from association_claims)::int, 2, 'admin reads all claims');
 select lives_ok($$ update association_claims set status = 'approved' where id = '00000000-0000-0000-0000-0000000000c1' $$, 'admin approves claim');
