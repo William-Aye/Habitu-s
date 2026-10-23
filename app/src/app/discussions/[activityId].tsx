@@ -26,7 +26,7 @@ import { useChat, type DisplayMessage } from '../../features/chat/useChat';
 export default function DiscussionScreen() {
   const { t } = useTranslation();
   const { activityId } = useLocalSearchParams<{ activityId: string }>();
-  const { status } = useSession();
+  const { status, userId } = useSession();
   const requireAccount = useRequireAccount();
   const insets = useSafeAreaInsets();
 
@@ -40,19 +40,18 @@ export default function DiscussionScreen() {
 
   const chat = useChat(activityId, focused);
 
-  // Signed out (at open, or when a read says the session is gone): the account gate first; backing out of
-  // it leaves the screen, signing in reads the discussion again.
+  // Signed out (at open, or when a read says the session is gone): the account gate, once per mount.
+  // Backing out of it leaves the screen, signing in reads the discussion again; if it is still signed out
+  // after that, the error screen takes over instead of asking again.
   const signedOut = status === 'signed_out' || status === 'needs_profile' || chat.needsAccount;
   const asked = useRef(false);
+  const [gateDone, setGateDone] = useState(false);
   const { retryLoad } = chat;
   useEffect(() => {
-    if (!signedOut) {
-      asked.current = false;
-      return;
-    }
-    if (asked.current) return;
+    if (!signedOut || asked.current) return;
     asked.current = true;
     void requireAccount('message').then((ok) => {
+      setGateDone(true);
       if (!ok) router.back();
       else retryLoad();
     });
@@ -82,14 +81,25 @@ export default function DiscussionScreen() {
   const confirmBlock = (m: DisplayMessage) => {
     setTarget(null);
     const prenom = m.sender.firstName;
-    Alert.alert(t('chat.actions.blockTitle', { prenom }), t('chat.actions.blockBody'), [
+    // Blocking also ends the membership when the organiser is one of the two people.
+    const blocksOrganiser = !!chat.organiserId && m.sender.id === chat.organiserId;
+    const iAmOrganiser = !!chat.organiserId && userId === chat.organiserId;
+    const body = blocksOrganiser
+      ? t('chat.actions.blockBodyOrganiser')
+      : iAmOrganiser
+        ? t('chat.actions.blockBodyMember')
+        : t('chat.actions.blockBody');
+    Alert.alert(t('chat.actions.blockTitle', { prenom }), body, [
       { text: t('chat.actions.cancel'), style: 'cancel' },
       {
         text: t('chat.actions.block', { prenom }),
         style: 'destructive',
         onPress: async () => {
           const r = await blockUser(m.sender.id);
-          if (r.ok) {
+          if (r.ok && blocksOrganiser) {
+            // The membership is gone: leave rather than show the join prompt.
+            router.back();
+          } else if (r.ok) {
             setNotice(null);
             await chat.reload();
           } else {
@@ -109,11 +119,7 @@ export default function DiscussionScreen() {
     setNotice(r.ok ? t('chat.actions.reportSent') : t('chat.actions.error'));
   };
 
-  if (status !== 'ready' || chat.state === 'loading') {
-    return <ActivityIndicator style={styles.center} accessibilityLabel={t('chat.loading')} />;
-  }
-
-  if (chat.state === 'error') {
+  if (chat.state === 'error' || (signedOut && gateDone)) {
     return (
       <View style={styles.center}>
         <Text>{t('chat.loadError')}</Text>
@@ -127,6 +133,10 @@ export default function DiscussionScreen() {
         </Pressable>
       </View>
     );
+  }
+
+  if (status !== 'ready' || chat.state === 'loading') {
+    return <ActivityIndicator style={styles.center} accessibilityLabel={t('chat.loading')} />;
   }
 
   if (chat.state === 'not_member') {

@@ -1,8 +1,9 @@
 import { randomUUID } from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { useSession } from '../account/useSession';
-import { deleteMessage, fetchMessages, markRead, myChats, setMuted } from './api';
+import { deleteMessage, fetchMessages, markRead, setMuted } from './api';
 import {
   discard as discardPending,
   enqueue,
@@ -12,6 +13,7 @@ import {
   subscribe,
 } from './outbox';
 import type { ChatError, ChatMessage, PendingMessage } from './types';
+import { emitUnreadChanged } from './unreadEvents';
 
 const PAGE = 50;
 const TICK_MS = 15_000;
@@ -34,9 +36,15 @@ function mergeLatest(existing: ChatMessage[], latest: ChatMessage[]): ChatMessag
   return [...latest, ...existing.filter((m) => !ids.has(m.id) && older(m, boundary))];
 }
 
-export function useChat(activityId: string, focused = true) {
+/**
+ * `focused` is the screen's navigation focus. The app being in the background counts as unfocused too:
+ * nothing is marked read and no Realtime channel stays open until the app is active again.
+ */
+export function useChat(activityId: string, screenFocused = true) {
   const { status, userId } = useSession();
   const active = status === 'ready' && !!userId;
+  const [appActive, setAppActive] = useState(() => AppState.currentState !== 'background' && AppState.currentState !== 'inactive');
+  const focused = screenFocused && appActive;
   const [state, setState] = useState<ChatState>('loading');
   const [archived, setArchived] = useState(false);
   const [server, setServer] = useState<ChatMessage[]>([]); // newest first
@@ -44,6 +52,7 @@ export function useChat(activityId: string, focused = true) {
   const [pend, setPend] = useState<PendingMessage[]>([]);
   const [muted, setMutedState] = useState(false);
   const [title, setTitle] = useState<string | null>(null);
+  const [organiserId, setOrganiserId] = useState<string | null>(null);
   const [muteBusy, setMuteBusy] = useState(false);
   const [notice, setNotice] = useState<ChatNotice | null>(null);
   const [needsAccount, setNeedsAccount] = useState(false);
@@ -62,6 +71,7 @@ export function useChat(activityId: string, focused = true) {
     setLinger([]);
     setMutedState(false);
     setTitle(null);
+    setOrganiserId(null);
     setMuteBusy(false);
     setNotice(null);
     setNeedsAccount(false);
@@ -129,6 +139,10 @@ export function useChat(activityId: string, focused = true) {
             setState('not_member');
           } else {
             const { messages, archived: arch } = r.page;
+            // Title, organiser and mute state come with every page: no second call.
+            if (r.page.title) setTitle(r.page.title);
+            setOrganiserId(r.page.organiserId);
+            setMutedState(r.page.muted);
             setNotice((n) => (n === 'sync' ? null : n));
             setLinger((l) => l.filter((x) => x.seq >= started));
             setState('ready');
@@ -159,22 +173,28 @@ export function useChat(activityId: string, focused = true) {
     if (active) void refresh(true);
   }, [active, refresh]);
 
-  // Title and mute state of this discussion.
+  // Coming back to the screen or to the app: other people may have written or deleted meanwhile.
+  const wasFocused = useRef(true);
+  const wasAppActive = useRef(appActive);
   useEffect(() => {
-    if (!active) return;
-    void myChats().then((r) => {
-      if (stale(activityId) || !r.ok) return;
-      const chat = r.chats.find((c) => c.activityId === activityId);
-      if (chat) {
-        setMutedState(chat.muted);
-        setTitle(chat.title);
-      }
-    });
-  }, [active, activityId]);
+    const back = (screenFocused && !wasFocused.current) || (appActive && !wasAppActive.current);
+    wasFocused.current = screenFocused;
+    wasAppActive.current = appActive;
+    if (back && active) void refresh();
+  }, [screenFocused, appActive, active, refresh]);
 
-  // Realtime is only a signal: access and blocks stay enforced by the RPC.
   useEffect(() => {
-    if (!active) return;
+    const sub = AppState.addEventListener('change', (next) => setAppActive(next === 'active'));
+    return () => sub.remove();
+  }, []);
+
+  // Realtime is only a signal: access and blocks stay enforced by the RPC. Only INSERT is listened to: a
+  // DELETE event carries just the primary key and cannot be filtered by activity, so every deletion in the
+  // app would reach every open discussion. Deletions inside the page show up on the next re-read (an INSERT
+  // signal, the screen or the app coming back); my own deletion is removed locally by remove().
+  // No channel while the app is in the background; coming back subscribes again and re-reads.
+  useEffect(() => {
+    if (!active || !appActive) return;
     let subscribed = 0;
     const channel = supabase
       // One topic per mount: realtime-js hands back the existing channel for a topic, and a channel that is
@@ -187,12 +207,6 @@ export function useChat(activityId: string, focused = true) {
           void refresh();
         },
       )
-      // A DELETE carries only the primary key and cannot be filtered by activity: act only on ids we show.
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, (payload: any) => {
-        const id = payload?.old?.id;
-        if (!id) return;
-        setServer((cur) => (cur.some((m) => m.id === id) ? cur.filter((m) => m.id !== id) : cur));
-      })
       .subscribe((s: string) => {
         if (s !== 'SUBSCRIBED') return;
         subscribed += 1;
@@ -202,7 +216,7 @@ export function useChat(activityId: string, focused = true) {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [active, activityId, refresh]);
+  }, [active, appActive, activityId, refresh]);
 
   // Unsent messages of this account for this discussion.
   useEffect(() => {
@@ -238,10 +252,23 @@ export function useChat(activityId: string, focused = true) {
   }, [waiting, activityId, userId]);
 
   const newestId = server[0]?.id ?? null;
+  const ready = state === 'ready';
   useEffect(() => {
     // Failures stay silent: the next read marks it again.
-    if (state === 'ready' && focused) void markRead(activityId);
-  }, [state, focused, newestId, activityId]);
+    if (ready && focused) void markRead(activityId);
+  }, [ready, focused, newestId, activityId]);
+
+  // Leaving the screen (or the discussion): mark it read once more, then tell the tab badge, so the badge
+  // never reads the total before this has landed. Not tied to the app going to the background.
+  useEffect(() => {
+    if (!ready || !screenFocused) return;
+    const id = activityId;
+    return () => {
+      void Promise.resolve(markRead(id))
+        .then(() => emitUnreadChanged())
+        .catch(() => {});
+    };
+  }, [ready, screenFocused, activityId]);
 
   const messages = useMemo<DisplayMessage[]>(() => {
     const serverIds = new Set(server.map((m) => m.id));
@@ -323,6 +350,7 @@ export function useChat(activityId: string, focused = true) {
     archived,
     messages,
     title,
+    organiserId,
     notice,
     needsAccount,
     loadOlder,

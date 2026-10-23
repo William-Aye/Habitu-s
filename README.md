@@ -200,20 +200,28 @@ meaning from the next morning. To run it by hand:
 Each activity has a text-only discussion for its organiser and members (Messages tab, and the
 "Discussion" button on the activity page).
 
-- **Realtime is a signal only.** An open discussion listens to Supabase Realtime for new or deleted
-  rows, then re-reads through the `chat_messages` RPC, so access and blocks stay enforced in the
-  database. The free tier allows 200 simultaneous connections and 2 million Realtime messages a
+- **Realtime is a signal only.** An open discussion listens to Supabase Realtime for new rows
+  (INSERT only), then re-reads through the `chat_messages` RPC, so access and blocks stay enforced
+  in the database. Deletions are not subscribed to (a DELETE event cannot be filtered by activity):
+  your own deletion disappears at once, other people's on the next re-read (a new message, the
+  screen or the app coming back). The channel is closed while the app is in the background, and
+  nothing is marked read there. The free tier allows 200 simultaneous connections and 2 million Realtime messages a
   month; past that, live updates stop but the discussion still refreshes when reopened.
 - **Retention:** messages are kept 12 months. The nightly pg_cron job `prune-messages` (04:10)
   deletes older ones.
 - **Rate limit:** 30 messages per user per rolling minute (admins exempt); beyond it the send is
-  refused with `limit_reached`.
+  refused with `limit_reached`. It counts the insert-only `chat_send_log` table, so deleting
+  messages does not free any; `prune_messages` clears log rows older than an hour. pg_cron runs in
+  UTC: the 04:10 prune is 05:10 or 06:10 in Paris.
 - **Notifications** are discreet ("Nouveau message", no names or text): at most one per
   discussion every 15 minutes per person, none if the discussion was read in the last 2 minutes,
   and none when the person muted it ("Couper les notifications"). A tap opens the discussion.
 - **Offline outbox:** unsent messages are kept on the phone under the sender's account, sent in
   order when the network returns (also after a restart), and marked as failed, not retried
   forever, if refused for good. Each message has a client-made id, so a retry never duplicates it.
+- **TODO (device check):** the composer adds the bottom safe-area inset to its padding. Check the
+  keyboard behaviour on a real Android device (edge-to-edge), where the inset and the keyboard
+  height may both apply.
 
 ## Search
 

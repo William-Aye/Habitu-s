@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabase';
-import { run, runAsUser } from '../activities/errors';
+import { run } from '../activities/errors';
 import type { ApiResult } from '../activities/types';
 import type { ChatError, ChatMessage, ChatPage, ChatResult, ChatSummary, ReportReason } from './types';
 
@@ -10,6 +10,25 @@ function narrow<T extends object>(r: ApiResult<T>): ChatResult<T> {
   if (r.ok) return r;
   const known: string[] = ['not_allowed', 'limit_reached', 'network'];
   return { ok: false, error: (known.includes(r.error) ? r.error : 'unknown') as ChatError };
+}
+
+type CallResult = { data?: unknown; error: { code?: string | null; message?: string | null } | null };
+
+/** Like `run`, but with no session the answer is signed_out and nothing is sent. */
+async function authed<T extends object>(
+  call: (userId: string) => PromiseLike<CallResult>,
+  onData: (data: any) => T,
+  opts?: { expectRows?: boolean },
+): Promise<ChatResult<T>> {
+  let userId: string | undefined;
+  try {
+    const { data } = await supabase.auth.getSession();
+    userId = data?.session?.user?.id;
+  } catch {
+    return { ok: false, error: 'network' };
+  }
+  if (!userId) return { ok: false, error: 'signed_out' };
+  return narrow(await run(() => call(userId), onData, opts));
 }
 
 function mapMessage(m: any): ChatMessage {
@@ -36,15 +55,19 @@ export async function fetchMessages(
     args.p_before_id = opts.before.id;
   }
   if (opts.limit !== undefined) args.p_limit = opts.limit;
-  return narrow(
-    await run(
-      () => supabase.rpc('chat_messages', args as any),
-      (data) => ({
-        page: data
-          ? { archived: !!data.archived, messages: ((data.messages ?? []) as any[]).map(mapMessage) }
-          : null,
-      }),
-    ),
+  return authed(
+    () => supabase.rpc('chat_messages', args as any),
+    (data) => ({
+      page: data
+        ? {
+            archived: !!data.archived,
+            title: data.title ?? null,
+            organiserId: data.organiser_id ?? null,
+            muted: !!data.muted,
+            messages: ((data.messages ?? []) as any[]).map(mapMessage),
+          }
+        : null,
+    }),
   );
 }
 
@@ -82,27 +105,34 @@ export async function deleteMessage(id: string): Promise<ChatResult> {
 }
 
 export async function myChats(): Promise<ChatResult<{ chats: ChatSummary[] }>> {
-  return narrow(
-    await run(
-      () => supabase.rpc('my_chats'),
-      (data) => ({
-        chats: ((data ?? []) as any[]).map(
-          (c): ChatSummary => ({
-            activityId: c.activity_id,
-            title: c.title,
-            lastMessage: c.last_message
-              ? {
-                  body: c.last_message.body,
-                  createdAt: c.last_message.created_at,
-                  senderFirstName: c.last_message.sender_first_name,
-                }
-              : null,
-            unreadCount: c.unread_count ?? 0,
-            muted: !!c.muted,
-          }),
-        ),
-      }),
-    ),
+  return authed(
+    () => supabase.rpc('my_chats'),
+    (data) => ({
+      chats: ((data ?? []) as any[]).map(
+        (c): ChatSummary => ({
+          activityId: c.activity_id,
+          title: c.title,
+          lastMessage: c.last_message
+            ? {
+                body: c.last_message.body,
+                createdAt: c.last_message.created_at,
+                senderFirstName: c.last_message.sender_first_name ?? '',
+                isMine: !!c.last_message.is_mine,
+              }
+            : null,
+          unreadCount: c.unread_count ?? 0,
+          muted: !!c.muted,
+        }),
+      ),
+    }),
+  );
+}
+
+/** Unread messages across all my discussions (capped at 999 by the server), for the tab badge. */
+export async function unreadTotal(): Promise<ChatResult<{ total: number }>> {
+  return authed(
+    () => supabase.rpc('my_unread_total'),
+    (data) => ({ total: typeof data === 'number' ? data : 0 }),
   );
 }
 
@@ -124,25 +154,21 @@ const REPORT_REASON = {
 } as const;
 
 export async function reportMessage(messageId: string, reason: ReportReason): Promise<ChatResult> {
-  return narrow(
-    await runAsUser(
-      (userId) =>
-        supabase
-          .from('reports')
-          .insert({ reporter_id: userId, target_type: 'message', target_id: messageId, ...REPORT_REASON[reason] }),
-      none,
-    ),
+  return authed(
+    (userId) =>
+      supabase
+        .from('reports')
+        .insert({ reporter_id: userId, target_type: 'message', target_id: messageId, ...REPORT_REASON[reason] }),
+    none,
   );
 }
 
 export async function blockUser(userId: string): Promise<ChatResult> {
-  return narrow(
-    await runAsUser(
-      (me) =>
-        supabase
-          .from('blocks')
-          .upsert({ blocker_id: me, blocked_id: userId }, { onConflict: 'blocker_id,blocked_id', ignoreDuplicates: true }),
-      none,
-    ),
+  return authed(
+    (me) =>
+      supabase
+        .from('blocks')
+        .upsert({ blocker_id: me, blocked_id: userId }, { onConflict: 'blocker_id,blocked_id', ignoreDuplicates: true }),
+    none,
   );
 }

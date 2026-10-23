@@ -1,12 +1,15 @@
+import * as Notifications from 'expo-notifications';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { useSession } from '../account/useSession';
-import { myChats } from './api';
+import { unreadTotal } from './api';
+import { onUnreadChanged } from './unreadEvents';
 
 /**
  * Total of unread messages across the user's discussions, for the tab badge. Re-read on mount, when
- * the app returns to the foreground, when the account changes and whenever refresh() is called
- * (the layout calls it when a tab gets focus). Signed out means zero, with no call.
+ * the app returns to the foreground, when a chat notification arrives, when a discussion has just been
+ * marked read, when the account changes and whenever refresh() is called (the layout calls it when a tab
+ * gets focus). Signed out means zero, with no call.
  */
 export function useUnreadCount(): { count: number; refresh: () => void } {
   const { status, userId } = useSession();
@@ -17,10 +20,10 @@ export function useUnreadCount(): { count: number; refresh: () => void } {
     const id = ++requestId.current;
     if (status === 'loading') return;
     if (status !== 'ready' || !userId) return; // reported as zero below, no call
-    myChats()
+    unreadTotal()
       .then((r) => {
         if (id !== requestId.current) return; // a newer read superseded this one
-        if (r.ok) setCount(r.chats.reduce((sum, c) => sum + c.unreadCount, 0));
+        if (r.ok) setCount(r.total);
         else if (r.error === 'signed_out') setCount(0);
         // Any other failure keeps the last known number.
       })
@@ -41,6 +44,17 @@ export function useUnreadCount(): { count: number; refresh: () => void } {
     });
     return () => sub.remove();
   }, [refresh]);
+
+  // A discreet chat push that arrives while the app is open.
+  useEffect(() => {
+    const sub = Notifications.addNotificationReceivedListener((n) => {
+      if (n?.request?.content?.data?.kind === 'chat_message') refresh();
+    });
+    return () => sub.remove();
+  }, [refresh]);
+
+  // The discussion screen marks a discussion read as it is left, then says so: no timer, no race.
+  useEffect(() => onUnreadChanged(refresh), [refresh]);
 
   return { count: status === 'ready' && userId ? count : 0, refresh };
 }

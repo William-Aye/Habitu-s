@@ -7,6 +7,7 @@ import {
   reportMessage,
   sendMessage,
   setMuted,
+  unreadTotal,
 } from '../src/features/chat/api';
 
 const mockRpc = jest.fn();
@@ -62,7 +63,10 @@ describe('fetchMessages', () => {
     mockRpc.mockResolvedValue({ data: { archived: false, messages: [] }, error: null });
     const r = await fetchMessages('a1');
     expect(mockRpc).toHaveBeenCalledWith('chat_messages', { p_activity: 'a1' });
-    expect(r).toEqual({ ok: true, page: { archived: false, messages: [] } });
+    expect(r).toEqual({
+      ok: true,
+      page: { archived: false, title: null, organiserId: null, muted: false, messages: [] },
+    });
   });
 
   it('always sends both halves of the cursor and the limit', async () => {
@@ -80,6 +84,9 @@ describe('fetchMessages', () => {
     mockRpc.mockResolvedValue({
       data: {
         archived: true,
+        title: 'Pétanque',
+        organiser_id: 'org1',
+        muted: true,
         messages: [
           {
             id: 'm1',
@@ -97,6 +104,9 @@ describe('fetchMessages', () => {
       ok: true,
       page: {
         archived: true,
+        title: 'Pétanque',
+        organiserId: 'org1',
+        muted: true,
         messages: [
           {
             id: 'm1',
@@ -108,6 +118,12 @@ describe('fetchMessages', () => {
         ],
       },
     });
+  });
+
+  it('is signed_out, without calling the server, when there is no session', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: null } });
+    expect(await fetchMessages('a1')).toEqual({ ok: false, error: 'signed_out' });
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 
   it('maps a null result (not a member) to page null', async () => {
@@ -191,7 +207,7 @@ describe('myChats', () => {
         {
           activity_id: 'a1',
           title: 'Pétanque',
-          last_message: { body: 'Ok', created_at: '2026-10-23T10:00:00Z', sender_first_name: 'Léa' },
+          last_message: { body: 'Ok', created_at: '2026-10-23T10:00:00Z', sender_first_name: 'Léa', is_mine: true },
           unread_count: 3,
           muted: true,
         },
@@ -207,13 +223,32 @@ describe('myChats', () => {
         {
           activityId: 'a1',
           title: 'Pétanque',
-          lastMessage: { body: 'Ok', createdAt: '2026-10-23T10:00:00Z', senderFirstName: 'Léa' },
+          lastMessage: { body: 'Ok', createdAt: '2026-10-23T10:00:00Z', senderFirstName: 'Léa', isMine: true },
           unreadCount: 3,
           muted: true,
         },
         { activityId: 'a2', title: 'Yoga', lastMessage: null, unreadCount: 0, muted: false },
       ],
     });
+  });
+});
+
+describe('myChats and unreadTotal without a session', () => {
+  it('myChats is signed_out, without calling the server', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: null } });
+    expect(await myChats()).toEqual({ ok: false, error: 'signed_out' });
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it('unreadTotal calls my_unread_total', async () => {
+    mockRpc.mockResolvedValue({ data: 12, error: null });
+    expect(await unreadTotal()).toEqual({ ok: true, total: 12 });
+    expect(mockRpc).toHaveBeenCalledWith('my_unread_total');
+  });
+
+  it('unreadTotal is signed_out when there is no session', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: null } });
+    expect(await unreadTotal()).toEqual({ ok: false, error: 'signed_out' });
   });
 });
 
@@ -270,8 +305,9 @@ describe('reportMessage and blockUser', () => {
     ]);
   });
 
-  it('is not allowed when signed out', async () => {
+  it('is signed_out when signed out', async () => {
     mockGetSession.mockResolvedValue({ data: { session: null } });
-    expect(await blockUser('u2')).toEqual({ ok: false, error: 'not_allowed' });
+    expect(await blockUser('u2')).toEqual({ ok: false, error: 'signed_out' });
+    expect(await reportMessage('m1', 'other')).toEqual({ ok: false, error: 'signed_out' });
   });
 });

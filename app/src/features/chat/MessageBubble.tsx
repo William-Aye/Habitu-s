@@ -15,7 +15,7 @@ export function MessageBubble({ message: m, onLongPress, onRetry }: Props) {
   const { t } = useTranslation();
   const p = m.pending;
   const needsRetry = !!p && (p.state === 'failed' || p.stalled);
-  const time = p ? '' : formatMessageTime(m.createdAt);
+  const time = p ? '' : formatMessageTime(m.createdAt, new Date(), t('messages.yesterday'));
   const label = p
     ? m.body
     : t(m.isMine ? 'chat.bubbleMine' : 'chat.bubbleOther', { name: m.sender.firstName, time, body: m.body });

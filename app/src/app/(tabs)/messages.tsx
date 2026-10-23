@@ -103,7 +103,13 @@ export default function Messages() {
       ) : null}
       {load.chats.map((c) => {
         const last = c.lastMessage;
-        const preview = last ? `${last.senderFirstName} : ${last.body}` : t('messages.noMessage');
+        const preview = !last
+          ? t('messages.noMessage')
+          : last.isMine
+            ? t('messages.previewMine', { texte: last.body })
+            : last.senderFirstName
+              ? t('messages.previewOther', { prenom: last.senderFirstName, texte: last.body })
+              : last.body;
         return (
           <Pressable
             key={c.activityId}
@@ -122,7 +128,7 @@ export default function Messages() {
                 <Text testID="chat-title" numberOfLines={1} style={[styles.rowTitle, c.unreadCount > 0 && styles.bold]}>
                   {c.title}
                 </Text>
-                {last ? <Text style={styles.time}>{formatMessageTime(last.createdAt)}</Text> : null}
+                {last ? <Text style={styles.time}>{formatMessageTime(last.createdAt, new Date(), t('messages.yesterday'))}</Text> : null}
               </View>
               <Text numberOfLines={1} style={styles.preview}>{preview}</Text>
               {c.muted ? (

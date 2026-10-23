@@ -521,6 +521,8 @@
       "block": "Bloquer {{prenom}}",
       "blockTitle": "Bloquer {{prenom}} ?",
       "blockBody": "Vous ne verrez plus ses messages.",
+      "blockBodyOrganiser": "Vous ne verrez plus ses messages et vous quitterez cette activité.",
+      "blockBodyMember": "Vous ne verrez plus ses messages et cette personne sera retirée de l'activité.",
       "delete": "Supprimer le message",
       "deleteConfirm": "Supprimer ce message pour tout le monde ?",
       "discard": "Ne pas envoyer",
@@ -555,6 +557,9 @@
     "muted": "Notifications coupées",
     "unread_one": "{{count}} message non lu",
     "unread_other": "{{count}} messages non lus",
-    "noMessage": "Aucun message pour l'instant"
+    "noMessage": "Aucun message pour l'instant",
+    "yesterday": "hier",
+    "previewOther": "{{prenom}} : {{texte}}",
+    "previewMine": "Vous : {{texte}}"
   }
 }

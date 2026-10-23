@@ -1,14 +1,16 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { Alert } from 'react-native';
+import { Alert, AppState } from 'react-native';
 import { useEffect as mockUseEffect } from 'react';
 import { initI18n } from '../src/i18n';
 import Discussion from '../src/app/discussions/[activityId]';
-import { blockUser, deleteMessage, fetchMessages, markRead, myChats, reportMessage, sendMessage, setMuted } from '../src/features/chat/api';
+import { blockUser, deleteMessage, fetchMessages, markRead, reportMessage, sendMessage, setMuted } from '../src/features/chat/api';
+import { onUnreadChanged } from '../src/features/chat/unreadEvents';
 import { clearOutbox, initOutbox } from '../src/features/chat/outbox';
 import type { ChatMessage } from '../src/features/chat/types';
 
+let mockBottomInset = 0;
 jest.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+  useSafeAreaInsets: () => ({ top: 0, bottom: mockBottomInset, left: 0, right: 0 }),
 }));
 jest.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'fr-FR' }] }));
 let mockActivityId = 'act1';
@@ -21,16 +23,39 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ activityId: mockActivityId }),
   useFocusEffect: (cb: () => void | (() => void)) => {
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    mockUseEffect(cb, [cb]);
+    mockUseEffect(() => {
+      mockFocusCb = cb;
+      mockFocusCleanup = cb();
+      return () => mockFocusCleanup?.();
+    }, [cb]);
   },
 }));
+let mockFocusCb: (() => void | (() => void)) | null = null;
+let mockFocusCleanup: void | (() => void);
+const blurScreen = async () => {
+  await act(async () => {
+    mockFocusCleanup?.();
+    mockFocusCleanup = undefined;
+  });
+  await settle();
+};
+const focusScreen = async () => {
+  await act(async () => {
+    mockFocusCleanup = mockFocusCb!();
+  });
+  await settle();
+};
+let mockAppHandlers: ((s: string) => void)[] = [];
+const setAppState = async (s: string) => {
+  await act(async () => mockAppHandlers.forEach((h) => h(s)));
+  await settle();
+};
 jest.mock('../src/features/chat/api', () => ({
   fetchMessages: jest.fn(),
   sendMessage: jest.fn(),
   deleteMessage: jest.fn(),
   markRead: jest.fn(),
   setMuted: jest.fn(),
-  myChats: jest.fn(),
   reportMessage: jest.fn(),
   blockUser: jest.fn(),
 }));
@@ -85,7 +110,10 @@ function msg(n: number, body: string, over: Partial<ChatMessage> = {}): ChatMess
     ...over,
   };
 }
-const page = (messages: ChatMessage[], archived = false) => ({ ok: true, page: { archived, messages } });
+const page = (messages: ChatMessage[], archived = false, over = {}) => ({
+  ok: true,
+  page: { archived, title: 'Jeux de société', organiserId: 'org', muted: false, messages, ...over },
+});
 const settle = async () => {
   for (let i = 0; i < 10; i++) {
     await act(async () => {
@@ -118,15 +146,19 @@ beforeEach(async () => {
   mockActivityId = 'act1';
   mockSession = { status: 'ready', userId: 'me' };
   mockGate.mockResolvedValue(true);
+  mockBottomInset = 0;
+  mockFocusCb = null;
+  mockFocusCleanup = undefined;
+  mockAppHandlers = [];
+  jest.spyOn(AppState, 'addEventListener').mockImplementation(((_: string, h: (s: string) => void) => {
+    mockAppHandlers.push(h);
+    return { remove: jest.fn() };
+  }) as never);
   (markRead as jest.Mock).mockResolvedValue(ok);
   (setMuted as jest.Mock).mockResolvedValue(ok);
   (reportMessage as jest.Mock).mockResolvedValue(ok);
   (blockUser as jest.Mock).mockResolvedValue(ok);
   (deleteMessage as jest.Mock).mockResolvedValue(ok);
-  (myChats as jest.Mock).mockResolvedValue({
-    ok: true,
-    chats: [{ activityId: 'act1', title: 'Jeux de société', lastMessage: null, unreadCount: 0, muted: false }],
-  });
   mSend.mockReset();
   mSend.mockResolvedValue(ok);
   await clearOutbox();
@@ -202,23 +234,32 @@ describe('discussion screen', () => {
     expect(screen.getAllByText('Nouveau')).toHaveLength(1);
   });
 
-  it('subscribes to INSERTs filtered by activity, DELETEs unfiltered', async () => {
+  it('subscribes to INSERTs filtered by activity and not to DELETEs', async () => {
     await open([msg(1, 'Salut')]);
     expect(mockChannelFactory).toHaveBeenCalledWith(expect.stringMatching(/^chat:act1:.+/));
     const ins = mockHandlers.find((h) => h.filter.event === 'INSERT')!;
-    const del = mockHandlers.find((h) => h.filter.event === 'DELETE')!;
     expect(ins.filter).toMatchObject({ schema: 'public', table: 'messages', filter: 'activity_id=eq.act1' });
-    expect(del.filter.filter).toBeUndefined();
+    expect(mockHandlers.some((h) => h.filter.event === 'DELETE')).toBe(false);
+    expect(mockHandlers).toHaveLength(1);
   });
 
-  it('removes a bubble on DELETE only when its id is in the list', async () => {
+  it("drops someone else's deleted message on the next INSERT signal re-read", async () => {
     await open([msg(2, 'Deux'), msg(1, 'Un')]);
-    await emit('DELETE', { eventType: 'DELETE', old: { id: 'zzz' } });
-    expect(screen.getByText('Deux')).toBeTruthy();
-    expect(screen.getByText('Un')).toBeTruthy();
-    await emit('DELETE', { eventType: 'DELETE', old: { id: 'm2' } });
+    mFetch.mockResolvedValue(page([msg(3, 'Trois'), msg(1, 'Un')]));
+    await emit('INSERT', { eventType: 'INSERT', new: { id: 'm3' } });
     expect(screen.queryByText('Deux')).toBeNull();
+    expect(screen.getByText('Trois')).toBeTruthy();
     expect(screen.getByText('Un')).toBeTruthy();
+  });
+
+  it("drops someone else's deleted message when the screen gets focus back", async () => {
+    await open([msg(2, 'Deux'), msg(1, 'Un')]);
+    await blurScreen();
+    mFetch.mockClear();
+    mFetch.mockResolvedValue(page([msg(1, 'Un')]));
+    await focusScreen();
+    expect(mFetch).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Deux')).toBeNull();
   });
 
   it('loads older messages with the raw cursor of the oldest message', async () => {
@@ -386,11 +427,13 @@ describe('discussion screen', () => {
   });
 
   it('asks for an account on signed_out instead of showing the error screen', async () => {
-    mFetch.mockResolvedValue({ ok: false, error: 'signed_out' });
+    mFetch.mockResolvedValueOnce({ ok: false, error: 'signed_out' });
+    mFetch.mockResolvedValue(page([msg(1, 'Salut')]));
     await render(<Discussion />);
     await settle();
     expect(mockGate).toHaveBeenCalledWith('message');
     expect(screen.queryByText('Impossible de charger la discussion. Réessayez.')).toBeNull();
+    expect(screen.getByText('Salut')).toBeTruthy();
   });
 
   it('reverts the mute toggle and shows a notice when it fails', async () => {
@@ -433,5 +476,120 @@ describe('discussion screen', () => {
     await settle();
     expect(screen.getByText('Nouveau groupe')).toBeTruthy();
     expect(screen.queryByText('Ancien groupe')).toBeNull();
+  });
+
+  it('puts the bottom safe-area inset under the composer', async () => {
+    mockBottomInset = 20;
+    await open([]);
+    expect(screen.getByTestId('composer').props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ paddingBottom: 28 })]),
+    );
+  });
+
+  it('takes the title and mute state from the page, with no separate call', async () => {
+    mFetch.mockResolvedValue(page([], false, { muted: true }));
+    await render(<Discussion />);
+    await settle();
+    expect(screen.getByText('Jeux de société')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Réactiver les notifications' })).toBeTruthy();
+  });
+});
+
+describe('discussion in the background', () => {
+  it('does not mark read while the app is in the background, and does again when active', async () => {
+    await open([msg(1, 'Salut')]);
+    await setAppState('background');
+    (markRead as jest.Mock).mockClear();
+    mFetch.mockResolvedValue(page([msg(2, 'Nouveau'), msg(1, 'Salut')]));
+    await setAppState('inactive');
+    expect(markRead).not.toHaveBeenCalled();
+    await setAppState('active');
+    expect(markRead).toHaveBeenCalledWith('act1');
+  });
+
+  it('removes the channel in the background, then resubscribes and refreshes on active', async () => {
+    await open([msg(1, 'Salut')]);
+    expect(mockChannelFactory).toHaveBeenCalledTimes(1);
+    mockRemoveChannel.mockClear();
+    await setAppState('background');
+    expect(mockRemoveChannel).toHaveBeenCalledTimes(1);
+    mFetch.mockClear();
+    mFetch.mockResolvedValue(page([msg(2, 'Pendant'), msg(1, 'Salut')]));
+    await setAppState('active');
+    expect(mockChannelFactory).toHaveBeenCalledTimes(2);
+    expect(mFetch).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Pendant')).toBeTruthy();
+  });
+
+  it('marks read when leaving the screen, then signals the tab badge', async () => {
+    await open([msg(1, 'Salut')]);
+    const seen = jest.fn();
+    const off = onUnreadChanged(seen);
+    (markRead as jest.Mock).mockClear();
+    await blurScreen();
+    expect(markRead).toHaveBeenCalledWith('act1');
+    expect(seen).toHaveBeenCalledTimes(1);
+    off();
+  });
+});
+
+describe('blocking and the membership', () => {
+  const pressBlock = async (name: string) => {
+    await fireEvent(screen.getByText(name), 'longPress');
+    await fireEvent.press(screen.getByRole('button', { name: 'Bloquer Camille' }));
+  };
+
+  it('warns that a member blocking the organiser also leaves the activity, then goes back', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    await open([msg(1, 'Salut', { sender: { id: 'org', firstName: 'Camille', photoUrl: null } })]);
+    await pressBlock('Salut');
+    expect(alert.mock.calls[0][1]).toBe('Vous ne verrez plus ses messages et vous quitterez cette activité.');
+    const buttons = alert.mock.calls[0][2] as { text: string; onPress?: () => void }[];
+    mFetch.mockClear();
+    await act(async () => buttons.find((b) => b.text === 'Bloquer Camille')!.onPress!());
+    await settle();
+    expect(blockUser).toHaveBeenCalledWith('org');
+    expect(mockRouter.back).toHaveBeenCalled();
+    expect(mFetch).not.toHaveBeenCalled();
+    expect(screen.queryByText("Rejoignez l'activité pour participer à la discussion.")).toBeNull();
+    alert.mockRestore();
+  });
+
+  it('warns that the organiser blocking a member removes them from the activity', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    mockSession = { status: 'ready', userId: 'org' };
+    await open([msg(1, 'Salut')]);
+    await pressBlock('Salut');
+    expect(alert.mock.calls[0][1]).toBe("Vous ne verrez plus ses messages et cette personne sera retirée de l'activité.");
+    const buttons = alert.mock.calls[0][2] as { text: string; onPress?: () => void }[];
+    mockRouter.back.mockClear();
+    mFetch.mockResolvedValue(page([]));
+    await act(async () => buttons.find((b) => b.text === 'Bloquer Camille')!.onPress!());
+    await settle();
+    expect(mockRouter.back).not.toHaveBeenCalled();
+    expect(screen.queryByText('Salut')).toBeNull();
+    alert.mockRestore();
+  });
+
+  it('keeps the plain warning between two members', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    await open([msg(1, 'Salut')]);
+    await pressBlock('Salut');
+    expect(alert.mock.calls[0][1]).toBe('Vous ne verrez plus ses messages.');
+    alert.mockRestore();
+  });
+});
+
+describe('signed-out account gate', () => {
+  it('asks once per mount: a second signed_out shows the error screen', async () => {
+    mFetch.mockResolvedValue({ ok: false, error: 'signed_out' });
+    await render(<Discussion />);
+    await settle();
+    expect(mockGate).toHaveBeenCalledTimes(1);
+    expect(mFetch).toHaveBeenCalledTimes(2); // the open, then the read after sign-in
+    expect(screen.getByText('Impossible de charger la discussion. Réessayez.')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Réessayer' }));
+    await settle();
+    expect(mockGate).toHaveBeenCalledTimes(1);
   });
 });

@@ -13,13 +13,17 @@ export interface ChatMessage {
 
 export interface ChatPage {
   archived: boolean;
+  /** The activity's title, its organiser and my mute state come with every page. */
+  title: string | null;
+  organiserId: string | null;
+  muted: boolean;
   messages: ChatMessage[];
 }
 
 export interface ChatSummary {
   activityId: string;
   title: string;
-  lastMessage: { body: string; createdAt: string; senderFirstName: string } | null;
+  lastMessage: { body: string; createdAt: string; senderFirstName: string; isMine: boolean } | null;
   unreadCount: number;
   muted: boolean;
 }

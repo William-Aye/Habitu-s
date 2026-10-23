@@ -2,6 +2,7 @@ import { SendHorizontal } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MAX = 2000;
 const SHOW_COUNT_FROM = 1800;
@@ -9,6 +10,7 @@ const SHOW_COUNT_FROM = 1800;
 /** `onSend` returns false when the message was refused (empty, too long): the text is then kept. */
 export function Composer({ onSend }: { onSend: (body: string) => boolean }) {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const [text, setText] = useState('');
   const empty = text.trim().length === 0;
 
@@ -18,7 +20,7 @@ export function Composer({ onSend }: { onSend: (body: string) => boolean }) {
   };
 
   return (
-    <View style={styles.wrap}>
+    <View testID="composer" style={[styles.wrap, { paddingBottom: 8 + insets.bottom }]}>
       {text.length >= SHOW_COUNT_FROM ? (
         <Text accessibilityLiveRegion="polite" style={styles.count}>
           {t('chat.count', { count: text.length })}

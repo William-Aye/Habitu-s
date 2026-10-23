@@ -521,6 +521,8 @@
       "block": "Block {{prenom}}",
       "blockTitle": "Block {{prenom}}?",
       "blockBody": "You will no longer see their messages.",
+      "blockBodyOrganiser": "You will no longer see their messages and you will leave this activity.",
+      "blockBodyMember": "You will no longer see their messages and this person will be removed from the activity.",
       "delete": "Delete message",
       "deleteConfirm": "Delete this message for everyone?",
       "discard": "Do not send",
@@ -555,6 +557,9 @@
     "muted": "Notifications muted",
     "unread_one": "{{count}} unread message",
     "unread_other": "{{count}} unread messages",
-    "noMessage": "No messages yet"
+    "noMessage": "No messages yet",
+    "yesterday": "yesterday",
+    "previewOther": "{{prenom}}: {{texte}}",
+    "previewMine": "You: {{texte}}"
   }
 }
