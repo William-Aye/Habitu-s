@@ -59,7 +59,7 @@ reset role;
 select ok(not has_function_privilege('service_role', 'search.score(float8,boolean,real,int,boolean)', 'execute'),
           'search.score not callable by service_role');
 select is((select proconfig from pg_proc
-           where oid = 'search.explore_rows(geography,float8,text,extensions.vector,text[],smallint,boolean,text[])'::regprocedure),
+           where oid = 'search.explore_rows(geography,float8,text,extensions.vector,text[],smallint,boolean,text[],boolean)'::regprocedure),
           null, 'explore_rows has no SET clause, so it is inlined into search_explore');
 select tests.act_as_anon();
 select throws_ok($$ select address from associations $$, '42501', null, 'anon cannot read address');
@@ -318,7 +318,7 @@ select throws_ok($$ select public.search_explore(4.835, 200) $$, '22023', null, 
 select throws_ok($$ select public.search_explore(4.835, 45.764, p_sort => 'random') $$, '22023', null, 'input: sort random');
 -- access
 select ok(has_function_privilege('anon',
-  'public.search_explore(float8,float8,int,text,extensions.vector,text[],smallint,boolean,uuid[],text,int,int)', 'execute'),
+  'public.search_explore(float8,float8,int,text,extensions.vector,text[],smallint,boolean,uuid[],text,int,int,boolean)', 'execute'),
   'access: anon can execute search_explore');
 select tests.act_as_anon();
 select ok(count(*) > 5 and bool_and(not (e ?| array['address', 'location', 'embedding'])),
