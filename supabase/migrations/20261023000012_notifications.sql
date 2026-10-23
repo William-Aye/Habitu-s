@@ -329,7 +329,9 @@ begin
     perform public.notify_user(new.user_id, 'collectif_invitation',
       'Invitation à un collectif', 'Vous êtes invité(e) à organiser avec le collectif ' || v_name || '.',
       'Collective invitation', 'You are invited to organise with the collective ' || v_name || '.',
-      jsonb_build_object('collectif_id', new.collectif_id));
+      jsonb_build_object('collectif_id', new.collectif_id), null, now(),
+      (select r.user_id from public.collectif_members r
+        where r.collectif_id = new.collectif_id and r.role = 'responsable' and r.status = 'active'));
   end if;
   return null;
 end $$;

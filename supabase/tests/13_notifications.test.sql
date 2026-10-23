@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(71);
+select plan(72);
 select tests.create_user('org@not.fr', 'Olivier') as org \gset
 select tests.create_user('mem@not.fr', 'Mia') as mem \gset
 select tests.create_user('memen@not.fr', 'Mike') as memen \gset
@@ -148,6 +148,8 @@ insert into collectif_members (collectif_id, user_id, role, status) values
 select is((select count(*)::int from notification_outbox where kind = 'collectif_invitation'), 2, 'one invitation row per invitee');
 select is((select title from notification_outbox where kind = 'collectif_invitation' and user_id = :'mem'), 'Invitation à un collectif', 'invitation in French');
 select is((select title from notification_outbox where kind = 'collectif_invitation' and user_id = :'memen'), 'Collective invitation', 'invitation in English');
+insert into collectif_members (collectif_id, user_id, role, status) values ('00000000-0000-0000-0000-0000000000d1', :'outsider', 'organiser', 'invited');
+select is((select count(*)::int from notification_outbox where kind = 'collectif_invitation' and user_id = :'outsider'), 0, 'an invitee who blocked the responsable gets no invitation');
 
 -- day-before reminders
 insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time) values
