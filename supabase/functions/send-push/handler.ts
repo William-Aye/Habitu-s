@@ -34,6 +34,8 @@ export interface RetryPlan {
 }
 
 export interface Deps {
+  /** The service-role key; only callers presenting it as a bearer token are served. */
+  serviceKey: string;
   now(): Date;
   /** Takes up to `limit` due rows (with each recipient's tokens). */
   fetchOutbox(limit: number): Promise<OutboxRow[]>;
@@ -53,6 +55,9 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e)).sli
 export function createHandler(deps: Deps): (req: Request) => Promise<Response> {
   return async (req) => {
     if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
+    if (!deps.serviceKey || req.headers.get('authorization') !== `Bearer ${deps.serviceKey}`) {
+      return json({ error: 'unauthorized' }, 401);
+    }
 
     let rows: OutboxRow[];
     try {

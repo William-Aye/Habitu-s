@@ -597,14 +597,14 @@ isOneToOne: false
                   ]
                 },"notification_outbox": {
                   Row: {
-                    "attempts": number,"body": string,"data": NonNullable<Json>,"dedupe_key": string | null,"failed_at": string | null,"id": number,"kind": string,"send_after": string,"sent_at": string | null,"title": string,"user_id": string
+                    "attempts": number,"body": string,"data": NonNullable<Json>,"dedupe_key": string | null,"failed_at": string | null,"id": number,"kind": string,"last_error": string | null,"send_after": string,"sent_at": string | null,"title": string,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "attempts"?: number,"body": string,"data"?: NonNullable<Json>,"dedupe_key"?: string | null,"failed_at"?: string | null,"id"?: number,"kind": string,"send_after"?: string,"sent_at"?: string | null,"title": string,"user_id": string
+                    "attempts"?: number,"body": string,"data"?: NonNullable<Json>,"dedupe_key"?: string | null,"failed_at"?: string | null,"id"?: number,"kind": string,"last_error"?: string | null,"send_after"?: string,"sent_at"?: string | null,"title": string,"user_id": string
                   }
                   Update: {
-                    "attempts"?: number,"body"?: string,"data"?: NonNullable<Json>,"dedupe_key"?: string | null,"failed_at"?: string | null,"id"?: number,"kind"?: string,"send_after"?: string,"sent_at"?: string | null,"title"?: string,"user_id"?: string
+                    "attempts"?: number,"body"?: string,"data"?: NonNullable<Json>,"dedupe_key"?: string | null,"failed_at"?: string | null,"id"?: number,"kind"?: string,"last_error"?: string | null,"send_after"?: string,"sent_at"?: string | null,"title"?: string,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -974,7 +974,7 @@ isOneToOne: true
 { Args: Record<PropertyKey, never>; Returns: undefined
                            },
 "enqueue_reminders":
-{ Args: Record<PropertyKey, never>; Returns: number
+{ Args: { "p_now"?: string }; Returns: number
                            },
 "export_my_data":
 { Args: Record<PropertyKey, never>; Returns: Json
@@ -1025,13 +1025,16 @@ isOneToOne: true
 { Args: { "p_lang": string,"p_time_only"?: boolean,"p_ts": string,"p_tz": string }; Returns: string
                            },
 "notify_user":
-{ Args: { "p_body_en": string,"p_body_fr": string,"p_data"?: Json,"p_dedupe"?: string,"p_kind": string,"p_send_after"?: string,"p_title_en": string,"p_title_fr": string,"p_user": string }; Returns: undefined
+{ Args: { "p_actor"?: string,"p_body_en": string,"p_body_fr": string,"p_data"?: Json,"p_dedupe"?: string,"p_kind": string,"p_send_after"?: string,"p_title_en": string,"p_title_fr": string,"p_user": string }; Returns: undefined
                            },
 "prune_outbox":
 { Args: Record<PropertyKey, never>; Returns: undefined
                            },
 "register_push_token":
 { Args: { "p_platform": string,"p_token": string }; Returns: undefined
+                           },
+"reminder_still_valid":
+{ Args: { "p_session": string,"p_user": string }; Returns: boolean
                            },
 "search_explore":
 { Args: { "p_interest_category_ids"?: (string)[],"p_kinds"?: (string)[],"p_lat": number,"p_limit"?: number,"p_lon": number,"p_newcomer_friendly"?: boolean,"p_offset"?: number,"p_query"?: string,"p_query_embedding"?: string,"p_radius_km"?: number,"p_sort"?: string,"p_weekday"?: number }; Returns: Json

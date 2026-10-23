@@ -16,6 +16,7 @@ function setup(rows: OutboxRow[], expo: Deps['expoSend']) {
   const log: Log = { sent: [], retries: [], dropped: [], expo: [] };
   const now = new Date('2026-10-23T10:00:00Z');
   const handler = createHandler({
+    serviceKey: 'secret',
     now: () => now,
     fetchOutbox: () => Promise.resolve(rows),
     markSent: (ids) => {
@@ -38,7 +39,8 @@ function setup(rows: OutboxRow[], expo: Deps['expoSend']) {
   return { handler, log };
 }
 
-const post = () => new Request('http://x/send-push', { method: 'POST', body: '{}' });
+const post = (auth: string | null = 'Bearer secret') =>
+  new Request('http://x/send-push', { method: 'POST', body: '{}', headers: auth ? { authorization: auth } : {} });
 const ok = (n: number) => Promise.resolve(Array.from({ length: n }, () => ({ status: 'ok' as const })));
 
 Deno.test('sends due rows and marks them sent', async () => {
@@ -114,6 +116,7 @@ Deno.test('an Expo failure never throws: rows are retried', async () => {
 
 Deno.test('a failure of the database read answers 500 without throwing', async () => {
   const handler = createHandler({
+    serviceKey: 'secret',
     now: () => new Date(),
     fetchOutbox: () => Promise.reject(new Error('db down')),
     markSent: () => Promise.resolve(),
@@ -127,6 +130,45 @@ Deno.test('a failure of the database read answers 500 without throwing', async (
 
 Deno.test('only POST is accepted', async () => {
   const { handler } = setup([], (m) => ok(m.length));
-  const res = await handler(new Request('http://x/send-push', { method: 'GET' }));
+  const res = await handler(new Request('http://x/send-push', { method: 'GET', headers: { authorization: 'Bearer secret' } }));
   assertEquals(res.status, 405);
+});
+
+Deno.test('calls without the service-role key are refused and nothing is read', async () => {
+  let fetched = false;
+  const handler = createHandler({
+    serviceKey: 'secret',
+    now: () => new Date(),
+    fetchOutbox: () => {
+      fetched = true;
+      return Promise.resolve([]);
+    },
+    markSent: () => Promise.resolve(),
+    markRetry: () => Promise.resolve(),
+    dropToken: () => Promise.resolve(),
+    expoSend: (m) => ok(m.length),
+  });
+  for (const auth of [null, 'Bearer nope', 'secret', 'Bearer secret2']) {
+    const res = await handler(post(auth));
+    assertEquals(res.status, 401);
+  }
+  assertEquals(fetched, false);
+});
+
+Deno.test('the error text is passed to markRetry', async () => {
+  const errs: string[] = [];
+  const handler = createHandler({
+    serviceKey: 'secret',
+    now: () => new Date(),
+    fetchOutbox: () => Promise.resolve([row(1, ['T1'])]),
+    markSent: () => Promise.resolve(),
+    markRetry: (_id, err) => {
+      errs.push(err);
+      return Promise.resolve();
+    },
+    dropToken: () => Promise.resolve(),
+    expoSend: () => Promise.resolve([{ status: 'error' as const, details: { error: 'MessageRateExceeded' } }]),
+  });
+  await handler(post());
+  assertEquals(errs, ['MessageRateExceeded']);
 });

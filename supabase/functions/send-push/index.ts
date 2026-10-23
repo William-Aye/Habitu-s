@@ -10,6 +10,7 @@ const supabase = createClient(
 );
 
 Deno.serve(createHandler({
+  serviceKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   now: () => new Date(),
   async fetchOutbox(limit) {
     const { data, error } = await supabase.rpc('claim_outbox', { p_limit: limit });
@@ -23,10 +24,11 @@ Deno.serve(createHandler({
       .in('id', ids);
     if (error) throw error;
   },
-  async markRetry(id, _err, next) {
+  async markRetry(id, err, next) {
     const { error } = await supabase
       .from('notification_outbox')
       .update({
+        last_error: err.slice(0, 300),
         attempts: next.attempts,
         failed_at: next.failed ? new Date().toISOString() : null,
         send_after: (next.sendAfter ?? new Date()).toISOString(),
@@ -43,6 +45,7 @@ Deno.serve(createHandler({
       method: 'POST',
       headers: { 'content-type': 'application/json', accept: 'application/json' },
       body: JSON.stringify(messages),
+      signal: AbortSignal.timeout(30_000),
     });
     if (!res.ok) throw new Error(`Expo responded ${res.status}`);
     const body = await res.json();

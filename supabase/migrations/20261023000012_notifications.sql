@@ -61,7 +61,8 @@ create table public.notification_outbox (
   attempts int not null default 0,
   send_after timestamptz not null default now(),
   sent_at timestamptz,
-  failed_at timestamptz
+  failed_at timestamptz,
+  last_error text
 );
 create index notification_outbox_due on public.notification_outbox (send_after)
   where sent_at is null and failed_at is null;
@@ -72,7 +73,7 @@ grant usage, select on sequence public.notification_outbox_id_seq to service_rol
 
 -- Local date / time of a session for a message, in the recipient's language.
 create function public.notif_when(p_ts timestamptz, p_tz text, p_lang text, p_time_only boolean default false)
-returns text language sql immutable set search_path = public, pg_temp as $$
+returns text language sql stable set search_path = public, pg_temp as $$
   select case when p_lang = 'en'
            then case when p_time_only then to_char(p_ts at time zone p_tz, 'FMHH12:MI AM')
                      else to_char(p_ts at time zone p_tz, 'MM/DD "at" FMHH12:MI AM') end
@@ -84,7 +85,8 @@ $$;
 -- Enqueues one notification in the recipient's language. A repeated dedupe_key is ignored.
 create function public.notify_user(
   p_user uuid, p_kind text, p_title_fr text, p_body_fr text, p_title_en text, p_body_en text,
-  p_data jsonb default '{}'::jsonb, p_dedupe text default null, p_send_after timestamptz default now()
+  p_data jsonb default '{}'::jsonb, p_dedupe text default null, p_send_after timestamptz default now(),
+  p_actor uuid default null
 ) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
@@ -94,6 +96,13 @@ begin
   if not found then
     return;
   end if;
+  -- Nothing is sent between two users when either has blocked the other.
+  if p_actor is not null and exists (
+       select 1 from public.blocks b
+        where (b.blocker_id = p_user and b.blocked_id = p_actor)
+           or (b.blocker_id = p_actor and b.blocked_id = p_user)) then
+    return;
+  end if;
   insert into public.notification_outbox (user_id, kind, title, body, data, dedupe_key, send_after)
   values (p_user, p_kind,
           case when v_lang = 'en' then p_title_en else p_title_fr end,
@@ -101,14 +110,15 @@ begin
           p_data, p_dedupe, p_send_after)
   on conflict (dedupe_key) do nothing;
 end $$;
-revoke all on function public.notify_user(uuid, text, text, text, text, text, jsonb, text, timestamptz)
+revoke all on function public.notify_user(uuid, text, text, text, text, text, jsonb, text, timestamptz, uuid)
   from public, anon, authenticated;
 revoke all on function public.notif_when(timestamptz, text, text, boolean) from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------------------------------
 -- Enqueue triggers (none of the texts carries a last name, e-mail or phone)
 
--- New member (open activity) or join request (approval mode), to the organiser.
+-- New member (open activity) or join request (approval mode), to the organiser. One notification per
+-- person per activity: joining and leaving in a loop never re-notifies.
 create function public.notif_activity_member_added() returns trigger
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
@@ -119,17 +129,19 @@ begin
   if not found or a.organiser_id = new.user_id or new.status not in ('member', 'pending') then
     return null;
   end if;
-  select p.first_name into v_name from public.profiles p where p.id = new.user_id;
+  select nullif(trim(coalesce(p.first_name, '')), '') into v_name from public.profiles p where p.id = new.user_id;
   if new.status = 'member' then
     perform public.notify_user(a.organiser_id, 'new_member',
-      'Nouveau membre dans ' || a.title, v_name || ' a rejoint l''activité.',
-      'New member in ' || a.title, v_name || ' joined the activity.',
-      jsonb_build_object('activity_id', a.id));
+      'Nouveau membre dans ' || a.title, coalesce(v_name, 'Quelqu''un') || ' a rejoint l''activité.',
+      'New member in ' || a.title, coalesce(v_name, 'Someone') || ' joined the activity.',
+      jsonb_build_object('activity_id', a.id), 'member:' || a.id || ':' || new.user_id,
+      now(), new.user_id);
   else
     perform public.notify_user(a.organiser_id, 'join_request',
-      'Demande pour rejoindre ' || a.title, v_name || ' souhaite rejoindre l''activité.',
-      'Request to join ' || a.title, v_name || ' would like to join the activity.',
-      jsonb_build_object('activity_id', a.id));
+      'Demande pour rejoindre ' || a.title, coalesce(v_name, 'Quelqu''un') || ' souhaite rejoindre l''activité.',
+      'Request to join ' || a.title, coalesce(v_name, 'Someone') || ' would like to join the activity.',
+      jsonb_build_object('activity_id', a.id), 'join_request:' || a.id || ':' || new.user_id,
+      now(), new.user_id);
   end if;
   return null;
 end $$;
@@ -148,7 +160,7 @@ begin
     perform public.notify_user(new.user_id, 'request_accepted',
       'Demande acceptée', 'Vous faites partie de ' || a.title || '.',
       'Request accepted', 'You are now part of ' || a.title || '.',
-      jsonb_build_object('activity_id', a.id));
+      jsonb_build_object('activity_id', a.id), null, now(), a.organiser_id);
   end if;
   return null;
 end $$;
@@ -157,7 +169,7 @@ create trigger notif_activity_member_accepted after update of status on public.a
   for each row when (old.status = 'pending' and new.status = 'member')
   execute function public.notif_activity_member_accepted();
 
--- Late cancellation, to the organiser.
+-- Late cancellation, to the organiser (once per person per session).
 create function public.notif_late_cancellation() returns trigger
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
@@ -170,13 +182,16 @@ begin
   if not found or a.organiser_id = new.user_id then
     return null;
   end if;
-  select p.first_name into v_name from public.profiles p where p.id = new.user_id;
+  select nullif(trim(coalesce(p.first_name, '')), '') into v_name from public.profiles p where p.id = new.user_id;
   perform public.notify_user(a.organiser_id, 'late_cancellation',
     'Désistement tardif : ' || a.title,
-    v_name || ' ne viendra pas à la séance du ' || public.notif_when(s.starts_at, a.timezone, 'fr') || '.',
+    coalesce(v_name, 'Quelqu''un') || ' ne viendra pas à la séance du '
+      || public.notif_when(s.starts_at, a.timezone, 'fr') || '.',
     'Late cancellation: ' || a.title,
-    v_name || ' can no longer make the session on ' || public.notif_when(s.starts_at, a.timezone, 'en') || '.',
-    jsonb_build_object('activity_id', a.id, 'session_id', s.id));
+    coalesce(v_name, 'Someone') || ' can no longer make the session on '
+      || public.notif_when(s.starts_at, a.timezone, 'en') || '.',
+    jsonb_build_object('activity_id', a.id, 'session_id', s.id),
+    'late:' || s.id || ':' || new.user_id, now(), new.user_id);
   return null;
 end $$;
 revoke all on function public.notif_late_cancellation() from public, anon, authenticated;
@@ -186,8 +201,8 @@ create trigger notif_late_cancellation_upd after update of status on public.atte
   for each row when (new.status = 'cancelled_late' and old.status is distinct from 'cancelled_late')
   execute function public.notif_late_cancellation();
 
--- Session time or place changed, or session cancelled, to the confirmed attendees
--- (the organiser who made the change is not notified).
+-- Session time or place changed, or session cancelled, to the confirmed attendees who are still
+-- active members (the organiser who made the change is not notified).
 create function public.notif_session_changed() returns trigger
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
@@ -207,6 +222,7 @@ begin
   for r in
     select t.user_id
       from public.attendances t
+      join public.activity_members m on m.activity_id = a.id and m.user_id = t.user_id and m.status = 'member'
      where t.session_id = new.id and t.status = 'confirmed' and t.user_id <> a.organiser_id
   loop
     if v_cancelled then
@@ -215,7 +231,7 @@ begin
         'La séance du ' || public.notif_when(old.starts_at, a.timezone, 'fr') || ' est annulée.',
         'Session cancelled: ' || a.title,
         'The session on ' || public.notif_when(old.starts_at, a.timezone, 'en') || ' is cancelled.',
-        jsonb_build_object('activity_id', a.id, 'session_id', new.id));
+        jsonb_build_object('activity_id', a.id, 'session_id', new.id), null, now(), a.organiser_id);
     else
       perform public.notify_user(r.user_id, 'session_moved',
         'Séance modifiée : ' || a.title,
@@ -226,7 +242,7 @@ begin
         concat_ws(' ',
           case when v_time then 'New date: ' || public.notif_when(new.starts_at, a.timezone, 'en') || '.' end,
           case when v_place then 'New place: ' || v_label || '.' end),
-        jsonb_build_object('activity_id', a.id, 'session_id', new.id));
+        jsonb_build_object('activity_id', a.id, 'session_id', new.id), null, now(), a.organiser_id);
     end if;
   end loop;
   return null;
@@ -235,8 +251,35 @@ revoke all on function public.notif_session_changed() from public, anon, authent
 create trigger notif_session_changed after update of starts_at, place_label, place, status on public.sessions
   for each row execute function public.notif_session_changed();
 
+-- Activity-level place change: confirmed attendees (still active members) of future scheduled
+-- sessions that use the activity's place (no place of their own).
+create function public.notif_activity_place_changed() returns trigger
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  r record;
+begin
+  for r in
+    select s.id as session_id, t.user_id
+      from public.sessions s
+      join public.attendances t on t.session_id = s.id and t.status = 'confirmed'
+      join public.activity_members m on m.activity_id = new.id and m.user_id = t.user_id and m.status = 'member'
+     where s.activity_id = new.id and s.status = 'scheduled' and s.starts_at > now()
+       and s.place is null and s.place_label is null and t.user_id <> new.organiser_id
+  loop
+    perform public.notify_user(r.user_id, 'session_moved',
+      'Séance modifiée : ' || new.title, 'Nouveau lieu : ' || new.place_label || '.',
+      'Session changed: ' || new.title, 'New place: ' || new.place_label || '.',
+      jsonb_build_object('activity_id', new.id, 'session_id', r.session_id), null, now(), new.organiser_id);
+  end loop;
+  return null;
+end $$;
+revoke all on function public.notif_activity_place_changed() from public, anon, authenticated;
+create trigger notif_activity_place_changed after update of place, place_label on public.activities
+  for each row when ((new.place_label, new.place::text) is distinct from (old.place_label, old.place::text))
+  execute function public.notif_activity_place_changed();
+
 -- Recurrence edited: confirmed sessions kept at their old time (they matched the old rule but no
--- longer match the new one) tell their confirmed attendees.
+-- longer match the new one) tell their confirmed attendees who are still active members.
 create function public.notif_rule_changed() returns trigger
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
@@ -246,6 +289,7 @@ begin
     select s.id as session_id, s.starts_at, t.user_id
       from public.sessions s
       join public.attendances t on t.session_id = s.id and t.status = 'confirmed'
+      join public.activity_members m on m.activity_id = new.id and m.user_id = t.user_id and m.status = 'member'
      where s.activity_id = new.id and s.status = 'scheduled' and s.starts_at > now()
        and t.user_id <> new.organiser_id
        and public.session_matches_rule(old, s.starts_at)
@@ -258,7 +302,7 @@ begin
       'Schedule changed: ' || new.title,
       'The schedule has changed; your session on ' || public.notif_when(r.starts_at, new.timezone, 'en')
         || ' stays as planned.',
-      jsonb_build_object('activity_id', new.id, 'session_id', r.session_id));
+      jsonb_build_object('activity_id', new.id, 'session_id', r.session_id), null, now(), new.organiser_id);
   end loop;
   return null;
 end $$;
@@ -295,25 +339,41 @@ create trigger notif_collectif_invited after insert on public.collectif_members
 -- ---------------------------------------------------------------------------------------------
 -- Day-before reminders
 
+-- Is a reminder still wanted? The session is still scheduled and in the future, the activity is not
+-- archived, and the user is still a member without a cancelled / cancelled_late attendance.
+create function public.reminder_still_valid(p_session uuid, p_user uuid) returns boolean
+language sql stable security definer set search_path = public, pg_temp as $$
+  select exists (
+    select 1 from public.sessions s
+      join public.activities a on a.id = s.activity_id and a.archived_at is null
+      join public.activity_members m on m.activity_id = a.id and m.user_id = p_user and m.status = 'member'
+     where s.id = p_session and s.status = 'scheduled' and s.starts_at > now()
+       and not exists (select 1 from public.attendances t
+                        where t.session_id = s.id and t.user_id = p_user
+                          and t.status in ('cancelled', 'cancelled_late')));
+$$;
+revoke all on function public.reminder_still_valid(uuid, uuid) from public, anon, authenticated;
+
 -- For every scheduled session that starts tomorrow (local date in the activity's timezone), one
--- reminder per member who has not cancelled, sent at 18:00 Paris today (or now when that has passed).
+-- reminder per member who has not cancelled. It is enqueued only once 18:00 Paris the day before has
+-- passed, so it is sent right away; sessions created or edited later are picked up by the next run.
 -- The dedupe key makes the 15-minute job idempotent. Returns the number of reminders enqueued.
-create function public.enqueue_reminders() returns int
+-- p_now exists for tests.
+create function public.enqueue_reminders(p_now timestamptz default now()) returns int
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   v_count int;
 begin
   with due as (
     select s.id as session_id, s.starts_at, a.id as activity_id, a.title, a.timezone, m.user_id,
-           coalesce(p.language, 'fr') as lang,
-           greatest(now(), (((s.starts_at at time zone a.timezone)::date - 1) + time '18:00')
-                           at time zone 'Europe/Paris') as send_after
+           coalesce(p.language, 'fr') as lang
       from public.sessions s
       join public.activities a on a.id = s.activity_id and a.archived_at is null
       join public.activity_members m on m.activity_id = a.id and m.status = 'member'
       join public.profiles p on p.id = m.user_id
      where s.status = 'scheduled'
-       and (s.starts_at at time zone a.timezone)::date = (now() at time zone a.timezone)::date + 1
+       and (s.starts_at at time zone a.timezone)::date = (p_now at time zone a.timezone)::date + 1
+       and (((s.starts_at at time zone a.timezone)::date - 1) + time '18:00') at time zone 'Europe/Paris' <= p_now
        and not exists (select 1 from public.attendances t
                         where t.session_id = s.id and t.user_id = m.user_id
                           and t.status in ('cancelled', 'cancelled_late'))
@@ -326,7 +386,7 @@ begin
                 else 'Demain ' || public.notif_when(d.starts_at, d.timezone, 'fr', true) || ', ' || d.title
                      || ' — vous serez là ?' end,
            jsonb_build_object('session_id', d.session_id, 'activity_id', d.activity_id),
-           'reminder:' || d.session_id || ':' || d.user_id, d.send_after
+           'reminder:' || d.session_id || ':' || d.user_id, p_now
       from due d
     on conflict (dedupe_key) do nothing
     returning 1
@@ -334,7 +394,7 @@ begin
   select count(*) into v_count from ins;
   return v_count;
 end $$;
-revoke all on function public.enqueue_reminders() from public, anon, authenticated;
+revoke all on function public.enqueue_reminders(timestamptz) from public, anon, authenticated;
 select cron.schedule('enqueue-reminders', '*/15 * * * *', 'select public.enqueue_reminders()');
 
 -- ---------------------------------------------------------------------------------------------
@@ -342,9 +402,18 @@ select cron.schedule('enqueue-reminders', '*/15 * * * *', 'select public.enqueue
 
 -- Called by the Edge Function (service role): takes up to p_limit due rows and pushes their
 -- send_after 2 minutes ahead so overlapping runs never send the same row twice, with each
--- recipient's tokens.
+-- recipient's tokens. Reminders that became stale (session cancelled or past, member left or
+-- cancelled) are marked sent without delivery.
 create function public.claim_outbox(p_limit int default 100) returns jsonb
-language sql security definer set search_path = public, pg_temp as $$
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_rows jsonb;
+begin
+  update public.notification_outbox o set sent_at = now(), last_error = 'stale_reminder'
+   where o.sent_at is null and o.failed_at is null and o.send_after <= now()
+     and o.kind = 'session_reminder'
+     and not public.reminder_still_valid((o.data->>'session_id')::uuid, o.user_id);
+
   with due as (
     select o.id from public.notification_outbox o
      where o.sent_at is null and o.failed_at is null and o.send_after <= now()
@@ -358,8 +427,10 @@ language sql security definer set search_path = public, pg_temp as $$
            'data', u.data, 'attempts', u.attempts,
            'tokens', coalesce((select jsonb_agg(t.token order by t.token) from public.push_tokens t
                                 where t.user_id = u.user_id), '[]'::jsonb)) order by u.id), '[]'::jsonb)
+    into v_rows
     from upd u;
-$$;
+  return v_rows;
+end $$;
 revoke all on function public.claim_outbox(int) from public, anon, authenticated;
 grant execute on function public.claim_outbox(int) to service_role;
 
@@ -394,3 +465,50 @@ language sql security definer set search_path = public, pg_temp as $$
 $$;
 revoke all on function public.prune_outbox() from public, anon, authenticated;
 select cron.schedule('prune-outbox', '45 3 * * *', 'select public.prune_outbox()');
+
+-- Data export: add the caller's push tokens.
+create or replace function public.export_my_data() returns jsonb
+language plpgsql stable security definer set search_path = public, extensions, pg_temp as $$
+declare
+  v_uid uuid := auth.uid();
+begin
+  if v_uid is null then raise exception 'not authenticated' using errcode = '42501'; end if;
+  return jsonb_build_object(
+    'account', (select jsonb_build_object(
+        'email', u.email, 'created_at', u.created_at, 'last_sign_in_at', u.last_sign_in_at,
+        'providers', coalesce((select jsonb_agg(i.provider order by i.provider)
+                                 from auth.identities i where i.user_id = u.id), '[]'::jsonb))
+      from auth.users u where u.id = v_uid),
+    'profile', (select to_jsonb(p) - 'home_area' || jsonb_build_object('home_area', ST_AsText(p.home_area::geometry))
+                  from public.profiles p where p.id = v_uid),
+    'interests', coalesce((select jsonb_agg(to_jsonb(i)) from public.user_interests i where i.user_id = v_uid), '[]'),
+    'category_requests', coalesce((select jsonb_agg(jsonb_build_object(
+        'id', r.id, 'requested_name', r.requested_name, 'status', r.status, 'created_at', r.created_at))
+      from public.category_requests r where r.user_id = v_uid), '[]'),
+    'activities_organised', coalesce((select jsonb_agg(to_jsonb(a) - 'embedding' - 'place'
+        || jsonb_build_object('place', ST_AsText(a.place::geometry)))
+      from public.activities a where a.organiser_id = v_uid), '[]'),
+    'memberships', coalesce((select jsonb_agg(to_jsonb(m)) from public.activity_members m where m.user_id = v_uid), '[]'),
+    'interests_in_activities', coalesce((select jsonb_agg(to_jsonb(ai)) from public.activity_interests ai where ai.user_id = v_uid), '[]'),
+    'attendances', coalesce((select jsonb_agg(to_jsonb(t)) from public.attendances t where t.user_id = v_uid), '[]'),
+    'messages_sent', coalesce((select jsonb_agg(to_jsonb(ms)) from public.messages ms where ms.sender_id = v_uid), '[]'),
+    'reports_filed', coalesce((select jsonb_agg(jsonb_build_object(
+        'id', rp.id, 'target_type', rp.target_type, 'target_id', rp.target_id, 'reason', rp.reason,
+        'details', rp.details, 'status', rp.status, 'created_at', rp.created_at))
+      from public.reports rp where rp.reporter_id = v_uid), '[]'),
+    'blocks', coalesce((select jsonb_agg(to_jsonb(b)) from public.blocks b where b.blocker_id = v_uid), '[]'),
+    'saved_searches', coalesce((select jsonb_agg(to_jsonb(s) - 'center'
+        || jsonb_build_object('center', ST_AsText(s.center::geometry)))
+      from public.saved_searches s where s.user_id = v_uid), '[]'),
+    'association_waiters', coalesce((select jsonb_agg(to_jsonb(w)) from public.association_waiters w where w.user_id = v_uid), '[]'),
+    'association_claims', coalesce((select jsonb_agg(to_jsonb(c)) from public.association_claims c where c.claimant_id = v_uid), '[]'),
+    'feedback_sent', coalesce((select jsonb_agg(to_jsonb(f)) from public.feedback f where f.user_id = v_uid), '[]'),
+    'session_feedback_sent', coalesce((select jsonb_agg(to_jsonb(sf)) from public.session_feedback sf where sf.user_id = v_uid), '[]'),
+    'safety_tips_seen', coalesce((select jsonb_agg(to_jsonb(st)) from public.safety_tips_seen st where st.user_id = v_uid), '[]'),
+    'notification_log', coalesce((select jsonb_agg(to_jsonb(nl)) from public.notification_log nl where nl.user_id = v_uid), '[]'),
+    'push_tokens', coalesce((select jsonb_agg(jsonb_build_object('token', pt.token, 'platform', pt.platform, 'updated_at', pt.updated_at)) from public.push_tokens pt where pt.user_id = v_uid), '[]'),
+    'organiser_stats', (select to_jsonb(o) from public.organiser_stats o where o.user_id = v_uid)
+  );
+end $$;
+revoke all on function public.export_my_data() from public, anon;
+grant execute on function public.export_my_data() to authenticated;
