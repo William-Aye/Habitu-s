@@ -66,10 +66,10 @@ select throws_ok($$ insert into session_feedback (session_id, user_id, went_well
   '42501', null, 'feedback on a cancelled session is rejected');
 
 -- reports
-select lives_ok(format($$ insert into reports (reporter_id, target_type, target_id, reason) values (auth.uid(), 'user', %L, 'fake_or_spam') $$, :'ben'), 'ana files a report');
-select throws_ok(format($$ insert into reports (reporter_id, target_type, target_id, reason, status, statement_of_reasons) values (auth.uid(), 'user', %L, 'other', 'actioned', 'x') $$, :'ben'),
+select lives_ok(format($$ insert into reports (reporter_id, target_type, target_id, reason) values (auth.uid(), 'user', %L, 'fake_or_spam') $$, :'org'), 'ana files a report');
+select throws_ok(format($$ insert into reports (reporter_id, target_type, target_id, reason, status, statement_of_reasons) values (auth.uid(), 'user', %L, 'other', 'actioned', 'x') $$, :'org'),
   '42501', null, 'cannot self-set a decided status');
-select throws_ok(format($$ insert into reports (reporter_id, target_type, target_id, reason) values (%L, 'user', %L, 'other') $$, :'cat', :'ben'),
+select throws_ok(format($$ insert into reports (reporter_id, target_type, target_id, reason) values (%L, 'user', %L, 'other') $$, :'cat', :'org'),
   '42501', null, 'cannot report as someone else');
 select is((select count(*) from reports)::int, 1, 'user sees own report');
 update reports set status = 'actioned', statement_of_reasons = 'x';

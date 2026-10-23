@@ -369,6 +369,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"banned_words": {
+                  Row: {
+                    "added_by": string | null,"created_at": string,"word": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "added_by"?: string | null,"created_at"?: string,"word": string
+                  }
+                  Update: {
+                    "added_by"?: string | null,"created_at"?: string,"word"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "banned_words_added_by_fkey"
+      columns: ["added_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "banned_words_added_by_fkey"
+      columns: ["added_by"]
+isOneToOne: false
+      referencedRelation: "public_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"blocks": {
                   Row: {
                     "blocked_id": string,"blocker_id": string,"created_at": string
@@ -647,6 +673,32 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"limit_log": {
+                  Row: {
+                    "at": string,"id": number,"kind": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "at"?: string,"id"?: number,"kind": string,"user_id": string
+                  }
+                  Update: {
+                    "at"?: string,"id"?: number,"kind"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "limit_log_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "limit_log_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "public_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"messages": {
                   Row: {
                     "activity_id": string | null,"body": string,"created_at": string,"id": string,"recipient_id": string | null,"sender_id": string
@@ -831,14 +883,14 @@ isOneToOne: true
                   ]
                 },"reports": {
                   Row: {
-                    "created_at": string,"decided_at": string | null,"decided_by": string | null,"decision": string | null,"details": string | null,"id": string,"reason": string,"reporter_id": string | null,"statement_of_reasons": string | null,"status": string,"target_id": string,"target_type": string
+                    "created_at": string,"decided_at": string | null,"decided_by": string | null,"decision": string | null,"details": string | null,"id": string,"reason": string,"reporter_id": string | null,"source": string,"statement_of_reasons": string | null,"status": string,"target_id": string,"target_owner": string | null,"target_type": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision"?: string | null,"details"?: string | null,"id"?: string,"reason": string,"reporter_id"?: string | null,"statement_of_reasons"?: string | null,"status"?: string,"target_id": string,"target_type": string
+                    "created_at"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision"?: string | null,"details"?: string | null,"id"?: string,"reason": string,"reporter_id"?: string | null,"source"?: string,"statement_of_reasons"?: string | null,"status"?: string,"target_id": string,"target_owner"?: string | null,"target_type": string
                   }
                   Update: {
-                    "created_at"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision"?: string | null,"details"?: string | null,"id"?: string,"reason"?: string,"reporter_id"?: string | null,"statement_of_reasons"?: string | null,"status"?: string,"target_id"?: string,"target_type"?: string
+                    "created_at"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision"?: string | null,"details"?: string | null,"id"?: string,"reason"?: string,"reporter_id"?: string | null,"source"?: string,"statement_of_reasons"?: string | null,"status"?: string,"target_id"?: string,"target_owner"?: string | null,"target_type"?: string
                   }
                   Relationships: [
                     {
@@ -862,6 +914,18 @@ isOneToOne: false
     },{
       foreignKeyName: "reports_reporter_id_fkey"
       columns: ["reporter_id"]
+isOneToOne: false
+      referencedRelation: "public_profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "reports_target_owner_fkey"
+      columns: ["target_owner"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "reports_target_owner_fkey"
+      columns: ["target_owner"]
 isOneToOne: false
       referencedRelation: "public_profiles"
       referencedColumns: ["id"]
@@ -1108,8 +1172,17 @@ isOneToOne: true
 "admin_audit_page":
 { Args: { "p_before_at"?: string,"p_before_id"?: string,"p_limit"?: number }; Returns: Json
                            },
+"admin_decide_report":
+{ Args: { "p_decision": string,"p_report": string,"p_statement": string }; Returns: undefined
+                           },
 "admin_log":
 { Args: { "p_action": string,"p_details"?: Json,"p_target_id": string,"p_target_type": string }; Returns: undefined
+                           },
+"admin_reports":
+{ Args: { "p_before"?: string,"p_limit"?: number,"p_status"?: string }; Returns: Json
+                           },
+"admin_set_banned_word":
+{ Args: { "p_add": boolean,"p_word": string }; Returns: undefined
                            },
 "association_locked_for_me":
 { Args: { "p_id": string }; Returns: boolean
@@ -1209,7 +1282,13 @@ isOneToOne: true
 "my_activities":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
+"my_blocked":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "my_chats":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"my_moderation_notices":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
 "my_recent_community_clubs":
@@ -1244,6 +1323,9 @@ isOneToOne: true
 "reminder_still_valid":
 { Args: { "p_session": string,"p_user": string }; Returns: boolean
                            },
+"report_target_owner":
+{ Args: { "p_id": string,"p_type": string }; Returns: string
+                           },
 "search_explore":
 { Args: { "p_discovery_only"?: boolean,"p_interest_category_ids"?: (string)[],"p_kinds"?: (string)[],"p_lat": number,"p_limit"?: number,"p_lon": number,"p_newcomer_friendly"?: boolean,"p_offset"?: number,"p_query"?: string,"p_query_embedding"?: string,"p_radius_km"?: number,"p_sort"?: string,"p_weekday"?: number }; Returns: Json
                            },
@@ -1263,6 +1345,12 @@ isOneToOne: true
                            },
 "set_chat_muted":
 { Args: { "p_activity": string,"p_muted": boolean }; Returns: undefined
+                           },
+"take_limit":
+{ Args: { "p_kind": string,"p_max": number,"p_window": string }; Returns: undefined
+                           },
+"text_has_banned_word":
+{ Args: { "p_text": string }; Returns: boolean
                            },
 "touch_last_seen":
 { Args: Record<PropertyKey, never>; Returns: undefined
