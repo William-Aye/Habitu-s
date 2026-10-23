@@ -22,6 +22,7 @@ const base: ExploreParams = {
   weekday: null,
   newcomerFriendly: false,
   interestCategoryIds: [],
+  discoveryOnly: false,
   sort: 'best',
 };
 

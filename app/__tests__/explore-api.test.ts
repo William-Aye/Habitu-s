@@ -25,6 +25,7 @@ const params: ExploreParams = {
   weekday: null,
   newcomerFriendly: false,
   interestCategoryIds: [],
+  discoveryOnly: false,
   sort: 'best',
 };
 
@@ -34,6 +35,19 @@ beforeEach(() => {
 });
 
 describe('searchExplore', () => {
+  it('sends p_discovery_only and keeps collectif results as their own kind', async () => {
+    mockRpc.mockResolvedValue({
+      data: { mode: 'browse', results: [{ kind: 'collectif', id: 'c1', title: 'Les Marcheurs' }] },
+      error: null,
+    });
+    const res = await searchExplore({ ...params, discoveryOnly: true }, { limit: 20, offset: 0 });
+    expect(mockRpc).toHaveBeenCalledWith(
+      'search_explore',
+      expect.objectContaining({ p_discovery_only: true }),
+    );
+    expect(res.results[0].kind).toBe('collectif');
+  });
+
   it('sends snake_case args and maps the response to camelCase', async () => {
     mockRpc.mockResolvedValue({
       data: {
@@ -55,7 +69,7 @@ describe('searchExplore', () => {
       expect.objectContaining({
         p_lon: 4.8, p_lat: 45.7, p_radius_km: 10,
         p_kinds: ['activity'], p_weekday: null, p_newcomer_friendly: false,
-        p_interest_category_ids: [], p_sort: 'best', p_limit: 20, p_offset: 0,
+        p_interest_category_ids: [], p_discovery_only: false, p_sort: 'best', p_limit: 20, p_offset: 0,
       }),
     );
     expect(mockRpc.mock.calls[0][1]).not.toHaveProperty('p_query_embedding');

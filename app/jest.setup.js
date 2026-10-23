@@ -42,3 +42,20 @@ jest.mock('expo-secure-store', () => {
     }),
   };
 });
+
+// Push notifications need a device and native modules: inert by default, tests that care override this.
+jest.mock('expo-notifications', () => ({
+  AndroidImportance: { UNKNOWN: 0, UNSPECIFIED: 1, NONE: 2, MIN: 3, LOW: 4, DEFAULT: 5, HIGH: 6, MAX: 7 },
+  addPushTokenListener: jest.fn(() => ({ remove: jest.fn() })),
+  DEFAULT_ACTION_IDENTIFIER: 'expo.modules.notifications.actions.DEFAULT',
+  getPermissionsAsync: jest.fn(async () => ({ status: 'undetermined', canAskAgain: true })),
+  requestPermissionsAsync: jest.fn(async () => ({ status: 'denied', canAskAgain: false })),
+  getExpoPushTokenAsync: jest.fn(async () => ({ data: 'ExponentPushToken[test]' })),
+  setNotificationChannelAsync: jest.fn(async () => null),
+  setNotificationCategoryAsync: jest.fn(async () => null),
+  setNotificationHandler: jest.fn(),
+  getLastNotificationResponseAsync: jest.fn(async () => null),
+  clearLastNotificationResponseAsync: jest.fn(async () => {}),
+  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+}));
+jest.mock('expo-device', () => ({ isDevice: false }));

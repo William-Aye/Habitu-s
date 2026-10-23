@@ -25,14 +25,14 @@ export type Database = {
           Tables: {
             "activities": {
                   Row: {
-                    "approval_mode": string,"archived_at": string | null,"category_id": string,"created_at": string,"description": string | null,"duration_minutes": number,"embedding": string | null,"id": string,"max_size": number | null,"min_participants": number | null,"newcomer_friendly": boolean,"organised_by_association_id": string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at": string,"recurrence_interval_days": number | null,"recurrence_kind": string,"recurrence_weekdays": (number)[] | null,"search_tsv": unknown,"start_date": string,"start_time": string,"timezone": string,"title": string
+                    "approval_mode": string,"archived_at": string | null,"category_id": string,"created_at": string,"description": string | null,"duration_minutes": number,"embedding": string | null,"embedding_hash": string | null,"id": string,"max_size": number | null,"min_participants": number | null,"newcomer_friendly": boolean,"organised_by_association_id": string | null,"organised_by_collectif_id": string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at": string,"recurrence_interval_days": number | null,"recurrence_kind": string,"recurrence_weekdays": (number)[] | null,"search_tsv": unknown,"start_date": string,"start_time": string,"timezone": string,"title": string,"welcome_member_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "approval_mode"?: string,"archived_at"?: string | null,"category_id": string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind": string,"recurrence_weekdays"?: (number)[] | null,"search_tsv"?: never,"start_date": string,"start_time": string,"timezone"?: string,"title": string
+                    "approval_mode"?: string,"archived_at"?: string | null,"category_id": string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"embedding_hash"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organised_by_collectif_id"?: string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind": string,"recurrence_weekdays"?: (number)[] | null,"search_tsv"?: never,"start_date": string,"start_time": string,"timezone"?: string,"title": string,"welcome_member_id"?: string | null
                   }
                   Update: {
-                    "approval_mode"?: string,"archived_at"?: string | null,"category_id"?: string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organiser_id"?: string,"place"?: unknown,"place_label"?: string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind"?: string,"recurrence_weekdays"?: (number)[] | null,"search_tsv"?: never,"start_date"?: string,"start_time"?: string,"timezone"?: string,"title"?: string
+                    "approval_mode"?: string,"archived_at"?: string | null,"category_id"?: string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"embedding_hash"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organised_by_collectif_id"?: string | null,"organiser_id"?: string,"place"?: unknown,"place_label"?: string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind"?: string,"recurrence_weekdays"?: (number)[] | null,"search_tsv"?: never,"start_date"?: string,"start_time"?: string,"timezone"?: string,"title"?: string,"welcome_member_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -48,6 +48,12 @@ isOneToOne: false
       referencedRelation: "associations"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "activities_organised_by_collectif_id_fkey"
+      columns: ["organised_by_collectif_id"]
+isOneToOne: false
+      referencedRelation: "collectifs"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "activities_organiser_id_fkey"
       columns: ["organiser_id"]
 isOneToOne: false
@@ -56,6 +62,18 @@ isOneToOne: false
     },{
       foreignKeyName: "activities_organiser_id_fkey"
       columns: ["organiser_id"]
+isOneToOne: false
+      referencedRelation: "public_profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "activities_welcome_member_id_fkey"
+      columns: ["welcome_member_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "activities_welcome_member_id_fkey"
+      columns: ["welcome_member_id"]
 isOneToOne: false
       referencedRelation: "public_profiles"
       referencedColumns: ["id"]
@@ -295,14 +313,14 @@ isOneToOne: false
                   ]
                 },"attendances": {
                   Row: {
-                    "session_id": string,"status": string,"updated_at": string,"user_id": string
+                    "guest_count": number,"session_id": string,"status": string,"updated_at": string,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "session_id": string,"status": string,"updated_at"?: string,"user_id": string
+                    "guest_count"?: number,"session_id": string,"status": string,"updated_at"?: string,"user_id": string
                   }
                   Update: {
-                    "session_id"?: string,"status"?: string,"updated_at"?: string,"user_id"?: string
+                    "guest_count"?: number,"session_id"?: string,"status"?: string,"updated_at"?: string,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -404,6 +422,64 @@ isOneToOne: false
     },{
       foreignKeyName: "category_requests_user_id_fkey"
       columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "public_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"collectif_members": {
+                  Row: {
+                    "accepted_at": string | null,"collectif_id": string,"invited_at": string,"role": string,"status": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "accepted_at"?: string | null,"collectif_id": string,"invited_at"?: string,"role": string,"status"?: string,"user_id": string
+                  }
+                  Update: {
+                    "accepted_at"?: string | null,"collectif_id"?: string,"invited_at"?: string,"role"?: string,"status"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "collectif_members_collectif_id_fkey"
+      columns: ["collectif_id"]
+isOneToOne: false
+      referencedRelation: "collectifs"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "collectif_members_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "collectif_members_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "public_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"collectifs": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"description": string | null,"embedding": string | null,"embedding_hash": string | null,"id": string,"name": string,"search_tsv": unknown,"town_label": string,"town_point": unknown
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"description"?: string | null,"embedding"?: string | null,"embedding_hash"?: string | null,"id"?: string,"name": string,"search_tsv"?: never,"town_label": string,"town_point": unknown
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"description"?: string | null,"embedding"?: string | null,"embedding_hash"?: string | null,"id"?: string,"name"?: string,"search_tsv"?: never,"town_label"?: string,"town_point"?: unknown
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "collectifs_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "collectifs_created_by_fkey"
+      columns: ["created_by"]
 isOneToOne: false
       referencedRelation: "public_profiles"
       referencedColumns: ["id"]
@@ -519,6 +595,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"notification_outbox": {
+                  Row: {
+                    "attempts": number,"body": string,"data": NonNullable<Json>,"dedupe_key": string | null,"failed_at": string | null,"id": number,"kind": string,"last_error": string | null,"send_after": string,"sent_at": string | null,"title": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "attempts"?: number,"body": string,"data"?: NonNullable<Json>,"dedupe_key"?: string | null,"failed_at"?: string | null,"id"?: number,"kind": string,"last_error"?: string | null,"send_after"?: string,"sent_at"?: string | null,"title": string,"user_id": string
+                  }
+                  Update: {
+                    "attempts"?: number,"body"?: string,"data"?: NonNullable<Json>,"dedupe_key"?: string | null,"failed_at"?: string | null,"id"?: number,"kind"?: string,"last_error"?: string | null,"send_after"?: string,"sent_at"?: string | null,"title"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "notification_outbox_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "notification_outbox_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "public_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"organiser_stats": {
                   Row: {
                     "badge_status": string,"distinct_participants": number,"feedback_count": number,"late_cancel_rate": number,"positive_count": number,"revoked_until": string | null,"sessions_held": number,"updated_at": string,"user_id": string
@@ -558,6 +660,32 @@ isOneToOne: true
                   }
                   Relationships: [
                     
+                  ]
+                },"push_tokens": {
+                  Row: {
+                    "platform": string,"token": string,"updated_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "platform": string,"token": string,"updated_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "platform"?: string,"token"?: string,"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "push_tokens_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "push_tokens_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "public_profiles"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"reports": {
                   Row: {
@@ -695,16 +823,36 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"sessions": {
+                },"session_horizons": {
                   Row: {
-                    "activity_id": string,"cancelled_at": string | null,"id": string,"place": unknown,"place_label": string | null,"starts_at": string,"status": string
+                    "activity_id": string,"until": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "activity_id": string,"cancelled_at"?: string | null,"id"?: string,"place"?: unknown,"place_label"?: string | null,"starts_at": string,"status"?: string
+                    "activity_id": string,"until": string
                   }
                   Update: {
-                    "activity_id"?: string,"cancelled_at"?: string | null,"id"?: string,"place"?: unknown,"place_label"?: string | null,"starts_at"?: string,"status"?: string
+                    "activity_id"?: string,"until"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "session_horizons_activity_id_fkey"
+      columns: ["activity_id"]
+isOneToOne: true
+      referencedRelation: "activities"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"sessions": {
+                  Row: {
+                    "activity_id": string,"cancelled_at": string | null,"id": string,"is_discovery": boolean,"place": unknown,"place_label": string | null,"starts_at": string,"status": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "activity_id": string,"cancelled_at"?: string | null,"id"?: string,"is_discovery"?: boolean,"place"?: unknown,"place_label"?: string | null,"starts_at": string,"status"?: string
+                  }
+                  Update: {
+                    "activity_id"?: string,"cancelled_at"?: string | null,"id"?: string,"is_discovery"?: boolean,"place"?: unknown,"place_label"?: string | null,"starts_at"?: string,"status"?: string
                   }
                   Relationships: [
                     {
@@ -807,16 +955,56 @@ isOneToOne: true
                 }
           }
           Functions: {
-            "association_locked_for_me":
+            "activity_date_matches":
+{ Args: { "p_d": string,"p_interval_days": number,"p_kind": string,"p_start": string,"p_weekdays": (number)[] }; Returns: boolean
+                           },
+"activity_roster":
+{ Args: { "p_activity": string }; Returns: {
+              "first_name": string,"photo_url": string,"status": string,"user_id": string
+            }[]
+                           },
+"association_locked_for_me":
 { Args: { "p_id": string }; Returns: boolean
+                           },
+"can_organise":
+{ Args: Record<PropertyKey, never>; Returns: boolean
+                           },
+"claim_outbox":
+{ Args: { "p_limit"?: number }; Returns: Json
+                           },
+"collectif_blocked_for_me":
+{ Args: { "p_collectif": string }; Returns: boolean
+                           },
+"collectif_candidates":
+{ Args: { "p_collectif": string }; Returns: {
+              "first_name": string,"photo_url": string,"user_id": string
+            }[]
                            },
 "delete_my_account":
 { Args: Record<PropertyKey, never>; Returns: undefined
                            },
+"drain_outbox":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"enqueue_reminders":
+{ Args: { "p_now"?: string }; Returns: number
+                           },
 "export_my_data":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
+"extend_sessions":
+{ Args: Record<PropertyKey, never>; Returns: number
+                           },
+"generate_sessions":
+{ Args: { "p_activity": string,"p_from"?: string,"p_until": string }; Returns: number
+                           },
+"get_activity":
+{ Args: { "p_id": string }; Returns: Json
+                           },
 "get_association":
+{ Args: { "p_id": string }; Returns: Json
+                           },
+"get_collectif":
 { Args: { "p_id": string }; Returns: Json
                            },
 "has_confirmed_attendance":
@@ -834,17 +1022,55 @@ isOneToOne: true
 "is_blocked_between":
 { Args: { "p_other": string }; Returns: boolean
                            },
+"is_collectif_member":
+{ Args: { "p_collectif": string }; Returns: boolean
+                           },
+"is_collectif_responsable":
+{ Args: { "p_collectif": string }; Returns: boolean
+                           },
 "is_session_member":
 { Args: { "p_session": string }; Returns: boolean
                            },
 "is_session_organiser":
 { Args: { "p_session": string }; Returns: boolean
                            },
+"my_activities":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"my_recent_community_clubs":
+{ Args: Record<PropertyKey, never>; Returns: number
+                           },
+"notif_when":
+{ Args: { "p_lang": string,"p_time_only"?: boolean,"p_ts": string,"p_tz": string }; Returns: string
+                           },
+"notify_user":
+{ Args: { "p_actor"?: string,"p_body_en": string,"p_body_fr": string,"p_data"?: Json,"p_dedupe"?: string,"p_kind": string,"p_send_after"?: string,"p_title_en": string,"p_title_fr": string,"p_user": string }; Returns: undefined
+                           },
+"prune_outbox":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"register_push_token":
+{ Args: { "p_platform": string,"p_token": string }; Returns: undefined
+                           },
+"reminder_still_valid":
+{ Args: { "p_session": string,"p_user": string }; Returns: boolean
+                           },
 "search_explore":
-{ Args: { "p_interest_category_ids"?: (string)[],"p_kinds"?: (string)[],"p_lat": number,"p_limit"?: number,"p_lon": number,"p_newcomer_friendly"?: boolean,"p_offset"?: number,"p_query"?: string,"p_query_embedding"?: string,"p_radius_km"?: number,"p_sort"?: string,"p_weekday"?: number }; Returns: Json
+{ Args: { "p_discovery_only"?: boolean,"p_interest_category_ids"?: (string)[],"p_kinds"?: (string)[],"p_lat": number,"p_limit"?: number,"p_lon": number,"p_newcomer_friendly"?: boolean,"p_offset"?: number,"p_query"?: string,"p_query_embedding"?: string,"p_radius_km"?: number,"p_sort"?: string,"p_weekday"?: number }; Returns: Json
+                           },
+"search_linkable_associations":
+{ Args: { "p_limit"?: number,"p_query": string }; Returns: {
+              "city": string,"id": string,"name": string,"postcode": string
+            }[]
+                           },
+"session_card":
+{ Args: { "p_session": string,"p_with_attendees": boolean }; Returns: Json
                            },
 "session_has_member":
 { Args: { "p_session": string,"p_user": string }; Returns: boolean
+                           },
+"session_matches_rule":
+{ Args: { "a": Omit<Database["public"]['Tables']["activities"]['Row'], Database["public"]['Tables']["activities"]['ComputedFields']>,"p_starts_at": string }; Returns: boolean
                            },
 "touch_last_seen":
 { Args: Record<PropertyKey, never>; Returns: undefined

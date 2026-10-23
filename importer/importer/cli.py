@@ -15,7 +15,7 @@ from typing import TypeVar
 import httpx
 import psycopg
 
-from importer import db, vocab
+from importer import activities_embed, db, vocab
 from importer.embed import E5Embedder, Embedder, FakeEmbedder, embedding_text, text_hash
 from importer.geocode import Geocoder, address_key
 from importer.models import GeoPoint, OsmRecord, RnaRecord, StagedOsm, StagedRna
@@ -78,6 +78,11 @@ def _parser() -> argparse.ArgumentParser:
                      help="only add the frequent requests and the watch-list")
     voc.add_argument("--embedder", choices=("e5", "fake"), default="e5")
     voc.add_argument("--cap", type=int, default=150_000, help="maximum number of phrases")
+    emb = sub.add_parser("embed-activities",
+                         help="embed the activities and collectifs that have no fresh fingerprint")
+    emb.add_argument("--db-url", default=os.environ.get("IMPORTER_DB_URL"))
+    emb.add_argument("--embedder", choices=("e5", "fake"), default="e5")
+    emb.add_argument("--batch-size", type=int, default=256)
     return parser
 
 
@@ -90,6 +95,10 @@ def main(argv: list[str] | None = None) -> int:
         logging.basicConfig(stream=sys.stderr, level=logging.INFO,
                             format="%(asctime)s %(levelname)s %(message)s")
         return run_vocab(args)
+    if args.command == "embed-activities":
+        logging.basicConfig(stream=sys.stderr, level=logging.INFO,
+                            format="%(asctime)s %(levelname)s %(message)s")
+        return run_embed_activities(args)
     if not args.skip_osm and not args.osm_geojsonseq:
         parser.error("--osm-geojsonseq is required unless --skip-osm")
     scope = None
@@ -138,6 +147,19 @@ def run_vocab(args: argparse.Namespace) -> int:
     for phrase, method in report.coverage.items():
         if method != "exact":
             print(f"warning: watch-list phrase resolves as {method}, not exact: {phrase}", file=sys.stderr)
+    return 0
+
+
+def run_embed_activities(args: argparse.Namespace) -> int:
+    try:
+        with psycopg.connect(args.db_url) as conn:
+            conn.execute("SET statement_timeout = 0")
+            n = activities_embed.embed_pending_activities(conn, make_embedder(args.embedder),
+                                                          batch_size=args.batch_size)
+    except Exception:
+        log.exception("activity embedding failed")
+        return 1
+    print(json.dumps({"embedded": n}))
     return 0
 
 

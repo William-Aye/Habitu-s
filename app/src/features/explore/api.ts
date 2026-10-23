@@ -47,6 +47,7 @@ export async function searchExplore(
     p_weekday: p.weekday,
     p_newcomer_friendly: p.newcomerFriendly,
     p_interest_category_ids: p.interestCategoryIds,
+    p_discovery_only: p.discoveryOnly,
     p_sort: p.sort,
     p_limit: page.limit,
     p_offset: page.offset,

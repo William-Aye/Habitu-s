@@ -44,6 +44,7 @@ export function useExploreSearch(params: ExploreParams | null): {
         params.weekday,
         params.newcomerFriendly,
         params.interestCategoryIds,
+        params.discoveryOnly,
         params.sort,
         attempt,
       ])

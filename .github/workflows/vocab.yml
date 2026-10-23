@@ -43,3 +43,11 @@ jobs:
             args+=(--requests-only)
           fi
           uv run --project importer python -m importer vocab "${args[@]}"
+
+      # New activities and collectifs are searchable by keywords at once; their meaning vector is
+      # computed here, so they are found by meaning from the next morning.
+      - name: Embed new activities and collectifs
+        if: ${{ !cancelled() }}
+        env:
+          IMPORTER_DB_URL: ${{ secrets.IMPORTER_DB_URL }}
+        run: uv run --project importer python -m importer embed-activities --db-url "$IMPORTER_DB_URL"

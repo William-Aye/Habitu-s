@@ -75,6 +75,12 @@ export async function deleteMyAccount(): Promise<{ ok: boolean }> {
     if (!userId) return { ok: false };
     const files = await removeAvatarFiles(userId);
     if (files === 'failed') return { ok: false };
+    // Devices of a deleted account must stop receiving pushes; the server cascade covers a failure here.
+    try {
+      await supabase.from('push_tokens').delete().eq('user_id', userId);
+    } catch {
+      // Best effort.
+    }
     const { error } = await supabase.rpc('delete_my_account');
     if (error) {
       // The account survives but its photo file is gone: do not leave a broken photo URL.

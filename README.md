@@ -114,6 +114,87 @@ Sign-up asks for a first name and an 18+ confirmation, nothing else.
   - Replace the placeholder `confidentialite@<domaine>` with the real contact address.
   - Have a qualified person check the text before it is published.
 
+## Activities and notifications
+
+Activities, sessions, collectifs and push notifications need a few one-time setups. Everything
+below is free (Firebase and Expo's push service need no card).
+
+### Firebase and `google-services.json` (Android push)
+
+1. Create a Firebase project (console.firebase.google.com) and add an Android app with the package
+   name `fr.friendapp.app`.
+2. Download `google-services.json` from the Firebase console into `app/google-services.json`
+   before any Android build. The file is **gitignored on purpose**: the repository is public, so it
+   is never committed.
+3. EAS cloud builds do not see local ignored files. Upload the file as an EAS **file** secret
+   (an environment variable of type file) named `GOOGLE_SERVICES_JSON`:
+
+   ```bash
+   cd app
+   npx eas-cli env:create --name GOOGLE_SERVICES_JSON --type file --visibility secret --environment production --value ./google-services.json
+   ```
+
+   (repeat for the `preview`/`development` environments you build). `app/app.config.js` reads
+   that variable and falls back to `./google-services.json` for local builds.
+
+### Expo push credentials
+
+```bash
+cd app
+npx eas-cli init            # creates the EAS project and sets extra.eas.projectId in app config
+npx eas-cli credentials     # Android > production > Google Service Account > FCM V1: upload the key
+```
+
+The FCM V1 key is a service-account JSON generated in the Firebase console (Project settings >
+Service accounts > Generate new private key). Keep it out of the repository. Without
+`extra.eas.projectId` the app cannot get a push token; it then simply skips registration.
+
+### Database secrets and the `send-push` function
+
+The `drain-outbox` job wakes the `send-push` Edge Function using two Vault secrets
+(see `supabase/migrations/20261023000012_notifications.sql`). While either is missing the job does
+nothing, so local runs never fail. Set them in the SQL editor of the hosted project:
+
+```sql
+select vault.create_secret('<service-role key>', 'send_push_key');
+select vault.create_secret('https://<project-ref>.supabase.co/functions/v1/send-push', 'send_push_url');
+```
+
+`send_push_key` **must equal the project's service-role key** (the function checks it as the bearer
+token). Locally the URL is `http://host.docker.internal:55321/functions/v1/send-push`. To change a
+secret later, update the existing Vault row instead of creating a second one.
+
+Deploy the function:
+
+```bash
+npx supabase functions deploy send-push
+```
+
+### Scheduled jobs (pg_cron)
+
+Created by the migrations; nothing to schedule by hand:
+
+| Job | When | What |
+| --- | --- | --- |
+| `extend-sessions` | daily 02:30 | extends every non-archived activity's sessions to 8 weeks ahead |
+| `enqueue-reminders` | every 15 minutes | queues the day-before reminder (18:00 Paris) |
+| `drain-outbox` | every minute | sends queued notifications through `send-push` |
+| `prune-outbox` | daily 03:45 | deletes sent or failed notifications older than 30 days |
+
+### Share links
+
+`EXPO_PUBLIC_WEB_BASE_URL` (in `app/.env`, see `app/.env.example`) is the future website address.
+Shared activities link to `EXPO_PUBLIC_WEB_BASE_URL/activites/<id>`; the website preview pages come
+later. Inside the app `friendapp://activites/<id>` already opens the activity.
+
+### Finding new activities by meaning
+
+New activities and collectifs are found by keywords at once. Their meaning vector is computed by
+the `embed-activities` step of the nightly `vocab.yml` GitHub workflow
+(`python -m importer embed-activities`, needs the `IMPORTER_DB_URL` secret), so they are found by
+meaning from the next morning. To run it by hand:
+`uv run --project importer python -m importer embed-activities --db-url "$IMPORTER_DB_URL"`.
+
 ## Search
 
 Search combines keyword matching with semantic ranking. The semantic side needs an

@@ -13,7 +13,21 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'fr-FR' }] }));
 
 const mockPush = jest.fn();
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
+const mockFocusListeners = new Set<() => void>();
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: mockPush }),
+  // Runs the effect on mount and again each time the test says the screen regained focus.
+  useFocusEffect: (cb: () => void) => {
+    const React = require('react');
+    React.useEffect(() => {
+      cb();
+      mockFocusListeners.add(cb);
+      return () => {
+        mockFocusListeners.delete(cb);
+      };
+    }, [cb]);
+  },
+}));
 
 type Sess = {
   status: 'signed_out' | 'ready' | 'needs_profile' | 'loading';
@@ -85,6 +99,14 @@ jest.mock('../src/features/explore/components/LocationPicker', () => {
     ),
   };
 });
+const mockMine = jest.fn();
+const mockInvites = jest.fn();
+const mockCreateCollectif = jest.fn();
+jest.mock('../src/features/collectifs/api', () => ({
+  myCollectifs: () => mockMine(),
+  myCollectifInvitations: () => mockInvites(),
+  createCollectif: (...a: unknown[]) => mockCreateCollectif(...a),
+}));
 const mockCommune = jest.fn();
 jest.mock('../src/features/account/homeArea', () => ({
   currentCommune: () => mockCommune(),
@@ -116,6 +138,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockCurrent = mockSignedIn;
   mockGate.mockResolvedValue(false);
+  mockMine.mockResolvedValue({ ok: true, collectifs: [] });
+  mockInvites.mockResolvedValue({ ok: true, invitations: [] });
 });
 
 it('signed out shows Se connecter, language and privacy but no Mes données', async () => {
@@ -136,6 +160,68 @@ it('signed in shows the first name and Mes données', async () => {
   expect(screen.getByText('Télécharger mes données')).toBeTruthy();
   expect(screen.getByText('Se déconnecter')).toBeTruthy();
   expect(screen.getByText('Changer la photo')).toBeTruthy();
+});
+
+describe('mes collectifs', () => {
+  it('lists my collectifs and opens one', async () => {
+    mockMine.mockResolvedValue({
+      ok: true,
+      collectifs: [{ id: 'c1', name: 'Les Boulistes', townLabel: 'Lyon (69001)', role: 'responsable' }],
+    });
+    await render(<Profile />);
+    await fireEvent.press(await screen.findByText('Les Boulistes'));
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/collectifs/[id]', params: { id: 'c1' } });
+  });
+
+  it('refreshes the list when the screen regains focus', async () => {
+    await render(<Profile />);
+    await screen.findByText("Vous n'organisez aucun collectif pour l'instant.");
+    mockMine.mockResolvedValue({
+      ok: true,
+      collectifs: [{ id: 'c2', name: 'Les Joueurs', townLabel: 'Lyon', role: 'organiser' }],
+    });
+    await act(async () => {
+      mockFocusListeners.forEach((l) => l());
+    });
+    await screen.findByText('Les Joueurs');
+    expect(screen.queryByText("Vous n'organisez aucun collectif pour l'instant.")).toBeNull();
+  });
+
+  it('lists a pending invitation as such and opens the collectif page', async () => {
+    mockInvites.mockResolvedValue({
+      ok: true,
+      invitations: [{ id: 'c5', name: 'Les Marcheurs', townLabel: 'Lyon' }],
+    });
+    await render(<Profile />);
+    expect(await screen.findByText('Les Marcheurs')).toBeTruthy();
+    expect(screen.getByText('Lyon · Invitation en attente')).toBeTruthy();
+    expect(screen.queryByText("Vous n'organisez aucun collectif pour l'instant.")).toBeNull();
+    await fireEvent.press(screen.getByText('Les Marcheurs'));
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/collectifs/[id]', params: { id: 'c5' } });
+  });
+
+  it('says so when I organise none and offers to create one', async () => {
+    await render(<Profile />);
+    await screen.findByText("Vous n'organisez aucun collectif pour l'instant.");
+    expect(screen.getByText('Mes collectifs')).toBeTruthy();
+    expect(screen.getByText('Créer un collectif')).toBeTruthy();
+  });
+
+  it('creates a collectif and opens its page', async () => {
+    mockCreateCollectif.mockResolvedValue({ ok: true, id: 'c9' });
+    await render(<Profile />);
+    await fireEvent.press(await screen.findByText('Créer un collectif'));
+    await fireEvent.changeText(screen.getByLabelText('Nom du collectif'), 'Les Joueurs');
+    await fireEvent.press(screen.getByText('choisir Nantes'));
+    await fireEvent.press(screen.getByLabelText('Créer le collectif'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith({ pathname: '/collectifs/[id]', params: { id: 'c9' } }));
+  });
+
+  it('shows no collectifs section when signed out', async () => {
+    mockCurrent = mockSignedOut;
+    await render(<Profile />);
+    expect(screen.queryByText('Mes collectifs')).toBeNull();
+  });
 });
 
 it('opens the interests screen and the privacy policy', async () => {

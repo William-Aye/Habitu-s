@@ -4,14 +4,14 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useTranslation } from 'react-i18next';
 import type { ExploreKind, ExploreParams, Radius, Weekday } from '../types';
 
-export type FilterState = Pick<ExploreParams, 'kinds' | 'weekday' | 'radiusKm' | 'newcomerFriendly'>;
+export type FilterState = Pick<ExploreParams, 'kinds' | 'weekday' | 'radiusKm' | 'newcomerFriendly' | 'discoveryOnly'>;
 
 const RADII: Radius[] = [5, 10, 25, 50];
 const WEEKDAYS: Weekday[] = [1, 2, 3, 4, 5, 6, 7];
 
-/** Day and newcomer filters only apply to activities. */
-export function activitiesOnly(p: Pick<FilterState, 'weekday' | 'newcomerFriendly'>): boolean {
-  return p.weekday !== null || p.newcomerFriendly;
+/** Day, newcomer and discovery filters only apply to activities. */
+export function activitiesOnly(p: Pick<FilterState, 'weekday' | 'newcomerFriendly' | 'discoveryOnly'>): boolean {
+  return p.weekday !== null || p.newcomerFriendly || p.discoveryOnly;
 }
 
 export function effectiveKinds(p: FilterState): ExploreKind[] {
@@ -153,6 +153,11 @@ export function FilterChips({
           label={t('explore.filters.newcomers')}
           selected={params.newcomerFriendly}
           onPress={() => onChange({ newcomerFriendly: !params.newcomerFriendly })}
+        />
+        <Chip
+          label={t('explore.filters.discovery')}
+          selected={params.discoveryOnly}
+          onPress={() => onChange({ discoveryOnly: !params.discoveryOnly })}
         />
       </ScrollView>
       {restricted ? <Text style={styles.hint}>{t('explore.activitiesOnly')}</Text> : null}

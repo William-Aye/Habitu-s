@@ -25,7 +25,8 @@
       "newcomers": "Beginners welcome",
       "dayTitle": "Which day?",
       "distanceTitle": "Maximum distance",
-      "close": "Close"
+      "close": "Close",
+      "discovery": "Discovery sessions"
     },
     "sort": {
       "best": "Best match",
@@ -67,7 +68,11 @@
       "7": "Sunday",
       "all": "Every day"
     },
-    "retry": "Try again"
+    "retry": "Try again",
+    "launch": {
+      "title": "Start it yourself",
+      "body": "No activity near you for your interests yet. Be the first to offer one."
+    }
   },
   "association": {
     "verified": "Verified association",
@@ -94,9 +99,82 @@
     "waitError": "Could not save your request. Try again."
   },
   "activity": {
-    "placeholder": {
-      "title": "Activity"
-    }
+    "loading": "Loading",
+    "error": "Could not load this activity. Try again.",
+    "retry": "Try again",
+    "notFound": "This activity is no longer available",
+    "archivedNotice": "This activity is archived: other people can no longer see it.",
+    "organisedBy": "Organised by {{name}}",
+    "hostedBy": "Hosted by {{name}}",
+    "collectifLabel": "Collective — not a legal entity",
+    "openCollectif": "View the collective {{name}}",
+    "openAssociation": "View the listing of the association {{name}}",
+    "category": "Category: {{name}}",
+    "place": "Place: {{place}}",
+    "mapLabel": "Map of the meeting place: {{place}}",
+    "join": "Join",
+    "joining": "Sending",
+    "requested": "Request sent",
+    "withdraw": "Withdraw my request",
+    "leave": "Leave the activity",
+    "share": "Share",
+    "sharing": "Sharing",
+    "sessions": "Upcoming sessions",
+    "noSessions": "No session planned yet",
+    "photoOf": "Photo of {{name}}",
+    "session": {
+      "discovery": "Discovery session",
+      "full": "Full",
+      "imThere": "I'll be there",
+      "confirmed": "Confirmed",
+      "cancel": "Cancel",
+      "guest": "I'm bringing someone",
+      "addToCalendar": "Add to my calendar",
+      "calendarUnavailable": "The calendar cannot be opened on this device.",
+      "welcomeHint": "When you arrive, ask for {{prenom}}",
+      "lateCancel": "Late cancellation: less than 2 hours before the start, the organiser is told.",
+      "cancelled": "Session cancelled",
+      "youCancelled": "You cancelled your attendance.",
+      "count_one": "{{count}} confirmed",
+      "count_other": "{{count}} confirmed",
+      "attendees": "Confirmed attendees",
+      "guestAria": "I'm bringing someone to the session on {{date}}",
+      "confirmAria": "I'll be there on {{date}}",
+      "cancelAria": "Cancel my attendance on {{date}}",
+      "calendarAria": "Add the session on {{date}} to my calendar"
+    },
+    "organiser": {
+      "requests": "Requests to join",
+      "noRequests": "No pending request",
+      "accept": "Accept",
+      "refuse": "Decline",
+      "acceptAria": "Accept {{name}}'s request",
+      "refuseAria": "Decline {{name}}'s request",
+      "welcome": "Welcome person",
+      "welcomeNow": "Currently: {{prenom}}",
+      "welcomeNobody": "Nobody",
+      "welcomeMe": "Me",
+      "welcomeHint": "This person greets newcomers when they arrive.",
+      "editSession": "Edit the session",
+      "date": "Date (YYYY-MM-DD)",
+      "time": "Time (HH:MM)",
+      "placeLabel": "Session place",
+      "save": "Save",
+      "saving": "Saving",
+      "markDiscovery": "Mark as discovery session",
+      "unmarkDiscovery": "Remove the discovery mark",
+      "cancelSession": "Cancel the session",
+      "confirmCancelSession": "Confirm cancelling the session",
+      "keepSession": "Keep the session",
+      "close": "Close",
+      "invalid": "Invalid date or time. Use the formats YYYY-MM-DD and HH:MM.",
+      "archive": "Archive the activity",
+      "archiveAsk": "Archive this activity? Other people will no longer see it and no more sessions will be offered.",
+      "archiveYes": "Yes, archive",
+      "archiveNo": "No, keep it",
+      "tools": "Organiser tools"
+    },
+    "reminderFailed": "Your answer could not be saved. Please give it below."
   },
   "common": {
     "comingSoon": "Coming soon"
@@ -197,6 +275,226 @@
     "homeAreaNone": "Not set",
     "homeAreaChange": "Change",
     "homeAreaRemove": "Remove",
-    "homeAreaError": "Could not change your area. Try again."
+    "homeAreaError": "Could not change your area. Try again.",
+    "collectifs": {
+      "title": "My collectifs",
+      "none": "You do not organise any collectif yet.",
+      "create": "Create a collectif",
+      "open": "Open the collectif {{name}}",
+      "error": "Could not load your collectifs.",
+      "invitationPending": "Invitation pending",
+      "openInvitation": "Open the invitation to the collectif {{name}}"
+    }
+  },
+  "activities": {
+    "recurrence": {
+      "weekly": "Every week",
+      "everyNDays": "Every {{n}} days",
+      "weekdays": "Some days",
+      "atTime": "{{label}} at {{time}}",
+      "weeklyOn": "{{label}} on {{day}} at {{time}}",
+      "dayItem": "{{day}}",
+      "list": "{{head}} and {{last}}",
+      "onDays": "On {{days}} at {{time}}"
+    },
+    "share": {
+      "message": "{{titre}} on Habitués: {{url}}"
+    }
+  },
+  "create": {
+    "title": "Create an activity",
+    "progress": "Step {{n}} of {{total}}",
+    "next": "Next",
+    "back": "Back",
+    "publish": "Publish",
+    "publishing": "Publishing",
+    "loading": "Loading",
+    "retry": "Try again",
+    "steps": {
+      "who": "Who organises it?",
+      "what": "What?",
+      "where": "Where?",
+      "when": "When?",
+      "settings": "Settings"
+    },
+    "errors": {
+      "limit_reached": "Daily limit reached: you can create 3 activities and 2 collectifs per 24 hours. Try again later.",
+      "not_allowed": "To organise, your profile must be complete and your account at least 24 hours old. Try again later.",
+      "session_full": "This activity is full.",
+      "network": "Cannot connect. Check your network and try again.",
+      "unknown": "Something went wrong. Try again.",
+      "association_unavailable": "This association no longer accepts linked activities. Choose another option."
+    },
+    "who": {
+      "me": "Me",
+      "collectif": "A collectif",
+      "association": "An association",
+      "meHint": "You organise with your friends, with nothing else to fill in.",
+      "collectifLabel": "Collectif — no legal status",
+      "collectifNone": "You do not run any collectif yet.",
+      "collectifError": "Could not load your collectifs.",
+      "createCollectif": "Create a collectif",
+      "associationSearch": "Search for an association",
+      "associationNone": "No association found.",
+      "associationRule": "Only unverified associations, or ones you have claimed, can be chosen.",
+      "associationError": "The search failed. Try again.",
+      "unlisted": "Not in the list?",
+      "addClub": "Add this club",
+      "clubName": "Name of the club or association",
+      "clubWebsite": "Website or contact (optional)",
+      "clubHint": "It will be added to the directory marked \"Added by the community\", then checked by our team.",
+      "clubSubmit": "Add to the directory",
+      "clubCancel": "Cancel",
+      "clubError": "Could not add this club. Try again.",
+      "clubLimit": "You have already added 5 clubs today, which is the limit per 24 hours. Try again later.",
+      "clubWebsiteInvalid": "Invalid web address: enter a website (for example boules.example) without spaces."
+    },
+    "collectifForm": {
+      "name": "Collectif name",
+      "description": "Collectif description",
+      "town": "Town: {{town}}",
+      "townNone": "Choose the collectif's town",
+      "submit": "Create the collectif",
+      "cancel": "Cancel",
+      "creating": "Creating"
+    },
+    "what": {
+      "category": "Category",
+      "categorySearch": "Search for a category",
+      "categoriesError": "Could not load the categories.",
+      "title": "Title",
+      "description": "Description",
+      "templates": "Ideas to get started",
+      "counter": "{{n}} / {{max}}"
+    },
+    "templates": {
+      "games": {
+        "title": "Weekly board game night",
+        "description": "A friendly evening of board games. Beginners are welcome and everyone can bring a game."
+      },
+      "running": {
+        "title": "Sunday run",
+        "description": "An easy group jog on Sunday morning, at the pace of the slowest. All levels."
+      },
+      "languages": {
+        "title": "Language exchange at the café",
+        "description": "A meet-up to practise languages over a drink. All languages and all levels are welcome."
+      }
+    },
+    "where": {
+      "homeTip": "Do not meet at your home: the group would know where you live. Choose a public place (café, park, hall, association premises).",
+      "near": "Near {{town}}",
+      "changeTown": "Change town",
+      "mapHint": "Touch the map to move the pin to the meeting place.",
+      "mapLabel": "Map of the meeting place",
+      "placeLabel": "Place name",
+      "placePlaceholder": "For example: Café des Arts, Tête d'Or park"
+    },
+    "when": {
+      "date": "Start date",
+      "dateHint": "Format YYYY-MM-DD, today or later",
+      "time": "Time",
+      "timeHint": "Format HH:MM",
+      "recurrence": "Repeat",
+      "days": "Number of days",
+      "daysHint": "Between 2 and 60 days",
+      "weekdays": "Days of the week",
+      "summary": "Summary: {{text}}",
+      "weekday": {
+        "1": "Monday",
+        "2": "Tuesday",
+        "3": "Wednesday",
+        "4": "Thursday",
+        "5": "Friday",
+        "6": "Saturday",
+        "7": "Sunday"
+      }
+    },
+    "settings": {
+      "maxSize": "Maximum number of participants",
+      "maxSizeHint": "Leave empty for no limit (otherwise between 2 and 200).",
+      "newcomers": "Beginners welcome",
+      "access": "Access",
+      "open": "Open to all",
+      "approval": "On request"
+    },
+    "done": {
+      "title": "Share it with your friends",
+      "body": "Your activity \"{{title}}\" is published.",
+      "share": "Share",
+      "view": "View the activity"
+    }
+  },
+  "collectif": {
+    "label": "Collective — not a legal entity",
+    "loading": "Loading",
+    "error": "Could not load this collectif. Try again.",
+    "retry": "Try again",
+    "notFound": "This collectif no longer exists",
+    "mapLabel": "Map of {{place}}",
+    "organisers": "Organisers",
+    "role": {
+      "responsable": "Person in charge",
+      "organiser": "Organiser"
+    },
+    "activities": "Activities",
+    "noActivities": "No activities yet",
+    "next": "Next session: {{date}}",
+    "createActivity": "Create an activity",
+    "edit": "Edit the collectif",
+    "changeTown": "Change town",
+    "save": "Save",
+    "saving": "Saving",
+    "cancel": "Cancel",
+    "close": "Close",
+    "invite": "Invite an organiser",
+    "inviteAction": "Invite",
+    "inviteName": "Invite {{name}}",
+    "inviteNone": "Nobody to invite yet. Only members of the collectif’s activities who are able to organise are suggested.",
+    "invited": "{{name}} has been invited.",
+    "invitation": {
+      "banner": "You are invited to organise this collectif.",
+      "accept": "Accept",
+      "decline": "Decline",
+      "declined": "Invitation declined."
+    },
+    "leave": "Leave the collectif",
+    "leaveConfirm": "Leave this collectif?",
+    "leaveBody": "You will no longer be an organiser. The collectif and its activities stay online.",
+    "leaveBodyPassOn": "The person-in-charge role will pass to the longest-serving organiser. The collectif and its activities stay online.",
+    "leaveBodyDelete": "You are the only organiser: the collectif will be deleted. Its activities stay online and show their organiser.",
+    "leaveAction": "Leave",
+    "delete": "Delete the collectif",
+    "deleteConfirm": "Delete this collectif?",
+    "deleteBody": "The collectif’s activities stay online and show their organiser. This cannot be undone.",
+    "deleteAction": "Delete",
+    "errors": {
+      "limit_reached": "Limit reached: you can invite 10 people per 24 hours. Try again later.",
+      "not_allowed": "Not possible: your permissions may have changed. Reopen the page and try again.",
+      "network": "Cannot connect. Check your network and try again.",
+      "unknown": "Something went wrong. Try again."
+    }
+  },
+  "notifications": {
+    "yes": "Yes",
+    "no": "Not this time"
+  },
+  "mine": {
+    "organising": "I organise",
+    "participating": "I take part",
+    "empty": "No activities yet",
+    "create": "Create an activity",
+    "explore": "Explore",
+    "loading": "Loading",
+    "error": "Could not load your activities. Try again.",
+    "retry": "Try again",
+    "open": "Open the activity {{title}}",
+    "noSession": "No upcoming session",
+    "next": "Next session: {{date}}",
+    "confirmed": "Confirmed",
+    "requested": "Request sent",
+    "imThere": "I'll be there",
+    "imThereAria": "I'll be there on {{date}}",
+    "actionError": "Could not save your answer. Try again."
   }
 }

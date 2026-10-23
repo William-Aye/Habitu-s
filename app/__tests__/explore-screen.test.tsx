@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import type { ExploreParams, ExploreResponse, ExploreResult } from '../src/features/explore/types';
 import { initI18n } from '../src/i18n';
+import { router } from 'expo-router';
 import Explore from '../src/app/(tabs)/index';
 import { useExploreLocation } from '../src/features/explore/useExploreLocation';
 import { useExploreSearch } from '../src/features/explore/useExploreSearch';
@@ -238,15 +239,101 @@ it('asks for a location instead of showing results when none is set', async () =
   expect(mockSearch).toHaveBeenLastCalledWith(null);
 });
 
-it('offers create and feedback buttons on an empty search, with a coming-soon notice', async () => {
+it('offers a feedback button on an empty search, with a coming-soon notice', async () => {
   setSearch(response([]));
   await render(<Explore />);
   await fireEvent.changeText(screen.getByPlaceholderText(PLACEHOLDER), 'zzz');
   expect(screen.getByText("Aucun résultat pertinent près d'ici")).toBeTruthy();
-  expect(screen.getByText('Créer une activité')).toBeTruthy();
-  await fireEvent.press(screen.getByText('Créer une activité'));
+  await fireEvent.press(screen.getByText('Une idée ? Un problème ?'));
   expect(screen.getByText('Bientôt disponible')).toBeTruthy();
-  expect(screen.getByText('Une idée ? Un problème ?')).toBeTruthy();
+});
+
+describe('creating an activity from Explore', () => {
+  beforeEach(() => (router.push as jest.Mock).mockClear());
+
+  it('always shows a Créer une activité button that opens the flow', async () => {
+    setSearch(response([result('a', { title: 'Alpha' })]));
+    await render(<Explore />);
+    expect(screen.getAllByText('Créer une activité')).toHaveLength(1);
+    await fireEvent.press(screen.getByLabelText('Créer une activité'));
+    expect(router.push).toHaveBeenCalledWith({ pathname: '/activites/new', params: {} });
+  });
+
+  it('prompts Lancez-la vous-même when interests exist and no activity is nearby', async () => {
+    mockInterests.value = { interests: { a: 'like', b: 'love' }, loading: false };
+    setSearch(response([result('x', { kind: 'association', title: 'Club' })], { mode: 'browse' }));
+    await render(<Explore />);
+    expect(screen.getByText('Club')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Lancez-la vous-même'));
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/activites/new',
+      params: { category: 'b' },
+    });
+  });
+
+  it('prompts on an empty result too', async () => {
+    mockInterests.value = { interests: { a: 'like' }, loading: false };
+    setSearch(response([], { mode: 'browse' }));
+    await render(<Explore />);
+    expect(screen.getByText('Lancez-la vous-même')).toBeTruthy();
+  });
+
+  it.each([
+    ['there are activities nearby', { a: 'like' }, [result('a')], ''],
+    ['the user has no interests', {}, [], ''],
+    ['the user is searching', { a: 'like' }, [], 'judo'],
+  ])('does not prompt when %s', async (_n, interests, rs, query) => {
+    mockInterests.value = { interests: interests as Record<string, string>, loading: false };
+    setSearch(response(rs as ExploreResult[]));
+    await render(<Explore />);
+    if (query) await fireEvent.changeText(screen.getByPlaceholderText(PLACEHOLDER), query);
+    expect(screen.queryByText('Lancez-la vous-même')).toBeNull();
+  });
+
+  it('does not prompt while more pages may hold activities', async () => {
+    mockInterests.value = { interests: { a: 'like' }, loading: false };
+    setSearch(response([result('x', { kind: 'association', title: 'Club' })], { mode: 'browse', hasMore: true }));
+    await render(<Explore />);
+    expect(screen.queryByText('Lancez-la vous-même')).toBeNull();
+  });
+
+  it('does not prompt when the activities kind is switched off', async () => {
+    mockInterests.value = { interests: { a: 'like' }, loading: false };
+    setSearch(response([], { mode: 'browse' }));
+    await render(<Explore />);
+    expect(screen.getByText('Lancez-la vous-même')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Activités'));
+    expect(screen.queryByText('Lancez-la vous-même')).toBeNull();
+  });
+
+  it('does not prompt while results are not loaded', async () => {
+    mockInterests.value = { interests: { a: 'like' }, loading: false };
+    setSearch(null);
+    await render(<Explore />);
+    expect(screen.queryByText('Lancez-la vous-même')).toBeNull();
+  });
+});
+
+it('sends discoveryOnly with the Séances découverte chip, restricted to activities', async () => {
+  await render(<Explore />);
+  expect(lastParams().discoveryOnly).toBe(false);
+  await fireEvent.press(screen.getByText('Séances découverte'));
+  expect(lastParams().discoveryOnly).toBe(true);
+  expect(lastParams().kinds).toEqual(['activity']);
+  expect(screen.getByText('Ce filtre concerne les activités')).toBeTruthy();
+  await fireEvent.press(screen.getByText('Séances découverte'));
+  expect(lastParams().discoveryOnly).toBe(false);
+});
+
+it('shows a collectif card with its label and opens the collectif page', async () => {
+  (router.push as jest.Mock).mockClear();
+  setSearch(response([result('c1', { kind: 'collectif', title: 'Les Marcheurs', sourceLabel: 'collectif' })]));
+  await render(<Explore />);
+  expect(screen.getByText('Collectif — sans statut juridique')).toBeTruthy();
+  await fireEvent.press(
+    screen.getByLabelText('Les Marcheurs, 1,0 km, Collectif — sans statut juridique'),
+  );
+  expect(router.push).toHaveBeenCalledWith({ pathname: '/collectifs/[id]', params: { id: 'c1' } });
 });
 
 it('contains no emoji in rendered text', async () => {

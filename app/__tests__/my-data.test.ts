@@ -169,6 +169,24 @@ describe('deleteMyAccount', () => {
     expect(await AsyncStorage.getItem('onboarding.done')).toBeNull();
   });
 
+  it('deletes the push tokens of the user before the account', async () => {
+    const eq = jest.fn(async () => ({ error: null }));
+    const del = jest.fn(() => ({ eq }));
+    from.mockReturnValue({ delete: del });
+    await deleteMyAccount();
+    expect(from).toHaveBeenCalledWith('push_tokens');
+    expect(eq).toHaveBeenCalledWith('user_id', 'u1');
+    expect(eq.mock.invocationCallOrder[0]).toBeLessThan(rpc.mock.invocationCallOrder[0]);
+  });
+
+  it('still deletes the account when the push tokens cannot be removed', async () => {
+    from.mockImplementationOnce(() => {
+      throw new Error('boom');
+    });
+    expect(await deleteMyAccount()).toEqual({ ok: true });
+    expect(rpc).toHaveBeenCalledWith('delete_my_account');
+  });
+
   it('clears the local keys before signing out, then notifies the interests and Explore state', async () => {
     const order: string[] = [];
     (signOut as jest.Mock).mockImplementationOnce(async () => {

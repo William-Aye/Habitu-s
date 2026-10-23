@@ -4,6 +4,7 @@ select plan(40);
 select tests.create_user('carol@test.fr', 'Carol') as carol \gset
 select tests.create_user('dave@test.fr', 'Dave') as dave \gset
 select tests.create_user('root@test.fr', 'Root') as root \gset
+update profiles set age_confirmed = true, created_at = now() - interval '2 days';
 insert into associations (id, name, source, rna_id) values ('00000000-0000-0000-0000-0000000000a1', 'Club de Go de Lyon', 'rna', 'W691000001');
 insert into associations (id, name, source, rna_id) values ('00000000-0000-0000-0000-0000000000a2', 'Echecs Paris', 'rna', 'W751000002');
 insert into tags (id, slug, label_fr, label_en) values ('00000000-0000-0000-0000-0000000000b1', 'go', 'Go', 'Go');

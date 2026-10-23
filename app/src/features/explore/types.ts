@@ -10,11 +10,15 @@ export interface ExploreParams {
   weekday: Weekday | null;
   newcomerFriendly: boolean;
   interestCategoryIds: string[];
+  discoveryOnly: boolean;
   sort: 'best' | 'nearest';
 }
 
+/** A result is an activity, an association or a collectif (returned with associations). */
+export type ResultKind = ExploreKind | 'collectif';
+
 export interface ExploreResult {
-  kind: ExploreKind;
+  kind: ResultKind;
   id: string;
   title: string;
   subtitle: string | null;
@@ -26,7 +30,7 @@ export interface ExploreResult {
   label: 'very_relevant' | 'relevant' | 'weak' | null;
   isWeak: boolean;
   isNew: boolean;
-  sourceLabel: 'community' | 'unverified' | null;
+  sourceLabel: 'community' | 'unverified' | 'collectif' | null;
   tagSlugs: string[];
 }
 
