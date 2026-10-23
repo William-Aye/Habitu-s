@@ -43,6 +43,11 @@ revoke all on function public.messages_guard() from public, anon, authenticated;
 create trigger messages_guard before insert on public.messages
   for each row execute function public.messages_guard();
 
+-- How much history a new member sees: everything (default) or only what follows their arrival.
+-- The organiser always sees everything. The existing update policy and table grants already let the organiser set it.
+alter table public.activities
+  add column chat_history text not null default 'all' check (chat_history in ('all', 'since_join'));
+
 -- Keyset paging of a discussion.
 drop index public.messages_activity_created;
 create index messages_activity_created on public.messages (activity_id, created_at desc, id desc);
@@ -95,13 +100,18 @@ declare
   v_title text;
   v_organiser uuid;
   v_muted boolean;
+  v_history text;
+  v_since timestamptz := '-infinity';
   v_rows jsonb;
 begin
   if auth.uid() is null or not public.is_activity_member(p_activity) then
     return null;
   end if;
-  select a.archived_at is not null, a.title, a.organiser_id into v_archived, v_title, v_organiser
+  select a.archived_at is not null, a.title, a.organiser_id, a.chat_history into v_archived, v_title, v_organiser, v_history
     from public.activities a where a.id = p_activity;
+  if v_history = 'since_join' and v_organiser <> auth.uid() then
+    v_since := public.chat_joined_at(p_activity, auth.uid());
+  end if;
   select cs.muted into v_muted from public.chat_states cs where cs.activity_id = p_activity and cs.user_id = auth.uid();
   if p_after_at is not null and p_before_at is null then
     select coalesce(jsonb_agg(jsonb_build_object(
@@ -113,7 +123,7 @@ begin
         select m.id, m.body, m.created_at, m.sender_id, p.first_name, p.photo_url
           from public.messages m
           join public.profiles p on p.id = m.sender_id
-         where m.activity_id = p_activity
+         where m.activity_id = p_activity and m.created_at >= v_since
            and (m.created_at, m.id) > (p_after_at, coalesce(p_after_id, 'ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid))
            and not public.is_blocked_between(m.sender_id)
          order by m.created_at asc, m.id asc
@@ -129,7 +139,7 @@ begin
         select m.id, m.body, m.created_at, m.sender_id, p.first_name, p.photo_url
           from public.messages m
           join public.profiles p on p.id = m.sender_id
-         where m.activity_id = p_activity
+         where m.activity_id = p_activity and m.created_at >= v_since
            and (p_before_at is null
                 or (m.created_at, m.id) < (p_before_at, coalesce(p_before_id, '00000000-0000-0000-0000-000000000000'::uuid)))
            and (p_after_at is null
@@ -163,7 +173,7 @@ begin
              lm.first_name as lm_first_name, lm.sender_id as lm_sender,
              (select count(*)::int from (
                 select 1 from public.messages m
-                 where m.activity_id = a.id and m.sender_id <> v_uid
+                 where m.activity_id = a.id and m.sender_id <> v_uid and m.created_at >= j.since
                    and m.created_at > greatest(coalesce(cs.last_read_at, j.joined), j.joined)
                    and not public.is_blocked_between(m.sender_id)
                  limit 99) u) as unread
@@ -172,14 +182,16 @@ begin
               select am.activity_id from public.activity_members am
                where am.user_id = v_uid and am.status = 'member') mine
         join public.activities a on a.id = mine.id
-        cross join lateral (select public.chat_joined_at(a.id, v_uid) as joined) j
+        cross join lateral (select public.chat_joined_at(a.id, v_uid) as joined,
+                                   case when a.chat_history = 'since_join' and a.organiser_id <> v_uid
+                                        then public.chat_joined_at(a.id, v_uid) else '-infinity'::timestamptz end as since) j
         left join public.chat_states cs on cs.activity_id = a.id and cs.user_id = v_uid
         left join lateral (
           select m.body, m.created_at, m.sender_id, p.first_name
             from public.messages m join public.profiles p on p.id = m.sender_id
-           where m.activity_id = a.id and not public.is_blocked_between(m.sender_id)
+           where m.activity_id = a.id and m.created_at >= j.since and not public.is_blocked_between(m.sender_id)
            order by m.created_at desc, m.id desc limit 1) lm on true
-       where a.archived_at is null or exists (select 1 from public.messages m where m.activity_id = a.id)
+       where a.archived_at is null or exists (select 1 from public.messages m where m.activity_id = a.id and m.created_at >= j.since)
     ) c), '[]'::jsonb);
 end $$;
 revoke all on function public.my_chats() from public, anon;
@@ -198,10 +210,13 @@ begin
             union
             select am.activity_id from public.activity_members am
              where am.user_id = v_uid and am.status = 'member') mine
-      cross join lateral (select public.chat_joined_at(mine.id, v_uid) as joined) j
+      join public.activities a on a.id = mine.id
+      cross join lateral (select public.chat_joined_at(mine.id, v_uid) as joined,
+                                 case when a.chat_history = 'since_join' and a.organiser_id <> v_uid
+                                      then public.chat_joined_at(mine.id, v_uid) else '-infinity'::timestamptz end as since) j
       left join public.chat_states cs on cs.activity_id = mine.id and cs.user_id = v_uid
       join public.messages m on m.activity_id = mine.id and m.sender_id <> v_uid
-       and m.created_at > greatest(coalesce(cs.last_read_at, j.joined), j.joined)
+       and m.created_at > greatest(coalesce(cs.last_read_at, j.joined), j.joined) and m.created_at >= j.since
      where not public.is_blocked_between(m.sender_id)
      limit 999) u);
 end $$;
@@ -252,6 +267,68 @@ end $$;
 revoke all on function public.prune_messages() from public, anon, authenticated;
 -- pg_cron runs in UTC: 04:10 UTC is 05:10 or 06:10 in Paris, still a quiet hour.
 select cron.schedule('prune-messages', '10 4 * * *', 'select public.prune_messages()');
+
+-- People keep the right to delete what they wrote in activities they left.
+create function public.delete_my_messages_in_left_activities() returns int
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_count int;
+begin
+  if auth.uid() is null then raise exception 'not authenticated' using errcode = '42501'; end if;
+  delete from public.messages m
+   where m.sender_id = auth.uid() and m.activity_id is not null and not public.is_activity_member(m.activity_id);
+  get diagnostics v_count = row_count;
+  return v_count;
+end $$;
+revoke all on function public.delete_my_messages_in_left_activities() from public, anon;
+grant execute on function public.delete_my_messages_in_left_activities() to authenticated;
+
+-- A report keeps a copy of the reported message, for moderation, as long as the report exists (so it
+-- survives deleting the message and the 12-month prune). Admin-only table: reporters cannot read it,
+-- and no client can write it.
+create table public.report_snapshots (
+  report_id uuid primary key references public.reports on delete cascade,
+  snapshot jsonb not null
+);
+alter table public.report_snapshots enable row level security;
+revoke all on public.report_snapshots from public, anon, authenticated;
+grant select on public.report_snapshots to authenticated;
+create policy report_snapshots_admin on public.report_snapshots for select to authenticated
+  using (public.is_admin());
+
+-- Refuses a report on a message the reporter cannot currently see (no fishing for contents by id).
+create function public.reports_check_message() returns trigger
+language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  if new.target_type = 'message' and current_setting('role', true) in ('anon', 'authenticated') then
+    if not exists (select 1 from public.messages m
+                    where m.id = new.target_id and m.activity_id is not null
+                      and public.is_activity_member(m.activity_id)
+                      and not public.is_blocked_between(m.sender_id)) then
+      raise exception 'not_allowed' using errcode = '42501';
+    end if;
+  end if;
+  return new;
+end $$;
+revoke all on function public.reports_check_message() from public, anon, authenticated;
+create trigger reports_check_message before insert on public.reports
+  for each row execute function public.reports_check_message();
+
+create function public.reports_snapshot_message() returns trigger
+language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  if new.target_type = 'message' then
+    insert into public.report_snapshots (report_id, snapshot)
+    select new.id, jsonb_build_object('body', m.body, 'sender_id', m.sender_id,
+                                      'activity_id', m.activity_id, 'created_at', m.created_at)
+      from public.messages m where m.id = new.target_id
+    on conflict do nothing;
+  end if;
+  return null;
+end $$;
+revoke all on function public.reports_snapshot_message() from public, anon, authenticated;
+create trigger reports_snapshot_message after insert on public.reports
+  for each row execute function public.reports_snapshot_message();
 
 -- Data export: migration 23's definition, plus chat_states.
 create or replace function public.export_my_data() returns jsonb
