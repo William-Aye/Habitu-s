@@ -13,6 +13,7 @@ export function mapError(error: PgError): ApiError {
     // The guard on activities.organised_by_association_id (the association was verified meanwhile).
     return message.includes('association not linkable') ? 'association_unavailable' : 'not_allowed';
   }
+  if (error.code === '22023' && message.includes('invalid_website')) return 'invalid_website';
   // Unique violation: rejoining after removal, or a double tap.
   if (error.code === '23505') return 'not_allowed';
   if (message.includes('session_full')) return 'session_full';

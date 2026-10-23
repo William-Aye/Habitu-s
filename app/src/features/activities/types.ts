@@ -26,6 +26,7 @@ export type ApiError =
   | 'limit_reached'
   | 'not_allowed'
   | 'association_unavailable'
+  | 'invalid_website'
   | 'session_full'
   | 'network'
   | 'unknown';

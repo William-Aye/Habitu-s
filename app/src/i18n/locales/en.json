@@ -259,7 +259,8 @@
       "clubSubmit": "Add to the directory",
       "clubCancel": "Cancel",
       "clubError": "Could not add this club. Try again.",
-      "clubLimit": "You have already added 5 clubs today, which is the limit per 24 hours. Try again later."
+      "clubLimit": "You have already added 5 clubs today, which is the limit per 24 hours. Try again later.",
+      "clubWebsiteInvalid": "Invalid web address: enter a website (for example boules.example) without spaces."
     },
     "collectifForm": {
       "name": "Collectif name",

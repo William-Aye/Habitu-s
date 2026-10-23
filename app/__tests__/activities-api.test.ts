@@ -98,6 +98,7 @@ describe('mapError', () => {
     expect(mapError({ code: 'P0001', message: 'session_full' })).toBe('session_full');
     expect(mapError({ message: 'TypeError: Network request failed' })).toBe('network');
     expect(mapError({ code: '23505', message: 'duplicate key' })).toBe('not_allowed');
+    expect(mapError({ code: '22023', message: 'invalid_website' })).toBe('invalid_website');
     expect(mapError({ code: '22000', message: 'other' })).toBe('unknown');
   });
 
@@ -141,6 +142,20 @@ describe('addCommunityAssociation', () => {
       source: 'community',
       created_by: 'me',
     });
+  });
+
+  it.each(['javascript:x', 'mailto:a@b.fr', 'two words.example', 'ftp://x.example'])(
+    'refuses %s without calling the database',
+    async (website) => {
+      expect(await addCommunityAssociation({ name: 'Club', website })).toEqual({ ok: false, error: 'invalid_website' });
+      expect(mockFrom).not.toHaveBeenCalled();
+    },
+  );
+
+  it('treats host:port as a bare domain', async () => {
+    result = { data: { id: 'a9' }, error: null };
+    await addCommunityAssociation({ name: 'Club', website: 'boules.example:8080/x' });
+    expect(lastCall('insert')?.args[0]).toMatchObject({ website: 'https://boules.example:8080/x' });
   });
 
   it('keeps an http(s) link, sends null for an empty one and maps the limit', async () => {

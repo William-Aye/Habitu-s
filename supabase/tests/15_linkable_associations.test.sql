@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(18);
+select plan(21);
 select tests.create_user('me@la.fr', 'Mia') as me \gset
 select tests.create_user('other@la.fr', 'Omar') as other \gset
 select tests.create_user('fresh@la.fr', 'Nina') as fresh \gset
@@ -27,6 +27,27 @@ select is((select count(*) from public.search_linkable_associations('é'))::int,
 select is((select count(*) from public.search_linkable_associations('club'))::int, 0, 'a query the normaliser empties falls back to the plain name');
 select is((select count(*) from public.search_linkable_associations('%%'))::int, 0, 'wildcards are plain characters');
 select is((select count(*) from public.search_linkable_associations('Echecs', 1))::int, 1, 'limit is honoured');
+
+select tests.act_as_superuser();
+insert into associations (name, source, verified) values ('Club_X', 'rna', false), ('Club Y', 'rna', false);
+select tests.act_as(:'me');
+select is((select array_agg(name) from public.search_linkable_associations('club_')), array['Club_X'],
+  'an underscore is literal, not a wildcard');
+
+-- the trigram indexes serve the searches
+select tests.act_as_superuser();
+create function pg_temp.plan_of(q text) returns text language plpgsql as $$
+declare r text; t text := '';
+begin
+  for r in execute 'explain ' || q loop t := t || r || ' '; end loop;
+  return t;
+end $$;
+set local enable_seqscan = off;
+select matches(pg_temp.plan_of($$ select id from associations where name_norm ilike '%echecs%' $$),
+  'associations_name_norm_trgm', 'the normalised-name search uses its trigram index');
+select matches(pg_temp.plan_of($$ select id from associations where name ilike '%club%' $$),
+  'associations_name_trgm', 'the raw-name fallback uses its trigram index');
+set local enable_seqscan = on;
 
 select tests.act_as(:'other');
 select is((select array_agg(name order by name) from public.search_linkable_associations('Echecs')),

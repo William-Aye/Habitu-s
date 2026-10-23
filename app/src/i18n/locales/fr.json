@@ -259,7 +259,8 @@
       "clubSubmit": "Ajouter à l'annuaire",
       "clubCancel": "Annuler",
       "clubError": "Impossible d'ajouter ce club. Réessayez.",
-      "clubLimit": "Vous avez déjà ajouté 5 clubs aujourd'hui, c'est la limite par période de 24 heures. Réessayez plus tard."
+      "clubLimit": "Vous avez déjà ajouté 5 clubs aujourd'hui, c'est la limite par période de 24 heures. Réessayez plus tard.",
+      "clubWebsiteInvalid": "Adresse web invalide : saisissez un site (par exemple boules.example) sans espace."
     },
     "collectifForm": {
       "name": "Nom du collectif",

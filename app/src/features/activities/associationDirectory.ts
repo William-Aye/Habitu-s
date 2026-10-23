@@ -17,7 +17,7 @@ const MAX_RESULTS = 10;
  */
 export async function searchLinkableAssociations(q: string): Promise<LinkableAssociation[]> {
   const term = q.trim();
-  if (term.length < 2) return [];
+  if (term.length < 3) return [];
   const { data, error } = await supabase.rpc('search_linkable_associations', {
     p_query: term,
     p_limit: MAX_RESULTS,
@@ -26,11 +26,18 @@ export async function searchLinkableAssociations(q: string): Promise<LinkableAss
   return (data ?? []).map((r) => ({ id: r.id, name: r.name, city: r.city ?? null, postcode: r.postcode ?? null }));
 }
 
-/** The database accepts web links only: a bare domain gets https://. */
-function webLink(text: string): string | null {
+/**
+ * The database accepts web links only. Empty gives null, a bare domain gets https://, and
+ * anything with spaces or another scheme (javascript:, mailto:...) is invalid (undefined).
+ */
+export function webLink(text: string): string | null | undefined {
   const value = text.trim();
   if (value === '') return null;
-  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+  if (/\s/.test(value)) return undefined;
+  if (/^https?:\/\//i.test(value)) return value;
+  // "host:8080/path" is a bare domain with a port, any other "word:" is a scheme.
+  if (/^[a-z][a-z0-9+.-]*:(?!\d+(\/|$))/i.test(value)) return undefined;
+  return `https://${value}`;
 }
 
 /**
@@ -41,13 +48,15 @@ export function addCommunityAssociation(input: {
   name: string;
   website: string;
 }): Promise<ApiResult<{ id: string }>> {
+  const website = webLink(input.website);
+  if (website === undefined) return Promise.resolve({ ok: false, error: 'invalid_website' });
   return runAsUser(
     (userId) =>
       supabase
         .from('associations')
         .insert({
           name: input.name.trim(),
-          website: webLink(input.website),
+          website,
           source: 'community',
           created_by: userId,
         })

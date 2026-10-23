@@ -150,7 +150,9 @@ function AddClubForm({ onAdded, onCancel }: { onAdded(a: { id: string; name: str
             ? t('create.who.clubLimit')
             : error === 'not_allowed'
               ? t('create.errors.not_allowed')
-              : t('create.who.clubError')}
+              : error === 'invalid_website'
+                ? t('create.who.clubWebsiteInvalid')
+                : t('create.who.clubError')}
         </Text>
       ) : null}
       <Pressable
@@ -179,10 +181,10 @@ function AssociationChoice({ form, set }: StepProps) {
   const [adding, setAdding] = useState(false);
   const query = q.trim();
   // Without an id the search cannot run: say so instead of staying silent.
-  const unavailable = failed || (query.length >= 2 && !userId);
+  const unavailable = failed || (query.length >= 3 && !userId);
 
   useEffect(() => {
-    if (query.length < 2 || !userId) return;
+    if (query.length < 3 || !userId) return;
     let cancelled = false;
     const timer = setTimeout(() => {
       searchLinkableAssociations(query)
@@ -210,7 +212,7 @@ function AssociationChoice({ form, set }: StepProps) {
       />
     );
   }
-  const shown = query.length >= 2 ? results : [];
+  const shown = query.length >= 3 ? results : [];
   return (
     <View style={s.container}>
       <TextInput
@@ -234,7 +236,7 @@ function AssociationChoice({ form, set }: StepProps) {
         />
       ))}
       {unavailable ? <Text style={s.error}>{t('create.who.associationError')}</Text> : null}
-      {query.length >= 2 && !unavailable && shown.length === 0 ? <Text>{t('create.who.associationNone')}</Text> : null}
+      {query.length >= 3 && !unavailable && shown.length === 0 ? <Text>{t('create.who.associationNone')}</Text> : null}
       <Text>{t('create.who.unlisted')}</Text>
       <Pressable
         accessibilityRole="button"

@@ -262,6 +262,7 @@ it('adds an unlisted club through the community path and selects it', async () =
 });
 
 it.each([
+  ['invalid_website', /Adresse web invalide/],
   ['limit_reached', /5 clubs/],
   ['not_allowed', /au moins 24 heures/],
 ])('explains %s when adding a club', async (error, message) => {
