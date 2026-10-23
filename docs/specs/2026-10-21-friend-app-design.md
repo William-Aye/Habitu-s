@@ -37,6 +37,7 @@ The biggest risk for an app like this is looking empty on day one. The answer is
 | **Organisateur / Organiser** | The user who created the activity. Keeps the highest rights. |
 | **Co-organisateur / Co-organiser** | A member the organiser chose (and who accepted) to help run the activity, e.g. while the organiser is away. Fewer rights than the organiser (section 8). |
 | **Club ou association / Club or association** | An organisation listed in the directory (imported from open data, or added by the community). Optional "organised by" label on an activity. |
+| **Collectif / Collective** | An informal group of people who organise activities together, with no legal status (an *association de fait*). Created in the app by a member; shown with the label "Collectif — sans statut juridique" (section 8). |
 | **Habitués / Regulars** | Two users who attended at least 3 sessions of the same activity together. |
 | **Organisateur de confiance / Trusted organiser** | Pass/fail safety badge earned by organisers (section 9). Not a rating. |
 | **Ambiance** | Descriptive words chosen by participants after a session, shown on the activity page (section 9). |
@@ -99,6 +100,9 @@ Expected offset from ads: see section 10.
 | `attendances` | session + user + status: `confirmed`, `cancelled`, `cancelled_late`, `no_show` |
 | `messages` | activity chat messages; private messages between regulars |
 | `associations` | name, purpose text, RNA id, OSM id, address, location point, website, phone, opening hours, tags, embedding, confidence score, `likely_not_public` flag, `source` (`rna`, `osm`, `rna+osm`, `community`), claimed_by, verified, user-edited fields lock, source attribution |
+| `collectifs` | name, description, town (commune centre point + label), created_by, created_at; never touched by the import |
+| `collectif_members` | collectif + user + role (`responsable`, `organiser`) + status (`invited`, `active`) |
+| `activities.organised_by_collectif_id` | optional; an activity has at most one of `organised_by_association_id` / `organised_by_collectif_id` |
 | `association_claims` | association, claimant, proof method, status |
 | `saved_searches` | user, query text, filters, location, radius, alert on/off |
 | `search_misses` | anonymised queries returning no strong nearby results (for admin) |
@@ -252,6 +256,7 @@ One button everywhere: **"Créer une activité"** — in Explore, on empty searc
 
 1. **Who organises it?** (optional)
    - **Just me / friends** — default, nothing else to fill.
+   - **A collectif** — one the creator runs (organiser of it), or "Créer un collectif" (name, short description, town) without leaving the flow.
    - **A club or association** — search the directory and pick it. If not listed, type its name and optionally a website/contact: this creates a directory listing as a side effect (`source = community`, labelled "Ajouté par la communauté", sent to the admin queue, ranked lower until checked). The creator may claim it with the normal claim proof.
 2. **What:** category, title, description (templates offered, e.g. "Soirée jeux de société hebdomadaire").
 3. **Where:** meeting place on a map, public place recommended (see safety tips).
@@ -261,6 +266,18 @@ One button everywhere: **"Créer une activité"** — in Explore, on empty searc
 After publishing: a **"Partagez-la avec vos amis"** screen with the share link, and matching nearby users are alerted (see Notifications).
 
 When a user's interest has no activity nearby, Explore shows nearby associations plus a **"Lancez-la vous-même"** prompt leading to this flow.
+
+### Collectifs (informal groups)
+
+For people who organise together without creating an association: friends running a weekly board-game night, neighbours walking on Sundays, a running crew. In France an informal group (*association de fait*) needs no registration.
+
+- **Creating one:** any signed-in member with a verified phone (same rule as creating an activity), from the "Who organises it?" step or from Profil. Fields: name (3–80 characters), short description (≤ 500), town (commune centre, like home areas).
+- **Its page** looks like an association page: name, description, town, all its activities, its organisers (first names and photos), and always the label **"Collectif — sans statut juridique"**.
+- **Who runs it:** the creator is its **responsable**; they can add or remove **organisers** among members with a verified phone (invitation to accept, like co-organisers). Responsable and organisers can create activities "organisé par" the collectif and edit its page; only the responsable can delete it or hand over the role.
+- **Never official-looking:** no "Association vérifiée" badge, no RNA data, not merged with the directory by the monthly import; in search it appears under the "Clubs et associations" filter with its own label.
+- **Becoming an association later:** once the group is registered in the RNA, the responsable can ask to link it to the official listing; after admin approval its activities and organisers move to the association listing (same merge mechanism as community-added clubs).
+- **Safety:** collectif names and descriptions go through the same automatic filter and reporting; admins can remove a collectif (its activities then show "Organisé par <first name>").
+- **Deletion:** deleting a collectif keeps its activities, which fall back to "Organisé par <their organiser>"; deleting the responsable's account hands the role to the longest-standing organiser, or deletes the collectif if it has none.
 
 ### Co-organisers (stand-ins)
 
@@ -452,6 +469,7 @@ Protection is applied at each layer where it actually works (the app talks direc
 - **Rate limit tests:** each write limit allows the last permitted action and refuses the next one; admins and the service role are not limited.
 - **Privacy and security tests:** stored home areas are commune centres; uploaded photos have no EXIF; retention jobs delete exactly the expired rows; `is_admin()` is false without 2FA; data export contains every personal table and nothing about other people; no API path lists users.
 - **Dashboard tests:** the dashboard function is callable only by admins; figures match a known fixture; no per-person data is returned.
+- **Collectif tests:** only active responsable/organisers can create activities for a collectif or edit it; only the responsable deletes it or hands over the role; the label "Collectif — sans statut juridique" is always shown; the import never modifies collectifs; deleting the responsable's account hands over or deletes as specified.
 - **Co-organiser tests:** every row of the organiser/co-organiser rights table; an invited (not yet accepted), declined, removed or expired (`ends_at` passed) co-organiser has no rights; only members with a verified phone can be invited; a co-organiser cannot add co-organisers or give feedback on the activity's sessions; sessions they run count toward the organiser's stats.
 - **End-to-end journeys** on an Android emulator: browse → sign up → join → "Je serai là"; create an activity with and without "organised by" (including a new community club and the home-address warning); report.
 
@@ -465,7 +483,7 @@ Each gets its own implementation plan. The work is split into **Release 1 (MVP)*
 2. **Association directory:** import pipeline, tagging, embeddings, confidence score, GitHub Actions schedule; dormant-listing rule (section 17).
 3. **Explore and search:** semantic + full-text search, ranking, filters, list/map, association pages, "Me prévenir quand ce club arrive" (section 17).
 4. **Accounts and interests:** browse-first onboarding, language choice, deferred sign-up (Cloudflare Turnstile, tuned Auth rate limits), interests picker, category requests, `last_seen_at`; session in secure storage, home area snapped to commune, photo EXIF stripping, "Mes données" (export, correct, delete), privacy policy (section 18).
-5. **Activities and sessions (core):** create activity (incl. "Who organises it?"), recurrence, join, "Je serai là" with add-to-calendar, reminders, share links, séance découverte, "Je viens avec quelqu'un", welcome person (section 17).
+5. **Activities and sessions (core):** create activity (incl. "Who organises it?" with collectifs), collectifs (create, page, organisers), recurrence, join, "Je serai là" with add-to-calendar, reminders, share links, séance découverte, "Je viens avec quelqu'un", welcome person (section 17).
 6. **Group chat:** one chat per activity (private messages come in Release 2).
 7. **Safety essentials:** reports, blocks, contextual safety tips, Share my plans, "Une idée ? Un problème ?", minimal admin screens (reports queue, claims, community clubs, category requests, feedback), database write limits; admin 2FA and admin audit log, retention jobs (section 18).
 8. **Public web pages:** association and activity pages on the web (Expo web on Cloudflare Pages), indexable by search engines, with "Je serai là" from the browser after a light sign-up (section 17). Comes before launch because shared links must work for iPhone friends.
