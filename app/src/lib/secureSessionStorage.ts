@@ -50,7 +50,9 @@ export const secureSessionStorage = {
       }
       return null;
     } catch {
+      // Also drop a legacy plaintext copy: it must not outlive an unreadable encrypted one.
       await removeBoth(key);
+      await AsyncStorage.removeItem(key).catch(() => undefined);
       return null;
     }
   },

@@ -140,11 +140,31 @@ async function mergePass(userId: string): Promise<boolean> {
   return leftover;
 }
 
-/** Upserts local entries that are stronger than the stored ones (love > like > curious), then clears the local key. */
-export async function mergeLocalIntoAccount(userId: string): Promise<void> {
-  // One extra pass picks up taps made during the first upload; anything later waits for the next sign-in.
-  if (await mergePass(userId)) await mergePass(userId);
-  notifyInterestsChanged();
+/** True when interests chosen while signed out are still waiting to be merged. */
+export async function hasLocalInterests(): Promise<boolean> {
+  return Object.keys(await readLocal()).length > 0;
+}
+
+let mergeInFlight: { userId: string; promise: Promise<void> } | null = null;
+
+/**
+ * Upserts local entries that are stronger than the stored ones (love > like > curious), then clears the local key.
+ * Concurrent calls for the same user share one run; listeners are told to refresh even when a pass throws.
+ */
+export function mergeLocalIntoAccount(userId: string): Promise<void> {
+  if (mergeInFlight?.userId === userId) return mergeInFlight.promise;
+  const promise = (async () => {
+    try {
+      // One extra pass picks up taps made during the first upload; anything later waits for the next ready/foreground.
+      if (await mergePass(userId)) await mergePass(userId);
+    } finally {
+      notifyInterestsChanged();
+    }
+  })().finally(() => {
+    if (mergeInFlight?.promise === promise) mergeInFlight = null;
+  });
+  mergeInFlight = { userId, promise };
+  return promise;
 }
 
 interface Loaded {
@@ -159,7 +179,10 @@ export function useInterests(): {
   loading: boolean;
   error: boolean;
 } {
-  const { status, userId } = useSession();
+  const session = useSession();
+  const { status } = session;
+  // Until the profile is complete the user reads and writes the local list, like a signed-out visitor.
+  const userId = status === 'needs_profile' ? null : session.userId;
   const key = userId ?? 'local';
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [reloads, setReloads] = useState(0);

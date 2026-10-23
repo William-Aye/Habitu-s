@@ -2,10 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { getInterests, setLevel, useInterests } from '../src/features/interests/store';
 
-const mockSession = { userId: 'u1' as string | null };
+const mockSession = { userId: 'u1' as string | null, needsProfile: false };
 jest.mock('../src/features/account/useSession', () => ({
   useSession: () => ({
-    status: mockSession.userId ? 'ready' : 'signed_out',
+    status: mockSession.userId ? (mockSession.needsProfile ? 'needs_profile' : 'ready') : 'signed_out',
     userId: mockSession.userId,
     profile: null,
     error: false,
@@ -41,6 +41,7 @@ beforeEach(async () => {
   mockDb.failRead = false;
   mockDb.gate = null;
   mockSession.userId = 'u1';
+  mockSession.needsProfile = false;
   await AsyncStorage.clear();
 });
 
@@ -122,4 +123,22 @@ it('resets to loading when the user changes', async () => {
     release();
   });
   await waitFor(() => expect(result.current.interests).toEqual({ a: 'love' }));
+});
+
+it('treats a user without a complete profile like a signed-out one (reads and writes the local list)', async () => {
+  mockSession.needsProfile = true;
+  mockDb.rows = [{ category_id: 'acct', level: 'love' }];
+  await setLevel(null, 'local-cat', 'like');
+  const { result } = await renderHook(() => useInterests());
+  await waitFor(() => expect(result.current.interests).toEqual({ 'local-cat': 'like' }));
+  await act(async () => {
+    result.current.setLevel('other', 'love');
+  });
+  await waitFor(async () =>
+    expect(JSON.parse((await AsyncStorage.getItem('interests.local')) as string)).toEqual({
+      'local-cat': 'like',
+      other: 'love',
+    }),
+  );
+  expect(writes).toHaveLength(0);
 });

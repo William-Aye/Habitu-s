@@ -18,6 +18,7 @@ export interface SessionProfile {
   language: 'fr' | 'en';
   photoUrl: string | null;
   bio: string | null;
+  homeAreaLabel: string | null;
 }
 
 export interface SessionValue {
@@ -52,7 +53,7 @@ async function loadProfile(userId: string): Promise<Loaded> {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('first_name, age_confirmed, language, photo_url, bio')
+      .select('first_name, age_confirmed, language, photo_url, bio, home_area_label')
       .eq('id', userId)
       .maybeSingle();
     if (error) return { userId, profile: null, needsProfile: false, failed: true };
@@ -62,6 +63,7 @@ async function loadProfile(userId: string): Promise<Loaded> {
       language: data.language === 'en' ? 'en' : 'fr',
       photoUrl: data.photo_url,
       bio: data.bio,
+      homeAreaLabel: data.home_area_label,
     };
     const needsProfile = data.first_name.trim() === '' || !data.age_confirmed;
     return { userId, profile, needsProfile, failed: false };
@@ -76,6 +78,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const inflight = useRef<{ userId: string; promise: Promise<Loaded> } | null>(null);
   const failedRef = useRef(false);
+  const sessionFailedRef = useRef(false);
+  const [sessionFailed, setSessionFailed] = useState(false);
 
   // One fetch per user at a time: concurrent callers share the same request.
   const loadOnce = useCallback((userId: string): Promise<Loaded> => {
@@ -87,18 +91,47 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return promise;
   }, []);
 
+  // Reading the stored session can fail (offline refresh): that is "unknown", never "signed out".
   useEffect(() => {
     let active = true;
-    supabase.auth
-      .getSession()
-      .then(({ data }) => active && setAuthUserId(data.session?.user.id ?? null))
-      .catch(() => active && setAuthUserId(null));
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const attempt = async (i: number) => {
+      let ok = false;
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (!error) {
+          ok = true;
+          if (active) setAuthUserId(data.session?.user.id ?? null);
+        }
+      } catch {
+        // treated as a failed read below
+      }
+      if (!active) return;
+      sessionFailedRef.current = !ok;
+      setSessionFailed(!ok);
+      if (!ok && i < RETRY_DELAYS_MS.length) {
+        timer = setTimeout(() => attempt(i + 1), RETRY_DELAYS_MS[i]);
+      }
+    };
+    void attempt(0);
+    const appState = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && sessionFailedRef.current) {
+        clearTimeout(timer);
+        void attempt(RETRY_DELAYS_MS.length);
+      }
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       // No Supabase call here: the callback runs inside the auth lock.
+      // A null INITIAL_SESSION can mean the stored session could not be refreshed offline: getSession decides.
+      if (event === 'INITIAL_SESSION' && !session) return;
+      sessionFailedRef.current = false;
+      setSessionFailed(false);
       setAuthUserId(session?.user.id ?? null);
     });
     return () => {
       active = false;
+      clearTimeout(timer);
+      appState.remove();
       sub.subscription.unsubscribe();
     };
   }, []);
@@ -132,7 +165,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async (): Promise<SessionStatus> => {
     try {
-      const { data } = await supabase.auth.getSession();
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        sessionFailedRef.current = true;
+        setSessionFailed(true);
+        return 'loading';
+      }
+      sessionFailedRef.current = false;
+      setSessionFailed(false);
       const id = data.session?.user.id ?? null;
       setAuthUserId(id);
       if (!id) return 'signed_out';
@@ -142,13 +182,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (l.failed) return 'loading';
       return l.needsProfile ? 'needs_profile' : 'ready';
     } catch {
+      sessionFailedRef.current = true;
+      setSessionFailed(true);
       return 'loading';
     }
   }, [loadOnce]);
 
   const value = useMemo<SessionValue>(() => {
     if (authUserId === undefined) {
-      return { status: 'loading', userId: null, profile: null, error: false, refresh };
+      return { status: 'loading', userId: null, profile: null, error: sessionFailed, refresh };
     }
     if (authUserId === null) {
       return { status: 'signed_out', userId: null, profile: null, error: false, refresh };
@@ -164,7 +206,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       error: false,
       refresh,
     };
-  }, [authUserId, loaded, refresh]);
+  }, [authUserId, loaded, refresh, sessionFailed]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

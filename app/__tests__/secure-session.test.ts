@@ -52,6 +52,13 @@ it('returns null and clears both when SecureStore throws', async () => {
   expect(store.has(`sk_${KEY}`)).toBe(false);
 });
 
+it('also removes the legacy plaintext key when the read fails', async () => {
+  await AsyncStorage.setItem(KEY, VALUE);
+  (SecureStore.getItemAsync as jest.Mock).mockRejectedValueOnce(new Error('keystore'));
+  expect(await secureSessionStorage.getItem(KEY)).toBeNull();
+  expect(await AsyncStorage.getItem(KEY)).toBeNull();
+});
+
 it('returns null on corrupt ciphertext', async () => {
   await secureSessionStorage.setItem(KEY, VALUE);
   await AsyncStorage.setItem(`enc_${KEY}`, 'zz-not-hex');

@@ -102,3 +102,76 @@ it('retries once more when the app returns to the foreground after the backoff i
   });
   await waitFor(() => expect(result.current.status).toBe('ready'));
 });
+
+describe('offline start', () => {
+  it('keeps loading with error when getSession returns an error, then recovers on retry', async () => {
+    auth.getSession
+      .mockResolvedValueOnce({ data: { session: null }, error: { name: 'AuthRetryableFetchError', message: 'Failed to fetch' } })
+      .mockResolvedValue({ data: { session: { user: { id: 'u1' } } }, error: null });
+    maybeSingle.mockResolvedValue({ data: ROW, error: null });
+    const { result } = await renderHook(() => useSession(), { wrapper });
+    await waitFor(() => expect(result.current.error).toBe(true));
+    expect(result.current.status).toBe('loading');
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(2000);
+    });
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(result.current.error).toBe(false);
+  });
+
+  it('keeps loading with error when getSession throws, and retries on foreground after the backoff', async () => {
+    auth.getSession.mockRejectedValue(new Error('offline'));
+    const { result } = await renderHook(() => useSession(), { wrapper });
+    await waitFor(() => expect(result.current.error).toBe(true));
+    expect(result.current.status).toBe('loading');
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(30000);
+    });
+    expect(auth.getSession).toHaveBeenCalledTimes(4);
+    expect(result.current.status).toBe('loading');
+    auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+    await act(async () => {
+      appStateHandler?.('active');
+    });
+    await waitFor(() => expect(result.current.status).toBe('signed_out'));
+  });
+
+  it('a genuine empty session is still signed_out', async () => {
+    auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+    const { result } = await renderHook(() => useSession(), { wrapper });
+    await waitFor(() => expect(result.current.status).toBe('signed_out'));
+  });
+
+  it('refresh does not report signed_out when getSession fails', async () => {
+    auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'u1' } } }, error: null });
+    maybeSingle.mockResolvedValue({ data: ROW, error: null });
+    const { result } = await renderHook(() => useSession(), { wrapper });
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    auth.getSession.mockResolvedValue({ data: { session: null }, error: { message: 'Failed to fetch' } });
+    let st: unknown;
+    await act(async () => {
+      st = await result.current.refresh();
+    });
+    expect(st).toBe('loading');
+    expect(result.current.status).toBe('ready');
+  });
+
+  it('ignores an INITIAL_SESSION event with no session (it can mean the refresh failed offline)', async () => {
+    let cb!: (e: string, s: unknown) => void;
+    auth.onAuthStateChange.mockImplementation((fn: typeof cb) => {
+      cb = fn;
+      return { data: { subscription: { unsubscribe: jest.fn() } } };
+    });
+    auth.getSession.mockRejectedValue(new Error('offline'));
+    const { result } = await renderHook(() => useSession(), { wrapper });
+    await waitFor(() => expect(result.current.error).toBe(true));
+    await act(async () => {
+      cb('INITIAL_SESSION', null);
+    });
+    expect(result.current.status).toBe('loading');
+    await act(async () => {
+      cb('SIGNED_OUT', null);
+    });
+    expect(result.current.status).toBe('signed_out');
+  });
+});

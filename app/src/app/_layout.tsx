@@ -9,16 +9,8 @@ import { AccountGateProvider } from '../features/account/AccountGate';
 import { SessionProvider, useSession } from '../features/account/useSession';
 import { cleanupExportFiles } from '../features/account/myData';
 import { touchLastSeen } from '../features/account/lastSeen';
-import { mergeLocalIntoAccount } from '../features/interests/store';
-
-// A failed merge keeps the local interests for the next sign-in; the log carries no user data.
-async function mergeInterests(userId: string): Promise<void> {
-  try {
-    await mergeLocalIntoAccount(userId);
-  } catch {
-    console.warn('interests merge failed');
-  }
-}
+import { InterestsMerger, mergeInterests } from '../features/interests/InterestsMerger';
+import { LanguageSync } from '../features/account/LanguageSync';
 
 /** Tells the server the signed-in user is active, at launch and whenever the app returns to the foreground. */
 function LastSeenToucher() {
@@ -137,6 +129,8 @@ export default function RootLayout() {
       <SessionProvider>
         <AccountGateProvider onSignedUp={mergeInterests}>
           <LastSeenToucher />
+          <InterestsMerger />
+          <LanguageSync />
           <OnboardingGate />
         </AccountGateProvider>
       </SessionProvider>

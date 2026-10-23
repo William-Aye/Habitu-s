@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getInterests,
+  hasLocalInterests,
   mergeLocalIntoAccount,
+  subscribeInterestsChanged,
   nextTapLevel,
   setLevel,
   type Level,
@@ -102,6 +104,24 @@ describe('mergeLocalIntoAccount', () => {
     await mergeLocalIntoAccount(U);
     expect(await getInterests(U)).toEqual({ a: 'love', b: 'love', c: 'curious', d: 'like' });
     expect(await AsyncStorage.getItem('interests.local')).toBeNull();
+  });
+
+  it('tells listeners to refresh even when the merge throws', async () => {
+    await seed();
+    db.failUpsert = true;
+    const listener = jest.fn();
+    const off = subscribeInterestsChanged(listener);
+    await mergeLocalIntoAccount(U).catch(() => undefined);
+    off();
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('hasLocalInterests reflects the local key', async () => {
+    expect(await hasLocalInterests()).toBe(false);
+    await AsyncStorage.setItem('interests.local', JSON.stringify({ a: 'like' }));
+    expect(await hasLocalInterests()).toBe(true);
+    await AsyncStorage.setItem('interests.local', '{}');
+    expect(await hasLocalInterests()).toBe(false);
   });
 
   it('is idempotent', async () => {
