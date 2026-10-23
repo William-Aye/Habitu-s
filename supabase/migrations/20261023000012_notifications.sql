@@ -201,6 +201,7 @@ create trigger notif_late_cancellation_upd after update of status on public.atte
   for each row when (new.status = 'cancelled_late' and old.status is distinct from 'cancelled_late')
   execute function public.notif_late_cancellation();
 
+-- (Logistics notifications pass no actor: blocks never hide a change to a session people attend.)
 -- Session time or place changed, or session cancelled, to the confirmed attendees who are still
 -- active members (the organiser who made the change is not notified).
 create function public.notif_session_changed() returns trigger
@@ -231,7 +232,7 @@ begin
         'La séance du ' || public.notif_when(old.starts_at, a.timezone, 'fr') || ' est annulée.',
         'Session cancelled: ' || a.title,
         'The session on ' || public.notif_when(old.starts_at, a.timezone, 'en') || ' is cancelled.',
-        jsonb_build_object('activity_id', a.id, 'session_id', new.id), null, now(), a.organiser_id);
+        jsonb_build_object('activity_id', a.id, 'session_id', new.id), null, now(), null);
     else
       perform public.notify_user(r.user_id, 'session_moved',
         'Séance modifiée : ' || a.title,
@@ -242,7 +243,7 @@ begin
         concat_ws(' ',
           case when v_time then 'New date: ' || public.notif_when(new.starts_at, a.timezone, 'en') || '.' end,
           case when v_place then 'New place: ' || v_label || '.' end),
-        jsonb_build_object('activity_id', a.id, 'session_id', new.id), null, now(), a.organiser_id);
+        jsonb_build_object('activity_id', a.id, 'session_id', new.id), null, now(), null);
     end if;
   end loop;
   return null;
@@ -269,7 +270,7 @@ begin
     perform public.notify_user(r.user_id, 'session_moved',
       'Séance modifiée : ' || new.title, 'Nouveau lieu : ' || new.place_label || '.',
       'Session changed: ' || new.title, 'New place: ' || new.place_label || '.',
-      jsonb_build_object('activity_id', new.id, 'session_id', r.session_id), null, now(), new.organiser_id);
+      jsonb_build_object('activity_id', new.id, 'session_id', r.session_id), null, now(), null);
   end loop;
   return null;
 end $$;
@@ -302,7 +303,7 @@ begin
       'Schedule changed: ' || new.title,
       'The schedule has changed; your session on ' || public.notif_when(r.starts_at, new.timezone, 'en')
         || ' stays as planned.',
-      jsonb_build_object('activity_id', new.id, 'session_id', r.session_id), null, now(), new.organiser_id);
+      jsonb_build_object('activity_id', new.id, 'session_id', r.session_id), null, now(), null);
   end loop;
   return null;
 end $$;

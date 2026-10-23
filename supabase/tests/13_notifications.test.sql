@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(70);
+select plan(71);
 select tests.create_user('org@not.fr', 'Olivier') as org \gset
 select tests.create_user('mem@not.fr', 'Mia') as mem \gset
 select tests.create_user('memen@not.fr', 'Mike') as memen \gset
@@ -104,7 +104,9 @@ select is((select title from notification_outbox where kind = 'session_moved' an
 select ok((select body from notification_outbox where kind = 'session_moved' and user_id = :'mem') like 'Nouvelle date : %', 'moved text in French');
 update sessions set place_label = 'Parc Blandan' where id = '00000000-0000-0000-0000-0000000000a1';
 select is((select body from notification_outbox where kind = 'session_moved' and user_id = :'mem' order by id desc limit 1), 'Nouveau lieu : Parc Blandan.', 'place change text');
+insert into blocks (blocker_id, blocked_id) values (:'mem', :'org');
 update sessions set status = 'cancelled_by_organiser' where id = '00000000-0000-0000-0000-0000000000a1';
+select is((select count(*)::int from notification_outbox where kind = 'session_cancelled' and user_id = :'mem'), 1, 'logistics reach an attendee who blocked the organiser');
 select is((select count(*)::int from notification_outbox where kind = 'session_cancelled'), 2, 'cancelled: both confirmed attendees');
 select is((select count(*)::int from notification_outbox where kind = 'session_cancelled' and user_id in (:'mem2', :'org')), 0, 'cancelled: not the cancelled attendee nor the organiser');
 
