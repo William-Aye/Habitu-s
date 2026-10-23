@@ -209,6 +209,130 @@
       "dayItem": "le {{day}}",
       "list": "{{head}} et {{last}}",
       "onDays": "{{days}} à {{time}}"
+    },
+    "share": {
+      "message": "{{titre}} sur Habitués : {{url}}"
+    }
+  },
+  "create": {
+    "title": "Créer une activité",
+    "progress": "Étape {{n}} sur {{total}}",
+    "next": "Suivant",
+    "back": "Retour",
+    "publish": "Publier",
+    "publishing": "Publication en cours",
+    "loading": "Chargement",
+    "retry": "Réessayer",
+    "steps": {
+      "who": "Qui organise ?",
+      "what": "Quoi ?",
+      "where": "Où ?",
+      "when": "Quand ?",
+      "settings": "Réglages"
+    },
+    "errors": {
+      "limit_reached": "Limite quotidienne atteinte : vous pouvez créer 3 activités et 2 collectifs par période de 24 heures. Réessayez plus tard.",
+      "not_allowed": "Pour organiser, votre profil doit être complet et votre compte doit avoir au moins 24 heures. Réessayez plus tard.",
+      "session_full": "Cette activité est complète.",
+      "network": "Connexion impossible. Vérifiez votre réseau et réessayez.",
+      "unknown": "Une erreur est survenue. Réessayez."
+    },
+    "who": {
+      "me": "Moi",
+      "collectif": "Un collectif",
+      "association": "Une association",
+      "meHint": "Vous organisez avec vos amis, sans rien d'autre à renseigner.",
+      "collectifLabel": "Collectif — sans statut juridique",
+      "collectifNone": "Vous n'organisez aucun collectif pour l'instant.",
+      "collectifError": "Impossible de charger vos collectifs.",
+      "createCollectif": "Créer un collectif",
+      "associationSearch": "Rechercher une association",
+      "associationNone": "Aucune association trouvée.",
+      "associationRule": "Seules les associations non vérifiées, ou celles que vous avez revendiquées, peuvent être choisies.",
+      "associationError": "La recherche a échoué. Réessayez.",
+      "unlisted": "Elle n'est pas dans la liste ?",
+      "addClub": "Ajouter ce club",
+      "clubName": "Nom du club ou de l'association",
+      "clubWebsite": "Site web ou contact (facultatif)",
+      "clubHint": "Elle sera ajoutée à l'annuaire avec la mention « Ajouté par la communauté », puis vérifiée par notre équipe.",
+      "clubSubmit": "Ajouter à l'annuaire",
+      "clubCancel": "Annuler",
+      "clubError": "Impossible d'ajouter ce club. Réessayez."
+    },
+    "collectifForm": {
+      "name": "Nom du collectif",
+      "description": "Description du collectif",
+      "town": "Ville : {{town}}",
+      "townNone": "Choisissez la ville du collectif",
+      "submit": "Créer le collectif",
+      "cancel": "Annuler",
+      "creating": "Création en cours"
+    },
+    "what": {
+      "category": "Catégorie",
+      "categorySearch": "Rechercher une catégorie",
+      "categoriesError": "Impossible de charger les catégories.",
+      "title": "Titre",
+      "description": "Description",
+      "templates": "Des idées pour commencer",
+      "counter": "{{n}} / {{max}}"
+    },
+    "templates": {
+      "games": {
+        "title": "Soirée jeux de société hebdomadaire",
+        "description": "Une soirée conviviale autour de jeux de société. Les débutants sont les bienvenus et chacun peut apporter un jeu."
+      },
+      "running": {
+        "title": "Course à pied du dimanche",
+        "description": "Footing tranquille en groupe le dimanche matin, à l'allure des moins rapides. Tous niveaux."
+      },
+      "languages": {
+        "title": "Échange de langues au café",
+        "description": "Rencontre pour pratiquer des langues en discutant autour d'un verre. Toutes les langues et tous les niveaux sont les bienvenus."
+      }
+    },
+    "where": {
+      "homeTip": "Ne vous donnez pas rendez-vous chez vous : le groupe saurait où vous habitez. Choisissez un lieu public (café, parc, salle, local d'association).",
+      "near": "Près de {{town}}",
+      "changeTown": "Changer de ville",
+      "mapHint": "Touchez la carte pour déplacer le repère sur le lieu de rendez-vous.",
+      "mapLabel": "Carte du lieu de rendez-vous",
+      "placeLabel": "Nom du lieu",
+      "placePlaceholder": "Par exemple : Café des Arts, parc de la Tête d'Or"
+    },
+    "when": {
+      "date": "Date de début",
+      "dateHint": "Format AAAA-MM-JJ, aujourd'hui ou plus tard",
+      "time": "Heure",
+      "timeHint": "Format HH:MM",
+      "recurrence": "Répétition",
+      "days": "Nombre de jours",
+      "daysHint": "Entre 2 et 60 jours",
+      "weekdays": "Jours de la semaine",
+      "summary": "Résumé : {{text}}",
+      "weekday": {
+        "1": "Lundi",
+        "2": "Mardi",
+        "3": "Mercredi",
+        "4": "Jeudi",
+        "5": "Vendredi",
+        "6": "Samedi",
+        "7": "Dimanche"
+      }
+    },
+    "settings": {
+      "maxSize": "Nombre maximum de participants",
+      "maxSizeHint": "Laissez vide pour ne pas limiter (sinon entre 2 et 200).",
+      "newcomers": "Débutants bienvenus",
+      "access": "Accès",
+      "open": "Ouvert à tous",
+      "approval": "Sur demande"
+    },
+    "done": {
+      "title": "Partagez-la avec vos amis",
+      "body": "Votre activité « {{title}} » est publiée.",
+      "share": "Partager",
+      "view": "Voir l'activité"
     }
   }
 }

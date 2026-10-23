@@ -209,6 +209,130 @@
       "dayItem": "{{day}}",
       "list": "{{head}} and {{last}}",
       "onDays": "On {{days}} at {{time}}"
+    },
+    "share": {
+      "message": "{{titre}} on Habitués: {{url}}"
+    }
+  },
+  "create": {
+    "title": "Create an activity",
+    "progress": "Step {{n}} of {{total}}",
+    "next": "Next",
+    "back": "Back",
+    "publish": "Publish",
+    "publishing": "Publishing",
+    "loading": "Loading",
+    "retry": "Try again",
+    "steps": {
+      "who": "Who organises it?",
+      "what": "What?",
+      "where": "Where?",
+      "when": "When?",
+      "settings": "Settings"
+    },
+    "errors": {
+      "limit_reached": "Daily limit reached: you can create 3 activities and 2 collectifs per 24 hours. Try again later.",
+      "not_allowed": "To organise, your profile must be complete and your account at least 24 hours old. Try again later.",
+      "session_full": "This activity is full.",
+      "network": "Cannot connect. Check your network and try again.",
+      "unknown": "Something went wrong. Try again."
+    },
+    "who": {
+      "me": "Me",
+      "collectif": "A collectif",
+      "association": "An association",
+      "meHint": "You organise with your friends, with nothing else to fill in.",
+      "collectifLabel": "Collectif — no legal status",
+      "collectifNone": "You do not run any collectif yet.",
+      "collectifError": "Could not load your collectifs.",
+      "createCollectif": "Create a collectif",
+      "associationSearch": "Search for an association",
+      "associationNone": "No association found.",
+      "associationRule": "Only unverified associations, or ones you have claimed, can be chosen.",
+      "associationError": "The search failed. Try again.",
+      "unlisted": "Not in the list?",
+      "addClub": "Add this club",
+      "clubName": "Name of the club or association",
+      "clubWebsite": "Website or contact (optional)",
+      "clubHint": "It will be added to the directory marked \"Added by the community\", then checked by our team.",
+      "clubSubmit": "Add to the directory",
+      "clubCancel": "Cancel",
+      "clubError": "Could not add this club. Try again."
+    },
+    "collectifForm": {
+      "name": "Collectif name",
+      "description": "Collectif description",
+      "town": "Town: {{town}}",
+      "townNone": "Choose the collectif's town",
+      "submit": "Create the collectif",
+      "cancel": "Cancel",
+      "creating": "Creating"
+    },
+    "what": {
+      "category": "Category",
+      "categorySearch": "Search for a category",
+      "categoriesError": "Could not load the categories.",
+      "title": "Title",
+      "description": "Description",
+      "templates": "Ideas to get started",
+      "counter": "{{n}} / {{max}}"
+    },
+    "templates": {
+      "games": {
+        "title": "Weekly board game night",
+        "description": "A friendly evening of board games. Beginners are welcome and everyone can bring a game."
+      },
+      "running": {
+        "title": "Sunday run",
+        "description": "An easy group jog on Sunday morning, at the pace of the slowest. All levels."
+      },
+      "languages": {
+        "title": "Language exchange at the café",
+        "description": "A meet-up to practise languages over a drink. All languages and all levels are welcome."
+      }
+    },
+    "where": {
+      "homeTip": "Do not meet at your home: the group would know where you live. Choose a public place (café, park, hall, association premises).",
+      "near": "Near {{town}}",
+      "changeTown": "Change town",
+      "mapHint": "Touch the map to move the pin to the meeting place.",
+      "mapLabel": "Map of the meeting place",
+      "placeLabel": "Place name",
+      "placePlaceholder": "For example: Café des Arts, Tête d'Or park"
+    },
+    "when": {
+      "date": "Start date",
+      "dateHint": "Format YYYY-MM-DD, today or later",
+      "time": "Time",
+      "timeHint": "Format HH:MM",
+      "recurrence": "Repeat",
+      "days": "Number of days",
+      "daysHint": "Between 2 and 60 days",
+      "weekdays": "Days of the week",
+      "summary": "Summary: {{text}}",
+      "weekday": {
+        "1": "Monday",
+        "2": "Tuesday",
+        "3": "Wednesday",
+        "4": "Thursday",
+        "5": "Friday",
+        "6": "Saturday",
+        "7": "Sunday"
+      }
+    },
+    "settings": {
+      "maxSize": "Maximum number of participants",
+      "maxSizeHint": "Leave empty for no limit (otherwise between 2 and 200).",
+      "newcomers": "Beginners welcome",
+      "access": "Access",
+      "open": "Open to all",
+      "approval": "On request"
+    },
+    "done": {
+      "title": "Share it with your friends",
+      "body": "Your activity \"{{title}}\" is published.",
+      "share": "Share",
+      "view": "View the activity"
     }
   }
 }
