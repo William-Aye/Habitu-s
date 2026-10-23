@@ -1106,7 +1106,7 @@ isOneToOne: true
             }[]
                            },
 "admin_audit_page":
-{ Args: { "p_before"?: string,"p_limit"?: number }; Returns: Json
+{ Args: { "p_before_at"?: string,"p_before_id"?: string,"p_limit"?: number }; Returns: Json
                            },
 "admin_log":
 { Args: { "p_action": string,"p_details"?: Json,"p_target_id": string,"p_target_type": string }; Returns: undefined
@@ -1184,6 +1184,9 @@ isOneToOne: true
                            },
 "is_admin":
 { Args: Record<PropertyKey, never>; Returns: boolean
+                           },
+"is_banned":
+{ Args: { "p_user": string }; Returns: boolean
                            },
 "is_blocked_between":
 { Args: { "p_other": string }; Returns: boolean
