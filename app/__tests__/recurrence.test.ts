@@ -11,7 +11,7 @@ function tFor(lng: 'fr' | 'en') {
     resources: { fr: { translation: fr }, en: { translation: en } },
     interpolation: { escapeValue: false },
   });
-  return i.t.bind(i);
+  return i.getFixedT(lng);
 }
 
 describe('describeRecurrence', () => {
@@ -26,11 +26,29 @@ describe('describeRecurrence', () => {
   ];
   it.each(cases)('%s', (_n, r, f, e) => {
     const ctx = { startDate: '2026-10-27' };
-    expect(describeRecurrence(r, '19:00:00', frT, { ...ctx, lang: 'fr' })).toBe(f);
-    expect(describeRecurrence(r, '19:00', enT, { ...ctx, lang: 'en' })).toBe(e);
+    expect(describeRecurrence(r, '19:00:00', frT, ctx)).toBe(f);
+    expect(describeRecurrence(r, '19:00', enT, ctx)).toBe(e);
   });
   it('weekly without a start date drops the weekday', () => {
     expect(describeRecurrence({ kind: 'weekly' }, '19:00', frT)).toBe('Chaque semaine à 19:00');
+  });
+  it('weekly with an empty weekdays array falls back to the start date weekday', () => {
+    const r: any = { kind: 'weekly', weekdays: [] };
+    expect(describeRecurrence(r, '19:00', frT, { startDate: '2026-10-27' })).toBe('Chaque semaine le mardi à 19:00');
+    expect(describeRecurrence(r, '19:00', frT)).toBe('Chaque semaine à 19:00');
+  });
+  it('an empty weekdays rule never renders undefined', () => {
+    const r: any = { kind: 'weekdays', weekdays: [] };
+    expect(describeRecurrence(r, '19:00', frT, { startDate: '2026-10-27' })).toBe('Chaque semaine le mardi à 19:00');
+    expect(describeRecurrence(r, '19:00', enT)).toBe('Every week at 19:00');
+  });
+  it('takes the language from t', () => {
+    expect(describeRecurrence({ kind: 'weekly' }, '19:00', enT, { startDate: '2026-10-27' })).toBe(
+      'Every week on Tuesday at 19:00',
+    );
+    expect(describeRecurrence({ kind: 'weekly' }, '19:00', frT, { startDate: '2026-10-27' })).toBe(
+      'Chaque semaine le mardi à 19:00',
+    );
   });
   it('exposes the short labels', () => {
     expect(frT('activities.recurrence.weekly')).toBe('Chaque semaine');

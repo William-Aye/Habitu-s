@@ -38,13 +38,29 @@ const builder: any = new Proxy(
     },
   },
 );
-const mockFrom = jest.fn((..._a: unknown[]) => builder);
+const mockFrom = jest.fn();
+
+// Like the real client, its methods depend on `this`: a detached call (const f = supabase.rpc) throws.
+const mockClient: any = {
+  rpc(...a: unknown[]) {
+    if (this !== mockClient) throw new TypeError("Cannot read properties of undefined (reading 'rest')");
+    return mockRpc(...a);
+  },
+  from(...a: unknown[]) {
+    if (this !== mockClient) throw new TypeError("Cannot read properties of undefined (reading 'rest')");
+    return mockFrom(...a);
+  },
+  auth: {
+    getSession(...a: unknown[]) {
+      if (this !== mockClient.auth) throw new TypeError('detached auth');
+      return mockGetSession(...a);
+    },
+  },
+};
 
 jest.mock('../src/lib/supabase', () => ({
-  supabase: {
-    rpc: (...a: unknown[]) => mockRpc(...a),
-    from: (...a: unknown[]) => mockFrom(...a),
-    auth: { getSession: () => mockGetSession() },
+  get supabase() {
+    return mockClient;
   },
 }));
 
@@ -52,9 +68,11 @@ const lastCall = (m: string) => [...calls].reverse().find((c) => c.method === m)
 const eqs = () => calls.filter((c) => c.method === 'eq').map((c) => c.args);
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  jest.resetAllMocks();
   calls.length = 0;
-  result = { data: null, error: null };
+  // Updates and deletes ask for the affected rows; one row by default.
+  result = { data: [{}], error: null };
+  mockFrom.mockImplementation(() => builder);
   mockGetSession.mockResolvedValue({ data: { session: { user: { id: 'me' } } } });
 });
 
@@ -78,7 +96,8 @@ describe('mapError', () => {
     expect(mapError({ code: '42501', message: 'new row violates row-level security policy' })).toBe('not_allowed');
     expect(mapError({ code: 'P0001', message: 'session_full' })).toBe('session_full');
     expect(mapError({ message: 'TypeError: Network request failed' })).toBe('network');
-    expect(mapError({ code: '23505', message: 'duplicate' })).toBe('unknown');
+    expect(mapError({ code: '23505', message: 'duplicate key' })).toBe('not_allowed');
+    expect(mapError({ code: '22000', message: 'other' })).toBe('unknown');
   });
 });
 
@@ -148,6 +167,21 @@ describe('createActivity', () => {
   it('maps a thrown fetch failure to network', async () => {
     mockGetSession.mockRejectedValue(new Error('boom'));
     expect(await createActivity(draft)).toEqual({ ok: false, error: 'network' });
+  });
+
+  it.each([1, 61])('rejects %i days without calling the database', async (days) => {
+    expect(await createActivity({ ...draft, recurrence: { kind: 'every_n_days', days } })).toEqual({
+      ok: false,
+      error: 'unknown',
+    });
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('accepts the 2 and 60 day bounds', async () => {
+    result = { data: { id: 'a' }, error: null };
+    for (const days of [2, 60]) {
+      expect((await createActivity({ ...draft, recurrence: { kind: 'every_n_days', days } })).ok).toBe(true);
+    }
   });
 
   it('refuses when signed out', async () => {
@@ -278,6 +312,11 @@ describe('join / leave', () => {
     expect(await joinActivity('a1')).toEqual({ ok: true, status: 'pending' });
     expect(mockFrom).toHaveBeenCalledWith('activity_members');
     expect(lastCall('insert')?.args[0]).toEqual({ activity_id: 'a1', user_id: 'me' });
+  });
+  it('maps rejoining after removal or a double tap (unique violation) to not_allowed', async () => {
+    result = { data: null, error: { code: '23505', message: 'duplicate key value' } };
+    expect(await joinActivity('a1')).toEqual({ ok: false, error: 'not_allowed' });
+    expect(await joinActivity('a1')).toEqual({ ok: false, error: 'not_allowed' });
   });
   it('leaves', async () => {
     expect(await leaveActivity('a1')).toEqual({ ok: true });
@@ -416,5 +455,34 @@ describe('collectifs', () => {
     await deleteCollectif('c1');
     expect(mockFrom).toHaveBeenLastCalledWith('collectifs');
     expect(eqs()).toEqual([['id', 'c1']]);
+  });
+});
+
+describe('writes filtered out by row level security', () => {
+  beforeEach(() => {
+    result = { data: [], error: null };
+  });
+  const denied = { ok: false, error: 'not_allowed' };
+  it('updateSession', async () => {
+    expect(await updateSession('s1', { isDiscovery: true })).toEqual(denied);
+  });
+  it('decideJoinRequest', async () => {
+    expect(await decideJoinRequest('a1', 'u2', true)).toEqual(denied);
+    expect(await decideJoinRequest('a1', 'u2', false)).toEqual(denied);
+  });
+  it('setWelcomeMember', async () => {
+    expect(await setWelcomeMember('a1', 'u2')).toEqual(denied);
+  });
+  it('deleteCollectif', async () => {
+    expect(await deleteCollectif('c1')).toEqual(denied);
+  });
+  it('answerInvitation, accepting and declining', async () => {
+    expect(await answerInvitation('c1', true)).toEqual(denied);
+    expect(await answerInvitation('c1', false)).toEqual(denied);
+  });
+  it('ask for the affected rows', async () => {
+    result = { data: [{}], error: null };
+    await deleteCollectif('c1');
+    expect(lastCall('select')).toBeDefined();
   });
 });

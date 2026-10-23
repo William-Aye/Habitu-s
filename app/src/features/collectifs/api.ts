@@ -19,7 +19,7 @@ export function createCollectif(input: {
           town_label: input.town.label,
           town_point: toPoint(input.town.lon, input.town.lat),
           created_by: userId,
-        } as any)
+        })
         .select('id')
         .single(),
     (row) => ({ id: row.id as string }),
@@ -28,7 +28,7 @@ export function createCollectif(input: {
 
 export function getCollectif(id: string): Promise<ApiResult<{ collectif: CollectifPage | null }>> {
   return run(
-    () => supabase.rpc('get_collectif', { p_id: id } as any),
+    () => supabase.rpc('get_collectif', { p_id: id }),
     (c) => ({
       collectif: c
         ? {
@@ -85,7 +85,7 @@ export function inviteOrganiser(collectifId: string, userId: string): Promise<Ap
         user_id: userId,
         role: 'organiser',
         status: 'invited',
-      } as any),
+      }),
     none,
   );
 }
@@ -99,12 +99,15 @@ export function answerInvitation(collectifId: string, accept: boolean): Promise<
             .update({ status: 'active' })
             .eq('collectif_id', collectifId)
             .eq('user_id', userId)
+            .select('user_id')
         : supabase
             .from('collectif_members')
             .delete()
             .eq('collectif_id', collectifId)
-            .eq('user_id', userId),
+            .eq('user_id', userId)
+            .select('user_id'),
     none,
+    { expectRows: true },
   );
 }
 
@@ -117,5 +120,7 @@ export function leaveCollectif(id: string): Promise<ApiResult> {
 }
 
 export function deleteCollectif(id: string): Promise<ApiResult> {
-  return run(() => supabase.from('collectifs').delete().eq('id', id), none);
+  return run(() => supabase.from('collectifs').delete().eq('id', id).select('id'), none, {
+    expectRows: true,
+  });
 }

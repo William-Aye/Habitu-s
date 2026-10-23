@@ -86,6 +86,9 @@ function mapActivity(a: any): ActivityPage {
 
 export function createActivity(d: ActivityDraft): Promise<ApiResult<{ id: string }>> {
   const r = d.recurrence;
+  if (r.kind === 'every_n_days' && !(Number.isInteger(r.days) && r.days >= 2 && r.days <= 60)) {
+    return Promise.resolve({ ok: false, error: 'unknown' });
+  }
   return runAsUser(
     (userId) =>
       supabase
@@ -107,7 +110,7 @@ export function createActivity(d: ActivityDraft): Promise<ApiResult<{ id: string
           max_size: d.maxSize,
           newcomer_friendly: d.newcomerFriendly,
           approval_mode: d.approvalMode,
-        } as any)
+        })
         .select('id')
         .single(),
     (row) => ({ id: row.id as string }),
@@ -116,14 +119,14 @@ export function createActivity(d: ActivityDraft): Promise<ApiResult<{ id: string
 
 export function getActivity(id: string): Promise<ApiResult<{ activity: ActivityPage | null }>> {
   return run(
-    () => supabase.rpc('get_activity', { p_id: id } as any),
+    () => supabase.rpc('get_activity', { p_id: id }),
     (data) => ({ activity: data ? mapActivity(data) : null }),
   );
 }
 
 export function myActivities(): Promise<ApiResult<{ activities: MyActivity[] }>> {
   return run(
-    () => (supabase.rpc as any)('my_activities'),
+    () => supabase.rpc('my_activities'),
     (data) => ({
       activities: ((data ?? []) as any[]).map((a) => ({
         id: a.id,
@@ -144,7 +147,7 @@ export function joinActivity(id: string): Promise<ApiResult<{ status: MyStatus }
     (userId) =>
       supabase
         .from('activity_members')
-        .insert({ activity_id: id, user_id: userId } as any)
+        .insert({ activity_id: id, user_id: userId })
         .select('status')
         .single(),
     (row) => ({ status: row.status as MyStatus }),
@@ -167,7 +170,7 @@ export function setAttendance(
   return runAsUser(
     (userId) =>
       supabase.from('attendances').upsert(
-        { session_id: sessionId, user_id: userId, status, guest_count: guestCount } as any,
+        { session_id: sessionId, user_id: userId, status, guest_count: guestCount },
         { onConflict: 'session_id,user_id' },
       ),
     none,
@@ -175,13 +178,23 @@ export function setAttendance(
 }
 
 export function updateSession(sessionId: string, patch: SessionPatch): Promise<ApiResult> {
-  const row: Record<string, unknown> = {};
+  const row: {
+    starts_at?: string;
+    place_label?: string;
+    place?: string;
+    is_discovery?: boolean;
+    status?: string;
+  } = {};
   if (patch.startsAt !== undefined) row.starts_at = patch.startsAt;
   if (patch.placeLabel !== undefined) row.place_label = patch.placeLabel;
   if (patch.place !== undefined) row.place = toPoint(patch.place.lon, patch.place.lat);
   if (patch.isDiscovery !== undefined) row.is_discovery = patch.isDiscovery;
   if (patch.status !== undefined) row.status = patch.status;
-  return run(() => supabase.from('sessions').update(row as any).eq('id', sessionId), none);
+  return run(
+    () => supabase.from('sessions').update(row).eq('id', sessionId).select('id'),
+    none,
+    { expectRows: true },
+  );
 }
 
 /** Accepting makes the applicant a member; declining marks the row 'removed'. */
@@ -196,15 +209,22 @@ export function decideJoinRequest(
         .from('activity_members')
         .update({ status: accept ? 'member' : 'removed' })
         .eq('activity_id', activityId)
-        .eq('user_id', userId),
+        .eq('user_id', userId)
+        .select('user_id'),
     none,
+    { expectRows: true },
   );
 }
 
 export function setWelcomeMember(activityId: string, userId: string | null): Promise<ApiResult> {
   return run(
     () =>
-      supabase.from('activities').update({ welcome_member_id: userId } as any).eq('id', activityId),
+      supabase
+        .from('activities')
+        .update({ welcome_member_id: userId })
+        .eq('id', activityId)
+        .select('id'),
     none,
+    { expectRows: true },
   );
 }

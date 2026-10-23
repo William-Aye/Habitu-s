@@ -32,7 +32,7 @@ export function describeRecurrence(
   t: TFunction,
   ctx: { startDate?: string; lang?: Lang } = {},
 ): string {
-  const lang = ctx.lang ?? 'fr';
+  const lang: Lang = ctx.lang ?? (String((t as { lng?: string }).lng ?? 'fr').startsWith('en') ? 'en' : 'fr');
   const time = startTime.slice(0, 5);
   if (r.kind === 'every_n_days') {
     return t('activities.recurrence.atTime', {
@@ -40,7 +40,8 @@ export function describeRecurrence(
       time,
     });
   }
-  if (r.kind === 'weekly') {
+  const weekdays = r.kind === 'weekdays' ? r.weekdays : [];
+  if (r.kind === 'weekly' || weekdays.length === 0) {
     const label = t('activities.recurrence.weekly');
     if (!ctx.startDate) return t('activities.recurrence.atTime', { label, time });
     return t('activities.recurrence.weeklyOn', {
