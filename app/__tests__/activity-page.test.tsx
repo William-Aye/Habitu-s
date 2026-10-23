@@ -404,6 +404,11 @@ describe('discussion button', () => {
     expect(screen.getByRole('button', { name: 'Discussion' })).toBeTruthy();
   });
 
+  it('keeps Discussion on an archived activity for a member', async () => {
+    await open(activity({ myStatus: 'member', archivedAt: '2026-10-01T00:00:00Z' }));
+    expect(screen.getByRole('button', { name: 'Discussion' })).toBeTruthy();
+  });
+
   it('hides Discussion from a visitor and from a pending request', async () => {
     await open(activity({ myStatus: 'none' }));
     expect(screen.queryByRole('button', { name: 'Discussion' })).toBeNull();

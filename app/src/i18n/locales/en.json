@@ -538,6 +538,9 @@
     },
     "bubbleOther": "{{name}}, {{time}}: {{body}}",
     "bubbleMine": "You, {{time}}: {{body}}",
-    "actionsHint": "Long press for actions"
+    "actionsHint": "Long press for actions",
+    "listLabel": "Discussion messages",
+    "syncError": "Could not update the discussion. Try again.",
+    "muteError": "Could not change notifications. Try again."
   }
 }

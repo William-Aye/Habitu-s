@@ -538,6 +538,9 @@
     },
     "bubbleOther": "{{name}}, {{time}} : {{body}}",
     "bubbleMine": "Vous, {{time}} : {{body}}",
-    "actionsHint": "Appui long pour les actions"
+    "actionsHint": "Appui long pour les actions",
+    "listLabel": "Messages de la discussion",
+    "syncError": "Impossible de mettre à jour la discussion. Réessayez.",
+    "muteError": "Impossible de modifier les notifications. Réessayez."
   }
 }

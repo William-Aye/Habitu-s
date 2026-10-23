@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRequireAccount } from '../../features/account/AccountGate';
 import { useSession } from '../../features/account/useSession';
 import { blockUser, reportMessage } from '../../features/chat/api';
@@ -27,6 +28,7 @@ export default function DiscussionScreen() {
   const { activityId } = useLocalSearchParams<{ activityId: string }>();
   const { status } = useSession();
   const requireAccount = useRequireAccount();
+  const insets = useSafeAreaInsets();
 
   const [focused, setFocused] = useState(true);
   useFocusEffect(
@@ -36,10 +38,15 @@ export default function DiscussionScreen() {
     }, []),
   );
 
-  // Signed out: the account gate first; backing out of it leaves the screen.
+  const chat = useChat(activityId, focused);
+
+  // Signed out (at open, or when a read says the session is gone): the account gate first; backing out of
+  // it leaves the screen, signing in reads the discussion again.
+  const signedOut = status === 'signed_out' || status === 'needs_profile' || chat.needsAccount;
   const asked = useRef(false);
+  const { retryLoad } = chat;
   useEffect(() => {
-    if (status !== 'signed_out' && status !== 'needs_profile') {
+    if (!signedOut) {
       asked.current = false;
       return;
     }
@@ -47,10 +54,9 @@ export default function DiscussionScreen() {
     asked.current = true;
     void requireAccount('message').then((ok) => {
       if (!ok) router.back();
+      else retryLoad();
     });
-  }, [status, requireAccount]);
-
-  const chat = useChat(activityId, focused);
+  }, [signedOut, requireAccount, retryLoad]);
   const [target, setTarget] = useState<DisplayMessage | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -147,7 +153,7 @@ export default function DiscussionScreen() {
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('chat.actions.back')}
@@ -171,12 +177,15 @@ export default function DiscussionScreen() {
         </Pressable>
       </View>
 
-      {notice ? (
-        <Text accessibilityLiveRegion="polite" style={styles.notice}>{notice}</Text>
+      {notice || chat.notice ? (
+        <Text accessibilityLiveRegion="polite" style={styles.notice}>
+          {notice ?? t(chat.notice === 'mute' ? 'chat.muteError' : 'chat.syncError')}
+        </Text>
       ) : null}
 
       <FlatList
         testID="chat-list"
+        accessibilityLabel={t('chat.listLabel')}
         style={styles.list}
         inverted
         data={data}
@@ -216,7 +225,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#fff' },
   center: { flex: 1, marginTop: 80, padding: 16, alignItems: 'center', gap: 12 },
   centerText: { textAlign: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingTop: 48, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingBottom: 4, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
   headerTitle: { flex: 1, fontSize: 18, fontWeight: '700' },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   list: { flex: 1 },

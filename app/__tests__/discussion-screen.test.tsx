@@ -7,14 +7,18 @@ import { blockUser, deleteMessage, fetchMessages, markRead, myChats, reportMessa
 import { clearOutbox, initOutbox } from '../src/features/chat/outbox';
 import type { ChatMessage } from '../src/features/chat/types';
 
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
 jest.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'fr-FR' }] }));
+let mockActivityId = 'act1';
 const mockRouter = { push: jest.fn(), back: jest.fn(), replace: jest.fn() };
 jest.mock('expo-router', () => ({
   get router() {
     return mockRouter;
   },
   useRouter: () => mockRouter,
-  useLocalSearchParams: () => ({ activityId: 'act1' }),
+  useLocalSearchParams: () => ({ activityId: mockActivityId }),
   useFocusEffect: (cb: () => void | (() => void)) => {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     mockUseEffect(cb, [cb]);
@@ -31,21 +35,32 @@ jest.mock('../src/features/chat/api', () => ({
   blockUser: jest.fn(),
 }));
 const mockHandlers: { filter: any; cb: (p: any) => void }[] = [];
-const mockChannel: any = {};
-mockChannel.on = jest.fn((_t: string, filter: any, cb: (p: any) => void) => {
-  mockHandlers.push({ filter, cb });
-  return mockChannel;
-});
-mockChannel.subscribe = jest.fn((cb?: (s: string) => void) => {
-  cb?.('SUBSCRIBED');
-  return mockChannel;
-});
+// Like realtime-js: the same topic returns the same channel, and callbacks cannot be added once subscribed.
+const mockChannels = new Map<string, any>();
+function mockMakeChannel(topic: string) {
+  let c = mockChannels.get(topic);
+  if (!c) {
+    c = { subscribed: false };
+    c.on = jest.fn((_t: string, filter: any, cb: (p: any) => void) => {
+      if (c.subscribed) throw new Error('cannot add postgres_changes callbacks after subscribe()');
+      mockHandlers.push({ filter, cb });
+      return c;
+    });
+    c.subscribe = jest.fn((cb?: (s: string) => void) => {
+      c.subscribed = true;
+      cb?.('SUBSCRIBED');
+      return c;
+    });
+    mockChannels.set(topic, c);
+  }
+  return c;
+}
 const mockRemoveChannel = jest.fn();
-const mockChannelFactory = jest.fn((..._a: unknown[]) => mockChannel);
+const mockChannelFactory = jest.fn((topic: string) => mockMakeChannel(topic));
 jest.mock('../src/lib/supabase', () => ({
   supabase: {
     auth: { getSession: async () => ({ data: { session: { user: { id: 'me' } } } }) },
-    channel: (...a: unknown[]) => mockChannelFactory(...a),
+    channel: (topic: string) => mockChannelFactory(topic),
     removeChannel: (...a: unknown[]) => mockRemoveChannel(...a),
   },
 }));
@@ -99,6 +114,8 @@ beforeAll(async () => {
 beforeEach(async () => {
   jest.clearAllMocks();
   mockHandlers.length = 0;
+  mockChannels.clear();
+  mockActivityId = 'act1';
   mockSession = { status: 'ready', userId: 'me' };
   mockGate.mockResolvedValue(true);
   (markRead as jest.Mock).mockResolvedValue(ok);
@@ -123,6 +140,7 @@ describe('discussion screen', () => {
     expect(screen.getByText('Bonjour à tous')).toBeTruthy();
     expect(screen.queryByText('Moi')).toBeNull();
     expect(screen.getByText('Jeux de société')).toBeTruthy();
+    expect(screen.getByLabelText('Messages de la discussion')).toBeTruthy();
   });
 
   it('renders URLs as plain text', async () => {
@@ -186,7 +204,7 @@ describe('discussion screen', () => {
 
   it('subscribes to INSERTs filtered by activity, DELETEs unfiltered', async () => {
     await open([msg(1, 'Salut')]);
-    expect(mockChannelFactory).toHaveBeenCalledWith('chat:act1');
+    expect(mockChannelFactory).toHaveBeenCalledWith(expect.stringMatching(/^chat:act1:.+/));
     const ins = mockHandlers.find((h) => h.filter.event === 'INSERT')!;
     const del = mockHandlers.find((h) => h.filter.event === 'DELETE')!;
     expect(ins.filter).toMatchObject({ schema: 'public', table: 'messages', filter: 'activity_id=eq.act1' });
@@ -313,7 +331,7 @@ describe('discussion screen', () => {
     await open([]);
     expect(mockRemoveChannel).not.toHaveBeenCalled();
     await screen.unmount();
-    expect(mockRemoveChannel).toHaveBeenCalledWith(mockChannel);
+    expect(mockRemoveChannel).toHaveBeenCalledWith(expect.objectContaining({ subscribed: true }));
   });
 
   it('asks a signed-out visitor for an account first', async () => {
@@ -323,5 +341,97 @@ describe('discussion screen', () => {
     await settle();
     expect(mockGate).toHaveBeenCalledWith('message');
     expect(mFetch).not.toHaveBeenCalled();
+  });
+
+  it('survives a quick remount: each mount subscribes on its own topic', async () => {
+    await open([msg(1, 'Salut')]);
+    await screen.unmount();
+    await open([msg(1, 'Salut')]);
+    const topics = mockChannelFactory.mock.calls.map((c) => c[0]);
+    expect(topics).toHaveLength(2);
+    expect(new Set(topics).size).toBe(2);
+    expect(screen.getByText('Salut')).toBeTruthy();
+  });
+
+  it('shows an error screen with a retry when the first load fails', async () => {
+    mFetch.mockResolvedValue({ ok: false, error: 'network' });
+    await render(<Discussion />);
+    await settle();
+    expect(screen.getByText('Impossible de charger la discussion. Réessayez.')).toBeTruthy();
+    mFetch.mockResolvedValue(page([msg(1, 'Salut')]));
+    await fireEvent.press(screen.getByRole('button', { name: 'Réessayer' }));
+    await settle();
+    expect(screen.getByText('Salut')).toBeTruthy();
+  });
+
+  it('keeps the list and shows a notice when a later re-read fails, then clears it', async () => {
+    await open([msg(1, 'Salut')]);
+    mFetch.mockResolvedValue({ ok: false, error: 'network' });
+    await emit('INSERT', { eventType: 'INSERT', new: { id: 'm2' } });
+    expect(screen.getByText('Salut')).toBeTruthy();
+    expect(screen.getByText('Impossible de mettre à jour la discussion. Réessayez.')).toBeTruthy();
+    mFetch.mockResolvedValue(page([msg(2, 'Suite'), msg(1, 'Salut')]));
+    await emit('INSERT', { eventType: 'INSERT', new: { id: 'm2' } });
+    expect(screen.queryByText('Impossible de mettre à jour la discussion. Réessayez.')).toBeNull();
+  });
+
+  it('keeps the list and shows a notice when loading older messages fails', async () => {
+    const many = Array.from({ length: 50 }, (_, i) => msg(59 - i, `Msg ${59 - i}`));
+    await open(many);
+    mFetch.mockResolvedValue({ ok: false, error: 'network' });
+    await fireEvent(screen.getByTestId('chat-list'), 'endReached');
+    await settle();
+    expect(screen.getByText('Impossible de mettre à jour la discussion. Réessayez.')).toBeTruthy();
+    expect(screen.getByText('Msg 59')).toBeTruthy();
+  });
+
+  it('asks for an account on signed_out instead of showing the error screen', async () => {
+    mFetch.mockResolvedValue({ ok: false, error: 'signed_out' });
+    await render(<Discussion />);
+    await settle();
+    expect(mockGate).toHaveBeenCalledWith('message');
+    expect(screen.queryByText('Impossible de charger la discussion. Réessayez.')).toBeNull();
+  });
+
+  it('reverts the mute toggle and shows a notice when it fails', async () => {
+    await open([]);
+    (setMuted as jest.Mock).mockResolvedValue({ ok: false, error: 'network' });
+    await fireEvent.press(screen.getByRole('button', { name: 'Couper les notifications' }));
+    await settle();
+    expect(screen.getByRole('button', { name: 'Couper les notifications' })).toBeTruthy();
+    expect(screen.getByText('Impossible de modifier les notifications. Réessayez.')).toBeTruthy();
+  });
+
+  it('keeps a sent bubble visible until the re-read that follows its send returns', async () => {
+    await open([]);
+    let release!: (v: unknown) => void;
+    mSend.mockImplementation(() => new Promise((r) => (release = r)));
+    await fireEvent.changeText(input(), 'Coucou');
+    await fireEvent.press(sendBtn());
+    await settle();
+    const sentId = mSend.mock.calls[0][2];
+    let resolveRead!: (v: unknown) => void;
+    mFetch.mockImplementation(() => new Promise((r) => (resolveRead = r)));
+    await act(async () => release(ok));
+    await settle();
+    expect(screen.getAllByText('Coucou')).toHaveLength(1); // read still in flight
+    await act(async () => resolveRead(page([msg(3, 'Coucou', { id: sentId, isMine: true })])));
+    await settle();
+    expect(screen.getAllByText('Coucou')).toHaveLength(1);
+  });
+
+  it('ignores an in-flight read for a previous activity after the id changes', async () => {
+    let resolveOld!: (v: unknown) => void;
+    mFetch.mockImplementationOnce(() => new Promise((r) => (resolveOld = r)));
+    const view = await render(<Discussion />);
+    await settle();
+    mockActivityId = 'act2';
+    mFetch.mockResolvedValue(page([msg(5, 'Nouveau groupe')]));
+    await view.rerender(<Discussion />);
+    await settle();
+    await act(async () => resolveOld(page([msg(1, 'Ancien groupe')])));
+    await settle();
+    expect(screen.getByText('Nouveau groupe')).toBeTruthy();
+    expect(screen.queryByText('Ancien groupe')).toBeNull();
   });
 });

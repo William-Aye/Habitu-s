@@ -1,3 +1,4 @@
+import { randomUUID } from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useSession } from '../account/useSession';
@@ -16,6 +17,7 @@ const PAGE = 50;
 const TICK_MS = 15_000;
 
 export type ChatState = 'loading' | 'not_member' | 'ready' | 'error';
+export type ChatNotice = 'sync' | 'mute';
 export type DisplayMessage = ChatMessage & { pending: PendingMessage | null };
 
 const older = (a: ChatMessage, b: ChatMessage) =>
@@ -43,14 +45,46 @@ export function useChat(activityId: string, focused = true) {
   const [muted, setMutedState] = useState(false);
   const [title, setTitle] = useState<string | null>(null);
   const [muteBusy, setMuteBusy] = useState(false);
+  const [notice, setNotice] = useState<ChatNotice | null>(null);
+  const [needsAccount, setNeedsAccount] = useState(false);
+  // Sent messages that left the outbox: shown until a read that started after that moment has returned.
+  const [linger, setLinger] = useState<{ p: PendingMessage; seq: number }[]>([]);
+
+  // A new activity starts from scratch (reset while rendering, not in an effect).
+  const [forId, setForId] = useState(activityId);
+  if (forId !== activityId) {
+    setForId(activityId);
+    setState('loading');
+    setArchived(false);
+    setServer([]);
+    setHasOlder(false);
+    setPend([]);
+    setLinger([]);
+    setMutedState(false);
+    setTitle(null);
+    setMuteBusy(false);
+    setNotice(null);
+    setNeedsAccount(false);
+  }
 
   const alive = useRef(true);
-  const running = useRef(false);
+  const idRef = useRef(activityId);
+  const running = useRef<string | null>(null);
   const again = useRef(false);
   const replaceNext = useRef(false);
   const loadingOlder = useRef(false);
+  const fetchesStarted = useRef(0);
+  const discarded = useRef<Set<string>>(new Set());
+  const prevPending = useRef<Map<string, PendingMessage>>(new Map());
   const serverRef = useRef<ChatMessage[]>([]);
   const hasOlderRef = useRef(false);
+
+  // The activity the screen is on now: a read for another one must not write.
+  useEffect(() => {
+    idRef.current = activityId;
+    loadingOlder.current = false;
+    prevPending.current = new Map();
+  }, [activityId]);
 
   // Latest values for callbacks that must not change identity.
   useEffect(() => {
@@ -65,28 +99,38 @@ export function useChat(activityId: string, focused = true) {
     };
   }, []);
 
+  const stale = (id: string) => !alive.current || idRef.current !== id;
+
   /** Re-reads the latest page. Overlapping calls collapse into one more pass. `replace` drops older pages. */
   const refresh = useCallback(
     async (replace = false) => {
       if (replace) replaceNext.current = true;
-      if (running.current) {
+      if (running.current === activityId) {
         again.current = true;
         return;
       }
-      running.current = true;
+      running.current = activityId;
       try {
         do {
           again.current = false;
           const replacing = replaceNext.current;
           replaceNext.current = false;
+          const started = ++fetchesStarted.current;
           const r = await fetchMessages(activityId, { limit: PAGE });
-          if (!alive.current) return;
+          if (stale(activityId)) return;
           if (!r.ok) {
-            setState((s) => (s === 'loading' ? 'error' : s));
+            if (r.error === 'signed_out') {
+              setNeedsAccount(true);
+            } else {
+              setState((s) => (s === 'loading' ? 'error' : s));
+              setNotice('sync');
+            }
           } else if (!r.page) {
             setState('not_member');
           } else {
             const { messages, archived: arch } = r.page;
+            setNotice((n) => (n === 'sync' ? null : n));
+            setLinger((l) => l.filter((x) => x.seq >= started));
             setState('ready');
             setArchived(arch);
             if (replacing) {
@@ -98,7 +142,7 @@ export function useChat(activityId: string, focused = true) {
           }
         } while (again.current);
       } finally {
-        running.current = false;
+        if (running.current === activityId) running.current = null;
       }
     },
     [activityId],
@@ -106,6 +150,8 @@ export function useChat(activityId: string, focused = true) {
 
   const load = useCallback(() => {
     setState('loading');
+    setNeedsAccount(false);
+    setNotice(null);
     void refresh(true);
   }, [refresh]);
 
@@ -117,7 +163,7 @@ export function useChat(activityId: string, focused = true) {
   useEffect(() => {
     if (!active) return;
     void myChats().then((r) => {
-      if (!alive.current || !r.ok) return;
+      if (stale(activityId) || !r.ok) return;
       const chat = r.chats.find((c) => c.activityId === activityId);
       if (chat) {
         setMutedState(chat.muted);
@@ -131,7 +177,9 @@ export function useChat(activityId: string, focused = true) {
     if (!active) return;
     let subscribed = 0;
     const channel = supabase
-      .channel(`chat:${activityId}`)
+      // One topic per mount: realtime-js hands back the existing channel for a topic, and a channel that is
+      // already subscribed (or still being removed) cannot take new callbacks.
+      .channel(`chat:${activityId}:${randomUUID()}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `activity_id=eq.${activityId}` },
@@ -157,17 +205,21 @@ export function useChat(activityId: string, focused = true) {
   }, [active, activityId, refresh]);
 
   // Unsent messages of this account for this discussion.
-  const prevPending = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (!active || !userId) return;
     let on = true;
     const sync = () => {
       const next = pending(activityId, userId);
-      const gone = [...prevPending.current].some((id) => !next.some((p) => p.id === id));
-      prevPending.current = new Set(next.map((p) => p.id));
+      const nextIds = new Set(next.map((p) => p.id));
+      const gone = [...prevPending.current.values()].filter((p) => !nextIds.has(p.id) && !discarded.current.has(p.id));
+      prevPending.current = new Map(next.map((p) => [p.id, p]));
       setPend(next);
-      // A message that left the outbox was sent (or dropped): read it back from the server.
-      if (gone) void refresh();
+      if (gone.length > 0) {
+        // Sent: keep the bubble until the read that follows has come back with the server copy.
+        const seq = fetchesStarted.current;
+        setLinger((l) => [...l, ...gone.map((p) => ({ p, seq }))]);
+        void refresh();
+      }
     };
     void outboxReady().then(() => on && sync());
     const off = subscribe(sync);
@@ -187,6 +239,7 @@ export function useChat(activityId: string, focused = true) {
 
   const newestId = server[0]?.id ?? null;
   useEffect(() => {
+    // Failures stay silent: the next read marks it again.
     if (state === 'ready' && focused) void markRead(activityId);
   }, [state, focused, newestId, activityId]);
 
@@ -195,18 +248,13 @@ export function useChat(activityId: string, focused = true) {
     const sent = [...server].reverse().map((m): DisplayMessage => ({ ...m, pending: null }));
     const unsent = pend
       .filter((p) => !serverIds.has(p.id))
-      .map(
-        (p): DisplayMessage => ({
-          id: p.id,
-          body: p.body,
-          createdAt: p.createdAt,
-          sender: { id: p.userId, firstName: '', photoUrl: null },
-          isMine: true,
-          pending: p,
-        }),
-      );
-    return [...sent, ...unsent];
-  }, [server, pend]);
+      .map((p): DisplayMessage => ({ ...asMessage(p), pending: p }));
+    const pendingIds = new Set(pend.map((p) => p.id));
+    const sentLocal = linger
+      .filter((x) => !serverIds.has(x.p.id) && !pendingIds.has(x.p.id))
+      .map((x): DisplayMessage => ({ ...asMessage(x.p), pending: null }));
+    return [...sent, ...sentLocal, ...unsent];
+  }, [server, pend, linger]);
 
   const loadOlder = useCallback(async () => {
     const oldest = serverRef.current[serverRef.current.length - 1];
@@ -215,7 +263,12 @@ export function useChat(activityId: string, focused = true) {
     try {
       // The cursor is the pair of raw server values: never rebuilt through Date.
       const r = await fetchMessages(activityId, { before: { at: oldest.createdAt, id: oldest.id }, limit: PAGE });
-      if (!alive.current || !r.ok) return;
+      if (stale(activityId)) return;
+      if (!r.ok) {
+        if (r.error === 'signed_out') setNeedsAccount(true);
+        else setNotice('sync');
+        return;
+      }
       if (!r.page) {
         setState('not_member');
         return;
@@ -236,7 +289,10 @@ export function useChat(activityId: string, focused = true) {
     [userId, activityId],
   );
   const retry = useCallback((id: string) => void retryPending(id), []);
-  const discard = useCallback((id: string) => discardPending(id), []);
+  const discard = useCallback((id: string) => {
+    discarded.current.add(id);
+    discardPending(id);
+  }, []);
 
   const remove = useCallback(async (id: string): Promise<{ ok: true } | { ok: false; error: ChatError }> => {
     const r = await deleteMessage(id);
@@ -244,14 +300,20 @@ export function useChat(activityId: string, focused = true) {
     return r;
   }, []);
 
+  // Not optimistic: the toggle only flips once the server has accepted it, so a failure leaves it as it was.
   const toggleMute = useCallback(async () => {
     if (muteBusy) return;
     setMuteBusy(true);
     const next = !muted;
     const r = await setMuted(activityId, next);
-    if (!alive.current) return;
+    if (stale(activityId)) return;
     setMuteBusy(false);
-    if (r.ok) setMutedState(next);
+    if (r.ok) {
+      setMutedState(next);
+      setNotice((n) => (n === 'mute' ? null : n));
+    } else {
+      setNotice('mute');
+    }
   }, [muteBusy, muted, activityId]);
 
   const reload = useCallback(() => refresh(true), [refresh]);
@@ -261,6 +323,8 @@ export function useChat(activityId: string, focused = true) {
     archived,
     messages,
     title,
+    notice,
+    needsAccount,
     loadOlder,
     hasOlder,
     send,
@@ -272,5 +336,15 @@ export function useChat(activityId: string, focused = true) {
     muted,
     muteBusy,
     toggleMute,
+  };
+}
+
+function asMessage(p: PendingMessage): ChatMessage {
+  return {
+    id: p.id,
+    body: p.body,
+    createdAt: p.createdAt,
+    sender: { id: p.userId, firstName: '', photoUrl: null },
+    isMine: true,
   };
 }
