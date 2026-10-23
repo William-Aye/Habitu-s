@@ -7,6 +7,7 @@ import { PersonAvatar } from './PersonAvatar';
 import { setAttendance } from './api';
 import { useSession } from '../account/useSession';
 import { askForPush } from '../notifications/registerPush';
+import { leaveScreen } from '../safety/confirmBlock';
 import { usePersonActions } from '../safety/PersonActions';
 import { useReportSheet } from '../safety/ReportSheet';
 import { addSessionToCalendar } from './calendar';
@@ -33,11 +34,12 @@ export function SessionRow({ session, activity, showWelcome, onChanged }: Props)
   const [knownFull, setKnownFull] = useState(false);
   const { userId: me } = useSession();
   const { openReport, reportSheet } = useReportSheet();
-  const { openPerson, personSheet } = usePersonActions({
+  const { openPerson, reportPerson, blockPerson, personSheet } = usePersonActions({
     // Blocking the organiser ends my membership; the organiser blocking a member removes them.
     effectOf: (p) =>
       p.id === activity.organiser?.id ? 'leaves_activity' : activity.isOrganiser ? 'removes_member' : 'plain',
-    onBlocked: onChanged,
+    // Blocking the organiser removes me from the activity: this page is no longer mine to show.
+    onBlocked: (_p, effect) => (effect === 'leaves_activity' ? leaveScreen() : onChanged()),
   });
 
   const date = formatSessionDate(session.startsAt, lang);
@@ -98,6 +100,15 @@ export function SessionRow({ session, activity, showWelcome, onChanged }: Props)
                 accessibilityLabel={p.firstName}
                 accessibilityHint={t('safety.personHint')}
                 style={styles.person}
+                accessibilityActions={[
+                  { name: 'report', label: t('safety.reportPerson') },
+                  { name: 'block', label: t('safety.block') },
+                ]}
+                onAccessibilityAction={(e) => {
+                  const person = { id, firstName: p.firstName };
+                  if (e.nativeEvent.actionName === 'report') void reportPerson(person);
+                  else if (e.nativeEvent.actionName === 'block') blockPerson(person);
+                }}
                 onLongPress={() => void openPerson({ id, firstName: p.firstName })}
               >
                 {body}

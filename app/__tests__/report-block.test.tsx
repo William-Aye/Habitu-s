@@ -1,4 +1,5 @@
 import { Alert } from 'react-native';
+import { router } from 'expo-router';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
 import { initI18n } from '../src/i18n';
 import ActivityScreen from '../src/app/activites/[id]';
@@ -6,6 +7,7 @@ import Association from '../src/app/associations/[id]';
 import CollectifScreen from '../src/app/collectifs/[id]';
 import { ReportSheet } from '../src/features/safety/ReportSheet';
 import { BlockedList } from '../src/features/safety/BlockedList';
+import BlockedScreen from '../src/app/blocked';
 import { block, listBlocked, unblock } from '../src/features/safety/blocks';
 import { reportTarget } from '../src/features/safety/reports';
 import { activityRoster, getActivity, getChatHistory } from '../src/features/activities/api';
@@ -17,7 +19,7 @@ import type { ReportTargetType } from '../src/features/safety/types';
 jest.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'fr-FR' }] }));
 let mockParams: Record<string, string> = { id: 'act1' };
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), back: jest.fn(), replace: jest.fn() },
+  router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn(() => true) },
   useLocalSearchParams: () => mockParams,
 }));
 jest.mock('../src/features/explore/components/TownMap', () => ({ TownMap: () => null }));
@@ -54,8 +56,12 @@ jest.mock('../src/features/safety/reports', () => ({ reportTarget: jest.fn() }))
 jest.mock('../src/features/safety/blocks', () => ({ block: jest.fn(), unblock: jest.fn(), listBlocked: jest.fn() }));
 const mockGate = jest.fn();
 jest.mock('../src/features/account/AccountGate', () => ({ useRequireAccount: () => mockGate }));
+let mockSession: { status: string; userId: string | null } = { status: 'ready', userId: 'me' };
 jest.mock('../src/features/account/useSession', () => ({
-  useSession: () => ({ status: 'ready', userId: 'me', profile: { firstName: 'Moi' } }),
+  useSession: () => ({ ...mockSession, profile: { firstName: 'Moi' } }),
+}));
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 
 const mReport = reportTarget as jest.Mock;
@@ -107,6 +113,8 @@ beforeAll(async () => {
 beforeEach(() => {
   jest.clearAllMocks();
   mockParams = { id: 'act1' };
+  mockSession = { status: 'ready', userId: 'me' };
+  (router.canGoBack as jest.Mock).mockReturnValue(true);
   mockGate.mockResolvedValue(true);
   mReport.mockResolvedValue({ ok: true });
   mBlock.mockResolvedValue({ ok: true });
@@ -181,6 +189,42 @@ describe('ReportSheet', () => {
     await sendReport('Autre');
     expect(await screen.findByText('Action impossible. Réessayez.')).toBeTruthy();
     expect(screen.getByRole('button', { name: SEND }).props.accessibilityState.disabled).toBe(false);
+  });
+});
+
+describe('ReportSheet edge cases', () => {
+  it('locks against a double submit made in the same tick', async () => {
+    let resolve!: (v: unknown) => void;
+    mReport.mockReturnValue(new Promise((r) => (resolve = r)));
+    await render(<ReportSheet target={{ type: 'user', id: 'u1' }} visible onClose={() => {}} />);
+    await fireEvent.press(screen.getByRole('radio', { name: 'Autre' }));
+    const send = screen.getByRole('button', { name: SEND });
+    await act(async () => {
+      void fireEvent.press(send);
+      void fireEvent.press(send);
+    });
+    expect(mReport).toHaveBeenCalledTimes(1);
+    await act(async () => resolve({ ok: true }));
+  });
+
+  it('says the content is gone on not_allowed and closes the sheet', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const onClose = jest.fn();
+    mReport.mockResolvedValue({ ok: false, error: 'not_allowed' });
+    await render(<ReportSheet target={{ type: 'user', id: 'u1' }} visible onClose={onClose} />);
+    await sendReport('Autre');
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(alert.mock.calls[0][0]).toBe("Ce contenu n'est plus disponible.");
+    alert.mockRestore();
+  });
+
+  it('asks for an account on signed_out', async () => {
+    const onClose = jest.fn();
+    mReport.mockResolvedValue({ ok: false, error: 'signed_out' });
+    await render(<ReportSheet target={{ type: 'user', id: 'u1' }} visible onClose={onClose} />);
+    await sendReport('Autre');
+    await waitFor(() => expect(mockGate).toHaveBeenCalledWith('join'));
+    expect(onClose).toHaveBeenCalled();
   });
 });
 
@@ -264,6 +308,83 @@ describe('entry points', () => {
     await fireEvent(screen.getByLabelText('Camille'), 'longPress');
     await fireEvent.press(within(screen.getByTestId('person-actions')).getByRole('button', { name: 'Bloquer' }));
     expect(alert.mock.calls[0][1]).toBe('Vous ne verrez plus ses messages et vous quitterez cette activité.');
+    const buttons = alert.mock.calls[0][2] as { text: string; onPress?: () => void }[];
+    await act(async () => buttons.find((b) => b.text === 'Bloquer Camille')!.onPress!());
+    expect(mBlock).toHaveBeenCalledWith('u9');
+    expect(router.back).toHaveBeenCalled();
+    expect(getActivity).toHaveBeenCalledTimes(1);
+    alert.mockRestore();
+  });
+
+  it('replaces the route when there is no back after blocking the organiser', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    (router.canGoBack as jest.Mock).mockReturnValue(false);
+    await openActivity(withAttendees({ organiser: { id: 'u9', firstName: 'Camille', photoUrl: null } }));
+    await fireEvent(screen.getByLabelText('Camille'), 'longPress');
+    await fireEvent.press(within(screen.getByTestId('person-actions')).getByRole('button', { name: 'Bloquer' }));
+    const buttons = alert.mock.calls[0][2] as { text: string; onPress?: () => void }[];
+    await act(async () => buttons.find((b) => b.text === 'Bloquer Camille')!.onPress!());
+    expect(router.back).not.toHaveBeenCalled();
+    expect(router.replace).toHaveBeenCalled();
+    alert.mockRestore();
+  });
+
+  it('a plain block reloads the page and stays', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    await openActivity(withAttendees());
+    await fireEvent(screen.getByLabelText('Camille'), 'longPress');
+    await fireEvent.press(within(screen.getByTestId('person-actions')).getByRole('button', { name: 'Bloquer' }));
+    const buttons = alert.mock.calls[0][2] as { text: string; onPress?: () => void }[];
+    await act(async () => buttons.find((b) => b.text === 'Bloquer Camille')!.onPress!());
+    await waitFor(() => expect(getActivity).toHaveBeenCalledTimes(2));
+    expect(router.back).not.toHaveBeenCalled();
+    alert.mockRestore();
+  });
+
+  it('locks the block confirmation against two presses in the same tick', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    let resolve!: (v: unknown) => void;
+    mBlock.mockReturnValue(new Promise((r) => (resolve = r)));
+    await openActivity(withAttendees());
+    await fireEvent(screen.getByLabelText('Camille'), 'longPress');
+    await fireEvent.press(within(screen.getByTestId('person-actions')).getByRole('button', { name: 'Bloquer' }));
+    const buttons = alert.mock.calls[0][2] as { text: string; onPress?: () => void }[];
+    const confirm = buttons.find((b) => b.text === 'Bloquer Camille')!.onPress!;
+    await act(async () => {
+      void confirm();
+      void confirm();
+    });
+    expect(mBlock).toHaveBeenCalledTimes(1);
+    await act(async () => resolve({ ok: true }));
+    alert.mockRestore();
+  });
+
+  it('shows an error when blocking fails', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    mBlock.mockResolvedValue({ ok: false, error: 'network' });
+    await openActivity(withAttendees());
+    await fireEvent(screen.getByLabelText('Camille'), 'longPress');
+    await fireEvent.press(within(screen.getByTestId('person-actions')).getByRole('button', { name: 'Bloquer' }));
+    const buttons = alert.mock.calls[0][2] as { text: string; onPress?: () => void }[];
+    await act(async () => buttons.find((b) => b.text === 'Bloquer Camille')!.onPress!());
+    expect(alert.mock.calls[1][0]).toBe('Action impossible. Réessayez.');
+    expect(router.back).not.toHaveBeenCalled();
+    alert.mockRestore();
+  });
+
+  it('offers report and block as accessibility actions on an attendee, without a long press', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    await openActivity(withAttendees());
+    const attendee = screen.getByLabelText('Camille');
+    expect(attendee.props.accessibilityActions).toEqual([
+      { name: 'report', label: 'Signaler cette personne' },
+      { name: 'block', label: 'Bloquer' },
+    ]);
+    await fireEvent(attendee, 'accessibilityAction', { nativeEvent: { actionName: 'block' } });
+    expect(alert.mock.calls[0][0]).toBe('Bloquer Camille ?');
+    await fireEvent(attendee, 'accessibilityAction', { nativeEvent: { actionName: 'report' } });
+    await sendReport('Harcèlement');
+    expect(mReport).toHaveBeenCalledWith('user', 'u9', 'harassment', undefined);
     alert.mockRestore();
   });
 
@@ -295,6 +416,24 @@ describe('entry points', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Signaler ce collectif' }));
     await sendReport('Faux ou spam');
     expect(mReport).toHaveBeenCalledWith('collectif', 'c1', 'fake_or_spam', undefined);
+  });
+});
+
+describe('blocked screen', () => {
+  it('asks a signed-out visitor for an account instead of showing an error', async () => {
+    mockSession = { status: 'signed_out', userId: null };
+    mockGate.mockResolvedValue(false);
+    await render(<BlockedScreen />);
+    await waitFor(() => expect(mockGate).toHaveBeenCalledWith('join'));
+    expect(mList).not.toHaveBeenCalled();
+    expect(screen.queryByText('Impossible de charger les personnes bloquées. Réessayez.')).toBeNull();
+    await waitFor(() => expect(router.back).toHaveBeenCalled());
+  });
+
+  it('shows the list when signed in', async () => {
+    await render(<BlockedScreen />);
+    expect(await screen.findByText('Aucune personne bloquée')).toBeTruthy();
+    expect(mockGate).not.toHaveBeenCalled();
   });
 });
 

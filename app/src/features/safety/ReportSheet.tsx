@@ -1,6 +1,6 @@
 import { Flag } from 'lucide-react-native';
-import { useState, type ReactNode } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useRef, useState, type ReactNode } from 'react';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRequireAccount } from '../account/AccountGate';
 import { reportTarget } from './reports';
@@ -24,14 +24,30 @@ export function ReportSheet({ target, visible, onClose }: Props) {
   const [details, setDetails] = useState('');
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<Outcome>(null);
+  const requireAccount = useRequireAccount();
+  // Set synchronously: two presses in the same tick must send one report.
+  const sending = useRef(false);
 
   const send = async () => {
-    if (busy || !reason) return;
+    if (sending.current || !reason) return;
+    sending.current = true;
     setBusy(true);
     setOutcome(null);
     const r = await reportTarget(target.type, target.id, reason, details.trim() || undefined);
+    sending.current = false;
     setBusy(false);
-    setOutcome(r.ok ? 'sent' : r.error === 'limit_reached' ? 'limit' : 'error');
+    if (r.ok) return setOutcome('sent');
+    if (r.error === 'not_allowed') {
+      // The target is gone or no longer visible: say so and leave.
+      Alert.alert(t('safety.gone'));
+      return onClose();
+    }
+    if (r.error === 'signed_out') {
+      onClose();
+      void requireAccount('join');
+      return;
+    }
+    setOutcome(r.error === 'limit_reached' ? 'limit' : 'error');
   };
 
   return (

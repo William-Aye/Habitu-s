@@ -594,6 +594,7 @@
     "blockedEmpty": "Aucune personne bloquée",
     "blockedLoading": "Chargement des personnes bloquées",
     "blockedError": "Impossible de charger les personnes bloquées. Réessayez.",
-    "personHint": "Appui long pour signaler ou bloquer"
+    "personHint": "Appui long pour signaler ou bloquer",
+    "gone": "Ce contenu n'est plus disponible."
   }
 }

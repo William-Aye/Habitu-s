@@ -342,6 +342,14 @@ describe('discussion screen', () => {
     expect(screen.getByText('Merci, votre signalement a été envoyé.')).toBeTruthy();
   });
 
+  it('opens the message actions through an accessibility action, without a long press', async () => {
+    await open([msg(1, 'Salut')]);
+    const bubble = screen.getByLabelText(/Salut/);
+    expect(bubble.props.accessibilityActions).toEqual([{ name: 'actions', label: 'Actions sur le message' }]);
+    await fireEvent(bubble, 'accessibilityAction', { nativeEvent: { actionName: 'actions' } });
+    expect(screen.getByRole('button', { name: 'Bloquer Camille' })).toBeTruthy();
+  });
+
   it('blocks after a confirmation, then reloads the list', async () => {
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     await open([msg(1, 'Salut')]);

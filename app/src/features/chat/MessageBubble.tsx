@@ -34,6 +34,10 @@ export function MessageBubble({ message: m, onLongPress, onRetry }: Props) {
         accessibilityRole={needsRetry ? 'button' : undefined}
         accessibilityLabel={label}
         accessibilityHint={t('chat.actionsHint')}
+        accessibilityActions={[{ name: 'actions', label: t('chat.actions.title') }]}
+        onAccessibilityAction={(e) => {
+          if (e.nativeEvent.actionName === 'actions') onLongPress(m);
+        }}
         onPress={needsRetry && p ? () => onRetry(p.id) : undefined}
         onLongPress={() => onLongPress(m)}
         style={[styles.bubble, m.isMine ? styles.bubbleMine : styles.bubbleOther]}

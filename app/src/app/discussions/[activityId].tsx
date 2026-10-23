@@ -21,7 +21,7 @@ import { MessageActions } from '../../features/chat/MessageActions';
 import { MessageBubble } from '../../features/chat/MessageBubble';
 import { useChat, type DisplayMessage } from '../../features/chat/useChat';
 import { block } from '../../features/safety/blocks';
-import { confirmBlock } from '../../features/safety/confirmBlock';
+import { afterModalClosed, confirmBlock } from '../../features/safety/confirmBlock';
 import { useReportSheet } from '../../features/safety/ReportSheet';
 
 export default function DiscussionScreen() {
@@ -101,7 +101,8 @@ export default function DiscussionScreen() {
 
   const report = (m: DisplayMessage) => {
     setTarget(null);
-    void openReport({ type: 'message', id: m.id });
+    // Open the report sheet once the actions menu is gone (iOS drops a modal opened mid-dismiss).
+    afterModalClosed(() => void openReport({ type: 'message', id: m.id }));
   };
 
   if (chat.state === 'error' || (signedOut && gateDone)) {

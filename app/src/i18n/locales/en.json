@@ -594,6 +594,7 @@
     "blockedEmpty": "No blocked people",
     "blockedLoading": "Loading blocked people",
     "blockedError": "Could not load blocked people. Try again.",
-    "personHint": "Long press to report or block"
+    "personHint": "Long press to report or block",
+    "gone": "This content is no longer available."
   }
 }

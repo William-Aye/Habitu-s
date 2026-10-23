@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { Alert } from 'react-native';
 import type { TFunction } from 'i18next';
 
@@ -16,4 +17,18 @@ export function confirmBlock(t: TFunction, firstName: string, effect: BlockEffec
     { text: t('chat.actions.cancel'), style: 'cancel' },
     { text: t('chat.actions.block', { prenom: firstName }), style: 'destructive', onPress: onConfirm },
   ]);
+}
+
+/** Leaves a screen whose content is gone for me: back, or home when there is nothing to go back to. */
+export function leaveScreen() {
+  if (router.canGoBack()) router.back();
+  else router.replace('/');
+}
+
+/**
+ * Runs `fn` once the modal that is closing has gone. iOS drops a modal (or alert) opened while another is
+ * still dismissing, and React Native offers no portable "dismissed" callback.
+ */
+export function afterModalClosed(fn: () => void) {
+  setTimeout(fn, 400);
 }
