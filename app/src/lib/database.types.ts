@@ -967,6 +967,9 @@ isOneToOne: true
 "claim_outbox":
 { Args: { "p_limit"?: number }; Returns: Json
                            },
+"collectif_blocked_for_me":
+{ Args: { "p_collectif": string }; Returns: boolean
+                           },
 "delete_my_account":
 { Args: Record<PropertyKey, never>; Returns: undefined
                            },
@@ -1024,6 +1027,9 @@ isOneToOne: true
 "my_activities":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
+"my_recent_community_clubs":
+{ Args: Record<PropertyKey, never>; Returns: number
+                           },
 "notif_when":
 { Args: { "p_lang": string,"p_time_only"?: boolean,"p_ts": string,"p_tz": string }; Returns: string
                            },
@@ -1041,6 +1047,11 @@ isOneToOne: true
                            },
 "search_explore":
 { Args: { "p_discovery_only"?: boolean,"p_interest_category_ids"?: (string)[],"p_kinds"?: (string)[],"p_lat": number,"p_limit"?: number,"p_lon": number,"p_newcomer_friendly"?: boolean,"p_offset"?: number,"p_query"?: string,"p_query_embedding"?: string,"p_radius_km"?: number,"p_sort"?: string,"p_weekday"?: number }; Returns: Json
+                           },
+"search_linkable_associations":
+{ Args: { "p_limit"?: number,"p_query": string }; Returns: {
+              "city": string,"id": string,"name": string,"postcode": string
+            }[]
                            },
 "session_card":
 { Args: { "p_session": string,"p_with_attendees": boolean }; Returns: Json

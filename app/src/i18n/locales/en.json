@@ -235,7 +235,8 @@
       "not_allowed": "To organise, your profile must be complete and your account at least 24 hours old. Try again later.",
       "session_full": "This activity is full.",
       "network": "Cannot connect. Check your network and try again.",
-      "unknown": "Something went wrong. Try again."
+      "unknown": "Something went wrong. Try again.",
+      "association_unavailable": "This association no longer accepts linked activities. Choose another option."
     },
     "who": {
       "me": "Me",
@@ -257,7 +258,8 @@
       "clubHint": "It will be added to the directory marked \"Added by the community\", then checked by our team.",
       "clubSubmit": "Add to the directory",
       "clubCancel": "Cancel",
-      "clubError": "Could not add this club. Try again."
+      "clubError": "Could not add this club. Try again.",
+      "clubLimit": "You have already added 5 clubs today, which is the limit per 24 hours. Try again later."
     },
     "collectifForm": {
       "name": "Collectif name",

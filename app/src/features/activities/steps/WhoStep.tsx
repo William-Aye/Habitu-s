@@ -144,7 +144,15 @@ function AddClubForm({ onAdded, onCancel }: { onAdded(a: { id: string; name: str
         accessibilityLabel={t('create.who.clubWebsite')}
       />
       <Text style={s.hint}>{t('create.who.clubHint')}</Text>
-      {error ? <Text style={s.error}>{t('create.who.clubError')}</Text> : null}
+      {error ? (
+        <Text accessibilityLiveRegion="polite" style={s.error}>
+          {error === 'limit_reached'
+            ? t('create.who.clubLimit')
+            : error === 'not_allowed'
+              ? t('create.errors.not_allowed')
+              : t('create.who.clubError')}
+        </Text>
+      ) : null}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t('create.who.clubSubmit')}
@@ -170,12 +178,14 @@ function AssociationChoice({ form, set }: StepProps) {
   const [failed, setFailed] = useState(false);
   const [adding, setAdding] = useState(false);
   const query = q.trim();
+  // Without an id the search cannot run: say so instead of staying silent.
+  const unavailable = failed || (query.length >= 2 && !userId);
 
   useEffect(() => {
     if (query.length < 2 || !userId) return;
     let cancelled = false;
     const timer = setTimeout(() => {
-      searchLinkableAssociations(query, userId)
+      searchLinkableAssociations(query)
         .then((r) => {
           if (cancelled) return;
           setFailed(false);
@@ -212,19 +222,19 @@ function AssociationChoice({ form, set }: StepProps) {
       />
       <Text style={s.hint}>{t('create.who.associationRule')}</Text>
       {form.association && !shown.some((a) => a.id === form.association?.id) ? (
-        <Option label={form.association.name} selected onPress={() => {}} />
+        <Option label={form.association.name} selected onPress={() => set({ association: null })} />
       ) : null}
       {shown.map((a) => (
         <Option
           key={a.id}
           label={a.name}
-          detail={a.address ?? undefined}
+          detail={a.city ? (a.postcode ? `${a.city} (${a.postcode})` : a.city) : undefined}
           selected={form.association?.id === a.id}
-          onPress={() => set({ association: { id: a.id, name: a.name } })}
+          onPress={() => set({ association: form.association?.id === a.id ? null : { id: a.id, name: a.name } })}
         />
       ))}
-      {failed ? <Text style={s.error}>{t('create.who.associationError')}</Text> : null}
-      {query.length >= 2 && !failed && shown.length === 0 ? <Text>{t('create.who.associationNone')}</Text> : null}
+      {unavailable ? <Text style={s.error}>{t('create.who.associationError')}</Text> : null}
+      {query.length >= 2 && !unavailable && shown.length === 0 ? <Text>{t('create.who.associationNone')}</Text> : null}
       <Text>{t('create.who.unlisted')}</Text>
       <Pressable
         accessibilityRole="button"

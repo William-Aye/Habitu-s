@@ -101,7 +101,9 @@ export function CreateActivityFlow({ initialCollectifId }: { initialCollectifId?
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('create.back')}
-            style={[s.outline, styles.footerButton]}
+            accessibilityState={{ disabled: busy }}
+            disabled={busy}
+            style={[s.outline, styles.footerButton, busy && s.disabled]}
             onPress={() => go(step - 1)}
           >
             <Text style={s.outlineText}>{t('create.back')}</Text>

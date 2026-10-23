@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import NewActivity from '../src/app/activites/new';
 import { createActivity } from '../src/features/activities/api';
@@ -28,8 +28,9 @@ jest.mock('../src/features/explore/api', () => ({
   searchTowns: jest.fn(async () => [{ label: 'Lyon (69001)', lon: 4.83, lat: 45.76 }]),
 }));
 jest.mock('../src/features/account/homeArea', () => ({ currentCommune: jest.fn(async () => 'denied') }));
+const mockSession = { userId: 'u1' as string | null };
 jest.mock('../src/features/account/useSession', () => ({
-  useSession: () => ({ status: 'ready', userId: 'u1', profile: null, error: false, refresh: jest.fn() }),
+  useSession: () => ({ status: 'ready', userId: mockSession.userId, profile: null, error: false, refresh: jest.fn() }),
 }));
 const mockGate = jest.fn();
 jest.mock('../src/features/account/AccountGate', () => ({ useRequireAccount: () => mockGate }));
@@ -52,6 +53,7 @@ beforeAll(async () => {
 beforeEach(() => {
   jest.clearAllMocks();
   mockGate.mockResolvedValue(true);
+  mockSession.userId = 'u1';
   mockCollectifs.mockResolvedValue({ ok: true, collectifs: [] });
   mockCategories.mockResolvedValue([
     { id: 'cat1', slug: 'jeux', nameFr: 'Jeux de société', nameEn: 'Board games', icon: 'dice-5', parentId: null },
@@ -224,14 +226,28 @@ it('lists my collectifs and selects one', async () => {
 });
 
 it('picks a linkable association from the directory', async () => {
-  mockSearchAssoc.mockResolvedValue([{ id: 'a1', name: 'Club des Lilas', address: 'Lyon' }]);
+  mockSearchAssoc.mockResolvedValue([{ id: 'a1', name: 'Club des Lilas', city: 'Lyon', postcode: '69001' }]);
   await open();
   await fireEvent.press(screen.getByLabelText('Une association'));
   expect(disabled(next())).toBe(true);
   await fireEvent.changeText(screen.getByLabelText('Rechercher une association'), 'Lilas');
   await fireEvent.press(await screen.findByLabelText('Club des Lilas'));
-  expect(mockSearchAssoc).toHaveBeenCalledWith('Lilas', 'u1');
+  expect(mockSearchAssoc).toHaveBeenCalledWith('Lilas');
+  expect(screen.getByText('Lyon (69001)')).toBeTruthy();
   expect(disabled(next())).toBe(false);
+  // pressing the chosen association again clears the choice
+  await fireEvent.press(screen.getByLabelText('Club des Lilas'));
+  expect(screen.getByLabelText('Club des Lilas').props.accessibilityState.selected).toBe(false);
+  expect(disabled(next())).toBe(true);
+});
+
+it('shows an error instead of searching when nobody is signed in', async () => {
+  mockSession.userId = null;
+  await open();
+  await fireEvent.press(screen.getByLabelText('Une association'));
+  await fireEvent.changeText(screen.getByLabelText('Rechercher une association'), 'Lilas');
+  expect(await screen.findByText('La recherche a échoué. Réessayez.')).toBeTruthy();
+  expect(mockSearchAssoc).not.toHaveBeenCalled();
 });
 
 it('adds an unlisted club through the community path and selects it', async () => {
@@ -243,6 +259,20 @@ it('adds an unlisted club through the community path and selects it', async () =
   await fireEvent.press(screen.getByLabelText("Ajouter à l'annuaire"));
   await waitFor(() => expect(mockAddClub).toHaveBeenCalledWith({ name: 'Les Boulistes', website: '' }));
   await waitFor(() => expect(disabled(next())).toBe(false));
+});
+
+it.each([
+  ['limit_reached', /5 clubs/],
+  ['not_allowed', /au moins 24 heures/],
+])('explains %s when adding a club', async (error, message) => {
+  mockAddClub.mockResolvedValue({ ok: false, error });
+  await open();
+  await fireEvent.press(screen.getByLabelText('Une association'));
+  await fireEvent.press(screen.getByLabelText('Ajouter ce club'));
+  await fireEvent.changeText(screen.getByLabelText("Nom du club ou de l'association"), 'Les Boulistes');
+  await fireEvent.press(screen.getByLabelText("Ajouter à l'annuaire"));
+  expect(await screen.findByText(message)).toBeTruthy();
+  expect(screen.queryByText("Impossible d'ajouter ce club. Réessayez.")).toBeNull();
 });
 
 async function reachPublish() {
@@ -318,6 +348,25 @@ it('explains the 24-hour rule on not_allowed', async () => {
   await reachPublish();
   await fireEvent.press(screen.getByLabelText('Publier'));
   expect(await screen.findByText(/au moins 24 heures/)).toBeTruthy();
+});
+
+it('tells the user when the association can no longer be linked', async () => {
+  mockCreate.mockResolvedValue({ ok: false, error: 'association_unavailable' });
+  await reachPublish();
+  await fireEvent.press(screen.getByLabelText('Publier'));
+  expect(await screen.findByText(/n'accepte plus de nouvelles activités liées/)).toBeTruthy();
+});
+
+it('disables Retour and Publier while publishing', async () => {
+  let finish: (v: unknown) => void = () => {};
+  mockCreate.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+  await reachPublish();
+  const pressed = fireEvent.press(screen.getByLabelText('Publier'));
+  await waitFor(() => expect(disabled(screen.getByLabelText('Retour'))).toBe(true));
+  expect(disabled(screen.getByLabelText('Publier'))).toBe(true);
+  await act(async () => finish({ ok: true, id: 'act3' }));
+  await pressed;
+  await screen.findByText('Partagez-la avec vos amis');
 });
 
 it('goes back a step keeping what was typed', async () => {

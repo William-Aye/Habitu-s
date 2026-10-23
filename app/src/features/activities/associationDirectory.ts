@@ -5,28 +5,32 @@ import type { ApiResult } from './types';
 export interface LinkableAssociation {
   id: string;
   name: string;
-  address: string | null;
+  city: string | null;
+  postcode: string | null;
 }
 
 const MAX_RESULTS = 10;
 
 /**
  * Directory search limited to what the database lets this user link: an unverified association,
- * or a verified one they claimed (see activities_guard_association).
+ * or a verified one they claimed. The rule lives in the function (API roles cannot read claimed_by).
  */
-export async function searchLinkableAssociations(q: string, userId: string): Promise<LinkableAssociation[]> {
-  // % and _ are wildcards in ilike; commas and parentheses would break the or() filter.
-  const term = q.trim().replace(/[%_,()\\]/g, ' ');
+export async function searchLinkableAssociations(q: string): Promise<LinkableAssociation[]> {
+  const term = q.trim();
   if (term.length < 2) return [];
-  const { data, error } = await supabase
-    .from('associations')
-    .select('id, name, address')
-    .ilike('name', `%${term}%`)
-    .or(`verified.eq.false,claimed_by.eq.${userId}`)
-    .order('name')
-    .limit(MAX_RESULTS);
+  const { data, error } = await supabase.rpc('search_linkable_associations', {
+    p_query: term,
+    p_limit: MAX_RESULTS,
+  });
   if (error) throw new Error('association search failed');
-  return (data ?? []).map((r) => ({ id: r.id, name: r.name, address: r.address ?? null }));
+  return (data ?? []).map((r) => ({ id: r.id, name: r.name, city: r.city ?? null, postcode: r.postcode ?? null }));
+}
+
+/** The database accepts web links only: a bare domain gets https://. */
+function webLink(text: string): string | null {
+  const value = text.trim();
+  if (value === '') return null;
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
 }
 
 /**
@@ -37,14 +41,13 @@ export function addCommunityAssociation(input: {
   name: string;
   website: string;
 }): Promise<ApiResult<{ id: string }>> {
-  const website = input.website.trim();
   return runAsUser(
     (userId) =>
       supabase
         .from('associations')
         .insert({
           name: input.name.trim(),
-          website: website === '' ? null : website,
+          website: webLink(input.website),
           source: 'community',
           created_by: userId,
         })

@@ -22,7 +22,13 @@ export interface ActivityDraft {
   approvalMode: 'open' | 'approval';
 }
 
-export type ApiError = 'limit_reached' | 'not_allowed' | 'session_full' | 'network' | 'unknown';
+export type ApiError =
+  | 'limit_reached'
+  | 'not_allowed'
+  | 'association_unavailable'
+  | 'session_full'
+  | 'network'
+  | 'unknown';
 export type ApiResult<T = Record<never, never>> = ({ ok: true } & T) | { ok: false; error: ApiError };
 
 export type AttendanceStatus = 'confirmed' | 'cancelled' | 'cancelled_late' | 'no_show';

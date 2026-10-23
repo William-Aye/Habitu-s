@@ -30,15 +30,25 @@ export interface FormState {
   approvalMode: 'open' | 'approval';
 }
 
-const pad = (n: number) => String(n).padStart(2, '0');
+const PARIS_DAY = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/Paris',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
 
-/** Local calendar date as YYYY-MM-DD. */
+/** The calendar date in Europe/Paris (where sessions are scheduled) as YYYY-MM-DD, whatever the device zone. */
 export function localDate(d: Date): string {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const part = (type: string) => PARIS_DAY.formatToParts(d).find((p) => p.type === type)?.value ?? '';
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
+function nextDay(date: string): string {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
 }
 
 export function initialForm(collectifId?: string | null, now = new Date()): FormState {
-  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
   return {
     who: collectifId ? 'collectif' : 'me',
     collectifId: collectifId ?? null,
@@ -49,7 +59,7 @@ export function initialForm(collectifId?: string | null, now = new Date()): Form
     pin: null,
     townLabel: '',
     placeLabel: '',
-    startDate: localDate(tomorrow),
+    startDate: nextDay(localDate(now)),
     startTime: '19:00',
     recurrenceKind: 'weekly',
     everyDays: '7',

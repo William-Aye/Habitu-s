@@ -8,7 +8,11 @@ interface PgError {
 
 export function mapError(error: PgError): ApiError {
   const message = error.message ?? '';
-  if (error.code === '42501') return message.includes('limit_reached') ? 'limit_reached' : 'not_allowed';
+  if (error.code === '42501') {
+    if (message.includes('limit_reached')) return 'limit_reached';
+    // The guard on activities.organised_by_association_id (the association was verified meanwhile).
+    return message.includes('association not linkable') ? 'association_unavailable' : 'not_allowed';
+  }
   // Unique violation: rejoining after removal, or a double tap.
   if (error.code === '23505') return 'not_allowed';
   if (message.includes('session_full')) return 'session_full';

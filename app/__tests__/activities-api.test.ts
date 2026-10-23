@@ -10,6 +10,7 @@ import {
   updateSession,
 } from '../src/features/activities/api';
 import { mapError } from '../src/features/activities/errors';
+import { addCommunityAssociation, searchLinkableAssociations } from '../src/features/activities/associationDirectory';
 import {
   answerInvitation,
   createCollectif,
@@ -98,6 +99,58 @@ describe('mapError', () => {
     expect(mapError({ message: 'TypeError: Network request failed' })).toBe('network');
     expect(mapError({ code: '23505', message: 'duplicate key' })).toBe('not_allowed');
     expect(mapError({ code: '22000', message: 'other' })).toBe('unknown');
+  });
+
+  it('maps the association guard to association_unavailable, limit_reached first', () => {
+    expect(mapError({ code: '42501', message: 'association not linkable' })).toBe('association_unavailable');
+    expect(mapError({ code: '42501', message: 'limit_reached; association not linkable' })).toBe('limit_reached');
+  });
+});
+
+describe('searchLinkableAssociations', () => {
+  it('calls the RPC and maps city and postcode', async () => {
+    mockRpc.mockResolvedValue({
+      data: [{ id: 'a1', name: 'Club des Lilas', city: 'Lyon', postcode: '69001' }],
+      error: null,
+    });
+    expect(await searchLinkableAssociations('  Lilas ')).toEqual([
+      { id: 'a1', name: 'Club des Lilas', city: 'Lyon', postcode: '69001' },
+    ]);
+    expect(mockRpc).toHaveBeenCalledWith('search_linkable_associations', { p_query: 'Lilas', p_limit: 10 });
+  });
+
+  it('skips the call under two characters and throws on a database error', async () => {
+    expect(await searchLinkableAssociations(' a ')).toEqual([]);
+    expect(mockRpc).not.toHaveBeenCalled();
+    mockRpc.mockResolvedValue({ data: null, error: { code: '42501', message: 'denied' } });
+    await expect(searchLinkableAssociations('Lilas')).rejects.toThrow();
+  });
+});
+
+describe('addCommunityAssociation', () => {
+  it('inserts a community row, prefixing a bare domain with https://', async () => {
+    result = { data: { id: 'a7' }, error: null };
+    expect(await addCommunityAssociation({ name: ' Les Boulistes ', website: ' boules.example ' })).toEqual({
+      ok: true,
+      id: 'a7',
+    });
+    expect(mockFrom).toHaveBeenCalledWith('associations');
+    expect(lastCall('insert')?.args[0]).toEqual({
+      name: 'Les Boulistes',
+      website: 'https://boules.example',
+      source: 'community',
+      created_by: 'me',
+    });
+  });
+
+  it('keeps an http(s) link, sends null for an empty one and maps the limit', async () => {
+    result = { data: { id: 'a8' }, error: null };
+    await addCommunityAssociation({ name: 'Club', website: 'HTTP://x.example' });
+    expect(lastCall('insert')?.args[0]).toMatchObject({ website: 'HTTP://x.example' });
+    await addCommunityAssociation({ name: 'Club', website: '' });
+    expect(lastCall('insert')?.args[0]).toMatchObject({ website: null });
+    result = { data: null, error: { code: '42501', message: 'limit_reached' } };
+    expect(await addCommunityAssociation({ name: 'Club', website: '' })).toEqual({ ok: false, error: 'limit_reached' });
   });
 });
 

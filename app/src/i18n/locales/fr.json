@@ -235,7 +235,8 @@
       "not_allowed": "Pour organiser, votre profil doit être complet et votre compte doit avoir au moins 24 heures. Réessayez plus tard.",
       "session_full": "Cette activité est complète.",
       "network": "Connexion impossible. Vérifiez votre réseau et réessayez.",
-      "unknown": "Une erreur est survenue. Réessayez."
+      "unknown": "Une erreur est survenue. Réessayez.",
+      "association_unavailable": "Cette association n'accepte plus de nouvelles activités liées. Choisissez une autre option."
     },
     "who": {
       "me": "Moi",
@@ -257,7 +258,8 @@
       "clubHint": "Elle sera ajoutée à l'annuaire avec la mention « Ajouté par la communauté », puis vérifiée par notre équipe.",
       "clubSubmit": "Ajouter à l'annuaire",
       "clubCancel": "Annuler",
-      "clubError": "Impossible d'ajouter ce club. Réessayez."
+      "clubError": "Impossible d'ajouter ce club. Réessayez.",
+      "clubLimit": "Vous avez déjà ajouté 5 clubs aujourd'hui, c'est la limite par période de 24 heures. Réessayez plus tard."
     },
     "collectifForm": {
       "name": "Nom du collectif",
