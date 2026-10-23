@@ -1,0 +1,216 @@
+-- Group chat: write rules, read state, page RPCs, retention.
+-- The messages table, its select/insert/admin policies and indexes exist since 20261021000005.
+-- Here: pinned sender and date, archive refusal, rate limit, own-message delete.
+
+create function public.messages_guard() returns trigger
+language plpgsql set search_path = public, pg_temp as $$
+begin
+  if current_user in ('anon', 'authenticated') and not public.is_admin() then
+    new.sender_id := auth.uid();
+    new.created_at := now();
+    if new.activity_id is not null then
+      if exists (select 1 from public.activities a where a.id = new.activity_id and a.archived_at is not null) then
+        raise exception 'not_allowed' using errcode = '42501';
+      end if;
+      perform pg_advisory_xact_lock(hashtext('limits:' || coalesce(auth.uid()::text, '')));
+      if (select count(*) from public.messages m
+           where m.sender_id = new.sender_id and m.created_at > now() - interval '1 minute') >= 30 then
+        raise exception 'limit_reached' using errcode = '42501';
+      end if;
+    end if;
+  end if;
+  return new;
+end $$;
+revoke all on function public.messages_guard() from public, anon, authenticated;
+create trigger messages_guard before insert on public.messages
+  for each row execute function public.messages_guard();
+
+create policy messages_delete_own on public.messages for delete to authenticated
+  using (sender_id = auth.uid());
+
+-- Per-user read state and mute, one row per discussion. Written only through the RPCs below.
+create table public.chat_states (
+  activity_id uuid not null references public.activities on delete cascade,
+  user_id uuid not null references public.profiles on delete cascade,
+  last_read_at timestamptz not null default now(),
+  muted boolean not null default false,
+  primary key (activity_id, user_id)
+);
+create index chat_states_user on public.chat_states (user_id);
+alter table public.chat_states enable row level security;
+revoke all on public.chat_states from anon, authenticated;
+grant select on public.chat_states to authenticated;
+create policy chat_states_own on public.chat_states for select to authenticated
+  using (user_id = auth.uid());
+
+-- A page of the discussion, newest first. Null for anyone who is not a participant.
+-- p_before pages older messages; p_after returns the oldest messages newer than it (so none is skipped).
+create function public.chat_messages(
+  p_activity uuid, p_before timestamptz default null, p_after timestamptz default null, p_limit int default 50
+) returns jsonb
+language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare
+  v_limit int := least(greatest(coalesce(p_limit, 50), 1), 100);
+  v_archived boolean;
+  v_rows jsonb;
+begin
+  if auth.uid() is null or not public.is_activity_member(p_activity) then
+    return null;
+  end if;
+  select a.archived_at is not null into v_archived from public.activities a where a.id = p_activity;
+  select coalesce(jsonb_agg(jsonb_build_object(
+      'id', t.id, 'body', t.body, 'created_at', t.created_at,
+      'sender', jsonb_build_object('id', t.sender_id, 'first_name', t.first_name, 'photo_url', t.photo_url),
+      'is_mine', t.sender_id = auth.uid()) order by t.created_at desc, t.id desc), '[]'::jsonb)
+    into v_rows
+    from (
+      select m.id, m.body, m.created_at, m.sender_id, p.first_name, p.photo_url
+        from public.messages m
+        join public.profiles p on p.id = m.sender_id
+       where m.activity_id = p_activity
+         and (p_before is null or m.created_at < p_before)
+         and (p_after is null or m.created_at > p_after)
+         and not public.is_blocked_between(m.sender_id)
+       order by case when p_after is not null and p_before is null then m.created_at end asc,
+                m.created_at desc, m.id desc
+       limit v_limit
+    ) t;
+  return jsonb_build_object('archived', coalesce(v_archived, false), 'messages', v_rows);
+end $$;
+revoke all on function public.chat_messages(uuid, timestamptz, timestamptz, int) from public, anon;
+grant execute on function public.chat_messages(uuid, timestamptz, timestamptz, int) to authenticated;
+
+-- The discussions list: every activity I organise or belong to (archived ones only if they have messages).
+create function public.my_chats() returns jsonb
+language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare
+  v_uid uuid := auth.uid();
+begin
+  if v_uid is null then raise exception 'not authenticated' using errcode = '42501'; end if;
+  return coalesce((select jsonb_agg(jsonb_build_object(
+      'activity_id', c.id, 'title', c.title,
+      'last_message', case when c.lm_at is null then null else jsonb_build_object(
+          'body', c.lm_body, 'created_at', c.lm_at, 'sender_first_name', c.lm_first_name) end,
+      'unread_count', c.unread, 'muted', c.muted) order by c.lm_at desc nulls last, c.title, c.id)
+    from (
+      select a.id, a.title, coalesce(cs.muted, false) as muted, lm.body as lm_body, lm.created_at as lm_at,
+             lm.first_name as lm_first_name,
+             (select count(*)::int from (
+                select 1 from public.messages m
+                 where m.activity_id = a.id and m.sender_id <> v_uid
+                   and m.created_at > coalesce(cs.last_read_at, '-infinity'::timestamptz)
+                   and not public.is_blocked_between(m.sender_id)
+                 limit 99) u) as unread
+        from public.activities a
+        left join public.chat_states cs on cs.activity_id = a.id and cs.user_id = v_uid
+        left join lateral (
+          select m.body, m.created_at, p.first_name
+            from public.messages m join public.profiles p on p.id = m.sender_id
+           where m.activity_id = a.id and not public.is_blocked_between(m.sender_id)
+           order by m.created_at desc, m.id desc limit 1) lm on true
+       where public.is_activity_member(a.id)
+         and (a.archived_at is null or exists (select 1 from public.messages m where m.activity_id = a.id))
+    ) c), '[]'::jsonb);
+end $$;
+revoke all on function public.my_chats() from public, anon;
+grant execute on function public.my_chats() to authenticated;
+
+create function public.mark_chat_read(p_activity uuid) returns void
+language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  if auth.uid() is null or not public.is_activity_member(p_activity) then
+    raise exception 'not_allowed' using errcode = '42501';
+  end if;
+  insert into public.chat_states (activity_id, user_id, last_read_at)
+    values (p_activity, auth.uid(), now())
+    on conflict (activity_id, user_id) do update set last_read_at = excluded.last_read_at;
+end $$;
+revoke all on function public.mark_chat_read(uuid) from public, anon;
+grant execute on function public.mark_chat_read(uuid) to authenticated;
+
+-- A first mute keeps everything unread: the row is created with no read mark.
+create function public.set_chat_muted(p_activity uuid, p_muted boolean) returns void
+language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  if auth.uid() is null or not public.is_activity_member(p_activity) then
+    raise exception 'not_allowed' using errcode = '42501';
+  end if;
+  insert into public.chat_states (activity_id, user_id, last_read_at, muted)
+    values (p_activity, auth.uid(), '-infinity', coalesce(p_muted, false))
+    on conflict (activity_id, user_id) do update set muted = excluded.muted;
+end $$;
+revoke all on function public.set_chat_muted(uuid, boolean) from public, anon;
+grant execute on function public.set_chat_muted(uuid, boolean) to authenticated;
+
+-- Realtime: a signal only. Subscribers receive rows through the select policies.
+alter publication supabase_realtime add table public.messages;
+
+-- Retention: 12 months.
+create function public.prune_messages() returns int
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_count int;
+begin
+  delete from public.messages where created_at < now() - interval '12 months';
+  get diagnostics v_count = row_count;
+  return v_count;
+end $$;
+revoke all on function public.prune_messages() from public, anon, authenticated;
+select cron.schedule('prune-messages', '10 4 * * *', 'select public.prune_messages()');
+
+-- Data export: migration 23's definition, plus chat_states.
+create or replace function public.export_my_data() returns jsonb
+language plpgsql stable security definer set search_path = public, extensions, pg_temp as $$
+declare
+  v_uid uuid := auth.uid();
+begin
+  if v_uid is null then raise exception 'not authenticated' using errcode = '42501'; end if;
+  return jsonb_build_object(
+    'account', (select jsonb_build_object(
+        'email', u.email, 'created_at', u.created_at, 'last_sign_in_at', u.last_sign_in_at,
+        'providers', coalesce((select jsonb_agg(i.provider order by i.provider)
+                                 from auth.identities i where i.user_id = u.id), '[]'::jsonb))
+      from auth.users u where u.id = v_uid),
+    'profile', (select to_jsonb(p) - 'home_area' || jsonb_build_object('home_area', ST_AsText(p.home_area::geometry))
+                  from public.profiles p where p.id = v_uid),
+    'interests', coalesce((select jsonb_agg(to_jsonb(i)) from public.user_interests i where i.user_id = v_uid), '[]'),
+    'category_requests', coalesce((select jsonb_agg(jsonb_build_object(
+        'id', r.id, 'requested_name', r.requested_name, 'status', r.status, 'created_at', r.created_at))
+      from public.category_requests r where r.user_id = v_uid), '[]'),
+    'activities_organised', coalesce((select jsonb_agg(to_jsonb(a) - 'embedding' - 'place'
+        || jsonb_build_object('place', ST_AsText(a.place::geometry)))
+      from public.activities a where a.organiser_id = v_uid), '[]'),
+    'memberships', coalesce((select jsonb_agg(to_jsonb(m)) from public.activity_members m where m.user_id = v_uid), '[]'),
+    'interests_in_activities', coalesce((select jsonb_agg(to_jsonb(ai)) from public.activity_interests ai where ai.user_id = v_uid), '[]'),
+    'attendances', coalesce((select jsonb_agg(to_jsonb(t)) from public.attendances t where t.user_id = v_uid), '[]'),
+    'messages_sent', coalesce((select jsonb_agg(to_jsonb(ms)) from public.messages ms where ms.sender_id = v_uid), '[]'),
+    'reports_filed', coalesce((select jsonb_agg(jsonb_build_object(
+        'id', rp.id, 'target_type', rp.target_type, 'target_id', rp.target_id, 'reason', rp.reason,
+        'details', rp.details, 'status', rp.status, 'created_at', rp.created_at))
+      from public.reports rp where rp.reporter_id = v_uid), '[]'),
+    'blocks', coalesce((select jsonb_agg(to_jsonb(b)) from public.blocks b where b.blocker_id = v_uid), '[]'),
+    'saved_searches', coalesce((select jsonb_agg(to_jsonb(s) - 'center'
+        || jsonb_build_object('center', ST_AsText(s.center::geometry)))
+      from public.saved_searches s where s.user_id = v_uid), '[]'),
+    'association_waiters', coalesce((select jsonb_agg(to_jsonb(w)) from public.association_waiters w where w.user_id = v_uid), '[]'),
+    'association_claims', coalesce((select jsonb_agg(to_jsonb(c)) from public.association_claims c where c.claimant_id = v_uid), '[]'),
+    'feedback_sent', coalesce((select jsonb_agg(to_jsonb(f)) from public.feedback f where f.user_id = v_uid), '[]'),
+    'session_feedback_sent', coalesce((select jsonb_agg(to_jsonb(sf)) from public.session_feedback sf where sf.user_id = v_uid), '[]'),
+    'safety_tips_seen', coalesce((select jsonb_agg(to_jsonb(st)) from public.safety_tips_seen st where st.user_id = v_uid), '[]'),
+    'notification_log', coalesce((select jsonb_agg(to_jsonb(nl)) from public.notification_log nl where nl.user_id = v_uid), '[]'),
+    'push_tokens', coalesce((select jsonb_agg(jsonb_build_object('token', pt.token, 'platform', pt.platform, 'updated_at', pt.updated_at)) from public.push_tokens pt where pt.user_id = v_uid), '[]'),
+    'collectif_memberships', coalesce((select jsonb_agg(to_jsonb(cm)) from public.collectif_members cm where cm.user_id = v_uid), '[]'),
+    'collectifs_created', coalesce((select jsonb_agg(jsonb_build_object(
+        'id', c.id, 'name', c.name, 'description', c.description, 'town_label', c.town_label,
+        'town_point', ST_AsText(c.town_point::geometry), 'created_at', c.created_at))
+      from public.collectifs c where c.created_by = v_uid), '[]'),
+    'notifications', coalesce((select jsonb_agg(jsonb_build_object(
+        'kind', n.kind, 'title', n.title, 'body', n.body, 'data', n.data, 'send_after', n.send_after,
+        'sent_at', n.sent_at, 'failed_at', n.failed_at) order by n.id)
+      from public.notification_outbox n where n.user_id = v_uid), '[]'),
+    'chat_states', coalesce((select jsonb_agg(to_jsonb(cs)) from public.chat_states cs where cs.user_id = v_uid), '[]'),
+    'organiser_stats', (select to_jsonb(o) from public.organiser_stats o where o.user_id = v_uid)
+  );
+end $$;
+revoke all on function public.export_my_data() from public, anon;
+grant execute on function public.export_my_data() to authenticated;

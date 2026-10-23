@@ -38,8 +38,8 @@ select is((select count(*) from messages)::int, 0, 'blocked sender hidden from b
 select throws_ok(format($$ insert into messages (sender_id, recipient_id, body) values (auth.uid(), %L, 'hi') $$, :'ben'),
   '42501', null, 'private messages not yet allowed');
 select lives_ok($$ insert into messages (activity_id, sender_id, body) values ('00000000-0000-0000-0000-0000000000f1', auth.uid(), 'Coucou') $$, 'member posts group message');
-select throws_ok(format($$ insert into messages (activity_id, sender_id, body) values ('00000000-0000-0000-0000-0000000000f1', %L, 'usurpation') $$, :'ben'),
-  '42501', null, 'cannot post as someone else');
+insert into messages (activity_id, sender_id, body) values ('00000000-0000-0000-0000-0000000000f1', :'ben', 'usurpation');
+select is((select count(*) from messages where body = 'usurpation' and sender_id = auth.uid())::int, 1, 'posting as someone else is stored as the caller');
 select throws_ok($$ insert into messages (activity_id, sender_id, body) values ('00000000-0000-0000-0000-0000000000f1', auth.uid(), '') $$,
   '23514', null, 'empty message rejected');
 select throws_ok(format($$ insert into blocks (blocker_id, blocked_id) values (%L, %L) $$, :'ben', :'cat'),
@@ -93,7 +93,7 @@ select is((select count(*) from blocks)::int, 0, 'blocks are own-only');
 select is((select count(*) from safety_tips_seen)::int, 0, 'safety tips are own-only');
 select is((select count(*) from saved_searches)::int, 0, 'saved searches are own-only');
 select is((select count(*) from organiser_stats)::int, 1, 'organiser sees own stats');
-select is((select count(*) from messages)::int, 2, 'organiser (activity member) sees messages');
+select is((select count(*) from messages)::int, 3, 'organiser (activity member) sees messages');
 select throws_ok($$ insert into session_feedback (session_id, user_id, went_well) values ('00000000-0000-0000-0000-0000000000e1', auth.uid(), true) $$,
   '42501', null, 'organiser cannot rate own session');
 
@@ -106,7 +106,7 @@ select is(public.session_has_member('00000000-0000-0000-0000-0000000000e1', :'an
 update messages set body = 'hack';
 select is((select count(*) from messages where body = 'hack')::int, 0, 'cannot update messages');
 delete from messages;
-select is((select count(*) from messages)::int, 1, 'cannot delete messages');
+select is((select count(*) from messages)::int, 0, 'deletes only own messages (others stay)');
 select is((select count(*) from reports)::int, 0, 'ben does not see ana reports');
 select is((select count(*) from blocks)::int, 0, 'ben does not see ana blocks');
 select is((select count(*) from messages where sender_id = :'ana')::int, 0, 'blocking is two-way: blocked user cannot see blocker messages');
