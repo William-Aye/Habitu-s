@@ -54,11 +54,13 @@ it('marks every not-yet-built feature in both languages', () => {
 
 it('names the push processors, the lock screen exposure and the 30-day retention of notifications', () => {
   for (const [text, words] of [
-    [privacyFr, ['Expo', 'Firebase Cloud Messaging', 'Apple Push Notification service', 'écran verrouillé', '30 jours sur nos serveurs']],
-    [privacyEn, ['Expo', 'Firebase Cloud Messaging', 'Apple Push Notification service', 'lock screen', '30 days on our servers']],
+    [privacyFr, ['Expo', 'Firebase Cloud Messaging', 'Apple Push Notification service', "ne contiennent aucun nom d'activité ni prénom", '30 jours sur nos serveurs']],
+    [privacyEn, ['Expo', 'Firebase Cloud Messaging', 'Apple Push Notification service', 'contain no activity name or first name', '30 days on our servers']],
   ] as const) {
     for (const w of words) expect(text).toContain(w);
   }
+  expect(privacyFr).not.toContain('écran verrouillé');
+  expect(privacyEn).not.toContain('lock screen');
   expect(privacyFr).not.toContain("Expo (envoi des notifications) (dès que");
 });
 

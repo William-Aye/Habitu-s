@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(72);
+select plan(74);
 select tests.create_user('org@not.fr', 'Olivier') as org \gset
 select tests.create_user('mem@not.fr', 'Mia') as mem \gset
 select tests.create_user('memen@not.fr', 'Mike') as memen \gset
@@ -57,8 +57,8 @@ insert into activity_members (activity_id, user_id, status) values
   ('00000000-0000-0000-0000-0000000000f1', :'mem', 'member'),
   ('00000000-0000-0000-0000-0000000000f1', :'memen', 'member');
 select is((select count(*)::int from notification_outbox where user_id = :'org' and kind = 'new_member'), 2, 'one new_member row per join');
-select is((select title || ' / ' || body from notification_outbox where user_id = :'org' and kind = 'new_member' and body like 'Mia%'),
-  'Nouveau membre dans Go du mardi / Mia a rejoint l''activité.', 'organiser text in French, first name only');
+select is((select distinct title || ' / ' || body from notification_outbox where user_id = :'org' and kind = 'new_member'),
+  'Nouveau membre / Quelqu''un a rejoint votre activité.', 'organiser text is generic: no first name, no activity title');
 -- blocks (either direction) and the empty first name
 insert into blocks (blocker_id, blocked_id) values (:'org', :'mem2'), (:'outsider', :'org');
 insert into activity_members (activity_id, user_id, status) values
@@ -66,10 +66,10 @@ insert into activity_members (activity_id, user_id, status) values
   ('00000000-0000-0000-0000-0000000000f1', :'outsider', 'member');
 select is((select count(*)::int from notification_outbox where user_id = :'org' and kind = 'new_member'), 2, 'blocked either way: the organiser is not notified');
 insert into activity_members (activity_id, user_id, status) values ('00000000-0000-0000-0000-0000000000f1', :'noname', 'member');
-select is((select body from notification_outbox where user_id = :'org' and kind = 'new_member' and body like 'Quelqu%'), 'Quelqu''un a rejoint l''activité.', 'an empty first name gets a neutral phrase');
+select is((select count(*)::int from notification_outbox where user_id = :'org' and kind = 'new_member'), 3, 'an empty first name still notifies, with the same generic text');
 delete from activity_members where activity_id = '00000000-0000-0000-0000-0000000000f1' and user_id = :'mem';
 insert into activity_members (activity_id, user_id, status) values ('00000000-0000-0000-0000-0000000000f1', :'mem', 'member');
-select is((select count(*)::int from notification_outbox where user_id = :'org' and kind = 'new_member' and body like 'Mia%'), 1, 'leaving and re-joining does not notify again');
+select is((select count(*)::int from notification_outbox where user_id = :'org' and kind = 'new_member'), 3, 'leaving and re-joining does not notify again');
 insert into activity_members (activity_id, user_id, status) values ('00000000-0000-0000-0000-0000000000f2', :'memen', 'pending');
 select is((select count(*)::int from notification_outbox where user_id = :'org' and kind = 'join_request'), 1, 'one join_request row');
 delete from activity_members where activity_id = '00000000-0000-0000-0000-0000000000f2' and user_id = :'memen';
@@ -93,20 +93,21 @@ insert into attendances (session_id, user_id, status) values ('00000000-0000-000
 select is((select count(*)::int from notification_outbox where kind = 'late_cancellation'), 0, 'ordinary cancellation does not notify');
 update attendances set status = 'cancelled_late' where session_id = '00000000-0000-0000-0000-0000000000a2' and user_id = :'mem';
 select is((select count(*)::int from notification_outbox where user_id = :'org' and kind = 'late_cancellation'), 1, 'late cancellation notifies the organiser once');
-select ok((select body from notification_outbox where kind = 'late_cancellation') like 'Mia ne viendra pas%', 'late cancellation text uses the first name');
+select is((select title || ' / ' || body from notification_outbox where kind = 'late_cancellation'),
+  'Désistement tardif / Une personne ne viendra pas à une prochaine séance.', 'late cancellation text is generic');
 update attendances set status = 'confirmed' where session_id = '00000000-0000-0000-0000-0000000000a2' and user_id = :'mem';
 update attendances set status = 'cancelled_late' where session_id = '00000000-0000-0000-0000-0000000000a2' and user_id = :'mem';
 select is((select count(*)::int from notification_outbox where kind = 'late_cancellation'), 1, 'toggling does not notify the organiser again');
 
 update sessions set starts_at = starts_at + interval '1 hour' where id = '00000000-0000-0000-0000-0000000000a1';
 select is((select count(*)::int from notification_outbox where kind = 'session_moved'), 2, 'session moved: both confirmed attendees, no one else');
-select is((select title from notification_outbox where kind = 'session_moved' and user_id = :'memen'), 'Session changed: Go du mardi', 'moved text in English');
-select ok((select body from notification_outbox where kind = 'session_moved' and user_id = :'mem') like 'Nouvelle date : %', 'moved text in French');
+select is((select title from notification_outbox where kind = 'session_moved' and user_id = :'memen'), 'Session changed', 'moved text in English');
+select is((select title || ' / ' || body from notification_outbox where kind = 'session_moved' and user_id = :'mem' order by id limit 1),
+  'Séance modifiée / Une séance de votre activité a changé.', 'moved text in French is generic');
 update sessions set place_label = 'Parc Blandan' where id = '00000000-0000-0000-0000-0000000000a1';
-select is((select body from notification_outbox where kind = 'session_moved' and user_id = :'mem' order by id desc limit 1), 'Nouveau lieu : Parc Blandan.', 'place change text');
-insert into blocks (blocker_id, blocked_id) values (:'mem', :'org');
+select is((select body from notification_outbox where kind = 'session_moved' and user_id = :'mem' order by id desc limit 1), 'Une séance de votre activité a changé.', 'place change text is generic');
 update sessions set status = 'cancelled_by_organiser' where id = '00000000-0000-0000-0000-0000000000a1';
-select is((select count(*)::int from notification_outbox where kind = 'session_cancelled' and user_id = :'mem'), 1, 'logistics reach an attendee who blocked the organiser');
+select is((select count(*)::int from notification_outbox where kind = 'session_cancelled' and user_id = :'mem'), 1, 'cancelled: the attendee is notified');
 select is((select count(*)::int from notification_outbox where kind = 'session_cancelled'), 2, 'cancelled: both confirmed attendees');
 select is((select count(*)::int from notification_outbox where kind = 'session_cancelled' and user_id in (:'mem2', :'org')), 0, 'cancelled: not the cancelled attendee nor the organiser');
 
@@ -136,8 +137,8 @@ insert into attendances (session_id, user_id, status) values
   ('00000000-0000-0000-0000-0000000000a7', :'outsider', 'confirmed'),
   ('00000000-0000-0000-0000-0000000000a8', :'mem', 'confirmed');
 update activities set place_label = 'Nouveau bar' where id = '00000000-0000-0000-0000-0000000000f5';
-select is((select count(*)::int from notification_outbox where body = 'Nouveau lieu : Nouveau bar.' and user_id = :'mem'), 1, 'activity place change: one notification, only for the session using the activity place');
-select is((select count(*)::int from notification_outbox where body = 'Nouveau lieu : Nouveau bar.' and user_id = :'outsider'), 0, 'activity place change: a removed member is not notified');
+select is((select count(*)::int from notification_outbox where data->>'session_id' = '00000000-0000-0000-0000-0000000000a7' and kind = 'session_moved' and user_id = :'mem'), 1, 'activity place change: one notification, only for the session using the activity place');
+select is((select count(*)::int from notification_outbox where data->>'session_id' = '00000000-0000-0000-0000-0000000000a7' and kind = 'session_moved' and user_id = :'outsider'), 0, 'activity place change: a removed member is not notified');
 
 -- collectif invitation
 delete from blocks where blocker_id = :'mem';
@@ -147,8 +148,9 @@ insert into collectif_members (collectif_id, user_id, role, status) values
   ('00000000-0000-0000-0000-0000000000d1', :'mem', 'organiser', 'invited'),
   ('00000000-0000-0000-0000-0000000000d1', :'memen', 'organiser', 'invited');
 select is((select count(*)::int from notification_outbox where kind = 'collectif_invitation'), 2, 'one invitation row per invitee');
-select is((select title from notification_outbox where kind = 'collectif_invitation' and user_id = :'mem'), 'Invitation à un collectif', 'invitation in French');
-select is((select title from notification_outbox where kind = 'collectif_invitation' and user_id = :'memen'), 'Collective invitation', 'invitation in English');
+select is((select title from notification_outbox where kind = 'collectif_invitation' and user_id = :'mem'), 'Invitation', 'invitation in French');
+select is((select title from notification_outbox where kind = 'collectif_invitation' and user_id = :'memen'), 'Invitation', 'invitation in English');
+select is((select body from notification_outbox where kind = 'collectif_invitation' and user_id = :'mem'), 'Vous êtes invité à organiser un collectif.', 'invitation body is generic');
 insert into collectif_members (collectif_id, user_id, role, status) values ('00000000-0000-0000-0000-0000000000d1', :'outsider', 'organiser', 'invited');
 select is((select count(*)::int from notification_outbox where kind = 'collectif_invitation' and user_id = :'outsider'), 0, 'an invitee who blocked the responsable gets no invitation');
 
@@ -169,14 +171,19 @@ insert into attendances (session_id, user_id, status) values ('00000000-0000-000
 select is(public.enqueue_reminders(:'t1000'), 0, 'nothing is enqueued before 18:00 Paris the day before');
 select is(public.enqueue_reminders(:'t1830'), 3, 'three reminders after 18:00: the member who cancelled gets none');
 select is((select body from notification_outbox where kind = 'session_reminder' and user_id = :'mem'),
-  'Demain 19h00, Yoga — vous serez là ?', 'reminder text in French');
+  'Vous avez une activité demain. Serez-vous là ?', 'reminder text in French is generic');
 select is((select body from notification_outbox where kind = 'session_reminder' and user_id = :'memen'),
-  'Tomorrow at 7:00 PM, Yoga — will you be there?', 'reminder text in English');
+  'You have an activity tomorrow. Will you be there?', 'reminder text in English is generic');
 select is((select send_after from notification_outbox where kind = 'session_reminder' and user_id = :'mem'),
   :'t1830'::timestamptz, 'the reminder is due when it is enqueued, after 18:00 Paris');
 select is(public.enqueue_reminders(:'t1830'), 0, 'dedupe: a second run enqueues nothing');
 select is((select data->>'session_id' from notification_outbox where kind = 'session_reminder' and user_id = :'mem'),
   '00000000-0000-0000-0000-0000000000a5', 'reminder carries the session id');
+
+-- discreet by default: no stored text carries an activity title, a collectif name or a first name
+select is((select count(*)::int from notification_outbox
+            where title || ' ' || body ~* '(Olivier|Mia|Mike|Marc|Hugo|Go du mardi|Club prive|Echecs|Karaoke|Yoga|Les Joueurs)'), 0,
+  'no notification text carries a first name, an activity title or a collectif name');
 
 -- stale reminders are never delivered
 update notification_outbox set send_after = now() - interval '1 minute' where kind = 'session_reminder';

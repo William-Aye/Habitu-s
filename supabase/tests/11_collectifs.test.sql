@@ -51,10 +51,23 @@ select lives_ok($$ insert into collectifs (id, name, town_label, town_point, cre
 select throws_ok($$ insert into collectifs (name, town_label, town_point, created_by) values ('Troisieme collectif', 'Lyon', 'POINT(4.85 45.77)', auth.uid()) $$,
   '42501', 'limit_reached', 'third collectif in 24h refused');
 
--- invitations
+-- invitations: only people who belong to an activity organised by the collectif can be invited
+select tests.act_as_superuser();
+insert into categories (id, slug, name_fr, name_en, icon) values ('00000000-0000-0000-0000-0000000000c9', 'inv-cat', 'Cat invit', 'Inv cat', 'grid-3x3');
+insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time, organised_by_collectif_id) values
+  ('00000000-0000-0000-0000-0000000000f9', :'root', '00000000-0000-0000-0000-0000000000c9', 'Jeux du collectif', 'Cafe', 'POINT(4.85 45.77)', 'weekly', current_date + 3, '19:00', '00000000-0000-0000-0000-00000000c0a1');
+insert into activity_members (activity_id, user_id, status) values
+  ('00000000-0000-0000-0000-0000000000f9', :'org1', 'member'),
+  ('00000000-0000-0000-0000-0000000000f9', :'org2', 'member');
+select tests.act_as(:'resp');
 select lives_ok(format($f$ insert into collectif_members (collectif_id, user_id, role) values ('00000000-0000-0000-0000-00000000c0a1', %L, 'organiser') $f$, :'org1'), 'responsable invites org1 (status defaults to invited)');
 select lives_ok(format($f$ insert into collectif_members (collectif_id, user_id, role, status) values ('00000000-0000-0000-0000-00000000c0a1', %L, 'organiser', 'invited') $f$, :'org2'), 'responsable invites org2');
-select lives_ok(format($f$ insert into collectif_members (collectif_id, user_id, role, status) values ('00000000-0000-0000-0000-00000000c0a1', %L, 'organiser', 'invited') $f$, :'fresh'), 'responsable invites a new account');
+select throws_ok(format($f$ insert into collectif_members (collectif_id, user_id, role, status) values ('00000000-0000-0000-0000-00000000c0a1', %L, 'organiser', 'invited') $f$, :'fresh'),
+  '42501', 'not_allowed', 'a new account outside the collectif''s activities cannot be invited');
+-- (the accept tests below need an invitation to an account that cannot organise yet: seeded directly)
+select tests.act_as_superuser();
+insert into collectif_members (collectif_id, user_id, role, status) values ('00000000-0000-0000-0000-00000000c0a1', :'fresh', 'organiser', 'invited');
+select tests.act_as(:'resp');
 select throws_ok(format($f$ insert into collectif_members (collectif_id, user_id, role, status) values ('00000000-0000-0000-0000-00000000c0a1', %L, 'organiser', 'active') $f$, :'outsider'),
   '42501', null, 'cannot add an already-active member');
 select tests.act_as(:'outsider');

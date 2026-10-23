@@ -48,7 +48,7 @@ La suppression de votre compte est immédiate (voir plus bas).
 - Supabase (hébergement, base de données et connexion), dans l'Union européenne (Paris).
 - Google (connexion avec Google et, le cas échéant, publicités).
 - Cloudflare (protection du service et vérification anti-robot à l'inscription).
-- Expo (relais d'envoi des notifications), puis Google Firebase Cloud Messaging (Android) et Apple Push Notification service (iPhone) pour les acheminer jusqu'à votre téléphone. Le contenu d'une notification (titre d'une activité, prénoms) transite par ces services et peut s'afficher sur l'écran verrouillé de votre téléphone.
+- Expo (relais d'envoi des notifications), puis Google Firebase Cloud Messaging (Android) et Apple Push Notification service (iPhone) pour les acheminer jusqu'à votre téléphone. Les notifications sont volontairement génériques : elles ne contiennent aucun nom d'activité ni prénom, seulement un texte court du type « Rappel : vous avez une activité demain ». Les détails ne s'affichent que dans l'application, après connexion.
 - GitHub (hébergement du code de l'application et du site : aucune donnée d'utilisateur).
 - geo.api.gouv.fr (service public français, data.gouv) : reçoit la position arrondie à environ 1 km pour trouver votre commune, et les noms de villes que vous tapez dans la recherche.
 

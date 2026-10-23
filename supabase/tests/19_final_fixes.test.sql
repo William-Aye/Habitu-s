@@ -87,6 +87,17 @@ select is((select count(*)::int from activity_members where user_id = :'mem' and
 -- collectif invitations
 insert into collectifs (id, name, town_label, town_point, created_by) values
   ('00000000-0000-0000-0000-00000000c0a1', 'Les Joueurs', 'Lyon', 'POINT(4.85 45.77)', :'resp');
+insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+select gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'bulk' || g || '@ff.fr', '',
+       '{}'::jsonb, '{"first_name":"Bulk"}'::jsonb, now(), now()
+  from generate_series(1, 11) g;
+create temp table bulk as select id, row_number() over (order by email) as n from auth.users where email like 'bulk%@ff.fr';
+grant select on bulk to authenticated;
+update profiles set age_confirmed = true, created_at = now() - interval '2 days' where id in (select id from bulk);
+insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time, organised_by_collectif_id) values
+  ('00000000-0000-0000-0000-0000000000fc', :'resp', '00000000-0000-0000-0000-0000000000c1', 'Go collectif', 'Cafe', 'POINT(4.85 45.77)', 'weekly', current_date + 2, '19:00', '00000000-0000-0000-0000-00000000c0a1');
+insert into activity_members (activity_id, user_id, status)
+  select '00000000-0000-0000-0000-0000000000fc'::uuid, id, 'member' from bulk union all select '00000000-0000-0000-0000-0000000000fc'::uuid, :'inv', 'member';
 select tests.act_as(:'resp');
 insert into collectif_members (collectif_id, user_id, role, status) values ('00000000-0000-0000-0000-00000000c0a1', :'inv', 'organiser', 'invited');
 select tests.act_as_superuser();
@@ -106,21 +117,15 @@ insert into blocks (blocker_id, blocked_id) values (:'inv', :'resp');
 select is((select count(*)::int from collectif_members where user_id = :'inv'), 0, 'a block clears the pending collectif invitation');
 delete from blocks;
 
--- cap: 10 invitations per responsable per 24 h (the one above already counts once via invited_at)
-insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
-select gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'bulk' || g || '@ff.fr', '',
-       '{}'::jsonb, '{"first_name":"Bulk"}'::jsonb, now(), now()
-  from generate_series(1, 11) g;
-create temp table bulk as select id, row_number() over (order by email) as n from auth.users where email like 'bulk%@ff.fr';
-grant select on bulk to authenticated;
+-- cap: 10 invitations per responsable per 24 h (the one above already counts once)
 select tests.act_as(:'resp');
 select lives_ok($$ insert into collectif_members (collectif_id, user_id, role, status)
-  select '00000000-0000-0000-0000-00000000c0a1', id, 'organiser', 'invited' from bulk where n <= 10 $$, 'ten invitations in a day are accepted');
+  select '00000000-0000-0000-0000-00000000c0a1', id, 'organiser', 'invited' from bulk where n <= 8 $$, 'up to ten invitations in a day are accepted (two already logged)');
 select throws_ok($$ insert into collectif_members (collectif_id, user_id, role, status)
-  select '00000000-0000-0000-0000-00000000c0a1', id, 'organiser', 'invited' from bulk where n = 11 $$, '42501', 'limit_reached', 'the eleventh is refused');
+  select '00000000-0000-0000-0000-00000000c0a1', id, 'organiser', 'invited' from bulk where n = 9 $$, '42501', 'limit_reached', 'the next one is refused');
 select tests.act_as_superuser();
 select lives_ok($$ insert into collectif_members (collectif_id, user_id, role, status)
-  select '00000000-0000-0000-0000-00000000c0a1', id, 'organiser', 'invited' from bulk where n = 11 $$, 'the service role is not limited');
+  select '00000000-0000-0000-0000-00000000c0a1', id, 'organiser', 'invited' from bulk where n = 9 $$, 'the service role is not limited');
 select is(has_function_privilege('authenticated', 'public.collectif_members_invite_limit()', 'execute'), false, 'the limit trigger function is not callable');
 
 -- reports can target a collectif

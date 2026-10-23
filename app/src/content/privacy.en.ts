@@ -47,7 +47,7 @@ Deleting your account is immediate (see below).
 - Supabase (hosting, database and sign-in), in the European Union (Paris).
 - Google (Google sign-in and, where applicable, ads).
 - Cloudflare (protecting the service and the anti-bot check at sign-up).
-- Expo (notification relay), then Google Firebase Cloud Messaging (Android) and Apple Push Notification service (iPhone) to deliver them to your phone. The content of a notification (an activity title, first names) passes through these services and may show on your phone's lock screen.
+- Expo (notification relay), then Google Firebase Cloud Messaging (Android) and Apple Push Notification service (iPhone) to deliver them to your phone. Notifications are deliberately generic: they contain no activity name or first name, only a short text such as "Reminder: you have an activity tomorrow". The details only show inside the app, after you sign in.
 - GitHub (hosting the code of the app and the website: no user data).
 - geo.api.gouv.fr (French public service, data.gouv): receives the position rounded to about 1 km to find your town, and the town names you type in the search.
 
