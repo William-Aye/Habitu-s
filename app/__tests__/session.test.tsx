@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { AppState } from 'react-native';
 import { SessionProvider, useSession } from '../src/features/account/useSession';
 import { supabase } from '../src/lib/supabase';
+import { clearOutbox } from '../src/features/chat/outbox';
 
 jest.mock('../src/lib/supabase', () => ({
   supabase: {
@@ -13,6 +14,8 @@ jest.mock('../src/lib/supabase', () => ({
     from: jest.fn(),
   },
 }));
+
+jest.mock('../src/features/chat/outbox', () => ({ clearOutbox: jest.fn() }));
 
 const auth = supabase.auth as unknown as Record<string, jest.Mock>;
 const from = supabase.from as unknown as jest.Mock;
@@ -173,5 +176,28 @@ describe('offline start', () => {
       cb('SIGNED_OUT', null);
     });
     expect(result.current.status).toBe('signed_out');
+  });
+
+  it('clears the chat outbox on sign-out and when another account signs in, not on the first sign-in', async () => {
+    let cb!: (e: string, s: unknown) => void;
+    auth.onAuthStateChange.mockImplementation((fn: typeof cb) => {
+      cb = fn;
+      return { data: { subscription: { unsubscribe: jest.fn() } } };
+    });
+    (clearOutbox as jest.Mock).mockResolvedValue(undefined);
+    maybeSingle.mockResolvedValue({ data: ROW, error: null });
+    await renderHook(() => useSession(), { wrapper });
+    await act(async () => {
+      cb('SIGNED_IN', { user: { id: 'u1' } });
+    });
+    expect(clearOutbox).not.toHaveBeenCalled();
+    await act(async () => {
+      cb('SIGNED_IN', { user: { id: 'u2' } });
+    });
+    expect(clearOutbox).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      cb('SIGNED_OUT', null);
+    });
+    expect(clearOutbox).toHaveBeenCalledTimes(2);
   });
 });

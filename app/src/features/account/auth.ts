@@ -1,6 +1,7 @@
 import { unregisterThisDevice } from '../notifications/registerPush';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { supabase } from '../../lib/supabase';
+import { clearOutbox } from '../chat/outbox';
 
 export type AuthError =
   | 'captcha'
@@ -145,6 +146,12 @@ export async function signOut(): Promise<void> {
     await GoogleSignin.signOut();
   } catch {
     // Not signed in with Google, or the module is unavailable: nothing to do.
+  }
+  try {
+    // Unsent chat messages belong to this account and must not outlive its session.
+    await clearOutbox();
+  } catch {
+    // Best effort: the outbox also checks the account before every send.
   }
   try {
     await supabase.auth.signOut();

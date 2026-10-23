@@ -27,6 +27,8 @@ export async function fetchMessages(
   activityId: string,
   opts: { before?: { at: string; id: string }; limit?: number } = {},
 ): Promise<ChatResult<{ page: ChatPage | null }>> {
+  // Cursor values are passed through as the raw strings the server returned; they never go through Date,
+  // which would truncate microseconds and break the keyset.
   const args: Record<string, unknown> = { p_activity: activityId };
   // A keyset cursor is the pair: sending only the timestamp would skip or repeat same-instant rows.
   if (opts.before) {
@@ -46,10 +48,21 @@ export async function fetchMessages(
   );
 }
 
-/** A duplicate id (23505) means an earlier attempt already went through: that is sent. */
+/**
+ * A duplicate id (23505) means an earlier attempt already went through: that is sent.
+ * No session is signed_out, not not_allowed: the message was never judged.
+ */
 export async function sendMessage(activityId: string, id: string, body: string): Promise<ChatResult> {
+  let userId: string | undefined;
+  try {
+    const { data } = await supabase.auth.getSession();
+    userId = data?.session?.user?.id;
+  } catch {
+    return { ok: false, error: 'network' };
+  }
+  if (!userId) return { ok: false, error: 'signed_out' };
   return narrow(
-    await runAsUser(async (userId) => {
+    await run(async () => {
       const res = await supabase.from('messages').insert({ id, activity_id: activityId, body, sender_id: userId });
       return res.error?.code === '23505' ? { data: null, error: null } : res;
     }, none),

@@ -144,6 +144,12 @@ describe('sendMessage', () => {
     expect(await sendMessage('a1', 'id1', 'Salut')).toEqual({ ok: false, error: 'not_allowed' });
   });
 
+  it('returns signed_out, distinct from not_allowed, when there is no session', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: null } });
+    expect(await sendMessage('a1', 'id1', 'Salut')).toEqual({ ok: false, error: 'signed_out' });
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
   it('maps a network failure', async () => {
     mockFrom.mockImplementation(() => {
       throw new TypeError('Network request failed');
@@ -252,10 +258,10 @@ describe('reportMessage and blockUser', () => {
     result = { data: null, error: null };
     expect(await blockUser('u2')).toEqual({ ok: true });
     expect(mockFrom).toHaveBeenCalledWith('blocks');
-    expect(lastCall('upsert')?.args[0] ?? lastCall('insert')?.args[0]).toEqual({
-      blocker_id: 'me',
-      blocked_id: 'u2',
-    });
+    expect(lastCall('upsert')?.args).toEqual([
+      { blocker_id: 'me', blocked_id: 'u2' },
+      { onConflict: 'blocker_id,blocked_id', ignoreDuplicates: true },
+    ]);
   });
 
   it('is not allowed when signed out', async () => {
