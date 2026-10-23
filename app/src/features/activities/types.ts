@@ -106,6 +106,12 @@ export interface CollectifPage {
   myRole: 'responsable' | 'organiser' | null;
 }
 
+export interface Candidate {
+  userId: string;
+  firstName: string;
+  photoUrl: string | null;
+}
+
 export interface MyCollectif {
   id: string;
   name: string;

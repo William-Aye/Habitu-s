@@ -18,7 +18,10 @@ import {
   getCollectif,
   inviteOrganiser,
   leaveCollectif,
+  listCandidates,
   myCollectifs,
+  myInvitation,
+  updateCollectif,
 } from '../src/features/collectifs/api';
 import type { ActivityDraft } from '../src/features/activities/types';
 
@@ -518,6 +521,34 @@ describe('collectifs', () => {
     await answerInvitation('c1', false);
     expect(lastCall('delete')).toBeDefined();
     expect(lastCall('update')).toBeUndefined();
+  });
+  it('lists the people an organiser may invite', async () => {
+    mockRpc.mockResolvedValue({ error: null, data: [{ user_id: 'u2', first_name: 'Camille', photo_url: null }] });
+    expect(await listCandidates('c1')).toEqual({
+      ok: true,
+      candidates: [{ userId: 'u2', firstName: 'Camille', photoUrl: null }],
+    });
+    expect(mockRpc).toHaveBeenCalledWith('collectif_candidates', { p_collectif: 'c1' });
+    mockRpc.mockResolvedValue({ error: { code: '42501', message: 'not allowed' }, data: null });
+    expect(await listCandidates('c1')).toEqual({ ok: false, error: 'not_allowed' });
+  });
+  it('reads my pending invitation, if any', async () => {
+    result = { data: [{ role: 'organiser', status: 'invited' }], error: null };
+    expect(await myInvitation('c1')).toEqual({ ok: true, invited: true });
+    expect(eqs()).toEqual([['collectif_id', 'c1'], ['user_id', 'me'], ['status', 'invited']]);
+    result = { data: [], error: null };
+    expect(await myInvitation('c1')).toEqual({ ok: true, invited: false });
+  });
+  it('updates name, description and town', async () => {
+    await updateCollectif('c1', { name: 'Neuf', description: 'd', town: { label: 'Lyon', lon: 4.83, lat: 45.76 } });
+    expect(lastCall('update')?.args[0]).toEqual({
+      name: 'Neuf', description: 'd', town_label: 'Lyon', town_point: 'SRID=4326;POINT(4.83 45.76)',
+    });
+    expect(eqs()).toEqual([['id', 'c1']]);
+    await updateCollectif('c1', { name: 'Neuf', description: 'd' });
+    expect(lastCall('update')?.args[0]).toEqual({ name: 'Neuf', description: 'd' });
+    result = { data: [], error: null };
+    expect(await updateCollectif('c1', { name: 'Neuf', description: 'd' })).toEqual({ ok: false, error: 'not_allowed' });
   });
   it('leaves and deletes', async () => {
     await leaveCollectif('c1');

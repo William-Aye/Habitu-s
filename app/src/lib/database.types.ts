@@ -975,6 +975,11 @@ isOneToOne: true
 "collectif_blocked_for_me":
 { Args: { "p_collectif": string }; Returns: boolean
                            },
+"collectif_candidates":
+{ Args: { "p_collectif": string }; Returns: {
+              "first_name": string,"photo_url": string,"user_id": string
+            }[]
+                           },
 "delete_my_account":
 { Args: Record<PropertyKey, never>; Returns: undefined
                            },

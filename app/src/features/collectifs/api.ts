@@ -1,6 +1,6 @@
 import { supabase } from '../../lib/supabase';
 import { run, runAsUser, toPoint } from '../activities/errors';
-import type { ApiResult, CollectifPage, MyCollectif } from '../activities/types';
+import type { ApiResult, Candidate, CollectifPage, MyCollectif } from '../activities/types';
 
 const none = () => ({});
 
@@ -123,4 +123,47 @@ export function deleteCollectif(id: string): Promise<ApiResult> {
   return run(() => supabase.from('collectifs').delete().eq('id', id).select('id'), none, {
     expectRows: true,
   });
+}
+
+/** Name, description and, when given, the town (a commune centre; the database snaps it). */
+export function updateCollectif(
+  id: string,
+  input: { name: string; description: string; town?: { label: string; lon: number; lat: number } },
+): Promise<ApiResult> {
+  const patch: { name: string; description: string; town_label?: string; town_point?: string } = { name: input.name, description: input.description };
+  if (input.town) {
+    patch.town_label = input.town.label;
+    patch.town_point = toPoint(input.town.lon, input.town.lat);
+  }
+  return run(() => supabase.from('collectifs').update(patch).eq('id', id).select('id'), none, {
+    expectRows: true,
+  });
+}
+
+/** True while I have an invitation to organise this collectif that I have not answered. */
+export function myInvitation(collectifId: string): Promise<ApiResult<{ invited: boolean }>> {
+  return runAsUser(
+    (userId) =>
+      supabase
+        .from('collectif_members')
+        .select('role, status')
+        .eq('collectif_id', collectifId)
+        .eq('user_id', userId)
+        .eq('status', 'invited'),
+    (rows) => ({ invited: Array.isArray(rows) && rows.length > 0 }),
+  );
+}
+
+/** People who could be invited as organiser: members of the collectif's activities. */
+export function listCandidates(collectifId: string): Promise<ApiResult<{ candidates: Candidate[] }>> {
+  return run(
+    () => supabase.rpc('collectif_candidates', { p_collectif: collectifId }),
+    (rows) => ({
+      candidates: ((rows ?? []) as any[]).map((r) => ({
+        userId: r.user_id,
+        firstName: r.first_name,
+        photoUrl: r.photo_url ?? null,
+      })),
+    }),
+  );
 }

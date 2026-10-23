@@ -269,7 +269,14 @@
     "homeAreaNone": "Not set",
     "homeAreaChange": "Change",
     "homeAreaRemove": "Remove",
-    "homeAreaError": "Could not change your area. Try again."
+    "homeAreaError": "Could not change your area. Try again.",
+    "collectifs": {
+      "title": "My collectifs",
+      "none": "You do not organise any collectif yet.",
+      "create": "Create a collectif",
+      "open": "Open the collectif {{name}}",
+      "error": "Could not load your collectifs."
+    }
   },
   "activities": {
     "recurrence": {
@@ -408,6 +415,53 @@
       "body": "Your activity \"{{title}}\" is published.",
       "share": "Share",
       "view": "View the activity"
+    }
+  },
+  "collectif": {
+    "label": "Collective — not a legal entity",
+    "loading": "Loading",
+    "error": "Could not load this collectif. Try again.",
+    "retry": "Try again",
+    "notFound": "This collectif no longer exists",
+    "mapLabel": "Map of {{place}}",
+    "organisers": "Organisers",
+    "role": {
+      "responsable": "Person in charge",
+      "organiser": "Organiser"
+    },
+    "activities": "Activities",
+    "noActivities": "No activities yet",
+    "next": "Next session: {{date}}",
+    "createActivity": "Create an activity",
+    "edit": "Edit the collectif",
+    "changeTown": "Change town",
+    "save": "Save",
+    "saving": "Saving",
+    "cancel": "Cancel",
+    "close": "Close",
+    "invite": "Invite an organiser",
+    "inviteAction": "Invite",
+    "inviteName": "Invite {{name}}",
+    "inviteNone": "Nobody to invite yet. Only members of the collectif’s activities who are able to organise are suggested.",
+    "invited": "{{name}} has been invited.",
+    "invitation": {
+      "banner": "You are invited to organise this collectif.",
+      "accept": "Accept",
+      "decline": "Decline",
+      "declined": "Invitation declined."
+    },
+    "leave": "Leave the collectif",
+    "leaveConfirm": "Leave this collectif?",
+    "leaveBody": "You will no longer be an organiser. The collectif and its activities stay online.",
+    "leaveAction": "Leave",
+    "delete": "Delete the collectif",
+    "deleteConfirm": "Delete this collectif?",
+    "deleteBody": "The collectif’s activities stay online and show their organiser. This cannot be undone.",
+    "deleteAction": "Delete",
+    "errors": {
+      "not_allowed": "Not possible: your permissions may have changed. Reopen the page and try again.",
+      "network": "Cannot connect. Check your network and try again.",
+      "unknown": "Something went wrong. Try again."
     }
   }
 }

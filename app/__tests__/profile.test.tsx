@@ -85,6 +85,12 @@ jest.mock('../src/features/explore/components/LocationPicker', () => {
     ),
   };
 });
+const mockMine = jest.fn();
+const mockCreateCollectif = jest.fn();
+jest.mock('../src/features/collectifs/api', () => ({
+  myCollectifs: () => mockMine(),
+  createCollectif: (...a: unknown[]) => mockCreateCollectif(...a),
+}));
 const mockCommune = jest.fn();
 jest.mock('../src/features/account/homeArea', () => ({
   currentCommune: () => mockCommune(),
@@ -116,6 +122,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockCurrent = mockSignedIn;
   mockGate.mockResolvedValue(false);
+  mockMine.mockResolvedValue({ ok: true, collectifs: [] });
 });
 
 it('signed out shows Se connecter, language and privacy but no Mes données', async () => {
@@ -136,6 +143,41 @@ it('signed in shows the first name and Mes données', async () => {
   expect(screen.getByText('Télécharger mes données')).toBeTruthy();
   expect(screen.getByText('Se déconnecter')).toBeTruthy();
   expect(screen.getByText('Changer la photo')).toBeTruthy();
+});
+
+describe('mes collectifs', () => {
+  it('lists my collectifs and opens one', async () => {
+    mockMine.mockResolvedValue({
+      ok: true,
+      collectifs: [{ id: 'c1', name: 'Les Boulistes', townLabel: 'Lyon (69001)', role: 'responsable' }],
+    });
+    await render(<Profile />);
+    await fireEvent.press(await screen.findByText('Les Boulistes'));
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/collectifs/[id]', params: { id: 'c1' } });
+  });
+
+  it('says so when I organise none and offers to create one', async () => {
+    await render(<Profile />);
+    await screen.findByText("Vous n'organisez aucun collectif pour l'instant.");
+    expect(screen.getByText('Mes collectifs')).toBeTruthy();
+    expect(screen.getByText('Créer un collectif')).toBeTruthy();
+  });
+
+  it('creates a collectif and opens its page', async () => {
+    mockCreateCollectif.mockResolvedValue({ ok: true, id: 'c9' });
+    await render(<Profile />);
+    await fireEvent.press(await screen.findByText('Créer un collectif'));
+    await fireEvent.changeText(screen.getByLabelText('Nom du collectif'), 'Les Joueurs');
+    await fireEvent.press(screen.getByText('choisir Nantes'));
+    await fireEvent.press(screen.getByLabelText('Créer le collectif'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith({ pathname: '/collectifs/[id]', params: { id: 'c9' } }));
+  });
+
+  it('shows no collectifs section when signed out', async () => {
+    mockCurrent = mockSignedOut;
+    await render(<Profile />);
+    expect(screen.queryByText('Mes collectifs')).toBeNull();
+  });
 });
 
 it('opens the interests screen and the privacy policy', async () => {

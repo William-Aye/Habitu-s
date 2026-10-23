@@ -1,0 +1,253 @@
+import { Alert } from 'react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { router } from 'expo-router';
+import { initI18n } from '../src/i18n';
+import CollectifScreen from '../src/app/collectifs/[id]';
+import {
+  answerInvitation,
+  deleteCollectif,
+  getCollectif,
+  inviteOrganiser,
+  leaveCollectif,
+  listCandidates,
+  myInvitation,
+  updateCollectif,
+} from '../src/features/collectifs/api';
+import type { CollectifPage } from '../src/features/activities/types';
+
+jest.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'fr-FR' }] }));
+jest.mock('expo-router', () => ({
+  router: { push: jest.fn(), back: jest.fn(), replace: jest.fn() },
+  useLocalSearchParams: () => ({ id: 'c1' }),
+}));
+jest.mock('../src/features/explore/components/TownMap', () => ({ TownMap: () => null }));
+jest.mock('../src/features/explore/components/LocationPicker', () => {
+  const { Pressable, Text } = require('react-native');
+  return {
+    LocationPicker: ({ onTown }: any) => (
+      <Pressable accessibilityRole="button" onPress={() => onTown({ label: 'Nantes (44000)', lon: 1.55, lat: 47.21 })}>
+        <Text>choisir Nantes</Text>
+      </Pressable>
+    ),
+  };
+});
+jest.mock('../src/features/collectifs/api', () => ({
+  getCollectif: jest.fn(),
+  myInvitation: jest.fn(),
+  answerInvitation: jest.fn(),
+  inviteOrganiser: jest.fn(),
+  listCandidates: jest.fn(),
+  updateCollectif: jest.fn(),
+  leaveCollectif: jest.fn(),
+  deleteCollectif: jest.fn(),
+}));
+
+const mockGet = getCollectif as jest.Mock;
+const mockInvitation = myInvitation as jest.Mock;
+const mockAnswer = answerInvitation as jest.Mock;
+const mockInvite = inviteOrganiser as jest.Mock;
+const mockCandidates = listCandidates as jest.Mock;
+const mockUpdate = updateCollectif as jest.Mock;
+const mockLeave = leaveCollectif as jest.Mock;
+const mockDelete = deleteCollectif as jest.Mock;
+
+const LABEL = 'Collectif — sans statut juridique';
+
+function page(over: Partial<CollectifPage> = {}): CollectifPage {
+  return {
+    id: 'c1',
+    name: 'Les Boulistes',
+    description: 'On joue le dimanche',
+    townLabel: 'Lyon (69001)',
+    lon: 4.83,
+    lat: 45.76,
+    organisers: [
+      { firstName: 'Rita', photoUrl: null, role: 'responsable' },
+      { firstName: 'Oriane', photoUrl: null, role: 'organiser' },
+    ],
+    activities: [{ id: 'a1', title: 'Pétanque du dimanche', nextStartsAt: null }],
+    myRole: null,
+    ...over,
+  };
+}
+
+async function show(c: CollectifPage | null, invited = false) {
+  mockGet.mockResolvedValue({ ok: true, collectif: c });
+  mockInvitation.mockResolvedValue({ ok: true, invited });
+  await render(<CollectifScreen />);
+  await screen.findByText(c ? c.name : "Ce collectif n'existe plus");
+}
+
+beforeAll(async () => {
+  await initI18n();
+});
+beforeEach(() => {
+  jest.resetAllMocks();
+  mockAnswer.mockResolvedValue({ ok: true });
+  mockInvite.mockResolvedValue({ ok: true });
+  mockUpdate.mockResolvedValue({ ok: true });
+  mockLeave.mockResolvedValue({ ok: true });
+  mockDelete.mockResolvedValue({ ok: true });
+  mockCandidates.mockResolvedValue({
+    ok: true,
+    candidates: [{ userId: 'u2', firstName: 'Camille', photoUrl: null }],
+  });
+});
+
+/** Presses the destructive button of the last confirmation shown. */
+function confirmLast(spy: jest.SpyInstance) {
+  const buttons = spy.mock.calls[spy.mock.calls.length - 1][2] as { style?: string; onPress?: () => void }[];
+  return buttons.find((b) => b.style === 'destructive')!.onPress!();
+}
+
+it('always shows the no-legal-status label with the description, organisers and activities', async () => {
+  await show(page());
+  expect(screen.getByText(LABEL)).toBeTruthy();
+  expect(screen.getByText('On joue le dimanche')).toBeTruthy();
+  expect(screen.getByText('Rita')).toBeTruthy();
+  expect(screen.getByText('Responsable')).toBeTruthy();
+  expect(screen.getByText('Pétanque du dimanche')).toBeTruthy();
+});
+
+it('shows a visitor no edit, invite, create or leave controls', async () => {
+  await show(page());
+  for (const label of ['Modifier le collectif', 'Inviter un organisateur', 'Créer une activité', 'Quitter le collectif', 'Supprimer le collectif']) {
+    expect(screen.queryByText(label)).toBeNull();
+  }
+});
+
+it('opens an activity from the list', async () => {
+  await show(page());
+  await fireEvent.press(screen.getByText('Pétanque du dimanche'));
+  expect(router.push).toHaveBeenCalledWith({ pathname: '/activites/[id]', params: { id: 'a1', title: 'Pétanque du dimanche' } });
+});
+
+it('lets an organiser create an activity with this collectif selected', async () => {
+  await show(page({ myRole: 'organiser' }));
+  await fireEvent.press(screen.getByText('Créer une activité'));
+  expect(router.push).toHaveBeenCalledWith({ pathname: '/activites/new', params: { collectif: 'c1' } });
+  // An organiser who is not responsable cannot invite or delete.
+  expect(screen.queryByText('Inviter un organisateur')).toBeNull();
+  expect(screen.queryByText('Supprimer le collectif')).toBeNull();
+  expect(screen.getByText('Modifier le collectif')).toBeTruthy();
+});
+
+it('accepting an invitation makes me an organiser', async () => {
+  await show(page(), true);
+  expect(screen.queryByText('Créer une activité')).toBeNull();
+  mockGet.mockResolvedValue({ ok: true, collectif: page({ myRole: 'organiser' }) });
+  mockInvitation.mockResolvedValue({ ok: true, invited: false });
+  await fireEvent.press(screen.getByText('Accepter'));
+  expect(mockAnswer).toHaveBeenCalledWith('c1', true);
+  await screen.findByText('Créer une activité');
+  expect(screen.queryByText('Accepter')).toBeNull();
+});
+
+it('declining an invitation removes the banner', async () => {
+  await show(page(), true);
+  await fireEvent.press(screen.getByText('Refuser'));
+  expect(mockAnswer).toHaveBeenCalledWith('c1', false);
+  await screen.findByText('Invitation refusée.');
+  expect(screen.queryByText('Accepter')).toBeNull();
+});
+
+it('says so when the answer to an invitation is refused', async () => {
+  mockAnswer.mockResolvedValue({ ok: false, error: 'not_allowed' });
+  await show(page(), true);
+  await fireEvent.press(screen.getByText('Accepter'));
+  await screen.findByText(/Action impossible/);
+  expect(screen.getByText('Accepter')).toBeTruthy();
+});
+
+it('the responsable invites a candidate', async () => {
+  await show(page({ myRole: 'responsable' }));
+  await fireEvent.press(screen.getByText('Inviter un organisateur'));
+  expect(mockCandidates).toHaveBeenCalledWith('c1');
+  await screen.findByText('Camille');
+  await fireEvent.press(screen.getByLabelText('Inviter Camille'));
+  expect(mockInvite).toHaveBeenCalledWith('c1', 'u2');
+  await screen.findByText('Camille a été invité(e).');
+  expect(screen.queryByLabelText('Inviter Camille')).toBeNull();
+});
+
+it('explains when nobody can be invited yet', async () => {
+  mockCandidates.mockResolvedValue({ ok: true, candidates: [] });
+  await show(page({ myRole: 'responsable' }));
+  await fireEvent.press(screen.getByText('Inviter un organisateur'));
+  await screen.findByText(/Aucune personne à inviter/);
+});
+
+it('edits name, description and town', async () => {
+  await show(page({ myRole: 'responsable' }));
+  await fireEvent.press(screen.getByText('Modifier le collectif'));
+  await fireEvent.changeText(screen.getByLabelText('Nom du collectif'), 'Boulistes de Lyon');
+  await fireEvent.press(screen.getByLabelText('Changer de ville'));
+  await fireEvent.press(screen.getByText('choisir Nantes'));
+  mockGet.mockResolvedValue({ ok: true, collectif: page({ name: 'Boulistes de Lyon', myRole: 'responsable' }) });
+  await fireEvent.press(screen.getByLabelText('Enregistrer'));
+  await waitFor(() =>
+    expect(mockUpdate).toHaveBeenCalledWith('c1', {
+      name: 'Boulistes de Lyon',
+      description: 'On joue le dimanche',
+      town: { label: 'Nantes (44000)', lon: 1.55, lat: 47.21 },
+    }),
+  );
+  await screen.findByText('Boulistes de Lyon');
+});
+
+it('refuses a name that is too short', async () => {
+  await show(page({ myRole: 'responsable' }));
+  await fireEvent.press(screen.getByText('Modifier le collectif'));
+  await fireEvent.changeText(screen.getByLabelText('Nom du collectif'), 'ab');
+  expect(screen.getByLabelText('Enregistrer').props.accessibilityState?.disabled).toBe(true);
+});
+
+it('the responsable deletes after the exact confirmation and returns to Profil', async () => {
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  await show(page({ myRole: 'responsable' }));
+  await fireEvent.press(screen.getByText('Supprimer le collectif'));
+  expect(alert.mock.calls[0][0]).toBe('Supprimer ce collectif ?');
+  expect(alert.mock.calls[0][1]).toBe(
+    'Les activités du collectif restent en ligne et affichent leur organisateur. Cette action est définitive.',
+  );
+  await confirmLast(alert);
+  expect(mockDelete).toHaveBeenCalledWith('c1');
+  await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/profile'));
+  alert.mockRestore();
+});
+
+it('keeps the page and says so when the deletion fails', async () => {
+  mockDelete.mockResolvedValue({ ok: false, error: 'network' });
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  await show(page({ myRole: 'responsable' }));
+  await fireEvent.press(screen.getByText('Supprimer le collectif'));
+  await confirmLast(alert);
+  await screen.findByText(/Connexion impossible/);
+  expect(router.replace).not.toHaveBeenCalled();
+  alert.mockRestore();
+});
+
+it('leaves the collectif after a confirmation', async () => {
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  await show(page({ myRole: 'organiser' }));
+  await fireEvent.press(screen.getByText('Quitter le collectif'));
+  await confirmLast(alert);
+  expect(mockLeave).toHaveBeenCalledWith('c1');
+  await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/profile'));
+  alert.mockRestore();
+});
+
+it('says the collectif no longer exists when it was deleted meanwhile', async () => {
+  await show(null);
+  expect(screen.getByText("Ce collectif n'existe plus")).toBeTruthy();
+});
+
+it('offers a retry when the page cannot be loaded', async () => {
+  mockGet.mockResolvedValueOnce({ ok: false, error: 'network' });
+  mockInvitation.mockResolvedValue({ ok: true, invited: false });
+  await render(<CollectifScreen />);
+  await screen.findByText('Impossible de charger ce collectif. Réessayez.');
+  mockGet.mockResolvedValue({ ok: true, collectif: page() });
+  await fireEvent.press(screen.getByText('Réessayer'));
+  await screen.findByText('Les Boulistes');
+});

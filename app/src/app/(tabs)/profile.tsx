@@ -9,6 +9,7 @@ import { MAX_FIRST_NAME, signOut } from '../../features/account/auth';
 import { pickAndUploadAvatar } from '../../features/account/avatar';
 import { currentCommune } from '../../features/account/homeArea';
 import { deleteMyAccount, exportMyData } from '../../features/account/myData';
+import { MyCollectifs } from '../../features/collectifs/MyCollectifs';
 import { LocationPicker } from '../../features/explore/components/LocationPicker';
 import type { HomeAreaInput } from '../../features/account/auth';
 import { useSession, type SessionProfile } from '../../features/account/useSession';
@@ -428,6 +429,8 @@ function SignedInProfile({ userId, profile }: { userId: string; profile: Session
       >
         <Text style={styles.linkText}>{t('profile.interests')}</Text>
       </Pressable>
+
+      <MyCollectifs />
 
       <HomeAreaSection
         userId={userId}
