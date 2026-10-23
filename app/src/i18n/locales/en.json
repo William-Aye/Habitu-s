@@ -190,6 +190,13 @@
     "signOut": "Sign out",
     "photoTooLarge": "This photo is too large (1 MB maximum).",
     "photoError": "Could not upload the photo. Try again.",
-    "languageError": "Could not save the language. Try again."
+    "languageError": "Could not save the language. Try again.",
+    "offline": "Cannot connect.",
+    "finishSignup": "Finish signing up",
+    "homeArea": "My area",
+    "homeAreaNone": "Not set",
+    "homeAreaChange": "Change",
+    "homeAreaRemove": "Remove",
+    "homeAreaError": "Could not change your area. Try again."
   }
 }

@@ -174,6 +174,19 @@ it('after a verified code with an unsettled session, shows a network message and
   expect(mocked.verifyEmailCode).toHaveBeenCalledTimes(1);
 });
 
+it('keeps Valider disabled while the sync retry is pending, and a new email resets that state', async () => {
+  await toCodeStep();
+  mocked.verifyEmailCode.mockResolvedValue({ ok: true });
+  store.value.refresh.mockResolvedValueOnce('loading');
+  await fireEvent.changeText(screen.getByLabelText('Code à 6 chiffres'), '123456');
+  await fireEvent.press(screen.getByText('Valider'));
+  expect(await screen.findByText('Réessayer')).toBeTruthy();
+  expect(isDisabled(screen.getByRole('button', { name: 'Valider' }))).toBe(true);
+  await fireEvent.press(screen.getByText("Modifier l'adresse"));
+  expect(screen.queryByText('Pas de connexion. Vérifiez votre réseau et réessayez.')).toBeNull();
+  expect(screen.queryByText('Réessayer')).toBeNull();
+});
+
 it('disables the button while a request is pending and re-enables it after', async () => {
   let resolve!: (v: { ok: false; error: 'network' }) => void;
   mocked.sendEmailCode.mockReturnValue(new Promise((r) => (resolve = r)));
@@ -205,6 +218,12 @@ describe('profile step', () => {
     expect(isDisabled(valider())).toBe(false);
     await fireEvent.press(screen.getByText("J'ai 18 ans ou plus"));
     expect(isDisabled(valider())).toBe(true);
+  });
+
+  it('offers a sign-out link on the profile step', async () => {
+    await open('needs_profile');
+    await fireEvent.press(await screen.findByText('Se déconnecter'));
+    expect(mocked.signOut).toHaveBeenCalledTimes(1);
   });
 
   it('Google without a given name lands on an empty first-name step', async () => {

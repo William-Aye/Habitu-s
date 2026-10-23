@@ -16,14 +16,21 @@ const mockPush = jest.fn();
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 
 type Sess = {
-  status: 'signed_out' | 'ready';
+  status: 'signed_out' | 'ready' | 'needs_profile' | 'loading';
   userId: string | null;
-  profile: { firstName: string; language: 'fr' | 'en'; photoUrl: string | null; bio: string | null } | null;
+  profile: {
+    firstName: string;
+    language: 'fr' | 'en';
+    photoUrl: string | null;
+    bio: string | null;
+    homeAreaLabel: string | null;
+  } | null;
+  error?: boolean;
 };
 const mockSignedIn: Sess = {
   status: 'ready',
   userId: 'u1',
-  profile: { firstName: 'Ana', language: 'fr', photoUrl: null, bio: 'Bonjour' },
+  profile: { firstName: 'Ana', language: 'fr', photoUrl: null, bio: 'Bonjour', homeAreaLabel: 'Lyon (69001)' },
 };
 const mockSignedOut: Sess = { status: 'signed_out', userId: null, profile: null };
 let mockCurrent: Sess = mockSignedIn;
@@ -45,7 +52,7 @@ jest.mock('../src/features/account/useSession', () => {
           mockListeners.delete(l);
         };
       }, []);
-      return { ...mockCurrent, error: false, refresh: mockRefresh };
+      return { error: false, ...mockCurrent, refresh: mockRefresh };
     },
   };
 });
@@ -60,6 +67,28 @@ jest.mock('../src/features/account/myData', () => ({
   deleteMyAccount: jest.fn(),
 }));
 jest.mock('../src/features/account/avatar', () => ({ pickAndUploadAvatar: jest.fn() }));
+jest.mock('../src/features/explore/components/LocationPicker', () => {
+  const { Pressable, Text } = require('react-native');
+  return {
+    LocationPicker: ({ onTown, onGps, onCancel }: any) => (
+      <>
+        <Pressable accessibilityRole="button" onPress={() => onTown({ label: 'Nantes (44000)', lon: 1.5534, lat: 47.2184 })}>
+          <Text>choisir Nantes</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={() => onGps()}>
+          <Text>utiliser ma position</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={onCancel}>
+          <Text>annuler le choix</Text>
+        </Pressable>
+      </>
+    ),
+  };
+});
+const mockCommune = jest.fn();
+jest.mock('../src/features/account/homeArea', () => ({
+  currentCommune: () => mockCommune(),
+}));
 jest.mock('../src/features/account/auth', () => ({
   signOut: jest.fn(async () => undefined),
   MAX_FIRST_NAME: 40,
@@ -215,4 +244,118 @@ it('signs out', async () => {
   await render(<Profile />);
   await fireEvent.press(screen.getByText('Se déconnecter'));
   expect(signOut).toHaveBeenCalled();
+});
+
+describe('home area', () => {
+  it('shows the saved town with Changer and Retirer', async () => {
+    await render(<Profile />);
+    expect(screen.getByText('Lyon (69001)')).toBeTruthy();
+    expect(screen.getByText('Changer')).toBeTruthy();
+    expect(screen.getByText('Retirer')).toBeTruthy();
+  });
+
+  it('Changer opens the picker; choosing a town saves its centre and refreshes', async () => {
+    await render(<Profile />);
+    await fireEvent.press(screen.getByText('Changer'));
+    await fireEvent.press(screen.getByText('choisir Nantes'));
+    await waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith({
+        home_area: 'SRID=4326;POINT(1.5534 47.2184)',
+        home_area_label: 'Nantes (44000)',
+      }),
+    );
+    expect(mockEq).toHaveBeenCalledWith('id', 'u1');
+    await waitFor(() => expect(mockRefresh).toHaveBeenCalled());
+    expect(screen.queryByText('choisir Nantes')).toBeNull();
+  });
+
+  it('the GPS choice is turned into a commune before saving', async () => {
+    mockCommune.mockResolvedValue({ label: 'Paris (75001)', lon: 2.3488, lat: 48.8534 });
+    await render(<Profile />);
+    await fireEvent.press(screen.getByText('Changer'));
+    await fireEvent.press(screen.getByText('utiliser ma position'));
+    await waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith({
+        home_area: 'SRID=4326;POINT(2.3488 48.8534)',
+        home_area_label: 'Paris (75001)',
+      }),
+    );
+  });
+
+  it('a GPS position that cannot be resolved saves nothing', async () => {
+    mockCommune.mockResolvedValue('denied');
+    await render(<Profile />);
+    await fireEvent.press(screen.getByText('Changer'));
+    await fireEvent.press(screen.getByText('utiliser ma position'));
+    await waitFor(() => expect(mockCommune).toHaveBeenCalled());
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('Retirer clears the area and its label', async () => {
+    await render(<Profile />);
+    await fireEvent.press(screen.getByText('Retirer'));
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalledWith({ home_area: null, home_area_label: null }));
+    await waitFor(() => expect(mockRefresh).toHaveBeenCalled());
+  });
+
+  it('shows an error when the update fails', async () => {
+    mockEq.mockResolvedValueOnce({ error: { message: 'x' } });
+    await render(<Profile />);
+    await fireEvent.press(screen.getByText('Retirer'));
+    expect(await screen.findByText('Impossible de modifier votre zone. Réessayez.')).toBeTruthy();
+  });
+
+  it('shows a placeholder and no Retirer when none is set', async () => {
+    mockCurrent = { ...mockSignedIn, profile: { ...mockSignedIn.profile!, homeAreaLabel: null } };
+    await render(<Profile />);
+    expect(screen.getByText('Non renseignée')).toBeTruthy();
+    expect(screen.queryByText('Retirer')).toBeNull();
+  });
+});
+
+describe('needs_profile', () => {
+  beforeEach(() => {
+    mockCurrent = { status: 'needs_profile', userId: 'u1', profile: null };
+  });
+
+  it('offers to finish sign-up, sign out and delete the account', async () => {
+    await render(<Profile />);
+    expect(screen.getByText('Terminer mon inscription')).toBeTruthy();
+    expect(screen.getByText('Se déconnecter')).toBeTruthy();
+    expect(screen.getByText('Supprimer mon compte')).toBeTruthy();
+    expect(screen.queryByText('Se connecter')).toBeNull();
+    await fireEvent.press(screen.getByText('Terminer mon inscription'));
+    expect(mockGate).toHaveBeenCalledWith();
+  });
+
+  it('signs out', async () => {
+    await render(<Profile />);
+    await fireEvent.press(screen.getByText('Se déconnecter'));
+    expect(signOut).toHaveBeenCalled();
+  });
+
+  it('deletes after the same confirmation as the signed-in screen', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    mockDelete.mockResolvedValue({ ok: true });
+    await render(<Profile />);
+    await fireEvent.press(screen.getByText('Supprimer mon compte'));
+    const [title, , buttons] = alert.mock.calls[0];
+    expect(title).toBe(CONFIRM);
+    expect(buttons?.map((b) => b.text)).toEqual(['Annuler', 'Supprimer']);
+    await act(async () => {
+      buttons?.[1].onPress?.();
+    });
+    expect(mockDelete).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('offline', () => {
+  it('shows a retry state instead of the signed-out view when the session cannot be read', async () => {
+    mockCurrent = { status: 'loading', userId: null, profile: null, error: true };
+    await render(<Profile />);
+    expect(screen.getByText('Connexion impossible.')).toBeTruthy();
+    expect(screen.queryByText('Se connecter')).toBeNull();
+    await fireEvent.press(screen.getByText('Réessayer'));
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
+  });
 });

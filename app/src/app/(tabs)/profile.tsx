@@ -7,7 +7,10 @@ import { useTranslation } from 'react-i18next';
 import { useRequireAccount } from '../../features/account/AccountGate';
 import { MAX_FIRST_NAME, signOut } from '../../features/account/auth';
 import { pickAndUploadAvatar } from '../../features/account/avatar';
+import { currentCommune } from '../../features/account/homeArea';
 import { deleteMyAccount, exportMyData } from '../../features/account/myData';
+import { LocationPicker } from '../../features/explore/components/LocationPicker';
+import type { HomeAreaInput } from '../../features/account/auth';
 import { useSession, type SessionProfile } from '../../features/account/useSession';
 import { setLanguage, type AppLanguage } from '../../i18n';
 import { supabase } from '../../lib/supabase';
@@ -43,9 +46,194 @@ function LanguageSwitch({ onChange }: { onChange(lng: AppLanguage): void | Promi
 }
 
 export default function Profile() {
-  const { status, userId, profile } = useSession();
+  const { status, userId, profile, error, refresh } = useSession();
+  // The session could not be read (offline): not the same as signed out.
+  if (status === 'loading' && error) return <OfflineProfile onRetry={() => void refresh()} />;
+  if (status === 'needs_profile') return <NeedsProfileProfile />;
   if (status !== 'ready' || !userId || !profile) return <SignedOutProfile />;
   return <SignedInProfile userId={userId} profile={profile} />;
+}
+
+function OfflineProfile({ onRetry }: { onRetry(): void }) {
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  return (
+    <ScrollView contentContainerStyle={[styles.container, { paddingTop: insets.top + 12 }]}>
+      <Text accessibilityRole="header" style={styles.title}>
+        {t('profile.title')}
+      </Text>
+      <Text accessibilityLiveRegion="polite" style={styles.error}>
+        {t('profile.offline')}
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('account.retry')}
+        style={styles.primary}
+        onPress={onRetry}
+      >
+        <Text style={styles.primaryText}>{t('account.retry')}</Text>
+      </Pressable>
+    </ScrollView>
+  );
+}
+
+/** Asks for the deletion with the shared confirmation; `onStart`/`onDone` let the screen show progress. */
+function useConfirmDelete(onStart: () => void, onDone: (ok: boolean) => void) {
+  const { t } = useTranslation();
+  return () => {
+    Alert.alert(t('profile.deleteConfirm'), undefined, [
+      { text: t('profile.cancel'), style: 'cancel' },
+      {
+        text: t('profile.deleteAction'),
+        style: 'destructive',
+        onPress: async () => {
+          onStart();
+          const res = await deleteMyAccount();
+          onDone(res.ok);
+        },
+      },
+    ]);
+  };
+}
+
+/** Signed in but the profile is incomplete: finish, or leave (sign out / delete), never stuck. */
+function NeedsProfileProfile() {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const requireAccount = useRequireAccount();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const confirmDelete = useConfirmDelete(
+    () => {
+      setBusy(true);
+      setFailed(false);
+    },
+    (ok) => {
+      setBusy(false);
+      setFailed(!ok);
+    },
+  );
+  return (
+    <ScrollView contentContainerStyle={[styles.container, { paddingTop: insets.top + 12 }]}>
+      <Text accessibilityRole="header" style={styles.title}>
+        {t('profile.title')}
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('profile.finishSignup')}
+        style={styles.primary}
+        onPress={() => void requireAccount()}
+      >
+        <Text style={styles.primaryText}>{t('profile.finishSignup')}</Text>
+      </Pressable>
+      <LanguageSwitch onChange={(lng) => changeLanguage(lng, null)} />
+      <PrivacyLink onPress={() => router.push('/privacy' as Href)} />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('profile.signOut')}
+        style={styles.outline}
+        onPress={() => void signOut()}
+      >
+        <Text style={styles.outlineText}>{t('profile.signOut')}</Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('profile.delete')}
+        disabled={busy}
+        style={styles.danger}
+        onPress={confirmDelete}
+      >
+        <Text style={styles.dangerText}>{t('profile.delete')}</Text>
+      </Pressable>
+      {failed ? (
+        <Text accessibilityLiveRegion="polite" style={styles.error}>
+          {t('profile.deleteError')}
+        </Text>
+      ) : null}
+    </ScrollView>
+  );
+}
+
+/** Shows the saved home town and lets the user change it (commune centre) or remove it. */
+function HomeAreaSection({
+  userId,
+  label,
+  onSaved,
+  onError,
+}: {
+  userId: string;
+  label: string | null;
+  onSaved(): Promise<unknown>;
+  onError(failed: boolean): void;
+}) {
+  const { t } = useTranslation();
+  const [picking, setPicking] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const write = async (patch: { home_area: string | null; home_area_label: string | null }) => {
+    setBusy(true);
+    onError(false);
+    try {
+      const { error } = await supabase.from('profiles').update(patch).eq('id', userId);
+      if (error) {
+        onError(true);
+      } else {
+        setPicking(false);
+        await onSaved();
+      }
+    } catch {
+      onError(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const save = (area: HomeAreaInput) =>
+    write({ home_area: `SRID=4326;POINT(${area.lon} ${area.lat})`, home_area_label: area.label });
+
+  return (
+    <View style={styles.group}>
+      <Text accessibilityRole="header" style={styles.heading}>
+        {t('profile.homeArea')}
+      </Text>
+      <Text>{label ?? t('profile.homeAreaNone')}</Text>
+      {picking ? (
+        <LocationPicker
+          onGps={async () => {
+            const area = await currentCommune();
+            if (area === 'denied') return 'denied';
+            await save(area);
+            return 'ok';
+          }}
+          onTown={(town) => void save({ label: town.label, lon: town.lon, lat: town.lat })}
+          onCancel={() => setPicking(false)}
+        />
+      ) : (
+        <View style={styles.row}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('profile.homeAreaChange')}
+            disabled={busy}
+            style={styles.outline}
+            onPress={() => setPicking(true)}
+          >
+            <Text style={styles.outlineText}>{t('profile.homeAreaChange')}</Text>
+          </Pressable>
+          {label ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('profile.homeAreaRemove')}
+              disabled={busy}
+              style={styles.outline}
+              onPress={() => void write({ home_area: null, home_area_label: null })}
+            >
+              <Text style={styles.outlineText}>{t('profile.homeAreaRemove')}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      )}
+    </View>
+  );
 }
 
 function SignedOutProfile() {
@@ -157,22 +345,16 @@ function SignedInProfile({ userId, profile }: { userId: string; profile: Session
     if (!res.ok) setNotice({ kind: 'error', key: 'profile.downloadError' });
   };
 
-  const confirmDelete = () => {
-    Alert.alert(t('profile.deleteConfirm'), undefined, [
-      { text: t('profile.cancel'), style: 'cancel' },
-      {
-        text: t('profile.deleteAction'),
-        style: 'destructive',
-        onPress: async () => {
-          setBusy('delete');
-          setNotice(null);
-          const res = await deleteMyAccount();
-          setBusy(null);
-          if (!res.ok) setNotice({ kind: 'error', key: 'profile.deleteError' });
-        },
-      },
-    ]);
-  };
+  const confirmDelete = useConfirmDelete(
+    () => {
+      setBusy('delete');
+      setNotice(null);
+    },
+    (ok) => {
+      setBusy(null);
+      if (!ok) setNotice({ kind: 'error', key: 'profile.deleteError' });
+    },
+  );
 
   return (
     <ScrollView
@@ -246,6 +428,13 @@ function SignedInProfile({ userId, profile }: { userId: string; profile: Session
       >
         <Text style={styles.linkText}>{t('profile.interests')}</Text>
       </Pressable>
+
+      <HomeAreaSection
+        userId={userId}
+        label={profile.homeAreaLabel}
+        onSaved={refresh}
+        onError={(failed) => setNotice(failed ? { kind: 'error', key: 'profile.homeAreaError' } : null)}
+      />
 
       <LanguageSwitch
         onChange={async (lng) => {

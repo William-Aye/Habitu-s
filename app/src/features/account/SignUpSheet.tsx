@@ -17,6 +17,7 @@ import { useExploreLocation } from '../explore/useExploreLocation';
 import {
   completeProfile,
   MAX_FIRST_NAME,
+  signOut,
   sendEmailCode,
   signInWithGoogle,
   verifyEmailCode,
@@ -273,7 +274,7 @@ export function SignUpSheet({
                 <Button
                   label={t('account.validate')}
                   onPress={onVerify}
-                  disabled={busy || code.length !== 6}
+                  disabled={busy || code.length !== 6 || syncFailed}
                 />
                 <Pressable
                   accessibilityRole="button"
@@ -293,6 +294,7 @@ export function SignUpSheet({
                   style={styles.linkButton}
                   onPress={() => {
                     setError(null);
+                    setSyncFailed(false);
                     setStep('choose');
                   }}
                 >
@@ -331,6 +333,17 @@ export function SignUpSheet({
                   onPress={onSubmitProfile}
                   disabled={busy || !profileValid}
                 />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('profile.signOut')}
+                  style={styles.linkButton}
+                  onPress={() => {
+                    void signOut();
+                    close(false);
+                  }}
+                >
+                  <Text style={styles.linkText}>{t('profile.signOut')}</Text>
+                </Pressable>
               </View>
             ) : null}
 
