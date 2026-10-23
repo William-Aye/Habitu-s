@@ -958,6 +958,11 @@ isOneToOne: true
             "activity_date_matches":
 { Args: { "p_d": string,"p_interval_days": number,"p_kind": string,"p_start": string,"p_weekdays": (number)[] }; Returns: boolean
                            },
+"activity_roster":
+{ Args: { "p_activity": string }; Returns: {
+              "first_name": string,"photo_url": string,"status": string,"user_id": string
+            }[]
+                           },
 "association_locked_for_me":
 { Args: { "p_id": string }; Returns: boolean
                            },

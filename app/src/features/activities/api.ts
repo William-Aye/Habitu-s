@@ -228,3 +228,39 @@ export function setWelcomeMember(activityId: string, userId: string | null): Pro
     { expectRows: true },
   );
 }
+
+export interface RosterEntry {
+  userId: string;
+  firstName: string;
+  photoUrl: string | null;
+  status: 'member' | 'pending';
+}
+
+/** Organiser only: members and pending requests with first names (the database refuses anyone else). */
+export function activityRoster(activityId: string): Promise<ApiResult<{ people: RosterEntry[] }>> {
+  return run(
+    () => supabase.rpc('activity_roster', { p_activity: activityId }),
+    (data) => ({
+      people: ((data ?? []) as any[]).map((r) => ({
+        userId: r.user_id as string,
+        firstName: r.first_name as string,
+        photoUrl: (r.photo_url ?? null) as string | null,
+        status: r.status as 'member' | 'pending',
+      })),
+    }),
+  );
+}
+
+/** Soft delete: the history of past sessions is kept. */
+export function archiveActivity(activityId: string): Promise<ApiResult> {
+  return run(
+    () =>
+      supabase
+        .from('activities')
+        .update({ archived_at: new Date().toISOString() })
+        .eq('id', activityId)
+        .select('id'),
+    none,
+    { expectRows: true },
+  );
+}
