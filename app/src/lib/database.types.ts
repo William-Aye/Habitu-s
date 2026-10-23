@@ -595,6 +595,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"notification_outbox": {
+                  Row: {
+                    "attempts": number,"body": string,"data": NonNullable<Json>,"dedupe_key": string | null,"failed_at": string | null,"id": number,"kind": string,"send_after": string,"sent_at": string | null,"title": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "attempts"?: number,"body": string,"data"?: NonNullable<Json>,"dedupe_key"?: string | null,"failed_at"?: string | null,"id"?: number,"kind": string,"send_after"?: string,"sent_at"?: string | null,"title": string,"user_id": string
+                  }
+                  Update: {
+                    "attempts"?: number,"body"?: string,"data"?: NonNullable<Json>,"dedupe_key"?: string | null,"failed_at"?: string | null,"id"?: number,"kind"?: string,"send_after"?: string,"sent_at"?: string | null,"title"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "notification_outbox_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "notification_outbox_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "public_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"organiser_stats": {
                   Row: {
                     "badge_status": string,"distinct_participants": number,"feedback_count": number,"late_cancel_rate": number,"positive_count": number,"revoked_until": string | null,"sessions_held": number,"updated_at": string,"user_id": string
@@ -634,6 +660,32 @@ isOneToOne: true
                   }
                   Relationships: [
                     
+                  ]
+                },"push_tokens": {
+                  Row: {
+                    "platform": string,"token": string,"updated_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "platform": string,"token": string,"updated_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "platform"?: string,"token"?: string,"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "push_tokens_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "push_tokens_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "public_profiles"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"reports": {
                   Row: {
@@ -912,8 +964,17 @@ isOneToOne: true
 "can_organise":
 { Args: Record<PropertyKey, never>; Returns: boolean
                            },
+"claim_outbox":
+{ Args: { "p_limit"?: number }; Returns: Json
+                           },
 "delete_my_account":
 { Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"drain_outbox":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"enqueue_reminders":
+{ Args: Record<PropertyKey, never>; Returns: number
                            },
 "export_my_data":
 { Args: Record<PropertyKey, never>; Returns: Json
@@ -959,6 +1020,18 @@ isOneToOne: true
                            },
 "my_activities":
 { Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"notif_when":
+{ Args: { "p_lang": string,"p_time_only"?: boolean,"p_ts": string,"p_tz": string }; Returns: string
+                           },
+"notify_user":
+{ Args: { "p_body_en": string,"p_body_fr": string,"p_data"?: Json,"p_dedupe"?: string,"p_kind": string,"p_send_after"?: string,"p_title_en": string,"p_title_fr": string,"p_user": string }; Returns: undefined
+                           },
+"prune_outbox":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"register_push_token":
+{ Args: { "p_platform": string,"p_token": string }; Returns: undefined
                            },
 "search_explore":
 { Args: { "p_interest_category_ids"?: (string)[],"p_kinds"?: (string)[],"p_lat": number,"p_limit"?: number,"p_lon": number,"p_newcomer_friendly"?: boolean,"p_offset"?: number,"p_query"?: string,"p_query_embedding"?: string,"p_radius_km"?: number,"p_sort"?: string,"p_weekday"?: number }; Returns: Json
