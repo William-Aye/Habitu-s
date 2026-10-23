@@ -6,6 +6,10 @@ import { useExploreLocation } from '../src/features/explore/useExploreLocation';
 import { useExploreSearch } from '../src/features/explore/useExploreSearch';
 
 jest.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'fr-FR' }] }));
+const mockInterests = { value: { interests: {} as Record<string, string>, loading: false } };
+jest.mock('../src/features/interests/store', () => ({
+  useInterests: () => ({ ...mockInterests.value, setLevel: jest.fn(), error: false }),
+}));
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 jest.mock('../src/features/explore/api', () => ({ searchTowns: jest.fn(async () => []) }));
 jest.mock('../src/features/explore/useExploreLocation', () => ({
@@ -49,6 +53,7 @@ beforeAll(async () => {
   await initI18n();
 });
 beforeEach(() => {
+  mockInterests.value = { interests: {}, loading: false };
   mockLocation.mockReturnValue({
     location: { label: 'Lyon', lon: 4.8, lat: 45.7, source: 'town' },
     status: 'ready',
@@ -259,4 +264,18 @@ it('contains no emoji in rendered text', async () => {
     .join('\n');
   expect(texts).toContain('Nouvelle');
   expect(/\p{Extended_Pictographic}/u.test(texts)).toBe(false);
+});
+
+it('does not search while interests load with an empty query, then searches once with their ids', async () => {
+  mockInterests.value = { interests: {}, loading: true };
+  mockSearch.mockClear();
+  const { rerender } = await render(<Explore />);
+  expect(mockSearch.mock.calls.every(([p]) => p === null)).toBe(true);
+
+  mockSearch.mockClear();
+  mockInterests.value = { interests: { a: 'like', b: 'love' }, loading: false };
+  await rerender(<Explore />);
+  const params = mockSearch.mock.calls.map(([p]) => p).filter((p) => p !== null);
+  expect(params.length).toBeGreaterThan(0);
+  expect(params.every((p) => JSON.stringify(p.interestCategoryIds) === '["a","b"]')).toBe(true);
 });

@@ -3,6 +3,7 @@ import { Globe, Mail, Phone } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useRequireAccount } from '../../features/account/AccountGate';
 import { addWaiter, getAssociation, removeWaiter } from '../../features/explore/api';
 import { TownMap } from '../../features/explore/components/TownMap';
 import type { AssociationDetail } from '../../features/explore/types';
@@ -19,6 +20,7 @@ export default function AssociationPage() {
   const [wait, setWait] = useState<Wait>('idle');
   const [waitError, setWaitError] = useState(false);
   const [soon, setSoon] = useState(false);
+  const requireAccount = useRequireAccount();
 
   useEffect(() => {
     let active = true;
@@ -52,7 +54,10 @@ export default function AssociationPage() {
   const startWaiting = async () => {
     setWaitError(false);
     try {
-      setWait((await addWaiter(a.id)) === 'added' ? 'waiting' : 'signed_out');
+      let result = await addWaiter(a.id);
+      // Signed out: ask for an account, then register the request once it exists.
+      if (result === 'signed_out' && (await requireAccount('wait'))) result = await addWaiter(a.id);
+      setWait(result === 'added' ? 'waiting' : 'signed_out');
     } catch {
       setWaitError(true);
     }

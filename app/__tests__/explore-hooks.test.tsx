@@ -156,6 +156,38 @@ describe('useExploreLocation', () => {
     expect(JSON.parse((await AsyncStorage.getItem('explore.location')) as string)).toEqual(rounded);
   });
 
+  it('toCommune rounds the GPS position to ~1 km before the commune lookup and sends nothing finer', async () => {
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: 'granted', granted: true });
+    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue({ coords: { longitude: 2.35219, latitude: 48.85661 } });
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [{ nom: 'Paris', centre: { coordinates: [2.3488, 48.8534] }, codesPostaux: ['75001'] }],
+    });
+    const realFetch = global.fetch;
+    global.fetch = fetchMock as unknown as typeof fetch;
+    try {
+      const { result: hook } = await renderHook(() => useExploreLocation());
+      await waitFor(() => expect(hook.current.status).toBe('needed'));
+      let outcome: string | undefined;
+      await act(async () => { outcome = await hook.current.requestGps({ toCommune: true }); });
+      expect(outcome).toBe('ok');
+      const url = String(fetchMock.mock.calls[0][0]);
+      expect(url).toContain('lat=48.86');
+      expect(url).toContain('lon=2.35');
+      expect(url).not.toContain('48.8566');
+      expect(url).not.toContain('2.3521');
+    } finally {
+      global.fetch = realFetch;
+    }
+  });
+
+  it('rounds a previously stored GPS position when loading it', async () => {
+    await AsyncStorage.setItem('explore.location', JSON.stringify({ label: 'explore.location.myPosition', lon: 2.35219, lat: 48.85661, source: 'gps' }));
+    const { result: hook } = await renderHook(() => useExploreLocation());
+    await waitFor(() => expect(hook.current.status).toBe('ready'));
+    expect(hook.current.location).toMatchObject({ lon: 2.35, lat: 48.86 });
+  });
+
   it('setTown persists to explore.location', async () => {
     const { result: hook } = await renderHook(() => useExploreLocation());
     await waitFor(() => expect(hook.current.status).toBe('needed'));

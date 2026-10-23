@@ -58,14 +58,14 @@
     "loading": "Chargement",
     "error": "Impossible de charger les résultats. Réessayez.",
     "days": {
-      "all": "Tous les jours",
       "1": "Lundi",
       "2": "Mardi",
       "3": "Mercredi",
       "4": "Jeudi",
       "5": "Vendredi",
       "6": "Samedi",
-      "7": "Dimanche"
+      "7": "Dimanche",
+      "all": "Tous les jours"
     },
     "retry": "Réessayer"
   },
@@ -100,5 +100,103 @@
   },
   "common": {
     "comingSoon": "Bientôt disponible"
+  },
+  "account": {
+    "title": "Créez votre compte en 1 minute",
+    "google": "Continuer avec Google",
+    "sendCode": "Recevoir un code par e-mail",
+    "validate": "Valider",
+    "codeSent": "Entrez le code reçu à {{email}}",
+    "emailLabel": "Adresse e-mail",
+    "codeLabel": "Code à 6 chiffres",
+    "firstName": "Votre prénom",
+    "age": "J'ai 18 ans ou plus",
+    "privacy": "Politique de confidentialité",
+    "close": "Fermer",
+    "retry": "Réessayer",
+    "resend": "Renvoyer le code",
+    "changeEmail": "Modifier l'adresse",
+    "or": "ou",
+    "reasons": {
+      "join": "Créez un compte pour rejoindre cette activité",
+      "message": "Créez un compte pour écrire au groupe",
+      "create": "Créez un compte pour créer une activité",
+      "wait": "Créez un compte pour être prévenu",
+      "category": "Créez un compte pour proposer une catégorie"
+    },
+    "errors": {
+      "invalidEmail": "Adresse e-mail invalide",
+      "invalid_code": "Code incorrect. Vérifiez et réessayez.",
+      "expired_code": "Ce code a expiré. Demandez-en un nouveau.",
+      "captcha": "La vérification de sécurité a échoué.",
+      "network": "Pas de connexion. Vérifiez votre réseau et réessayez.",
+      "rate_limited": "Trop de tentatives. Patientez un peu avant de réessayer.",
+      "unknown": "Une erreur est survenue. Réessayez.",
+      "first_name": "Entrez un prénom de 40 caractères au maximum.",
+      "age": "Vous devez avoir 18 ans ou plus."
+    }
+  },
+  "interests": {
+    "title": "Vos centres d’intérêt",
+    "filterLabel": "Filtrer les catégories",
+    "filterPlaceholder": "Rechercher une catégorie",
+    "levels": {
+      "like": "J'aime",
+      "love": "J'adore",
+      "curious": "Curieux"
+    },
+    "loadError": "Impossible de charger les catégories.",
+    "retry": "Réessayer",
+    "empty": "Aucune catégorie ne correspond.",
+    "hint": "Touchez pour aimer, touchez encore pour adorer. Appui long pour « curieux ».",
+    "propose": "Vous ne trouvez pas ? Proposer une catégorie",
+    "requestLabel": "Nom de la catégorie",
+    "requestSend": "Envoyer",
+    "requestInvalid": "Le nom doit faire entre 2 et 80 caractères.",
+    "requestSent": "Merci, votre proposition a été envoyée.",
+    "requestSignedOut": "Connectez-vous pour proposer une catégorie.",
+    "requestError": "Envoi impossible. Réessayez.",
+    "proposeAnother": "Proposer une autre catégorie"
+  },
+  "onboarding": {
+    "languageTitle": "Langue",
+    "french": "Français",
+    "english": "English",
+    "where": "Où êtes-vous ?",
+    "like": "Qu'est-ce qui vous plaît ?",
+    "start": "Commencer",
+    "skip": "Passer",
+    "chosen": "Lieu choisi : {{place}}"
+  },
+  "profile": {
+    "title": "Profil",
+    "signIn": "Se connecter",
+    "changePhoto": "Changer la photo",
+    "photoAlt": "Photo de profil",
+    "bio": "Présentation",
+    "save": "Enregistrer",
+    "saved": "Enregistré",
+    "saveError": "Enregistrement impossible. Réessayez.",
+    "interests": "Mes centres d'intérêt",
+    "language": "Langue",
+    "myData": "Mes données",
+    "download": "Télécharger mes données",
+    "downloadError": "Impossible de préparer vos données. Réessayez.",
+    "delete": "Supprimer mon compte",
+    "deleteConfirm": "Supprimer définitivement votre compte et toutes vos données ?",
+    "deleteAction": "Supprimer",
+    "cancel": "Annuler",
+    "deleteError": "Suppression impossible. Réessayez.",
+    "signOut": "Se déconnecter",
+    "photoTooLarge": "Cette photo est trop lourde (1 Mo maximum).",
+    "photoError": "Envoi de la photo impossible. Réessayez.",
+    "languageError": "Impossible d'enregistrer la langue. Réessayez.",
+    "offline": "Connexion impossible.",
+    "finishSignup": "Terminer mon inscription",
+    "homeArea": "Ma zone",
+    "homeAreaNone": "Non renseignée",
+    "homeAreaChange": "Changer",
+    "homeAreaRemove": "Retirer",
+    "homeAreaError": "Impossible de modifier votre zone. Réessayez."
   }
 }

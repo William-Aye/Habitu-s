@@ -58,14 +58,14 @@
     "loading": "Loading",
     "error": "Could not load results. Try again.",
     "days": {
-      "all": "Every day",
       "1": "Monday",
       "2": "Tuesday",
       "3": "Wednesday",
       "4": "Thursday",
       "5": "Friday",
       "6": "Saturday",
-      "7": "Sunday"
+      "7": "Sunday",
+      "all": "Every day"
     },
     "retry": "Try again"
   },
@@ -100,5 +100,103 @@
   },
   "common": {
     "comingSoon": "Coming soon"
+  },
+  "account": {
+    "title": "Create your account in 1 minute",
+    "google": "Continue with Google",
+    "sendCode": "Get a code by email",
+    "validate": "Confirm",
+    "codeSent": "Enter the code sent to {{email}}",
+    "emailLabel": "Email address",
+    "codeLabel": "6-digit code",
+    "firstName": "Your first name",
+    "age": "I am 18 or older",
+    "privacy": "Privacy policy",
+    "close": "Close",
+    "retry": "Try again",
+    "resend": "Send the code again",
+    "changeEmail": "Change address",
+    "or": "or",
+    "reasons": {
+      "join": "Create an account to join this activity",
+      "message": "Create an account to write to the group",
+      "create": "Create an account to create an activity",
+      "wait": "Create an account to be notified",
+      "category": "Create an account to suggest a category"
+    },
+    "errors": {
+      "invalidEmail": "Invalid email address",
+      "invalid_code": "Wrong code. Check it and try again.",
+      "expired_code": "This code has expired. Request a new one.",
+      "captcha": "The security check failed.",
+      "network": "No connection. Check your network and try again.",
+      "rate_limited": "Too many attempts. Please wait a little before trying again.",
+      "unknown": "Something went wrong. Please try again.",
+      "first_name": "Enter a first name of 40 characters or fewer.",
+      "age": "You must be 18 or older."
+    }
+  },
+  "interests": {
+    "title": "Your interests",
+    "filterLabel": "Filter categories",
+    "filterPlaceholder": "Search a category",
+    "levels": {
+      "like": "Like",
+      "love": "Love",
+      "curious": "Curious"
+    },
+    "loadError": "Could not load the categories.",
+    "retry": "Try again",
+    "empty": "No category matches.",
+    "hint": "Tap to like, tap again to love. Long-press for \"curious\".",
+    "propose": "Can't find it? Suggest a category",
+    "requestLabel": "Category name",
+    "requestSend": "Send",
+    "requestInvalid": "The name must be between 2 and 80 characters.",
+    "requestSent": "Thank you, your suggestion was sent.",
+    "requestSignedOut": "Sign in to suggest a category.",
+    "requestError": "Could not send. Try again.",
+    "proposeAnother": "Suggest another category"
+  },
+  "onboarding": {
+    "languageTitle": "Language",
+    "french": "Français",
+    "english": "English",
+    "where": "Where are you?",
+    "like": "What do you enjoy?",
+    "start": "Get started",
+    "skip": "Skip",
+    "chosen": "Chosen place: {{place}}"
+  },
+  "profile": {
+    "title": "Profile",
+    "signIn": "Sign in",
+    "changePhoto": "Change photo",
+    "photoAlt": "Profile photo",
+    "bio": "About you",
+    "save": "Save",
+    "saved": "Saved",
+    "saveError": "Could not save. Try again.",
+    "interests": "My interests",
+    "language": "Language",
+    "myData": "My data",
+    "download": "Download my data",
+    "downloadError": "Could not prepare your data. Try again.",
+    "delete": "Delete my account",
+    "deleteConfirm": "Permanently delete your account and all your data?",
+    "deleteAction": "Delete",
+    "cancel": "Cancel",
+    "deleteError": "Could not delete. Try again.",
+    "signOut": "Sign out",
+    "photoTooLarge": "This photo is too large (1 MB maximum).",
+    "photoError": "Could not upload the photo. Try again.",
+    "languageError": "Could not save the language. Try again.",
+    "offline": "Cannot connect.",
+    "finishSignup": "Finish signing up",
+    "homeArea": "My area",
+    "homeAreaNone": "Not set",
+    "homeAreaChange": "Change",
+    "homeAreaRemove": "Remove",
+    "homeAreaError": "Could not change your area. Try again."
   }
 }
