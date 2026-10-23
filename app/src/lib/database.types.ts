@@ -771,6 +771,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"session_horizons": {
+                  Row: {
+                    "activity_id": string,"until": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "activity_id": string,"until": string
+                  }
+                  Update: {
+                    "activity_id"?: string,"until"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "session_horizons_activity_id_fkey"
+      columns: ["activity_id"]
+isOneToOne: true
+      referencedRelation: "activities"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"sessions": {
                   Row: {
                     "activity_id": string,"cancelled_at": string | null,"id": string,"is_discovery": boolean,"place": unknown,"place_label": string | null,"starts_at": string,"status": string
@@ -883,7 +903,10 @@ isOneToOne: true
                 }
           }
           Functions: {
-            "association_locked_for_me":
+            "activity_date_matches":
+{ Args: { "p_d": string,"p_interval_days": number,"p_kind": string,"p_start": string,"p_weekdays": (number)[] }; Returns: boolean
+                           },
+"association_locked_for_me":
 { Args: { "p_id": string }; Returns: boolean
                            },
 "can_organise":
@@ -894,6 +917,12 @@ isOneToOne: true
                            },
 "export_my_data":
 { Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"generate_sessions":
+{ Args: { "p_activity": string,"p_from"?: string,"p_until": string }; Returns: number
+                           },
+"get_activity":
+{ Args: { "p_id": string }; Returns: Json
                            },
 "get_association":
 { Args: { "p_id": string }; Returns: Json
@@ -925,11 +954,20 @@ isOneToOne: true
 "is_session_organiser":
 { Args: { "p_session": string }; Returns: boolean
                            },
+"my_activities":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "search_explore":
 { Args: { "p_interest_category_ids"?: (string)[],"p_kinds"?: (string)[],"p_lat": number,"p_limit"?: number,"p_lon": number,"p_newcomer_friendly"?: boolean,"p_offset"?: number,"p_query"?: string,"p_query_embedding"?: string,"p_radius_km"?: number,"p_sort"?: string,"p_weekday"?: number }; Returns: Json
                            },
+"session_card":
+{ Args: { "p_session": string,"p_with_attendees": boolean }; Returns: Json
+                           },
 "session_has_member":
 { Args: { "p_session": string,"p_user": string }; Returns: boolean
+                           },
+"session_matches_rule":
+{ Args: { "a": Omit<Database["public"]['Tables']["activities"]['Row'], Database["public"]['Tables']["activities"]['ComputedFields']>,"p_starts_at": string }; Returns: boolean
                            },
 "touch_last_seen":
 { Args: Record<PropertyKey, never>; Returns: undefined

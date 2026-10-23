@@ -80,7 +80,7 @@ select throws_ok($$ insert into sessions (activity_id, starts_at) values ('00000
 
 select tests.act_as_anon();
 select is((select count(*) from activities)::int, 3, 'anon reads activities');
-select is((select count(*) from sessions)::int, 1, 'anon reads sessions');
+select is((select count(*) from sessions where id = '00000000-0000-0000-0000-0000000000e1')::int, 1, 'anon reads sessions');
 select is((select count(*) from activity_tags)::int, 1, 'anon reads activity_tags');
 select throws_ok($$ insert into activities (organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time)
   values (gen_random_uuid(), '00000000-0000-0000-0000-0000000000c1', 'Anon', 'X', 'POINT(4.85 45.77)', 'weekly', '2026-11-03', '19:00') $$,
