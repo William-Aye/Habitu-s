@@ -140,6 +140,7 @@ select is((select count(*)::int from notification_outbox where body = 'Nouveau l
 select is((select count(*)::int from notification_outbox where body = 'Nouveau lieu : Nouveau bar.' and user_id = :'outsider'), 0, 'activity place change: a removed member is not notified');
 
 -- collectif invitation
+delete from blocks where blocker_id = :'mem';
 insert into collectifs (id, name, town_label, town_point, created_by) values
   ('00000000-0000-0000-0000-0000000000d1', 'Les Joueurs', 'Lyon', 'POINT(4.85 45.77)', :'org');
 insert into collectif_members (collectif_id, user_id, role, status) values
