@@ -281,7 +281,9 @@
       "none": "You do not organise any collectif yet.",
       "create": "Create a collectif",
       "open": "Open the collectif {{name}}",
-      "error": "Could not load your collectifs."
+      "error": "Could not load your collectifs.",
+      "invitationPending": "Invitation pending",
+      "openInvitation": "Open the invitation to the collectif {{name}}"
     }
   },
   "activities": {
@@ -467,6 +469,7 @@
     "deleteBody": "The collectif’s activities stay online and show their organiser. This cannot be undone.",
     "deleteAction": "Delete",
     "errors": {
+      "limit_reached": "Limit reached: you can invite 10 people per 24 hours. Try again later.",
       "not_allowed": "Not possible: your permissions may have changed. Reopen the page and try again.",
       "network": "Cannot connect. Check your network and try again.",
       "unknown": "Something went wrong. Try again."

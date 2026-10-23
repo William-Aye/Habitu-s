@@ -6,6 +6,7 @@ import {
   leaveActivity,
   myActivities,
   setAttendance,
+  setAttendanceStatus,
   setWelcomeMember,
   updateSession,
 } from '../src/features/activities/api';
@@ -20,6 +21,7 @@ import {
   leaveCollectif,
   listCandidates,
   myCollectifs,
+  myCollectifInvitations,
   myInvitation,
   updateCollectif,
 } from '../src/features/collectifs/api';
@@ -414,6 +416,21 @@ describe('setAttendance', () => {
   });
 });
 
+describe('setAttendanceStatus', () => {
+  it('upserts only the status, so an existing guest_count is kept', async () => {
+    expect(await setAttendanceStatus('s1', 'confirmed')).toEqual({ ok: true });
+    expect(mockFrom).toHaveBeenCalledWith('attendances');
+    expect(lastCall('upsert')?.args).toEqual([
+      { session_id: 's1', user_id: 'me', status: 'confirmed' },
+      { onConflict: 'session_id,user_id' },
+    ]);
+  });
+  it('maps session_full', async () => {
+    result = { data: null, error: { code: 'P0001', message: 'session_full' } };
+    expect(await setAttendanceStatus('s1', 'confirmed')).toEqual({ ok: false, error: 'session_full' });
+  });
+});
+
 describe('updateSession', () => {
   it('sends only the given fields, the place as a point', async () => {
     await updateSession('s1', {
@@ -507,6 +524,17 @@ describe('collectifs', () => {
     });
     expect(mockFrom).toHaveBeenCalledWith('collectif_members');
     expect(eqs()).toEqual([['user_id', 'me'], ['status', 'active']]);
+  });
+  it('lists my pending collectif invitations', async () => {
+    result = {
+      data: [{ collectifs: { id: 'c7', name: 'Les Joueurs', town_label: 'Lyon' } }, { collectifs: null }],
+      error: null,
+    };
+    expect(await myCollectifInvitations()).toEqual({
+      ok: true,
+      invitations: [{ id: 'c7', name: 'Les Joueurs', townLabel: 'Lyon' }],
+    });
+    expect(eqs()).toEqual([['user_id', 'me'], ['status', 'invited']]);
   });
   it('invites an organiser', async () => {
     await inviteOrganiser('c1', 'u2');

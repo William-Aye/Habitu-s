@@ -5,13 +5,14 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { MyCollectif } from '../activities/types';
 import { CreateCollectifForm } from './CreateCollectifForm';
-import { myCollectifs } from './api';
+import { myCollectifInvitations, myCollectifs } from './api';
 
 /** Profil section: the collectifs I organise, and a way to create one. */
 export function MyCollectifs() {
   const { t } = useTranslation();
   const router = useRouter();
   const [items, setItems] = useState<MyCollectif[] | null>(null);
+  const [invites, setInvites] = useState<{ id: string; name: string; townLabel: string }[]>([]);
   const [failed, setFailed] = useState(false);
   const [creating, setCreating] = useState(false);
 
@@ -27,6 +28,9 @@ export function MyCollectifs() {
         } else {
           setFailed(true);
         }
+      });
+      myCollectifInvitations().then((r) => {
+        if (active && r.ok) setInvites(r.invitations);
       });
       return () => {
         active = false;
@@ -46,7 +50,19 @@ export function MyCollectifs() {
           {t('profile.collectifs.error')}
         </Text>
       ) : null}
-      {items && items.length === 0 ? <Text>{t('profile.collectifs.none')}</Text> : null}
+      {items && items.length === 0 && invites.length === 0 ? <Text>{t('profile.collectifs.none')}</Text> : null}
+      {invites.map((c) => (
+        <Pressable
+          key={`invite-${c.id}`}
+          accessibilityRole="link"
+          accessibilityLabel={t('profile.collectifs.openInvitation', { name: c.name })}
+          style={styles.row}
+          onPress={() => open(c.id)}
+        >
+          <Text style={styles.linkText}>{c.name}</Text>
+          <Text style={styles.hint}>{`${c.townLabel} · ${t('profile.collectifs.invitationPending')}`}</Text>
+        </Pressable>
+      ))}
       {(items ?? []).map((c) => (
         <Pressable
           key={c.id}

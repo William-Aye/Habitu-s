@@ -77,6 +77,29 @@ export function myCollectifs(): Promise<ApiResult<{ collectifs: MyCollectif[] }>
   );
 }
 
+/** Invitations to organise a collectif that I have not answered yet (my own rows, status 'invited'). */
+export function myCollectifInvitations(): Promise<
+  ApiResult<{ invitations: { id: string; name: string; townLabel: string }[] }>
+> {
+  return runAsUser(
+    (userId) =>
+      supabase
+        .from('collectif_members')
+        .select('collectifs(id, name, town_label)')
+        .eq('user_id', userId)
+        .eq('status', 'invited'),
+    (rows) => ({
+      invitations: ((rows ?? []) as any[])
+        .filter((r) => r.collectifs)
+        .map((r) => ({
+          id: r.collectifs.id,
+          name: r.collectifs.name,
+          townLabel: r.collectifs.town_label,
+        })),
+    }),
+  );
+}
+
 export function inviteOrganiser(collectifId: string, userId: string): Promise<ApiResult> {
   return run(
     () =>

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
-import { setAttendance } from '../src/features/activities/api';
+import { setAttendance, setAttendanceStatus } from '../src/features/activities/api';
 import { Platform } from 'react-native';
 import { askForPush, refreshPushRegistration, registerForPush, unregisterThisDevice } from '../src/features/notifications/registerPush';
 import { setupNotificationCategories } from '../src/features/notifications/categories';
@@ -31,14 +31,15 @@ jest.mock('expo-notifications', () => ({
   setNotificationHandler: jest.fn(),
 }));
 jest.mock('expo-router', () => ({ router: { push: jest.fn(), replace: jest.fn() } }));
-jest.mock('../src/features/activities/api', () => ({ setAttendance: jest.fn() }));
+jest.mock('../src/features/activities/api', () => ({ setAttendance: jest.fn(), setAttendanceStatus: jest.fn() }));
 jest.mock('../src/lib/supabase', () => ({
   supabase: { rpc: jest.fn(), from: jest.fn(() => ({ delete: () => ({ eq: mockDeleteEq }) })) },
 }));
 
 const N = Notifications as unknown as Record<string, jest.Mock>;
 const rpc = supabase.rpc as unknown as jest.Mock;
-const mockSetAttendance = setAttendance as jest.Mock;
+const mockSetAttendance = setAttendanceStatus as jest.Mock;
+const mockSetAttendanceFull = setAttendance as jest.Mock;
 
 const DAY = 24 * 3600 * 1000;
 
@@ -198,14 +199,15 @@ function response(action: string, id = 'n1') {
 }
 
 describe('handleNotificationResponse', () => {
-  it('yes confirms attendance without a guest', async () => {
+  it('yes confirms attendance, sending only the status so an existing guest is kept', async () => {
     await handleNotificationResponse(response('yes'));
-    expect(mockSetAttendance).toHaveBeenCalledWith('s1', 'confirmed', 0);
+    expect(mockSetAttendance).toHaveBeenCalledWith('s1', 'confirmed');
+    expect(mockSetAttendanceFull).not.toHaveBeenCalled();
   });
 
   it('no cancels attendance', async () => {
     await handleNotificationResponse(response('no'));
-    expect(mockSetAttendance).toHaveBeenCalledWith('s1', 'cancelled', 0);
+    expect(mockSetAttendance).toHaveBeenCalledWith('s1', 'cancelled');
   });
 
   it('a default tap opens the activity and records nothing', async () => {
@@ -248,6 +250,18 @@ describe('handleNotificationResponse', () => {
     await handleNotificationResponse(response('yes'));
     await handleNotificationResponse(response('yes'));
     expect(mockSetAttendance).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the collectif page for an invitation notification', async () => {
+    const invite = {
+      actionIdentifier: Notifications.DEFAULT_ACTION_IDENTIFIER,
+      notification: { request: { identifier: 'c1', content: { data: { collectif_id: 'col1' } } } },
+    } as never;
+    await handleNotificationResponse(invite);
+    expect(router.push).toHaveBeenCalledWith({ pathname: '/collectifs/[id]', params: { id: 'col1' } });
+    (router.push as jest.Mock).mockClear();
+    openActivityFor({ ...(invite as object), notification: { request: { identifier: 'c2', content: { data: { collectif_id: 'col1' } } } } } as never);
+    expect(router.push).toHaveBeenCalledWith({ pathname: '/collectifs/[id]', params: { id: 'col1' } });
   });
 
   it('ignores a payload without ids', async () => {

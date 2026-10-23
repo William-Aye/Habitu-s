@@ -180,6 +180,18 @@ export function setAttendance(
   );
 }
 
+/** Changes only the answer (a reminder's Oui / Pas cette fois): an existing guest_count stays as it is. */
+export function setAttendanceStatus(sessionId: string, status: 'confirmed' | 'cancelled'): Promise<ApiResult> {
+  return runAsUser(
+    (userId) =>
+      supabase.from('attendances').upsert(
+        { session_id: sessionId, user_id: userId, status },
+        { onConflict: 'session_id,user_id' },
+      ),
+    none,
+  );
+}
+
 export function updateSession(sessionId: string, patch: SessionPatch): Promise<ApiResult> {
   const row: {
     starts_at?: string;

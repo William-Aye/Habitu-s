@@ -70,10 +70,12 @@ export default function Explore() {
       pathname: '/activites/new',
       params: category ? { category } : {},
     });
-  // "Lancez-la vous-même": the user has interests but no activity is nearby (associations may be).
+  // "Lancez-la vous-même": interests, no activity nearby (associations may be), activities requested and
+  // nothing further to load (a later page could still hold some).
   const showLaunch =
     !!topInterest && !hasQuery && !filters.discoveryOnly && !loading && !error &&
-    !!response && !results.some((r) => r.kind === 'activity');
+    !!response && !response.hasMore && effectiveKinds(filters).includes('activity') &&
+    !results.some((r) => r.kind === 'activity');
 
   const needsLocation = status === 'needed' || (editingLocation && status === 'ready');
   const place = location

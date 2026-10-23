@@ -131,7 +131,7 @@ below is free (Firebase and Expo's push service need no card).
 
    ```bash
    cd app
-   npx eas-cli env:create --name GOOGLE_SERVICES_JSON --type file --visibility secret      --environment production --value ./google-services.json
+   npx eas-cli env:create --name GOOGLE_SERVICES_JSON --type file --visibility secret --environment production --value ./google-services.json
    ```
 
    (repeat for the `preview`/`development` environments you build). `app/app.config.js` reads

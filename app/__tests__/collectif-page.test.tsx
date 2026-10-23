@@ -176,6 +176,15 @@ it('the responsable invites a candidate', async () => {
   expect(screen.queryByLabelText('Inviter Camille')).toBeNull();
 });
 
+it('tells the responsable when the daily invitation limit is reached', async () => {
+  mockInvite.mockResolvedValue({ ok: false, error: 'limit_reached' });
+  await show(page({ myRole: 'responsable' }));
+  await fireEvent.press(screen.getByText('Inviter un organisateur'));
+  await screen.findByText('Camille');
+  await fireEvent.press(screen.getByLabelText('Inviter Camille'));
+  await screen.findByText(/Limite atteinte : vous pouvez inviter 10 personnes/);
+});
+
 it('explains when nobody can be invited yet', async () => {
   mockCandidates.mockResolvedValue({ ok: true, candidates: [] });
   await show(page({ myRole: 'responsable' }));

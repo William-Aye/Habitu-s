@@ -30,7 +30,7 @@ export interface ExploreResult {
   label: 'very_relevant' | 'relevant' | 'weak' | null;
   isWeak: boolean;
   isNew: boolean;
-  sourceLabel: 'community' | 'unverified' | null;
+  sourceLabel: 'community' | 'unverified' | 'collectif' | null;
   tagSlugs: string[];
 }
 

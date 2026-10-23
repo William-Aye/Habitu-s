@@ -290,6 +290,22 @@ describe('creating an activity from Explore', () => {
     expect(screen.queryByText('Lancez-la vous-même')).toBeNull();
   });
 
+  it('does not prompt while more pages may hold activities', async () => {
+    mockInterests.value = { interests: { a: 'like' }, loading: false };
+    setSearch(response([result('x', { kind: 'association', title: 'Club' })], { mode: 'browse', hasMore: true }));
+    await render(<Explore />);
+    expect(screen.queryByText('Lancez-la vous-même')).toBeNull();
+  });
+
+  it('does not prompt when the activities kind is switched off', async () => {
+    mockInterests.value = { interests: { a: 'like' }, loading: false };
+    setSearch(response([], { mode: 'browse' }));
+    await render(<Explore />);
+    expect(screen.getByText('Lancez-la vous-même')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Activités'));
+    expect(screen.queryByText('Lancez-la vous-même')).toBeNull();
+  });
+
   it('does not prompt while results are not loaded', async () => {
     mockInterests.value = { interests: { a: 'like' }, loading: false };
     setSearch(null);
@@ -311,7 +327,7 @@ it('sends discoveryOnly with the Séances découverte chip, restricted to activi
 
 it('shows a collectif card with its label and opens the collectif page', async () => {
   (router.push as jest.Mock).mockClear();
-  setSearch(response([result('c1', { kind: 'collectif', title: 'Les Marcheurs' })]));
+  setSearch(response([result('c1', { kind: 'collectif', title: 'Les Marcheurs', sourceLabel: 'collectif' })]));
   await render(<Explore />);
   expect(screen.getByText('Collectif — sans statut juridique')).toBeTruthy();
   await fireEvent.press(

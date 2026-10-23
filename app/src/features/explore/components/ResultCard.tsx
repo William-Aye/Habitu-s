@@ -18,7 +18,8 @@ export function ResultCard({ result, onPress }: { result: ExploreResult; onPress
   });
   const label = result.label ? t(LABEL_KEY[result.label]) : null;
   const isNew = result.isNew ? t('explore.new') : null;
-  const source = result.sourceLabel ? t(`explore.source.${result.sourceLabel}`) : null;
+  // The server marks collectifs with source_label 'collectif'; their own label below says it better.
+  const source = result.sourceLabel && result.kind !== 'collectif' ? t(`explore.source.${result.sourceLabel}`) : null;
   const collectif = result.kind === 'collectif' ? t('activity.collectifLabel') : null;
   // Screen readers read the card as one button: give them every visible text.
   const a11yLabel = [result.title, result.subtitle, distance, label, isNew, source, collectif]

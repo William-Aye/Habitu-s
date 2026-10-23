@@ -100,9 +100,11 @@ jest.mock('../src/features/explore/components/LocationPicker', () => {
   };
 });
 const mockMine = jest.fn();
+const mockInvites = jest.fn();
 const mockCreateCollectif = jest.fn();
 jest.mock('../src/features/collectifs/api', () => ({
   myCollectifs: () => mockMine(),
+  myCollectifInvitations: () => mockInvites(),
   createCollectif: (...a: unknown[]) => mockCreateCollectif(...a),
 }));
 const mockCommune = jest.fn();
@@ -137,6 +139,7 @@ beforeEach(() => {
   mockCurrent = mockSignedIn;
   mockGate.mockResolvedValue(false);
   mockMine.mockResolvedValue({ ok: true, collectifs: [] });
+  mockInvites.mockResolvedValue({ ok: true, invitations: [] });
 });
 
 it('signed out shows Se connecter, language and privacy but no Mes données', async () => {
@@ -182,6 +185,19 @@ describe('mes collectifs', () => {
     });
     await screen.findByText('Les Joueurs');
     expect(screen.queryByText("Vous n'organisez aucun collectif pour l'instant.")).toBeNull();
+  });
+
+  it('lists a pending invitation as such and opens the collectif page', async () => {
+    mockInvites.mockResolvedValue({
+      ok: true,
+      invitations: [{ id: 'c5', name: 'Les Marcheurs', townLabel: 'Lyon' }],
+    });
+    await render(<Profile />);
+    expect(await screen.findByText('Les Marcheurs')).toBeTruthy();
+    expect(screen.getByText('Lyon · Invitation en attente')).toBeTruthy();
+    expect(screen.queryByText("Vous n'organisez aucun collectif pour l'instant.")).toBeNull();
+    await fireEvent.press(screen.getByText('Les Marcheurs'));
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/collectifs/[id]', params: { id: 'c5' } });
   });
 
   it('says so when I organise none and offers to create one', async () => {
