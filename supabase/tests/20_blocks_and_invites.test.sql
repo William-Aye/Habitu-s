@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(28);
+select plan(30);
 select tests.create_user('org@bi.fr', 'Olivier') as org \gset
 select tests.create_user('bl@bi.fr', 'Blaise') as bl \gset
 select tests.create_user('rb@bi.fr', 'Rita') as rb \gset
@@ -71,6 +71,21 @@ select is((select count(*)::int from jsonb_array_elements(public.my_activities()
 select tests.act_as(:'ok');
 select lives_ok($$ insert into activity_members (activity_id, user_id) values ('00000000-0000-0000-0000-0000000000f2', auth.uid()) $$,
   'an unrelated user can join');
+
+-- a removal survives block then unblock: the removed person cannot simply rejoin
+select tests.act_as_superuser();
+insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time) values
+  ('00000000-0000-0000-0000-0000000000f5', :'org', '00000000-0000-0000-0000-0000000000c1', 'Go sans Hugo', 'Cafe', 'POINT(4.85 45.77)', 'weekly', current_date + 2, '19:00');
+insert into activity_members (activity_id, user_id, status) values ('00000000-0000-0000-0000-0000000000f5', :'outsider', 'removed');
+select tests.act_as(:'org');
+insert into blocks (blocker_id, blocked_id) values (:'org', :'outsider');
+delete from blocks where blocker_id = auth.uid() and blocked_id = :'outsider';
+select tests.act_as_superuser();
+select is((select status from activity_members where activity_id = '00000000-0000-0000-0000-0000000000f5' and user_id = :'outsider'), 'removed',
+  'a removed membership survives block then unblock');
+select tests.act_as(:'outsider');
+select throws_ok($$ insert into activity_members (activity_id, user_id) values ('00000000-0000-0000-0000-0000000000f5', auth.uid()) $$,
+  '23505', null, 'and the removed person still cannot rejoin');
 
 -- ---------------------------------------------------------------------------------------------
 -- Ruling 3: invitations only inside a shared activity

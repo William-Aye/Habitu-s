@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(74);
+select plan(75);
 select tests.create_user('org@not.fr', 'Olivier') as org \gset
 select tests.create_user('mem@not.fr', 'Mia') as mem \gset
 select tests.create_user('memen@not.fr', 'Mike') as memen \gset
@@ -109,6 +109,8 @@ select is((select body from notification_outbox where kind = 'session_moved' and
 update sessions set status = 'cancelled_by_organiser' where id = '00000000-0000-0000-0000-0000000000a1';
 select is((select count(*)::int from notification_outbox where kind = 'session_cancelled' and user_id = :'mem'), 1, 'cancelled: the attendee is notified');
 select is((select count(*)::int from notification_outbox where kind = 'session_cancelled'), 2, 'cancelled: both confirmed attendees');
+select is((select distinct title || ' / ' || body from notification_outbox where kind = 'session_cancelled' and user_id = :'mem'),
+  'Séance annulée / Une séance de votre activité est annulée.', 'cancelled text says cancelled, generically');
 select is((select count(*)::int from notification_outbox where kind = 'session_cancelled' and user_id in (:'mem2', :'org')), 0, 'cancelled: not the cancelled attendee nor the organiser');
 
 -- recurrence edit leaves a confirmed session at its old time
