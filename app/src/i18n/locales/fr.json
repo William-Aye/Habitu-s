@@ -198,5 +198,17 @@
     "homeAreaChange": "Changer",
     "homeAreaRemove": "Retirer",
     "homeAreaError": "Impossible de modifier votre zone. Réessayez."
+  },
+  "activities": {
+    "recurrence": {
+      "weekly": "Chaque semaine",
+      "everyNDays": "Tous les {{n}} jours",
+      "weekdays": "Certains jours",
+      "atTime": "{{label}} à {{time}}",
+      "weeklyOn": "{{label}} le {{day}} à {{time}}",
+      "dayItem": "le {{day}}",
+      "list": "{{head}} et {{last}}",
+      "onDays": "{{days}} à {{time}}"
+    }
   }
 }

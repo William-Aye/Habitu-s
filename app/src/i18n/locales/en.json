@@ -198,5 +198,17 @@
     "homeAreaChange": "Change",
     "homeAreaRemove": "Remove",
     "homeAreaError": "Could not change your area. Try again."
+  },
+  "activities": {
+    "recurrence": {
+      "weekly": "Every week",
+      "everyNDays": "Every {{n}} days",
+      "weekdays": "Some days",
+      "atTime": "{{label}} at {{time}}",
+      "weeklyOn": "{{label}} on {{day}} at {{time}}",
+      "dayItem": "{{day}}",
+      "list": "{{head}} and {{last}}",
+      "onDays": "On {{days}} at {{time}}"
+    }
   }
 }
