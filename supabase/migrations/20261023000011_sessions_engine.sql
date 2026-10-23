@@ -17,13 +17,15 @@ language sql immutable set search_path = public, pg_temp as $$
   end;
 $$;
 
--- Does a session start exactly on the activity's current rule (date and local wall time)?
+-- Is a session exactly where the activity's current rule would generate it? Compares the generated
+-- instant, not the local wall time: a start time that does not exist on a spring-forward day
+-- (02:30 on 2027-03-28 in Europe/Paris) is generated at another local time but still matches.
 -- Task 3 uses it to find the confirmed sessions kept at their old time after a rule change.
 create function public.session_matches_rule(a public.activities, p_starts_at timestamptz) returns boolean
 language sql stable set search_path = public, pg_temp as $$
   select public.activity_date_matches(a.recurrence_kind, a.recurrence_interval_days, a.recurrence_weekdays,
                                       a.start_date, (p_starts_at at time zone a.timezone)::date)
-     and (p_starts_at at time zone a.timezone)::time = a.start_time;
+     and ((p_starts_at at time zone a.timezone)::date + a.start_time) at time zone a.timezone = p_starts_at;
 $$;
 
 -- How far each activity's sessions have been generated. Sessions the organiser moved or cancelled
@@ -83,6 +85,7 @@ revoke all on function public.generate_sessions(uuid, date, date) from public, a
 revoke all on function public.activity_date_matches(text, int, smallint[], date, date) from public, anon, authenticated;
 revoke all on function public.session_matches_rule(public.activities, timestamptz) from public, anon, authenticated;
 
+-- Unarchived activity (archived_at back to null): the horizon is generated at once.
 -- New activity, or its recurrence / start date / time / timezone changed: future 'scheduled'
 -- sessions without a confirmed attendance that no longer match the rule are deleted, then the
 -- 8-week horizon is generated again from today.
@@ -91,6 +94,9 @@ revoke all on function public.session_matches_rule(public.activities, timestampt
 create function public.activities_regenerate_sessions() returns trigger
 language plpgsql security definer set search_path = public, pg_temp as $$
 begin
+  if tg_op = 'UPDATE' and old.archived_at is not null and new.archived_at is null then
+    perform public.generate_sessions(new.id, current_date + 56);
+  end if;
   if tg_op = 'UPDATE'
      and (new.recurrence_kind, new.recurrence_interval_days, new.recurrence_weekdays,
           new.start_date, new.start_time, new.timezone)
@@ -113,17 +119,21 @@ end $$;
 revoke all on function public.activities_regenerate_sessions() from public, anon, authenticated;
 create trigger activities_regenerate_sessions
   after insert or update of recurrence_kind, recurrence_interval_days, recurrence_weekdays,
-                            start_date, start_time, timezone
+                            start_date, start_time, timezone, archived_at
   on public.activities
   for each row execute function public.activities_regenerate_sessions();
 
--- Nightly: extend every non-archived activity to 8 weeks ahead.
-select cron.schedule('extend-sessions', '30 2 * * *',
-  $$ select public.generate_sessions(a.id, current_date + 56)
-       from public.activities a where a.archived_at is null $$);
+-- Nightly: extend every non-archived activity to 8 weeks ahead; returns the sessions inserted.
+create function public.extend_sessions() returns int
+language sql security definer set search_path = public, pg_temp as $$
+  select coalesce(sum(public.generate_sessions(a.id, current_date + 56)), 0)::int
+    from public.activities a where a.archived_at is null;
+$$;
+revoke all on function public.extend_sessions() from public, anon, authenticated;
+select cron.schedule('extend-sessions', '30 2 * * *', 'select public.extend_sessions()');
 
 -- Backfill activities created before this migration.
-select public.generate_sessions(a.id, current_date + 56) from public.activities a where a.archived_at is null;
+select public.extend_sessions();
 
 -- ---------------------------------------------------------------------------------------------
 -- Capacity: a confirmation (or adding a guest) is refused with 'session_full' when confirmed people
@@ -164,7 +174,8 @@ create trigger attendances_capacity before insert or update of status, guest_cou
 
 -- ---------------------------------------------------------------------------------------------
 -- Page RPCs. Only public profile fields (first_name, photo_url) of other people are returned, and
--- attendee names / photos only to members and the organiser (decision 4); everyone gets counts.
+-- attendee names / photos only to members and the organiser (decision 4), never people blocked by or
+-- blocking the caller; everyone gets counts (blocked people included).
 
 -- One session as shown on the activity page / "Mes activités". Internal helper.
 create function public.session_card(p_session uuid, p_with_attendees boolean) returns jsonb
@@ -184,7 +195,8 @@ language sql stable security definer set search_path = public, pg_temp as $$
          (select jsonb_agg(jsonb_build_object('first_name', p.first_name, 'photo_url', p.photo_url)
                            order by t.updated_at, p.id)
             from public.attendances t join public.profiles p on p.id = t.user_id
-           where t.session_id = s.id and t.status = 'confirmed'), '[]'::jsonb))
+           where t.session_id = s.id and t.status = 'confirmed'
+             and not public.is_blocked_between(t.user_id)), '[]'::jsonb))
        else '{}'::jsonb end
     from public.sessions s
     join public.activities a on a.id = s.activity_id

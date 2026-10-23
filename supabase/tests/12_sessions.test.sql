@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(57);
+select plan(80);
 select tests.create_user('org@ses.fr', 'Olivier') as org \gset
 select tests.create_user('mem@ses.fr', 'Mia') as mem \gset
 select tests.create_user('mem2@ses.fr', 'Marc') as mem2 \gset
@@ -118,6 +118,23 @@ select is(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'next_ses
 select tests.act_as(:'org');
 select is(jsonb_array_length(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'next_sessions'->0->'attendees'), 2, 'organiser sees the attendees');
 
+-- blocks hide attendees in both directions (counts unchanged)
+select tests.act_as_superuser();
+insert into blocks (blocker_id, blocked_id) values (:'mem2', :'mem');
+select tests.act_as(:'mem');
+select is((select array_agg(e->>'first_name') from jsonb_array_elements(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'next_sessions'->0->'attendees') e),
+  array['Mia'], 'a member does not see someone who blocked them');
+select is(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'next_sessions'->0->>'confirmed_count', '3', 'counts still include everyone');
+select tests.act_as(:'mem2');
+select is((select array_agg(e->>'first_name') from jsonb_array_elements(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'next_sessions'->0->'attendees') e),
+  array['Marc'], 'a member does not see someone they blocked');
+select is((select array_agg(e->>'first_name') from jsonb_array_elements(public.my_activities()->0->'next_session'->'attendees') e),
+  array['Marc'], 'my_activities attendees exclude blocked people too');
+select tests.act_as(:'org');
+select is(jsonb_array_length(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'next_sessions'->0->'attendees'), 2, 'the organiser, not involved, still sees both');
+select tests.act_as_superuser();
+delete from blocks;
+
 -- archived activity
 select tests.act_as_superuser();
 update activities set archived_at = now() where id = '00000000-0000-0000-0000-0000000000f3';
@@ -148,6 +165,47 @@ select is((select count(*) from sessions where activity_id = '00000000-0000-0000
   1, 'only the confirmed session stays at 19:00');
 select is((select count(*) from sessions where activity_id = '00000000-0000-0000-0000-0000000000f4' and (starts_at at time zone 'Europe/Paris')::time = '20:00')::int,
   7, 'the other 7 weeks are at 20:00 (no second session on the kept date)');
+
+-- session_matches_rule compares the generated instant: DST edge start times still match
+insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time) values
+  ('00000000-0000-0000-0000-0000000000f6', :'org', '00000000-0000-0000-0000-0000000000c1', 'Go de nuit printemps', 'Parc', 'POINT(4.85 45.77)', 'weekly', '2027-03-21', '02:30'),
+  ('00000000-0000-0000-0000-0000000000f7', :'org', '00000000-0000-0000-0000-0000000000c1', 'Go de nuit automne', 'Parc', 'POINT(4.85 45.77)', 'weekly', '2026-10-18', '02:30');
+delete from sessions where activity_id in ('00000000-0000-0000-0000-0000000000f6', '00000000-0000-0000-0000-0000000000f7');
+select is(public.generate_sessions('00000000-0000-0000-0000-0000000000f6', '2027-04-04', '2027-03-21'), 3, 'spring: 3 Sundays generated around 2027-03-28');
+select is((select bool_and(public.session_matches_rule(a, s.starts_at)) from sessions s join activities a on a.id = s.activity_id
+            where a.id = '00000000-0000-0000-0000-0000000000f6'), true, 'spring-forward 02:30 session matches its rule');
+select is(public.generate_sessions('00000000-0000-0000-0000-0000000000f7', '2026-11-01', '2026-10-18'), 3, 'autumn: 3 Sundays generated around 2026-10-25');
+select is((select bool_and(public.session_matches_rule(a, s.starts_at)) from sessions s join activities a on a.id = s.activity_id
+            where a.id = '00000000-0000-0000-0000-0000000000f7'), true, 'fall-back 02:30 session matches its rule');
+select is((select public.session_matches_rule(a, s.starts_at + interval '1 hour') from sessions s join activities a on a.id = s.activity_id
+            where a.id = '00000000-0000-0000-0000-0000000000f6' order by s.starts_at limit 1), false, 'a session one hour off does not match');
+select lives_ok($$ update activities set start_date = '2027-03-14' where id = '00000000-0000-0000-0000-0000000000f6' $$, 'start date moved one week earlier (same weekday)');
+select is((select count(*) from sessions where activity_id = '00000000-0000-0000-0000-0000000000f6')::int, 3, 'spring-forward sessions not treated as moved');
+
+-- organiser cancels one session and moves another; the nightly job keeps both, without duplicates
+insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time) values
+  ('00000000-0000-0000-0000-0000000000f8', :'org', '00000000-0000-0000-0000-0000000000c1', 'Go du jeudi', 'Parc', 'POINT(4.85 45.77)', 'weekly', current_date + 2, '19:00');
+select id as s_cancel from sessions where activity_id = '00000000-0000-0000-0000-0000000000f8' order by starts_at offset 1 limit 1 \gset
+select id as s_move, starts_at as s_move_old from sessions where activity_id = '00000000-0000-0000-0000-0000000000f8' order by starts_at offset 2 limit 1 \gset
+select tests.act_as(:'org');
+select lives_ok(format($f$ update sessions set status = 'cancelled_by_organiser' where id = %L $f$, :'s_cancel'), 'organiser cancels a session');
+select lives_ok(format($f$ update sessions set starts_at = starts_at + interval '1 day' where id = %L $f$, :'s_move'), 'organiser moves a session to the next day');
+select tests.act_as_superuser();
+select lives_ok($$ select public.extend_sessions() $$, 'nightly job runs');
+select is((select count(*) from sessions where activity_id = '00000000-0000-0000-0000-0000000000f8')::int, 8, 'still 8 sessions');
+select is((select status from sessions where id = :'s_cancel'), 'cancelled_by_organiser', 'cancelled session survives, still cancelled');
+select is((select count(*) from sessions where activity_id = '00000000-0000-0000-0000-0000000000f8' and starts_at = :'s_move_old')::int, 0, 'moved slot not re-created');
+select is((select starts_at from sessions where id = :'s_move'), :'s_move_old'::timestamptz + interval '1 day', 'moved session kept at its new date');
+select is((select schedule || ' ' || command from cron.job where jobname = 'extend-sessions'), '30 2 * * * select public.extend_sessions()', 'cron runs extend_sessions');
+
+-- unarchiving brings sessions back at once
+insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time, archived_at) values
+  ('00000000-0000-0000-0000-0000000000f9', :'org', '00000000-0000-0000-0000-0000000000c1', 'Go en pause', 'Parc', 'POINT(4.85 45.77)', 'weekly', current_date + 2, '19:00', now());
+select is((select count(*) from sessions where activity_id = '00000000-0000-0000-0000-0000000000f9')::int, 0, 'archived activity gets no sessions');
+select tests.act_as(:'org');
+select lives_ok($$ update activities set archived_at = null where id = '00000000-0000-0000-0000-0000000000f9' $$, 'organiser unarchives');
+select tests.act_as_superuser();
+select is((select count(*) from sessions where activity_id = '00000000-0000-0000-0000-0000000000f9')::int, 8, 'sessions generated on unarchive');
 
 select * from finish();
 rollback;

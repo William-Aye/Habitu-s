@@ -918,6 +918,9 @@ isOneToOne: true
 "export_my_data":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
+"extend_sessions":
+{ Args: Record<PropertyKey, never>; Returns: number
+                           },
 "generate_sessions":
 { Args: { "p_activity": string,"p_from"?: string,"p_until": string }; Returns: number
                            },
