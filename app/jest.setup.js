@@ -59,3 +59,19 @@ jest.mock('expo-notifications', () => ({
   addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
 }));
 jest.mock('expo-device', () => ({ isDevice: false }));
+
+// NetInfo needs native code: inert by default. Tests drive connectivity with __emit({isConnected}).
+jest.mock('@react-native-community/netinfo', () => {
+  const listeners = new Set();
+  const mod = {
+    addEventListener: jest.fn((l) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    }),
+    fetch: jest.fn(async () => ({ isConnected: true })),
+    __emit: (state) => [...listeners].forEach((l) => l(state)),
+  };
+  return { __esModule: true, default: mod, ...mod };
+});
+
+jest.mock('expo-crypto', () => ({ randomUUID: () => require('crypto').randomUUID() }));
