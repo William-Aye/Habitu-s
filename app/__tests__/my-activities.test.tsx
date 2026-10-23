@@ -114,6 +114,37 @@ describe('Mes activités', () => {
     expect(askForPush).not.toHaveBeenCalled();
   });
 
+  it('keeps the list and shows an inline error when the refresh after a confirmation fails', async () => {
+    mockMy
+      .mockResolvedValueOnce({ ok: true, activities: [activity()] })
+      .mockResolvedValueOnce({ ok: false, error: 'network' });
+    await render(<MyActivities />);
+    await fireEvent.press((await screen.findAllByText('Je serai là'))[0]);
+    expect(await screen.findByText('Impossible de charger vos activités. Réessayez.')).toBeTruthy();
+    expect(screen.getByText('Marche douce')).toBeTruthy();
+  });
+
+  it('disables only the card being answered', async () => {
+    mockMy.mockResolvedValue({
+      ok: true,
+      activities: [
+        activity({ id: 'a1', title: 'Un' }),
+        activity({ id: 'a2', title: 'Deux', nextSession: session({ id: 's2' }) }),
+      ],
+    });
+    let release: (v: unknown) => void = () => {};
+    mockAttend.mockReturnValue(new Promise((r) => (release = r)));
+    await render(<MyActivities />);
+    const buttons = await screen.findAllByLabelText(/Je serai là le/);
+    const pressed = fireEvent.press(buttons[0]); // stays pending until the answer is released
+    await waitFor(() => expect(mockAttend).toHaveBeenCalled());
+    const after = screen.getAllByLabelText(/Je serai là le/);
+    expect(after[0].props.accessibilityState?.disabled ?? after[0].props['aria-disabled']).toBeTruthy();
+    expect(after[1].props.accessibilityState?.disabled).toBeFalsy();
+    release({ ok: true });
+    await pressed;
+  });
+
   it('shows an error with a retry when loading fails', async () => {
     mockMy.mockResolvedValueOnce({ ok: false, error: 'network' });
     mockMy.mockResolvedValueOnce({ ok: true, activities: [] });

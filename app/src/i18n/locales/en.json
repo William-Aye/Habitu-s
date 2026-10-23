@@ -168,7 +168,8 @@
       "archiveYes": "Yes, archive",
       "archiveNo": "No, keep it",
       "tools": "Organiser tools"
-    }
+    },
+    "reminderFailed": "Your answer could not be saved. Please give it below."
   },
   "common": {
     "comingSoon": "Coming soon"

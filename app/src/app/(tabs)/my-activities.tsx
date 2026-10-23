@@ -16,7 +16,8 @@ export default function MyActivities() {
   const lang = i18n.language?.startsWith('en') ? 'en' : 'fr';
   const { status } = useSession();
   const [load, setLoad] = useState<Load>({ state: 'loading' });
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [refreshFailed, setRefreshFailed] = useState(false);
+  const [busyIds, setBusyIds] = useState<string[]>([]);
   const [actionError, setActionError] = useState(false);
 
   const requestId = useRef(0);
@@ -29,7 +30,14 @@ export default function MyActivities() {
     const id = ++requestId.current;
     myActivities().then((r) => {
       if (id !== requestId.current) return; // a newer read or a blur superseded this one
-      setLoad(r.ok ? { state: 'ready', items: r.activities } : { state: 'error' });
+      if (r.ok) {
+        setLoad({ state: 'ready', items: r.activities });
+        setRefreshFailed(false);
+      } else {
+        // Keep a list that is already on screen (a failed refresh after an answer must not hide it).
+        setLoad((cur) => (cur.state === 'ready' ? cur : { state: 'error' }));
+        setRefreshFailed(true);
+      }
     });
   }, [status]);
 
@@ -44,11 +52,11 @@ export default function MyActivities() {
   );
 
   const confirm = async (sessionId: string) => {
-    if (busyId) return;
-    setBusyId(sessionId);
+    if (busyIds.includes(sessionId)) return;
+    setBusyIds((ids) => [...ids, sessionId]);
     setActionError(false);
     const r = await setAttendance(sessionId, 'confirmed', 0);
-    setBusyId(null);
+    setBusyIds((ids) => ids.filter((x) => x !== sessionId));
     if (!r.ok) {
       setActionError(true);
       return;
@@ -120,7 +128,7 @@ export default function MyActivities() {
     const confirmed = s?.myAttendance?.status === 'confirmed';
     const canConfirm =
       !!s && s.status === 'scheduled' && a.myStatus === 'member' && !confirmed && !s.isFull;
-    const busy = busyId !== null;
+    const busy = !!s && busyIds.includes(s.id);
     return (
       <View key={a.id} style={styles.card}>
         <Pressable
@@ -158,6 +166,9 @@ export default function MyActivities() {
   return (
     <ScrollView contentContainerStyle={styles.page}>
       <Text accessibilityRole="header" style={styles.title}>{t('tabs.myActivities')}</Text>
+      {refreshFailed ? (
+        <Text accessibilityLiveRegion="polite" style={styles.error}>{t('mine.error')}</Text>
+      ) : null}
       {actionError ? (
         <Text accessibilityLiveRegion="polite" style={styles.error}>{t('mine.actionError')}</Text>
       ) : null}

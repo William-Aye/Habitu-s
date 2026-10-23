@@ -19,7 +19,7 @@ const KNOWN: ApiError[] = ['limit_reached', 'not_allowed', 'session_full', 'netw
 
 export default function ActivityScreen() {
   const { t, i18n } = useTranslation();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, reminder } = useLocalSearchParams<{ id: string; reminder?: string }>();
   const requireAccount = useRequireAccount();
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [busy, setBusy] = useState(false);
@@ -99,6 +99,9 @@ export default function ActivityScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text accessibilityRole="header" style={styles.title}>{a.title}</Text>
+      {reminder === 'failed' ? (
+        <Text accessibilityLiveRegion="polite" style={styles.error}>{t('activity.reminderFailed')}</Text>
+      ) : null}
       {archived ? <Text accessibilityLiveRegion="polite" style={styles.notice}>{t('activity.archivedNotice')}</Text> : null}
 
       {by ? (

@@ -168,7 +168,8 @@
       "archiveYes": "Oui, archiver",
       "archiveNo": "Non, la garder",
       "tools": "Outils de l'organisateur"
-    }
+    },
+    "reminderFailed": "Votre réponse n'a pas pu être enregistrée. Indiquez-la ci-dessous."
   },
   "common": {
     "comingSoon": "Bientôt disponible"

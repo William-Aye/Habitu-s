@@ -2,10 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { setAttendance } from '../src/features/activities/api';
-import { askForPush, registerForPush } from '../src/features/notifications/registerPush';
+import { Platform } from 'react-native';
+import { askForPush, refreshPushRegistration, registerForPush } from '../src/features/notifications/registerPush';
 import { setupNotificationCategories } from '../src/features/notifications/categories';
 import {
   handleNotificationResponse,
+  openActivityFor,
   resetHandledResponsesForTests,
 } from '../src/features/notifications/responses';
 import { supabase } from '../src/lib/supabase';
@@ -19,7 +21,7 @@ jest.mock('expo-constants', () => ({
 }));
 jest.mock('expo-notifications', () => ({
   DEFAULT_ACTION_IDENTIFIER: 'expo.modules.notifications.actions.DEFAULT',
-  AndroidImportance: { DEFAULT: 3 },
+  AndroidImportance: { MIN: 3, DEFAULT: 5, HIGH: 6 },
   getPermissionsAsync: jest.fn(),
   requestPermissionsAsync: jest.fn(),
   getExpoPushTokenAsync: jest.fn(),
@@ -86,7 +88,49 @@ describe('registerForPush', () => {
   });
 });
 
+describe('android channel', () => {
+  it('creates a high importance channel so the reminder shows a heads-up', async () => {
+    const original = Platform.OS;
+    Platform.OS = 'android';
+    try {
+      await registerForPush();
+    } finally {
+      Platform.OS = original;
+    }
+    expect(N.setNotificationChannelAsync).toHaveBeenCalledWith(
+      'default',
+      expect.objectContaining({ importance: 6 }),
+    );
+  });
+});
+
+describe('refreshPushRegistration', () => {
+  it('registers the token without prompting when permission is already granted', async () => {
+    N.getPermissionsAsync.mockResolvedValue({ status: 'granted', canAskAgain: true });
+    await AsyncStorage.setItem('push.deniedAt', String(Date.now()));
+    expect(await refreshPushRegistration()).toBe('registered');
+    expect(N.requestPermissionsAsync).not.toHaveBeenCalled();
+    expect(rpc).toHaveBeenCalledWith('register_push_token', expect.anything());
+    expect(await AsyncStorage.getItem('push.deniedAt')).toBeNull();
+  });
+
+  it('never prompts when permission is undetermined', async () => {
+    expect(await refreshPushRegistration()).toBe('denied');
+    expect(N.requestPermissionsAsync).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
 describe('askForPush', () => {
+  it('relies on the launch registration when already granted', async () => {
+    N.getPermissionsAsync.mockResolvedValue({ status: 'granted', canAskAgain: true });
+    await AsyncStorage.setItem('push.deniedAt', String(Date.now()));
+    await askForPush();
+    expect(N.requestPermissionsAsync).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
+    expect(await AsyncStorage.getItem('push.deniedAt')).toBeNull();
+  });
+
   it('remembers a refusal and does not ask again for 30 days', async () => {
     N.requestPermissionsAsync.mockResolvedValue({ status: 'denied', canAskAgain: true });
     await askForPush();
@@ -149,6 +193,23 @@ describe('handleNotificationResponse', () => {
     await handleNotificationResponse(response(Notifications.DEFAULT_ACTION_IDENTIFIER));
     expect(mockSetAttendance).not.toHaveBeenCalled();
     expect(router.push).toHaveBeenCalledWith({ pathname: '/activites/[id]', params: { id: 'a1' } });
+  });
+
+  it('still opens the activity, flagged, when the answer cannot be recorded', async () => {
+    mockSetAttendance.mockResolvedValue({ ok: false, error: 'network' });
+    await handleNotificationResponse(response('yes'));
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/activites/[id]',
+      params: { id: 'a1', reminder: 'failed' },
+    });
+  });
+
+  it('opens the activity without recording anything when only navigating', async () => {
+    openActivityFor(response('yes'));
+    expect(mockSetAttendance).not.toHaveBeenCalled();
+    expect(router.push).toHaveBeenCalledWith({ pathname: '/activites/[id]', params: { id: 'a1' } });
+    await handleNotificationResponse(response('yes'));
+    expect(mockSetAttendance).toHaveBeenCalledTimes(1);
   });
 
   it('handles the same response only once', async () => {

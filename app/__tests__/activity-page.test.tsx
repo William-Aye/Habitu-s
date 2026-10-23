@@ -20,9 +20,10 @@ import { askForPush } from '../src/features/notifications/registerPush';
 import type { ActivityPage, SessionInfo } from '../src/features/activities/types';
 
 jest.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'fr-FR' }] }));
+const mockParams: { id: string; reminder?: string } = { id: 'act1' };
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn() },
-  useLocalSearchParams: () => ({ id: 'act1' }),
+  useLocalSearchParams: () => mockParams,
 }));
 jest.mock('expo-calendar/legacy', () => ({ createEventInCalendarAsync: jest.fn() }));
 jest.mock('../src/features/explore/components/TownMap', () => ({ TownMap: () => null }));
@@ -377,4 +378,16 @@ it('ignores a second tap on Rejoindre while the account gate is open', async () 
   expect(mockGate).toHaveBeenCalledTimes(1);
   resolveGate(false);
   await first;
+});
+
+it('tells the user when a reminder answer could not be recorded', async () => {
+  mockParams.reminder = 'failed';
+  try {
+    await open(activity({ myStatus: 'member' }));
+    expect(
+      await screen.findByText("Votre réponse n'a pas pu être enregistrée. Indiquez-la ci-dessous."),
+    ).toBeTruthy();
+  } finally {
+    delete mockParams.reminder;
+  }
 });
