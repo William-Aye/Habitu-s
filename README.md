@@ -82,8 +82,13 @@ Sign-up asks for a first name and an 18+ confirmation, nothing else.
 ### 3. Supabase Auth settings (dashboard)
 
 - Email OTP: length **6**, expiry **3600** seconds.
-- Email template, French, no link: subject and body containing `Votre code Habitués : {{ .Token }}`.
-- Rate limit: **4 e-mails per hour per address**.
+- Email templates, French, no link: BOTH the **Magic Link** template (existing users) and the
+  **Confirm signup** template (new users) must contain `{{ .Token }}`. Use the text
+  `Votre code Habitués : {{ .Token }}` and no link in either, otherwise new users receive a link
+  instead of a code.
+- Rate limits: Supabase's e-mail rate limit (Authentication → Rate Limits) is **per project per
+  hour**, not per address. Set it to what your SMTP provider allows. Per-address throttling is
+  `max_frequency` (**60 s** between two e-mails to the same address, already in `config.toml`).
 - Refresh-token rotation: **on**.
 - Custom SMTP: strongly recommended before launch. Supabase's built-in e-mail sender allows only
   a few e-mails per hour. Choosing the provider is a launch step.
@@ -93,6 +98,9 @@ Sign-up asks for a first name and an 18+ confirmation, nothing else.
 - CAPTCHA is **disabled** in `supabase/config.toml` (`[auth.captcha] enabled = false`). If it is
   enabled without a secret, local e-mail sign-in is rejected. Keep `EXPO_PUBLIC_TURNSTILE_SITE_KEY`
   empty locally: the app then skips the challenge and sends an empty token.
+- `supabase/config.toml` limits e-mails to `email_sent` per hour for the whole local project. It was
+  `2`, which blocks testing after two codes; it is raised to **10** for local use only (never copy
+  this value to the hosted project).
 - Local e-mail codes do not leave your machine. Open the local mail viewer (Inbucket) at
   `http://127.0.0.1:55324` to read them.
 - Google sign-in does not work locally until `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` and the Supabase

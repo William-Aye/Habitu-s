@@ -35,6 +35,7 @@ grant execute on function public.touch_last_seen() to authenticated;
 -- as targets the caller acted on (activity, association, blocked user, message recipient, report target).
 -- session_feedback_sent holds the caller's own answers (the table stores user_id; the feedback is only
 -- anonymous towards organisers and other members).
+-- 'account' carries the sign-in identity (email, dates, provider names) from auth.users / auth.identities.
 -- Admin-only columns (admin_note, moderation decisions) are left out of the rows.
 create function public.export_my_data() returns jsonb
 language plpgsql stable security definer set search_path = public, extensions, pg_temp as $$
@@ -43,6 +44,11 @@ declare
 begin
   if v_uid is null then raise exception 'not authenticated' using errcode = '42501'; end if;
   return jsonb_build_object(
+    'account', (select jsonb_build_object(
+        'email', u.email, 'created_at', u.created_at, 'last_sign_in_at', u.last_sign_in_at,
+        'providers', coalesce((select jsonb_agg(i.provider order by i.provider)
+                                 from auth.identities i where i.user_id = u.id), '[]'::jsonb))
+      from auth.users u where u.id = v_uid),
     'profile', (select to_jsonb(p) - 'home_area' || jsonb_build_object('home_area', ST_AsText(p.home_area::geometry))
                   from public.profiles p where p.id = v_uid),
     'interests', coalesce((select jsonb_agg(to_jsonb(i)) from public.user_interests i where i.user_id = v_uid), '[]'),

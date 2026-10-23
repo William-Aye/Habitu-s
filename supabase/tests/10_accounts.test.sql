@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(47);
+select plan(51);
 
 select tests.create_user('ana@acc.fr', 'Ana') as ana \gset
 select tests.create_user('ben@acc.fr', 'Ben') as ben \gset
@@ -89,10 +89,16 @@ select throws_ok('select public.delete_my_account()', '42501', null, 'anon canno
 select tests.act_as_superuser();
 
 -- export
+insert into auth.identities (provider_id, user_id, identity_data, provider)
+values (:'ana', :'ana', '{}', 'email'), (:'ana', :'ana', '{}', 'google');
 select tests.act_as(:'ana');
 select public.export_my_data()::text as exp \gset
 select tests.act_as_superuser();
 select is((:'exp'::jsonb)->'profile'->>'first_name', 'Ana', 'export has the profile');
+select is((:'exp'::jsonb)->'account'->>'email', 'ana@acc.fr', 'export has the account email');
+select ok((:'exp'::jsonb)->'account'->>'created_at' is not null, 'export has the account creation date');
+select ok((:'exp'::jsonb)->'account' ? 'last_sign_in_at', 'export has the last sign-in key');
+select is((:'exp'::jsonb)->'account'->'providers', '["email","google"]'::jsonb, 'export lists the provider names');
 select is(jsonb_array_length((:'exp'::jsonb)->'interests'), 1, 'export has the interests');
 select is(jsonb_array_length((:'exp'::jsonb)->'category_requests'), 1, 'export has the category request');
 select ok(not (:'exp' like '%secret-de-ben%'), 'Ben''s message bodies are absent');
@@ -115,7 +121,7 @@ select is(jsonb_array_length((:'exp'::jsonb)->'interests_in_activities'), 1, 'ex
 select is(jsonb_array_length((:'exp'::jsonb)->'association_waiters'), 1, 'export has association waiters');
 select is(jsonb_array_length((:'exp'::jsonb)->'association_claims'), 1, 'export has association claims');
 select is((:'exp'::jsonb)->'organiser_stats'->>'sessions_held', '4', 'export has organiser stats');
-select ok((:'exp'::jsonb) ?& array['profile','interests','category_requests','activities_organised','memberships',
+select ok((:'exp'::jsonb) ?& array['account','profile','interests','category_requests','activities_organised','memberships',
   'interests_in_activities','attendances','messages_sent','reports_filed','blocks','saved_searches',
   'association_waiters','association_claims','feedback_sent','session_feedback_sent','safety_tips_seen',
   'notification_log'], 'export has every key');
