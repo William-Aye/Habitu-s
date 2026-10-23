@@ -25,7 +25,8 @@
       "newcomers": "Beginners welcome",
       "dayTitle": "Which day?",
       "distanceTitle": "Maximum distance",
-      "close": "Close"
+      "close": "Close",
+      "discovery": "Discovery sessions"
     },
     "sort": {
       "best": "Best match",
@@ -67,7 +68,11 @@
       "7": "Sunday",
       "all": "Every day"
     },
-    "retry": "Try again"
+    "retry": "Try again",
+    "launch": {
+      "title": "Start it yourself",
+      "body": "No activity near you for your interests yet. Be the first to offer one."
+    }
   },
   "association": {
     "verified": "Verified association",

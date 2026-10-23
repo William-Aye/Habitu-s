@@ -18,9 +18,18 @@ import type { ApiError } from './types';
 const STEP_KEYS = ['who', 'what', 'where', 'when', 'settings'] as const;
 const STEPS = [WhoStep, WhatStep, WhereStep, WhenStep, SettingsStep];
 
-export function CreateActivityFlow({ initialCollectifId }: { initialCollectifId?: string }) {
+export function CreateActivityFlow({
+  initialCollectifId,
+  initialCategoryId,
+}: {
+  initialCollectifId?: string;
+  initialCategoryId?: string;
+}) {
   const { t } = useTranslation();
-  const [form, setForm] = useState<FormState>(() => initialForm(initialCollectifId));
+  const [form, setForm] = useState<FormState>(() => ({
+    ...initialForm(initialCollectifId),
+    categoryId: initialCategoryId ?? null,
+  }));
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);

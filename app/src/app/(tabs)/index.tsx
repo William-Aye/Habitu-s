@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { List, Map } from 'lucide-react-native';
+import { List, Map, Plus } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -15,7 +15,9 @@ import {
   useExploreLocation,
 } from '../../features/explore/useExploreLocation';
 import { useExploreSearch } from '../../features/explore/useExploreSearch';
-import { useInterests } from '../../features/interests/store';
+import { useInterests, type Level } from '../../features/interests/store';
+
+const LEVEL_RANK: Record<Level, number> = { curious: 1, like: 2, love: 3 };
 
 export default function Explore() {
   const { t } = useTranslation();
@@ -27,6 +29,7 @@ export default function Explore() {
     weekday: null,
     radiusKm: 10,
     newcomerFriendly: false,
+    discoveryOnly: false,
   });
   const [sort, setSort] = useState<'best' | 'nearest'>('best');
   const [view, setView] = useState<'list' | 'map'>('list');
@@ -43,6 +46,7 @@ export default function Explore() {
         kinds: effectiveKinds(filters),
         weekday: filters.weekday,
         newcomerFriendly: filters.newcomerFriendly,
+        discoveryOnly: filters.discoveryOnly,
         interestCategoryIds: hasQuery ? [] : Object.keys(interests),
         sort: hasQuery ? sort : 'best',
       }
@@ -51,10 +55,25 @@ export default function Explore() {
     useExploreSearch(params);
   const widen = () => setFilters((f) => ({ ...f, radiusKm: 50 }));
 
-  const open = (r: ExploreResult) =>
-    r.kind === 'association'
-      ? router.push({ pathname: '/associations/[id]', params: { id: r.id } })
-      : router.push({ pathname: '/activites/[id]', params: { id: r.id, title: r.title } });
+  const open = (r: ExploreResult) => {
+    if (r.kind === 'association') router.push({ pathname: '/associations/[id]', params: { id: r.id } });
+    else if (r.kind === 'collectif') router.push({ pathname: '/collectifs/[id]', params: { id: r.id } });
+    else router.push({ pathname: '/activites/[id]', params: { id: r.id, title: r.title } });
+  };
+
+  // The strongest interest decides which category the creation flow starts with.
+  const topInterest = Object.entries(interests).sort(
+    ([, a], [, b]) => LEVEL_RANK[b] - LEVEL_RANK[a],
+  )[0]?.[0];
+  const startCreating = (category?: string) =>
+    router.push({
+      pathname: '/activites/new',
+      params: category ? { category } : {},
+    });
+  // "Lancez-la vous-même": the user has interests but no activity is nearby (associations may be).
+  const showLaunch =
+    !!topInterest && !hasQuery && !filters.discoveryOnly && !loading && !error &&
+    !!response && !results.some((r) => r.kind === 'activity');
 
   const needsLocation = status === 'needed' || (editingLocation && status === 'ready');
   const place = location
@@ -62,12 +81,6 @@ export default function Explore() {
       ? t(MY_POSITION_KEY)
       : location.label
     : '';
-
-  const comingSoon = (
-    <Pressable accessibilityRole="button" style={styles.outline} onPress={() => setNotice(true)}>
-      <Text style={styles.outlineText}>{t('explore.createActivity')}</Text>
-    </Pressable>
-  );
 
   let body: React.ReactNode = null;
   if (status === 'loading') {
@@ -117,7 +130,6 @@ export default function Explore() {
       <View style={styles.empty}>
         <WidenBanner response={response} radiusKm={filters.radiusKm} onWiden={widen} />
         <Text style={styles.heading}>{t('explore.empty')}</Text>
-        {comingSoon}
         <Pressable accessibilityRole="button" style={styles.outline} onPress={() => setNotice(true)}>
           <Text style={styles.outlineText}>{t('explore.feedback')}</Text>
         </Pressable>
@@ -205,6 +217,30 @@ export default function Explore() {
       {notice && !(response && results.length === 0) ? (
         <Text accessibilityLiveRegion="polite">{t('common.comingSoon')}</Text>
       ) : null}
+      {location && !needsLocation ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('explore.createActivity')}
+          style={styles.create}
+          onPress={() => startCreating()}
+        >
+          <Plus size={18} color="#fff" />
+          <Text style={styles.createText}>{t('explore.createActivity')}</Text>
+        </Pressable>
+      ) : null}
+      {showLaunch && view === 'list' && !needsLocation ? (
+        <View style={styles.launch}>
+          <Text style={styles.launchBody}>{t('explore.launch.body')}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('explore.launch.title')}
+            style={styles.link}
+            onPress={() => startCreating(topInterest)}
+          >
+            <Text style={styles.linkText}>{t('explore.launch.title')}</Text>
+          </Pressable>
+        </View>
+      ) : null}
       <View style={styles.body}>{body}</View>
     </View>
   );
@@ -239,5 +275,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  create: {
+    minHeight: 48,
+    borderRadius: 24,
+    backgroundColor: '#1a56db',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginVertical: 4,
+  },
+  createText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  launch: { backgroundColor: '#eef3ff', borderRadius: 12, padding: 12, marginVertical: 4 },
+  launchBody: { fontSize: 14 },
   outlineText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
 });

@@ -6,7 +6,7 @@ import { CreateActivityFlow } from '../../features/activities/CreateActivityFlow
 /** Create an activity. Needs an account: the sign-up sheet opens first, closing it leaves the screen. */
 export default function NewActivity() {
   const requireAccount = useRequireAccount();
-  const { collectif } = useLocalSearchParams<{ collectif?: string }>();
+  const { collectif, category } = useLocalSearchParams<{ collectif?: string; category?: string }>();
   const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
@@ -22,5 +22,5 @@ export default function NewActivity() {
     };
   }, [requireAccount]);
 
-  return allowed ? <CreateActivityFlow initialCollectifId={collectif} /> : null;
+  return allowed ? <CreateActivityFlow initialCollectifId={collectif} initialCategoryId={category} /> : null;
 }

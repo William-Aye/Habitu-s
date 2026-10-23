@@ -19,8 +19,9 @@ export function ResultCard({ result, onPress }: { result: ExploreResult; onPress
   const label = result.label ? t(LABEL_KEY[result.label]) : null;
   const isNew = result.isNew ? t('explore.new') : null;
   const source = result.sourceLabel ? t(`explore.source.${result.sourceLabel}`) : null;
+  const collectif = result.kind === 'collectif' ? t('activity.collectifLabel') : null;
   // Screen readers read the card as one button: give them every visible text.
-  const a11yLabel = [result.title, result.subtitle, distance, label, isNew, source]
+  const a11yLabel = [result.title, result.subtitle, distance, label, isNew, source, collectif]
     .filter(Boolean)
     .join(', ');
   return (
@@ -39,6 +40,7 @@ export function ResultCard({ result, onPress }: { result: ExploreResult; onPress
         {label ? <Text style={styles.badge}>{label}</Text> : null}
         {isNew ? <Text style={styles.badge}>{isNew}</Text> : null}
         {source ? <Text style={styles.badge}>{source}</Text> : null}
+        {collectif ? <Text style={styles.badge}>{collectif}</Text> : null}
       </View>
     </Pressable>
   );

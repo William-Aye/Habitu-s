@@ -25,7 +25,8 @@
       "newcomers": "Débutants bienvenus",
       "dayTitle": "Quel jour ?",
       "distanceTitle": "Distance maximale",
-      "close": "Fermer"
+      "close": "Fermer",
+      "discovery": "Séances découverte"
     },
     "sort": {
       "best": "Meilleure correspondance",
@@ -67,7 +68,11 @@
       "7": "Dimanche",
       "all": "Tous les jours"
     },
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "launch": {
+      "title": "Lancez-la vous-même",
+      "body": "Aucune activité près de chez vous pour vos centres d'intérêt. Proposez la première."
+    }
   },
   "association": {
     "verified": "Association vérifiée",
