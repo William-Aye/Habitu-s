@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(92);
+select plan(115);
 select tests.create_user('adm@cr.fr', 'Admin') as adm \gset
 select tests.create_user('cla@cr.fr', 'Claude') as cla \gset
 select tests.create_user('cl2@cr.fr', 'Clara') as cl2 \gset
@@ -12,6 +12,8 @@ update profiles set role = 'admin' where id = :'adm';
 update profiles set age_confirmed = true, created_at = now() - interval '2 days';
 insert into categories (id, slug, name_fr, name_en, icon) values
   ('00000000-0000-0000-0000-0000000000c1', 'jeux', 'Jeux', 'Games', 'grid-3x3');
+insert into categories (id, parent_id, slug, name_fr, name_en, icon) values
+  ('00000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-0000000000c1', 'plateau', 'Plateau', 'Board', 'grid-3x3');
 insert into associations (id, name, source, confidence, city, location, created_by) values
   ('00000000-0000-0000-0000-0000000000d1', 'Club Alpha', 'community', 0, 'Lyon', 'SRID=4326;POINT(4.85 45.77)', :'usr'),
   ('00000000-0000-0000-0000-0000000000d2', 'Club Beta', 'community', 0, 'Lyon', 'SRID=4326;POINT(4.85 45.77)', :'usr'),
@@ -85,6 +87,7 @@ select tests.act_as_admin(:'adm');
 select tests.act_as(:'oth');
 select throws_ok($$ select admin_claims('pending') $$, '42501', 'not_allowed', 'a non-admin cannot list claims');
 select throws_ok($$ select admin_decide_claim('00000000-0000-0000-0000-0000000c1a01', true, null) $$, '42501', 'not_allowed', 'a non-admin cannot decide a claim');
+select throws_ok($$ select admin_claim_document_path('00000000-0000-0000-0000-0000000c1a01') $$, '42501', 'not_allowed', 'a non-admin cannot ask for a document path');
 select tests.act_as_aal1(:'adm');
 select throws_ok($$ select admin_claims('pending') $$, '42501', 'not_allowed', 'an admin without two-factor cannot list claims');
 select tests.act_as_admin(:'adm');
@@ -92,11 +95,11 @@ select is(jsonb_array_length(admin_claims('pending')), 4, 'the admin lists the p
 select is((select e->>'role' from jsonb_array_elements(admin_claims('pending')) e where e->>'id' = '00000000-0000-0000-0000-0000000c1a01'), 'Presidente', 'a listed claim carries the role');
 select is((select e->'association'->>'name' from jsonb_array_elements(admin_claims('pending')) e where e->>'id' = '00000000-0000-0000-0000-0000000c1a01'), 'Club Alpha', 'a listed claim carries the association');
 select is((select count(*) from jsonb_array_elements(admin_claims('pending')) e where (e->>'has_document')::boolean)::int, 1, 'a claim with a document says so');
-select matches(admin_claim_document_url((select id from association_claims where document_path is not null)), '^/storage/v1/object/sign/claim-documents/.+\?token=.+', 'the admin gets a signed url for the document');
+select is(admin_claim_document_path((select id from association_claims where document_path is not null)), (select document_path from association_claims where document_path is not null), 'the admin gets the document path (the client signs it)');
 select tests.act_as_superuser();
-select is((select count(*) from admin_audit_log where action = 'claim_document_url')::int, 1, 'reading a document is audited');
+select is((select count(*) from admin_audit_log where action = 'claim_document_viewed')::int, 1, 'reading a document is audited');
 select tests.act_as_admin(:'adm');
-select throws_ok($$ select admin_claim_document_url('00000000-0000-0000-0000-0000000c1a01') $$, 'P0002', null, 'a claim without a document has no url');
+select throws_ok($$ select admin_claim_document_path('00000000-0000-0000-0000-0000000c1a01') $$, 'P0002', null, 'a claim without a document has no path');
 select lives_ok($$ select admin_decide_claim('00000000-0000-0000-0000-0000000c1a01', true, 'Verifie par telephone') $$, 'the admin approves a claim');
 select tests.act_as_superuser();
 select is((select claimed_by from associations where id = '00000000-0000-0000-0000-0000000000d1'), :'cla'::uuid, 'approval sets claimed_by');
@@ -137,6 +140,42 @@ select tests.act_as_superuser();
 select isnt((select reviewed_at from associations where id = '00000000-0000-0000-0000-0000000000d4'), null, 'approval sets reviewed_at');
 select tests.act_as_admin(:'adm');
 select is((select count(*) from jsonb_array_elements(admin_community_clubs()) e where e->>'id' = '00000000-0000-0000-0000-0000000000d4')::int, 0, 'a reviewed club leaves the queue');
+-- merge and reject carry their dependants along
+select tests.act_as_superuser();
+insert into associations (id, name, source, confidence, city, location, created_by, claimed_by) values
+  ('00000000-0000-0000-0000-0000000000d7', 'Club Doublon', 'community', 0, 'Lyon', 'SRID=4326;POINT(4.85 45.77)', :'usr', null),
+  ('00000000-0000-0000-0000-0000000000d8', 'Club Cible', 'community', 0, 'Lyon', 'SRID=4326;POINT(4.85 45.77)', :'usr', null),
+  ('00000000-0000-0000-0000-0000000000d9', 'Club Revendique', 'community', 0, 'Lyon', 'SRID=4326;POINT(4.85 45.77)', :'usr', :'cla'),
+  ('00000000-0000-0000-0000-0000000000da', 'Club Signale', 'community', 0, 'Lyon', 'SRID=4326;POINT(4.85 45.77)', :'usr', null);
+insert into tags (id, slug, label_fr, label_en) values ('00000000-0000-0000-0000-0000000000f7', 'club-tag', 'Etiquette', 'Tag');
+insert into association_tags (association_id, tag_id) values ('00000000-0000-0000-0000-0000000000d7', '00000000-0000-0000-0000-0000000000f7');
+insert into association_waiters (association_id, user_id) values
+  ('00000000-0000-0000-0000-0000000000d7', :'oth'), ('00000000-0000-0000-0000-0000000000d7', :'nor'), ('00000000-0000-0000-0000-0000000000d8', :'nor');
+insert into association_claims (association_id, claimant_id, proof_method, role_in_association, contact_email) values
+  ('00000000-0000-0000-0000-0000000000d7', :'oth', 'domain_email', 'Membre', 'o@club.fr'),
+  ('00000000-0000-0000-0000-0000000000d8', :'oth', 'domain_email', 'Membre', 'o@club.fr'),
+  ('00000000-0000-0000-0000-0000000000d7', :'usr', 'domain_email', 'Membre', 'u@club.fr');
+insert into reports (reporter_id, target_type, target_id, reason) values
+  (:'oth', 'association', '00000000-0000-0000-0000-0000000000d7', 'other'),
+  (:'oth', 'association', '00000000-0000-0000-0000-0000000000da', 'fake_or_spam'),
+  (:'nor', 'association', '00000000-0000-0000-0000-0000000000da', 'other');
+select tests.act_as_admin(:'adm');
+select throws_ok($$ select admin_decide_club('00000000-0000-0000-0000-0000000000d9', 'merge', '00000000-0000-0000-0000-0000000000d8') $$, '42501', 'not_allowed', 'a claimed club cannot be merged away');
+select throws_ok($$ select admin_decide_club('00000000-0000-0000-0000-0000000000d9', 'reject', null, 'Fiche trompeuse a retirer') $$, '42501', 'not_allowed', 'a claimed club cannot be rejected');
+select throws_ok($$ select admin_decide_club('00000000-0000-0000-0000-0000000000da', 'reject') $$, '23514', 'invalid_statement', 'rejecting a reported club needs a statement');
+select lives_ok($$ select admin_decide_club('00000000-0000-0000-0000-0000000000d7', 'merge', '00000000-0000-0000-0000-0000000000d8') $$, 'the admin merges a club with dependants');
+select tests.act_as_superuser();
+select is((select count(*) from association_tags where association_id = '00000000-0000-0000-0000-0000000000d8')::int, 1, 'merging copies the tags');
+select is((select count(*) from association_waiters where association_id = '00000000-0000-0000-0000-0000000000d8')::int, 2, 'merging moves the waiters without duplicates');
+select is((select count(*) from association_claims where association_id = '00000000-0000-0000-0000-0000000000d8' and status = 'pending')::int, 2, 'merging moves a pending claim but not a duplicate one');
+select is((select count(*) from reports where target_type = 'association' and target_id = '00000000-0000-0000-0000-0000000000d8' and status = 'open')::int, 1, 'merging retargets the open reports');
+select tests.act_as_admin(:'adm');
+select lives_ok($$ select admin_decide_club('00000000-0000-0000-0000-0000000000da', 'reject', null, 'Fiche trompeuse, retrait de la fiche') $$, 'the admin rejects a reported club with a statement');
+select tests.act_as_superuser();
+select isnt((select removed_at from associations where id = '00000000-0000-0000-0000-0000000000da'), null, 'the rejected club is removed');
+select is((select count(*) from reports where target_id = '00000000-0000-0000-0000-0000000000da' and status = 'actioned' and decision = 'remove' and statement_of_reasons = 'Fiche trompeuse, retrait de la fiche')::int, 2, 'rejecting closes the open reports with the admin''s note');
+select is((select count(*) from notification_outbox where kind = 'report_handled' and user_id in (:'oth', :'nor'))::int, 2, 'the reporters are notified');
+select tests.act_as_admin(:'adm');
 select ok(exists (select 1 from jsonb_array_elements(search_explore(4.85, 45.77, 10, null, null, '{association}')->'results') r where r->>'id' = '00000000-0000-0000-0000-0000000000d3'), 'setup: the club is found before it is rejected');
 select lives_ok($$ select admin_decide_club('00000000-0000-0000-0000-0000000000d3', 'reject') $$, 'the admin rejects a club');
 select tests.act_as_anon();
@@ -146,6 +185,7 @@ select isnt(get_association('00000000-0000-0000-0000-0000000000d4'), null, 'an a
 select tests.act_as(:'usr');
 select is((select count(*) from search_linkable_associations('Club Gamma'))::int, 0, 'a rejected club is not linkable');
 select is((select count(*) from search_linkable_associations('Club Delta'))::int, 1, 'an approved club is linkable');
+select throws_ok(format($$ insert into association_claims (association_id, claimant_id, proof_method, role_in_association, contact_email) values ('00000000-0000-0000-0000-0000000000d3', %L, 'domain_email', 'Membre', 'x@club.fr') $$, :'usr'), '42501', null, 'a claim on a removed association is refused');
 
 -- a removal decision on a report takes effect on associations
 select lives_ok($$ insert into reports (target_type, target_id, reason) values ('association', '00000000-0000-0000-0000-0000000000d5', 'fake_or_spam') $$, 'a member reports a club');
@@ -164,6 +204,7 @@ select lives_ok(format($$ insert into category_requests (id, user_id, requested_
 select throws_ok($$ select admin_category_requests() $$, '42501', 'not_allowed', 'a non-admin cannot list category requests');
 select tests.act_as_admin(:'adm');
 select is(jsonb_array_length(admin_category_requests()), 3, 'the admin lists the requests');
+select throws_ok($$ select admin_decide_category('00000000-0000-0000-0000-0000000ca701', 'approve', '00000000-0000-0000-0000-0000000000c2', 'Draughts') $$, '23514', 'invalid_category', 'a category must go under a root category');
 select lives_ok($$ select admin_decide_category('00000000-0000-0000-0000-0000000ca701', 'approve', '00000000-0000-0000-0000-0000000000c1', 'Draughts') $$, 'the admin approves a request');
 select tests.act_as_superuser();
 select is((select name_en from categories where name_fr = 'Jeu de dames' and parent_id = '00000000-0000-0000-0000-0000000000c1'), 'Draughts', 'the category is created under the parent with both names');
@@ -189,11 +230,13 @@ select tests.act_as(:'oth');
 select lives_ok(format($$ insert into feedback (user_id, type, body) values (%L, 'idea', 'Un'), (%L, 'problem', 'Deux'), (%L, 'other', 'Trois') $$, :'oth', :'oth', :'oth'), 'three feedbacks in an hour are accepted');
 select throws_ok(format($$ insert into feedback (user_id, type, body) values (%L, 'idea', 'Quatre') $$, :'oth'), '42501', 'limit_reached', 'the 4th signed-in feedback in an hour raises limit_reached');
 select tests.act_as(:'nor');
-select throws_ok(format($$ insert into feedback (user_id, type, body, screenshot_path) values (%L, 'idea', 'Capture', %L) $$, :'nor', :'oth' || '/c.png'), '42501', null, 'a screenshot must sit in the sender''s folder');
-select lives_ok(format($$ insert into feedback (user_id, type, body, screenshot_path) values (%L, 'idea', 'Capture', %L) $$, :'nor', :'nor' || '/c.png'), 'a screenshot in the sender''s folder is accepted');
+select throws_ok(format($$ insert into feedback (user_id, type, body, screenshot_path) values (%L, 'idea', 'Capture', %L) $$, :'nor', :'oth' || '/00000000-0000-0000-0000-0000000000f1.png'), '42501', null, 'a screenshot must sit in the sender''s folder');
+select throws_ok(format($$ insert into feedback (user_id, type, body, screenshot_path) values (%L, 'idea', 'Capture', %L) $$, :'nor', :'nor' || '/../x.png'), '23514', null, 'a screenshot path cannot climb');
+select throws_ok(format($$ insert into feedback (user_id, type, body, screenshot_path) values (%L, 'idea', 'Capture', %L) $$, :'nor', :'nor' || '/c.png'), '23514', null, 'a screenshot name must be a uuid');
+select lives_ok(format($$ insert into feedback (user_id, type, body, screenshot_path) values (%L, 'idea', 'Capture', %L) $$, :'nor', :'nor' || '/00000000-0000-0000-0000-0000000000f1.png'), 'a screenshot in the sender''s folder is accepted');
 select throws_ok(format($$ insert into feedback (user_id, type, body, source) values (%L, 'idea', 'Faux anonyme', 'anonymous') $$, :'nor'), '42501', null, 'a signed-in sender cannot claim to be anonymous');
-select lives_ok(format($$ insert into storage.objects (bucket_id, name, owner, metadata) values ('feedback-screenshots', %L, auth.uid(), '{}') $$, :'nor' || '/c.png'), 'a sender uploads a screenshot into their own folder');
-select throws_ok(format($$ insert into storage.objects (bucket_id, name, owner, metadata) values ('feedback-screenshots', %L, auth.uid(), '{}') $$, :'oth' || '/c.png'), '42501', null, 'a sender cannot upload into another folder');
+select lives_ok(format($$ insert into storage.objects (bucket_id, name, owner, metadata) values ('feedback-screenshots', %L, auth.uid(), '{}') $$, :'nor' || '/00000000-0000-0000-0000-0000000000f1.png'), 'a sender uploads a screenshot into their own folder');
+select throws_ok(format($$ insert into storage.objects (bucket_id, name, owner, metadata) values ('feedback-screenshots', %L, auth.uid(), '{}') $$, :'oth' || '/00000000-0000-0000-0000-0000000000f1.png'), '42501', null, 'a sender cannot upload into another folder');
 select tests.act_as_superuser();
 insert into feedback (user_id, type, body, source) values (null, 'idea', 'Anonyme', 'anonymous');
 select tests.act_as(:'oth');
@@ -205,6 +248,14 @@ select tests.act_as_superuser();
 select is((select status from feedback where body = 'Anonyme'), 'planned', 'the status changed');
 select tests.act_as_admin(:'adm');
 select is((select count(*) from storage.objects where bucket_id = 'feedback-screenshots')::int, 1, 'an admin reads screenshots');
+select is((select e->>'screenshot_path' from jsonb_array_elements(admin_feedback('new')) e where e->>'body' = 'Capture'), :'nor' || '/00000000-0000-0000-0000-0000000000f1.png', 'admin_feedback returns the screenshot path');
+select is(admin_feedback_screenshot_path((select id from feedback where body = 'Capture')), :'nor' || '/00000000-0000-0000-0000-0000000000f1.png', 'the admin gets the screenshot path');
+select tests.act_as_superuser();
+select is((select count(*) from admin_audit_log where action = 'feedback_screenshot_viewed')::int, 1, 'viewing a screenshot is audited');
+select tests.act_as(:'oth');
+select throws_ok($$ select admin_feedback_screenshot_path((select id from feedback where body = 'Capture')) $$, '42501', 'not_allowed', 'a non-admin cannot ask for a screenshot path');
+select tests.act_as_admin(:'adm');
+select throws_ok($$ select admin_feedback_screenshot_path((select id from feedback where body = 'Anonyme')) $$, 'P0002', null, 'a feedback without a screenshot has no path');
 
 -- collectif link
 select tests.act_as(:'nor');
@@ -215,6 +266,10 @@ select tests.act_as_superuser();
 update associations set claimed_by = :'res', verified = false where id = '00000000-0000-0000-0000-0000000000d6';
 select tests.act_as(:'res');
 select throws_ok($$ select link_collectif_to_association('00000000-0000-0000-0000-00000000c0a1', '00000000-0000-0000-0000-0000000000d6') $$, '42501', 'not_allowed', 'an unverified claim cannot link');
+select tests.act_as_superuser();
+insert into associations (id, name, source, confidence, claimed_by, verified, removed_at) values ('00000000-0000-0000-0000-0000000000e1', 'Retiree', 'community', 0, :'res', true, now());
+select tests.act_as(:'res');
+select throws_ok($$ select link_collectif_to_association('00000000-0000-0000-0000-00000000c0a1', '00000000-0000-0000-0000-0000000000e1') $$, '42501', 'not_allowed', 'a removed association cannot be linked');
 select tests.act_as_superuser();
 update associations set verified = true where id = '00000000-0000-0000-0000-0000000000d6';
 select tests.act_as(:'res');

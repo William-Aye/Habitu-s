@@ -41,6 +41,9 @@ create function public.association_claims_limit() returns trigger
 language plpgsql security definer set search_path = public, pg_temp as $$
 begin
   if current_setting('role', true) in ('anon', 'authenticated') then
+    if not exists (select 1 from public.associations a where a.id = new.association_id and a.removed_at is null) then
+      raise exception 'not_allowed' using errcode = '42501';
+    end if;
     perform public.take_limit('claim', 3, interval '1 day');
   end if;
   return new;
@@ -96,17 +99,11 @@ end $$;
 revoke all on function public.admin_claims(text, timestamptz, uuid, int) from public, anon;
 grant execute on function public.admin_claims(text, timestamptz, uuid, int) to authenticated;
 
--- A signed storage url (relative to the project's API root), valid 5 minutes, signed like the storage
--- API does it: an HS256 token holding the object path, with the project's JWT secret.
-create function public.admin_claim_document_url(p_claim uuid) returns text
-language plpgsql security definer set search_path = public, extensions, pg_temp as $$
+-- The admin client signs the path itself (storage.createSignedUrl(path, 300)); asking is audited.
+create function public.admin_claim_document_path(p_claim uuid) returns text
+language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   v_path text;
-  v_secret text := current_setting('app.settings.jwt_secret', true);
-  v_head text;
-  v_body text;
-  v_sig text;
-  v_now bigint := extract(epoch from now())::bigint;
 begin
   if not public.is_admin() then
     raise exception 'not_allowed' using errcode = '42501';
@@ -115,18 +112,11 @@ begin
   if v_path is null then
     raise exception 'not_found' using errcode = 'P0002';
   end if;
-  if coalesce(v_secret, '') = '' then
-    raise exception 'signing_unavailable' using errcode = '55000';
-  end if;
-  v_head := translate(regexp_replace(encode(convert_to('{"alg":"HS256","typ":"JWT"}', 'utf8'), 'base64'), '\s', '', 'g'), '+/=', '-_');
-  v_body := translate(regexp_replace(encode(convert_to(jsonb_build_object(
-              'url', 'claim-documents/' || v_path, 'iat', v_now, 'exp', v_now + 300)::text, 'utf8'), 'base64'), '\s', '', 'g'), '+/=', '-_');
-  v_sig := translate(regexp_replace(encode(extensions.hmac(v_head || '.' || v_body, v_secret, 'sha256'), 'base64'), '\s', '', 'g'), '+/=', '-_');
-  perform public.admin_log('claim_document_url', 'claim', p_claim, '{}'::jsonb);
-  return '/storage/v1/object/sign/claim-documents/' || v_path || '?token=' || v_head || '.' || v_body || '.' || v_sig;
+  perform public.admin_log('claim_document_viewed', 'claim', p_claim, '{}'::jsonb);
+  return v_path;
 end $$;
-revoke all on function public.admin_claim_document_url(uuid) from public, anon;
-grant execute on function public.admin_claim_document_url(uuid) to authenticated;
+revoke all on function public.admin_claim_document_path(uuid) from public, anon;
+grant execute on function public.admin_claim_document_path(uuid) to authenticated;
 
 create function public.admin_decide_claim(p_claim uuid, p_approve boolean, p_note text default null) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
@@ -203,10 +193,14 @@ end $$;
 revoke all on function public.admin_community_clubs(timestamptz, uuid, int) from public, anon;
 grant execute on function public.admin_community_clubs(timestamptz, uuid, int) to authenticated;
 
-create function public.admin_decide_club(p_id uuid, p_action text, p_into uuid default null) returns void
+create function public.admin_decide_club(
+  p_id uuid, p_action text, p_into uuid default null, p_note text default null
+) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   v_moved int := 0;
+  v_claimed uuid;
+  v_report uuid;
 begin
   if not public.is_admin() then
     raise exception 'not_allowed' using errcode = '42501';
@@ -214,14 +208,27 @@ begin
   if p_action is null or p_action not in ('approve', 'merge', 'reject') then
     raise exception 'invalid_decision' using errcode = '23514';
   end if;
-  perform 1 from public.associations a where a.id = p_id and a.source = 'community' and a.removed_at is null for update;
+  select a.claimed_by into v_claimed from public.associations a
+   where a.id = p_id and a.source = 'community' and a.removed_at is null for update;
   if not found then
     raise exception 'not_found' using errcode = 'P0002';
+  end if;
+  -- A club someone owns is no longer a raw community addition: it goes through a report instead.
+  if p_action <> 'approve' and v_claimed is not null then
+    raise exception 'not_allowed' using errcode = '42501';
   end if;
   if p_action = 'approve' then
     update public.associations set reviewed_at = coalesce(reviewed_at, now()) where id = p_id;
   elsif p_action = 'reject' then
-    update public.associations set removed_at = now() where id = p_id;
+    -- Open reports on the club are closed as a removal, with the admin's note as the statement and
+    -- the same notices as any report decision (admin_decide_report closes every open report on it).
+    select r.id into v_report from public.reports r
+     where r.target_type = 'association' and r.target_id = p_id and r.status = 'open'
+     order by r.created_at, r.id limit 1;
+    if v_report is not null then
+      perform public.admin_decide_report(v_report, 'remove', p_note);
+    end if;
+    update public.associations set removed_at = coalesce(removed_at, now()) where id = p_id;
   else
     if p_into is null or p_into = p_id
        or not exists (select 1 from public.associations a where a.id = p_into and a.removed_at is null) then
@@ -229,17 +236,25 @@ begin
     end if;
     update public.activities set organised_by_association_id = p_into where organised_by_association_id = p_id;
     get diagnostics v_moved = row_count;
-    update public.association_claims set association_id = p_into where association_id = p_id and status = 'pending';
+    update public.association_claims c set association_id = p_into
+     where c.association_id = p_id and c.status = 'pending'
+       and not exists (select 1 from public.association_claims d
+                        where d.association_id = p_into and d.claimant_id = c.claimant_id and d.status = 'pending');
     insert into public.association_waiters (association_id, user_id)
       select p_into, w.user_id from public.association_waiters w where w.association_id = p_id
       on conflict do nothing;
+    insert into public.association_tags (association_id, tag_id)
+      select p_into, t.tag_id from public.association_tags t where t.association_id = p_id
+      on conflict do nothing;
+    update public.reports set target_id = p_into, target_owner = public.report_target_owner('association', p_into)
+     where target_type = 'association' and target_id = p_id and status = 'open';
     delete from public.associations where id = p_id;
   end if;
   perform public.admin_log('club_decision', 'association', p_id,
     jsonb_build_object('action', p_action, 'into', p_into, 'activities_moved', v_moved));
 end $$;
-revoke all on function public.admin_decide_club(uuid, text, uuid) from public, anon;
-grant execute on function public.admin_decide_club(uuid, text, uuid) to authenticated;
+revoke all on function public.admin_decide_club(uuid, text, uuid, text) from public, anon;
+grant execute on function public.admin_decide_club(uuid, text, uuid, text) to authenticated;
 
 -- ---------------------------------------------------------------------------------------------
 -- Category requests
@@ -297,7 +312,7 @@ begin
     raise exception 'already_decided' using errcode = '42501';
   end if;
   if p_action = 'approve' then
-    select c.icon into v_icon from public.categories c where c.id = p_parent;
+    select c.icon into v_icon from public.categories c where c.id = p_parent and c.parent_id is null;
     if p_parent is null or v_icon is null or char_length(v_name_en) not between 2 and 80 then
       raise exception 'invalid_category' using errcode = '23514';
     end if;
@@ -342,6 +357,8 @@ alter table public.feedback add column source text not null default 'app' check 
 alter table public.feedback add constraint feedback_anonymous_shape
   check (source <> 'anonymous' or (user_id is null and screenshot_path is null));
 alter table public.feedback alter column user_id set default auth.uid();
+alter table public.feedback add constraint feedback_screenshot_shape check (screenshot_path is null
+  or screenshot_path ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp)$');
 
 drop policy feedback_insert_anon on public.feedback;
 drop policy feedback_insert_auth on public.feedback;
@@ -375,6 +392,24 @@ begin
 end $$;
 revoke all on function public.admin_feedback(text, timestamptz, uuid, int) from public, anon;
 grant execute on function public.admin_feedback(text, timestamptz, uuid, int) to authenticated;
+
+create function public.admin_feedback_screenshot_path(p_id uuid) returns text
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_path text;
+begin
+  if not public.is_admin() then
+    raise exception 'not_allowed' using errcode = '42501';
+  end if;
+  select f.screenshot_path into v_path from public.feedback f where f.id = p_id;
+  if v_path is null then
+    raise exception 'not_found' using errcode = 'P0002';
+  end if;
+  perform public.admin_log('feedback_screenshot_viewed', 'feedback', p_id, '{}'::jsonb);
+  return v_path;
+end $$;
+revoke all on function public.admin_feedback_screenshot_path(uuid) from public, anon;
+grant execute on function public.admin_feedback_screenshot_path(uuid) to authenticated;
 
 create function public.admin_set_feedback_status(p_id uuid, p_status text) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$

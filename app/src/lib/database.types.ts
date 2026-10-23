@@ -1175,7 +1175,7 @@ isOneToOne: true
 "admin_category_requests":
 { Args: { "p_before_at"?: string,"p_before_id"?: string,"p_limit"?: number }; Returns: Json
                            },
-"admin_claim_document_url":
+"admin_claim_document_path":
 { Args: { "p_claim": string }; Returns: string
                            },
 "admin_claims":
@@ -1191,13 +1191,16 @@ isOneToOne: true
 { Args: { "p_approve": boolean,"p_claim": string,"p_note"?: string }; Returns: undefined
                            },
 "admin_decide_club":
-{ Args: { "p_action": string,"p_id": string,"p_into"?: string }; Returns: undefined
+{ Args: { "p_action": string,"p_id": string,"p_into"?: string,"p_note"?: string }; Returns: undefined
                            },
 "admin_decide_report":
 { Args: { "p_decision": string,"p_report": string,"p_statement": string }; Returns: undefined
                            },
 "admin_feedback":
 { Args: { "p_before_at"?: string,"p_before_id"?: string,"p_limit"?: number,"p_status"?: string }; Returns: Json
+                           },
+"admin_feedback_screenshot_path":
+{ Args: { "p_id": string }; Returns: string
                            },
 "admin_log":
 { Args: { "p_action": string,"p_details"?: Json,"p_target_id": string,"p_target_type": string }; Returns: undefined
