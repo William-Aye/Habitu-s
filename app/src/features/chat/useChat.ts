@@ -84,6 +84,10 @@ export function useChat(activityId: string, screenFocused = true) {
   const replaceNext = useRef(false);
   const loadingOlder = useRef(false);
   const fetchesStarted = useRef(0);
+  // A read that started after the last focus or foreground return has completed: only then is it true that
+  // what is on screen was seen, so only then does leaving mark the discussion read.
+  const focusEpoch = useRef(0);
+  const seenSinceFocus = useRef(false);
   const discarded = useRef<Set<string>>(new Set());
   const prevPending = useRef<Map<string, PendingMessage>>(new Map());
   const serverRef = useRef<ChatMessage[]>([]);
@@ -126,6 +130,7 @@ export function useChat(activityId: string, screenFocused = true) {
           const replacing = replaceNext.current;
           replaceNext.current = false;
           const started = ++fetchesStarted.current;
+          const epoch = focusEpoch.current;
           const r = await fetchMessages(activityId, { limit: PAGE });
           if (stale(activityId)) return;
           if (!r.ok) {
@@ -143,6 +148,7 @@ export function useChat(activityId: string, screenFocused = true) {
             if (r.page.title) setTitle(r.page.title);
             setOrganiserId(r.page.organiserId);
             setMutedState(r.page.muted);
+            if (epoch === focusEpoch.current) seenSinceFocus.current = true;
             setNotice((n) => (n === 'sync' ? null : n));
             setLinger((l) => l.filter((x) => x.seq >= started));
             setState('ready');
@@ -180,6 +186,10 @@ export function useChat(activityId: string, screenFocused = true) {
     const back = (screenFocused && !wasFocused.current) || (appActive && !wasAppActive.current);
     wasFocused.current = screenFocused;
     wasAppActive.current = appActive;
+    if (back) {
+      focusEpoch.current += 1;
+      seenSinceFocus.current = false;
+    }
     if (back && active) void refresh();
   }, [screenFocused, appActive, active, refresh]);
 
@@ -264,6 +274,7 @@ export function useChat(activityId: string, screenFocused = true) {
     if (!ready || !screenFocused) return;
     const id = activityId;
     return () => {
+      if (!seenSinceFocus.current) return;
       void Promise.resolve(markRead(id))
         .then(() => emitUnreadChanged())
         .catch(() => {});

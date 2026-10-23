@@ -533,6 +533,27 @@ describe('discussion in the background', () => {
   });
 });
 
+describe('marking read on blur', () => {
+  it('does not mark read when leaving before the re-read after coming back has completed', async () => {
+    await open([msg(1, 'Salut')]);
+    await blurScreen();
+    mFetch.mockImplementation(() => new Promise(() => {})); // the re-read never completes
+    await focusScreen();
+    (markRead as jest.Mock).mockClear();
+    await blurScreen();
+    expect(markRead).not.toHaveBeenCalled();
+  });
+
+  it('marks read when the re-read after coming back has completed', async () => {
+    await open([msg(1, 'Salut')]);
+    await blurScreen();
+    await focusScreen();
+    (markRead as jest.Mock).mockClear();
+    await blurScreen();
+    expect(markRead).toHaveBeenCalledWith('act1');
+  });
+});
+
 describe('blocking and the membership', () => {
   const pressBlock = async (name: string) => {
     await fireEvent(screen.getByText(name), 'longPress');
