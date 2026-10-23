@@ -77,6 +77,24 @@ export async function refreshPushRegistration(): Promise<PushResult> {
 }
 
 /**
+ * On sign-out: removes this device's token for the user who is leaving, so their reminders (which
+ * carry activity titles) do not reach a phone another person now uses. Best effort, never prompts.
+ */
+export async function unregisterThisDevice(): Promise<void> {
+  try {
+    if (!Device.isDevice) return;
+    const perm = await Notifications.getPermissionsAsync();
+    if (perm.status !== 'granted') return;
+    const id = projectId();
+    if (!id) return;
+    const token = await Notifications.getExpoPushTokenAsync({ projectId: id });
+    await supabase.from('push_tokens').delete().eq('token', token.data);
+  } catch {
+    // Best effort: signing out must not depend on it.
+  }
+}
+
+/**
  * Called after the user's first "Je serai là" or a created activity (never at launch). Prompts only
  * while the permission is undetermined; a refusal is remembered for 30 days. When already granted the
  * launch registration does the work. Never throws: a notification problem must not disturb the action.

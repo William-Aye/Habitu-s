@@ -10,6 +10,10 @@ export function resetHandledResponsesForTests(): void {
   inFlight.clear();
 }
 
+export function responseKey(response: Notifications.NotificationResponse): string {
+  return `${response.notification.request.identifier}:${response.actionIdentifier}`;
+}
+
 function payload(response: Notifications.NotificationResponse) {
   const data = (response.notification.request.content.data ?? {}) as {
     session_id?: unknown;
@@ -34,8 +38,9 @@ export function openActivityFor(response: Notifications.NotificationResponse): v
  */
 export async function handleNotificationResponse(
   response: Notifications.NotificationResponse,
+  opts: { alreadyOpened?: boolean } = {},
 ): Promise<void> {
-  const key = `${response.notification.request.identifier}:${response.actionIdentifier}`;
+  const key = responseKey(response);
   if (handled.has(key) || inFlight.has(key)) return;
   inFlight.add(key);
   const { sessionId, activityId } = payload(response);
@@ -55,10 +60,14 @@ export async function handleNotificationResponse(
     inFlight.delete(key);
     handled.add(key);
   }
-  if (activityId) {
+  if (!activityId) return;
+  if (!opts.alreadyOpened) {
     router.push({
       pathname: '/activites/[id]',
       params: failed ? { id: activityId, reminder: 'failed' } : { id: activityId },
     });
+  } else if (failed) {
+    // The page is already on screen (opened while signed out): update it instead of stacking another.
+    router.replace({ pathname: '/activites/[id]', params: { id: activityId, reminder: 'failed' } });
   }
 }

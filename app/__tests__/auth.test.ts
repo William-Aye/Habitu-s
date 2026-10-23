@@ -8,8 +8,10 @@ import {
   verifyEmailCode,
 } from '../src/features/account/auth';
 import { resolveHomeArea } from '../src/features/account/homeArea';
+import { unregisterThisDevice } from '../src/features/notifications/registerPush';
 import { supabase } from '../src/lib/supabase';
 
+jest.mock('../src/features/notifications/registerPush', () => ({ unregisterThisDevice: jest.fn(async () => {}) }));
 jest.mock('../src/lib/supabase', () => ({
   supabase: {
     auth: {
@@ -201,6 +203,22 @@ describe('completeProfile', () => {
 });
 
 describe('signOut', () => {
+  it('unregisters this device before ending the session, and survives a failure', async () => {
+    const order: string[] = [];
+    (unregisterThisDevice as jest.Mock).mockImplementationOnce(async () => {
+      order.push('unregister');
+    });
+    auth.signOut.mockImplementationOnce(async () => {
+      order.push('signOut');
+      return { error: null };
+    });
+    await signOut();
+    expect(order).toEqual(['unregister', 'signOut']);
+    (unregisterThisDevice as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+    await signOut();
+    expect(auth.signOut).toHaveBeenCalledTimes(2);
+  });
+
   it('swallows a Google error and still signs out of Supabase', async () => {
     gsi.signOut.mockRejectedValueOnce(new Error('google down'));
     await expect(signOut()).resolves.toBeUndefined();

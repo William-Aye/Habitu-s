@@ -3,7 +3,7 @@ import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { setAttendance } from '../src/features/activities/api';
 import { Platform } from 'react-native';
-import { askForPush, refreshPushRegistration, registerForPush } from '../src/features/notifications/registerPush';
+import { askForPush, refreshPushRegistration, registerForPush, unregisterThisDevice } from '../src/features/notifications/registerPush';
 import { setupNotificationCategories } from '../src/features/notifications/categories';
 import {
   handleNotificationResponse,
@@ -15,6 +15,7 @@ import { initI18n } from '../src/i18n';
 
 jest.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'fr-FR' }] }));
 jest.mock('expo-device', () => ({ isDevice: true }));
+const mockDeleteEq = jest.fn(async () => ({ error: null }));
 jest.mock('expo-constants', () => ({
   __esModule: true,
   default: { expoConfig: { extra: { eas: { projectId: 'proj-1' } } } },
@@ -31,7 +32,9 @@ jest.mock('expo-notifications', () => ({
 }));
 jest.mock('expo-router', () => ({ router: { push: jest.fn(), replace: jest.fn() } }));
 jest.mock('../src/features/activities/api', () => ({ setAttendance: jest.fn() }));
-jest.mock('../src/lib/supabase', () => ({ supabase: { rpc: jest.fn() } }));
+jest.mock('../src/lib/supabase', () => ({
+  supabase: { rpc: jest.fn(), from: jest.fn(() => ({ delete: () => ({ eq: mockDeleteEq }) })) },
+}));
 
 const N = Notifications as unknown as Record<string, jest.Mock>;
 const rpc = supabase.rpc as unknown as jest.Mock;
@@ -118,6 +121,22 @@ describe('refreshPushRegistration', () => {
     expect(await refreshPushRegistration()).toBe('denied');
     expect(N.requestPermissionsAsync).not.toHaveBeenCalled();
     expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe('unregisterThisDevice', () => {
+  it('deletes this device token for the signed-out user', async () => {
+    N.getPermissionsAsync.mockResolvedValue({ status: 'granted', canAskAgain: true });
+    await unregisterThisDevice();
+    expect(supabase.from).toHaveBeenCalledWith('push_tokens');
+    expect(mockDeleteEq).toHaveBeenCalledWith('token', 'ExponentPushToken[abc]');
+  });
+
+  it('never throws or prompts', async () => {
+    N.getPermissionsAsync.mockResolvedValue({ status: 'granted', canAskAgain: true });
+    N.getExpoPushTokenAsync.mockRejectedValue(new Error('boom'));
+    await expect(unregisterThisDevice()).resolves.toBeUndefined();
+    expect(N.requestPermissionsAsync).not.toHaveBeenCalled();
   });
 });
 
@@ -210,6 +229,19 @@ describe('handleNotificationResponse', () => {
     expect(router.push).toHaveBeenCalledWith({ pathname: '/activites/[id]', params: { id: 'a1' } });
     await handleNotificationResponse(response('yes'));
     expect(mockSetAttendance).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not navigate again when the activity was already opened, unless the answer failed', async () => {
+    await handleNotificationResponse(response('yes', 'o1'), { alreadyOpened: true });
+    expect(router.push).not.toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
+    mockSetAttendance.mockResolvedValue({ ok: false, error: 'network' });
+    await handleNotificationResponse(response('yes', 'o2'), { alreadyOpened: true });
+    expect(router.push).not.toHaveBeenCalled();
+    expect(router.replace).toHaveBeenCalledWith({
+      pathname: '/activites/[id]',
+      params: { id: 'a1', reminder: 'failed' },
+    });
   });
 
   it('handles the same response only once', async () => {

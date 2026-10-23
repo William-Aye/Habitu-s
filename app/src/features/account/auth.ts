@@ -1,3 +1,4 @@
+import { unregisterThisDevice } from '../notifications/registerPush';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { supabase } from '../../lib/supabase';
 
@@ -134,6 +135,12 @@ export async function completeProfile(input: {
 }
 
 export async function signOut(): Promise<void> {
+  // While the session still lets the delete through (the policy only allows the user's own rows).
+  try {
+    await unregisterThisDevice();
+  } catch {
+    // Best effort.
+  }
   try {
     await GoogleSignin.signOut();
   } catch {
