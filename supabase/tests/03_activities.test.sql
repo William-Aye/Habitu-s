@@ -7,6 +7,7 @@ select tests.create_user('other@test.fr', 'Max', true) as other \gset
 select tests.create_user('root@test.fr', 'Root', true) as root \gset
 select tests.create_user('stranger@test.fr', 'Zoe', true) as stranger \gset
 update profiles set role = 'admin' where id = :'root';
+update profiles set age_confirmed = true, created_at = now() - interval '2 days' where id <> :'newbie';
 insert into categories (id, slug, name_fr, name_en, icon) values ('00000000-0000-0000-0000-0000000000c1', 'go', 'Jeu de go', 'Go', 'grid-3x3');
 insert into tags (id, slug, label_fr, label_en) values ('00000000-0000-0000-0000-0000000000b1', 'go', 'Go', 'Go');
 -- fixture: approval activity f2 (org), other's activity f3
@@ -31,7 +32,7 @@ select has_index('public', 'sessions', 'sessions_activity_starts', 'sessions ind
 select tests.act_as(:'newbie');
 select throws_ok($$ insert into activities (organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time)
   values (auth.uid(), '00000000-0000-0000-0000-0000000000c1', 'Go le mardi', 'Café du Parc', 'POINT(4.85 45.77)', 'weekly', '2026-11-03', '19:00') $$,
-  '42501', null, 'phone not verified cannot create activity');
+  '42501', null, 'a new account cannot create an activity');
 
 select tests.act_as(:'org');
 select lives_ok($$ insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time)

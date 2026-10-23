@@ -25,14 +25,14 @@ export type Database = {
           Tables: {
             "activities": {
                   Row: {
-                    "approval_mode": string,"archived_at": string | null,"category_id": string,"created_at": string,"description": string | null,"duration_minutes": number,"embedding": string | null,"id": string,"max_size": number | null,"min_participants": number | null,"newcomer_friendly": boolean,"organised_by_association_id": string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at": string,"recurrence_interval_days": number | null,"recurrence_kind": string,"recurrence_weekdays": (number)[] | null,"search_tsv": unknown,"start_date": string,"start_time": string,"timezone": string,"title": string
+                    "approval_mode": string,"archived_at": string | null,"category_id": string,"created_at": string,"description": string | null,"duration_minutes": number,"embedding": string | null,"id": string,"max_size": number | null,"min_participants": number | null,"newcomer_friendly": boolean,"organised_by_association_id": string | null,"organised_by_collectif_id": string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at": string,"recurrence_interval_days": number | null,"recurrence_kind": string,"recurrence_weekdays": (number)[] | null,"search_tsv": unknown,"start_date": string,"start_time": string,"timezone": string,"title": string,"welcome_member_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "approval_mode"?: string,"archived_at"?: string | null,"category_id": string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind": string,"recurrence_weekdays"?: (number)[] | null,"search_tsv"?: never,"start_date": string,"start_time": string,"timezone"?: string,"title": string
+                    "approval_mode"?: string,"archived_at"?: string | null,"category_id": string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organised_by_collectif_id"?: string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind": string,"recurrence_weekdays"?: (number)[] | null,"search_tsv"?: never,"start_date": string,"start_time": string,"timezone"?: string,"title": string,"welcome_member_id"?: string | null
                   }
                   Update: {
-                    "approval_mode"?: string,"archived_at"?: string | null,"category_id"?: string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organiser_id"?: string,"place"?: unknown,"place_label"?: string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind"?: string,"recurrence_weekdays"?: (number)[] | null,"search_tsv"?: never,"start_date"?: string,"start_time"?: string,"timezone"?: string,"title"?: string
+                    "approval_mode"?: string,"archived_at"?: string | null,"category_id"?: string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organised_by_collectif_id"?: string | null,"organiser_id"?: string,"place"?: unknown,"place_label"?: string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind"?: string,"recurrence_weekdays"?: (number)[] | null,"search_tsv"?: never,"start_date"?: string,"start_time"?: string,"timezone"?: string,"title"?: string,"welcome_member_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -48,6 +48,12 @@ isOneToOne: false
       referencedRelation: "associations"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "activities_organised_by_collectif_id_fkey"
+      columns: ["organised_by_collectif_id"]
+isOneToOne: false
+      referencedRelation: "collectifs"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "activities_organiser_id_fkey"
       columns: ["organiser_id"]
 isOneToOne: false
@@ -56,6 +62,18 @@ isOneToOne: false
     },{
       foreignKeyName: "activities_organiser_id_fkey"
       columns: ["organiser_id"]
+isOneToOne: false
+      referencedRelation: "public_profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "activities_welcome_member_id_fkey"
+      columns: ["welcome_member_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "activities_welcome_member_id_fkey"
+      columns: ["welcome_member_id"]
 isOneToOne: false
       referencedRelation: "public_profiles"
       referencedColumns: ["id"]
@@ -295,14 +313,14 @@ isOneToOne: false
                   ]
                 },"attendances": {
                   Row: {
-                    "session_id": string,"status": string,"updated_at": string,"user_id": string
+                    "guest_count": number,"session_id": string,"status": string,"updated_at": string,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "session_id": string,"status": string,"updated_at"?: string,"user_id": string
+                    "guest_count"?: number,"session_id": string,"status": string,"updated_at"?: string,"user_id": string
                   }
                   Update: {
-                    "session_id"?: string,"status"?: string,"updated_at"?: string,"user_id"?: string
+                    "guest_count"?: number,"session_id"?: string,"status"?: string,"updated_at"?: string,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -404,6 +422,64 @@ isOneToOne: false
     },{
       foreignKeyName: "category_requests_user_id_fkey"
       columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "public_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"collectif_members": {
+                  Row: {
+                    "accepted_at": string | null,"collectif_id": string,"invited_at": string,"role": string,"status": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "accepted_at"?: string | null,"collectif_id": string,"invited_at"?: string,"role": string,"status"?: string,"user_id": string
+                  }
+                  Update: {
+                    "accepted_at"?: string | null,"collectif_id"?: string,"invited_at"?: string,"role"?: string,"status"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "collectif_members_collectif_id_fkey"
+      columns: ["collectif_id"]
+isOneToOne: false
+      referencedRelation: "collectifs"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "collectif_members_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "collectif_members_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "public_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"collectifs": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"description": string | null,"id": string,"name": string,"town_label": string,"town_point": unknown
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"description"?: string | null,"id"?: string,"name": string,"town_label": string,"town_point": unknown
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"description"?: string | null,"id"?: string,"name"?: string,"town_label"?: string,"town_point"?: unknown
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "collectifs_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "collectifs_created_by_fkey"
+      columns: ["created_by"]
 isOneToOne: false
       referencedRelation: "public_profiles"
       referencedColumns: ["id"]
@@ -697,14 +773,14 @@ isOneToOne: false
                   ]
                 },"sessions": {
                   Row: {
-                    "activity_id": string,"cancelled_at": string | null,"id": string,"place": unknown,"place_label": string | null,"starts_at": string,"status": string
+                    "activity_id": string,"cancelled_at": string | null,"id": string,"is_discovery": boolean,"place": unknown,"place_label": string | null,"starts_at": string,"status": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "activity_id": string,"cancelled_at"?: string | null,"id"?: string,"place"?: unknown,"place_label"?: string | null,"starts_at": string,"status"?: string
+                    "activity_id": string,"cancelled_at"?: string | null,"id"?: string,"is_discovery"?: boolean,"place"?: unknown,"place_label"?: string | null,"starts_at": string,"status"?: string
                   }
                   Update: {
-                    "activity_id"?: string,"cancelled_at"?: string | null,"id"?: string,"place"?: unknown,"place_label"?: string | null,"starts_at"?: string,"status"?: string
+                    "activity_id"?: string,"cancelled_at"?: string | null,"id"?: string,"is_discovery"?: boolean,"place"?: unknown,"place_label"?: string | null,"starts_at"?: string,"status"?: string
                   }
                   Relationships: [
                     {
@@ -810,6 +886,9 @@ isOneToOne: true
             "association_locked_for_me":
 { Args: { "p_id": string }; Returns: boolean
                            },
+"can_organise":
+{ Args: Record<PropertyKey, never>; Returns: boolean
+                           },
 "delete_my_account":
 { Args: Record<PropertyKey, never>; Returns: undefined
                            },
@@ -833,6 +912,12 @@ isOneToOne: true
                            },
 "is_blocked_between":
 { Args: { "p_other": string }; Returns: boolean
+                           },
+"is_collectif_member":
+{ Args: { "p_collectif": string }; Returns: boolean
+                           },
+"is_collectif_responsable":
+{ Args: { "p_collectif": string }; Returns: boolean
                            },
 "is_session_member":
 { Args: { "p_session": string }; Returns: boolean
