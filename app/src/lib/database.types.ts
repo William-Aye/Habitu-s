@@ -823,14 +823,14 @@ isOneToOne: true
                   ]
                 },"profiles": {
                   Row: {
-                    "age_confirmed": boolean,"banned_at": string | null,"bio": string | null,"created_at": string,"first_name": string,"home_area": unknown,"home_area_label": string | null,"id": string,"language": string,"last_seen_at": string | null,"phone_verified": boolean,"photo_url": string | null,"role": string,"supporter": boolean
+                    "age_confirmed": boolean,"banned_at": string | null,"bio": string | null,"created_at": string,"first_name": string,"home_area": unknown,"home_area_label": string | null,"id": string,"inactivity_notice_at": string | null,"language": string,"last_seen_at": string | null,"phone_verified": boolean,"photo_url": string | null,"role": string,"supporter": boolean
                   }
                   ComputedFields: never
                   Insert: {
-                    "age_confirmed"?: boolean,"banned_at"?: string | null,"bio"?: string | null,"created_at"?: string,"first_name"?: string,"home_area"?: unknown,"home_area_label"?: string | null,"id": string,"language"?: string,"last_seen_at"?: string | null,"phone_verified"?: boolean,"photo_url"?: string | null,"role"?: string,"supporter"?: boolean
+                    "age_confirmed"?: boolean,"banned_at"?: string | null,"bio"?: string | null,"created_at"?: string,"first_name"?: string,"home_area"?: unknown,"home_area_label"?: string | null,"id": string,"inactivity_notice_at"?: string | null,"language"?: string,"last_seen_at"?: string | null,"phone_verified"?: boolean,"photo_url"?: string | null,"role"?: string,"supporter"?: boolean
                   }
                   Update: {
-                    "age_confirmed"?: boolean,"banned_at"?: string | null,"bio"?: string | null,"created_at"?: string,"first_name"?: string,"home_area"?: unknown,"home_area_label"?: string | null,"id"?: string,"language"?: string,"last_seen_at"?: string | null,"phone_verified"?: boolean,"photo_url"?: string | null,"role"?: string,"supporter"?: boolean
+                    "age_confirmed"?: boolean,"banned_at"?: string | null,"bio"?: string | null,"created_at"?: string,"first_name"?: string,"home_area"?: unknown,"home_area_label"?: string | null,"id"?: string,"inactivity_notice_at"?: string | null,"language"?: string,"last_seen_at"?: string | null,"phone_verified"?: boolean,"photo_url"?: string | null,"role"?: string,"supporter"?: boolean
                   }
                   Relationships: [
                     
@@ -1069,6 +1069,20 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"storage_deletions": {
+                  Row: {
+                    "bucket": string,"id": number,"path": string,"queued_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "bucket": string,"id"?: number,"path": string,"queued_at"?: string
+                  }
+                  Update: {
+                    "bucket"?: string,"id"?: number,"path"?: string,"queued_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"tags": {
                   Row: {
                     "id": string,"label_en": string,"label_fr": string,"slug": string
@@ -1255,6 +1269,9 @@ isOneToOne: true
 "drain_outbox":
 { Args: Record<PropertyKey, never>; Returns: undefined
                            },
+"drain_storage_deletions":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
 "enqueue_reminders":
 { Args: { "p_now"?: string }; Returns: number
                            },
@@ -1344,11 +1361,20 @@ isOneToOne: true
 "prune_chat_send_log":
 { Args: Record<PropertyKey, never>; Returns: number
                            },
+"prune_limit_log":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
 "prune_messages":
 { Args: Record<PropertyKey, never>; Returns: number
                            },
 "prune_outbox":
 { Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"purge_account":
+{ Args: { "p_user": string }; Returns: undefined
+                           },
+"queue_user_storage_deletion":
+{ Args: { "p_user": string }; Returns: undefined
                            },
 "register_push_token":
 { Args: { "p_platform": string,"p_token": string }; Returns: undefined
@@ -1358,6 +1384,12 @@ isOneToOne: true
                            },
 "report_target_owner":
 { Args: { "p_id": string,"p_type": string }; Returns: string
+                           },
+"run_inactive_accounts":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"run_retention":
+{ Args: Record<PropertyKey, never>; Returns: Json
                            },
 "search_explore":
 { Args: { "p_discovery_only"?: boolean,"p_interest_category_ids"?: (string)[],"p_kinds"?: (string)[],"p_lat": number,"p_limit"?: number,"p_lon": number,"p_newcomer_friendly"?: boolean,"p_offset"?: number,"p_query"?: string,"p_query_embedding"?: string,"p_radius_km"?: number,"p_sort"?: string,"p_weekday"?: number }; Returns: Json

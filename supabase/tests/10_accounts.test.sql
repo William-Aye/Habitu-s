@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(51);
+select plan(52);
 
 select tests.create_user('ana@acc.fr', 'Ana') as ana \gset
 select tests.create_user('ben@acc.fr', 'Ben') as ben \gset
@@ -178,8 +178,10 @@ select is((select count(*) from auth.users where id = :'ana')
   + (select count(*) from profiles where id = :'ana')
   + (select count(*) from user_interests where user_id = :'ana')
   + (select count(*) from category_requests where user_id = :'ana')
-  + (select count(*) from storage.objects where bucket_id = 'avatars' and name like :'ana' || '/%'), 0::bigint,
-  'Ana''s account, rows and avatars are gone');
+  + (select count(*) from storage.objects where bucket_id = 'avatars' and name like :'ana' || '/%')
+  - (select count(*) from storage_deletions where bucket = 'avatars' and path like :'ana' || '/%'), 0::bigint,
+  'Ana''s account and rows are gone and every avatar file is queued for removal');
+select is((select count(*) from storage_deletions where bucket = 'avatars' and path = :'ben' || '/b.jpg'), 0::bigint, 'Ben''s avatar is not queued');
 select is((select count(*) from auth.users where id = :'ben') + (select count(*) from user_interests where user_id = :'ben')
   + (select count(*) from storage.objects where bucket_id = 'avatars' and name = :'ben' || '/b.jpg'), 3::bigint,
   'Ben is untouched');
