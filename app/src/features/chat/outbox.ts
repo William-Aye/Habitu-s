@@ -25,6 +25,8 @@ let initialised = false;
 let foreground = AppState.currentState !== 'background';
 let timer: ReturnType<typeof setTimeout> | null = null;
 let backoffStep = 0;
+/** The account of the latest run; null until one has a session. */
+let runUserId: string | null = null;
 
 function emit() {
   listeners.forEach((l) => l());
@@ -111,7 +113,8 @@ function clearTimer() {
 
 /** While the app is open and something is waiting, try again on a growing delay. */
 function scheduleRetry() {
-  if (!initialised || !foreground || !queue.some((m) => m.state === 'sending')) {
+  const mine = (m: Stored) => m.state === 'sending' && (!runUserId || m.userId === runUserId);
+  if (!initialised || !foreground || !queue.some(mine)) {
     clearTimer();
     backoffStep = 0;
     return;
@@ -133,12 +136,19 @@ async function pass(): Promise<void> {
       // The account is read once per run: only its own messages go out, the rest stay untouched.
       const userId = await currentUserId();
       if (!userId) return; // signed out (or the token could not be refreshed): keep everything queued
+      runUserId = userId;
+      // Another account's messages can never be sent from this session: do not keep them around.
+      if (queue.some((m) => m.userId !== userId)) {
+        queue = queue.filter((m) => m.userId === userId);
+        persist();
+        emit();
+      }
       const tried = new Set<string>();
       for (;;) {
         const next = queue.find((m) => m.userId === userId && m.state === 'sending' && !tried.has(m.id));
         if (!next) break;
         tried.add(next.id);
-        const res = await sendMessage(next.activityId, next.id, next.body);
+        const res = await sendMessage(next.userId, next.activityId, next.id, next.body);
         if (res.ok) {
           backoffStep = 0;
           update(next.id, () => null);
@@ -207,6 +217,8 @@ export function discard(id: string): void {
 
 /** Forgets every unsent message (sign-out, or another account signing in). */
 export async function clearOutbox(): Promise<void> {
+  // Race: a run already past its session check can still be sending; its result is then dropped by update(),
+  // because the item is gone from the queue, but that one message may have reached the server.
   queue = [];
   emit();
   await loaded; // a load still in progress would bring the stored queue back

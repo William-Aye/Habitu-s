@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { AppState } from 'react-native';
 import { SessionProvider, useSession } from '../src/features/account/useSession';
 import { supabase } from '../src/lib/supabase';
-import { clearOutbox } from '../src/features/chat/outbox';
+import { clearOutbox, flush } from '../src/features/chat/outbox';
 
 jest.mock('../src/lib/supabase', () => ({
   supabase: {
@@ -15,7 +15,7 @@ jest.mock('../src/lib/supabase', () => ({
   },
 }));
 
-jest.mock('../src/features/chat/outbox', () => ({ clearOutbox: jest.fn() }));
+jest.mock('../src/features/chat/outbox', () => ({ clearOutbox: jest.fn(), flush: jest.fn() }));
 
 const auth = supabase.auth as unknown as Record<string, jest.Mock>;
 const from = supabase.from as unknown as jest.Mock;
@@ -191,6 +191,7 @@ describe('offline start', () => {
       cb('SIGNED_IN', { user: { id: 'u1' } });
     });
     expect(clearOutbox).not.toHaveBeenCalled();
+    expect(flush).toHaveBeenCalledTimes(1); // signed in: send what is waiting
     await act(async () => {
       cb('SIGNED_IN', { user: { id: 'u2' } });
     });

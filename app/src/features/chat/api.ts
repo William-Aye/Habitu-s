@@ -50,17 +50,23 @@ export async function fetchMessages(
 
 /**
  * A duplicate id (23505) means an earlier attempt already went through: that is sent.
- * No session is signed_out, not not_allowed: the message was never judged.
+ * No session, or another account's session, is signed_out, not not_allowed: the message was never judged.
  */
-export async function sendMessage(activityId: string, id: string, body: string): Promise<ChatResult> {
-  let userId: string | undefined;
+export async function sendMessage(
+  userId: string,
+  activityId: string,
+  id: string,
+  body: string,
+): Promise<ChatResult> {
+  let sessionUserId: string | undefined;
   try {
     const { data } = await supabase.auth.getSession();
-    userId = data?.session?.user?.id;
+    sessionUserId = data?.session?.user?.id;
   } catch {
     return { ok: false, error: 'network' };
   }
-  if (!userId) return { ok: false, error: 'signed_out' };
+  // The message was written by `userId`: never send it as whoever is signed in now.
+  if (!sessionUserId || sessionUserId !== userId) return { ok: false, error: 'signed_out' };
   return narrow(
     await run(async () => {
       const res = await supabase.from('messages').insert({ id, activity_id: activityId, body, sender_id: userId });

@@ -83,7 +83,7 @@ describe('enqueue', () => {
     mockSend.mockReset();
     mockSend.mockResolvedValue({ ok: true });
     await second.flush();
-    expect(mockSend).toHaveBeenLastCalledWith('a1', m.id, 'Salut');
+    expect(mockSend).toHaveBeenLastCalledWith(U, 'a1', m.id, 'Salut');
     expect(second.pending('a1', U)).toEqual([]);
   });
 
@@ -107,7 +107,7 @@ describe('flush', () => {
     mockSend.mockReset();
     mockSend.mockResolvedValue({ ok: true });
     await ob.flush();
-    expect(mockSend.mock.calls.map((c) => c[1])).toEqual([a.id, b.id]);
+    expect(mockSend.mock.calls.map((c) => c[2])).toEqual([a.id, b.id]);
     expect(ob.pending('a1', U)).toEqual([]);
   });
 
@@ -132,7 +132,7 @@ describe('flush', () => {
     ob.enqueue(U, 'a1', 'deux');
     await settle();
     mockSend.mockReset();
-    mockSend.mockImplementation(async (_a: string, id: string) =>
+    mockSend.mockImplementation(async (_u: string, _a: string, id: string) =>
       id === a.id ? { ok: false, error: 'not_allowed' } : { ok: true },
     );
     await ob.flush();
@@ -188,19 +188,51 @@ describe('flush', () => {
 });
 
 describe('accounts', () => {
-  it('does not send one account queue as another account', async () => {
+  it('does not send one account queue as another account, and deletes it', async () => {
     mockSend.mockResolvedValue({ ok: false, error: 'network' });
     const ob = load();
     await ob.ready();
-    const m = ob.enqueue('A', 'a1', 'Salut')!;
+    ob.enqueue('A', 'a1', 'Salut');
     await settle();
     asUser('B');
     mockSend.mockReset();
     mockSend.mockResolvedValue({ ok: true });
     await ob.flush();
     expect(mockSend).not.toHaveBeenCalled();
-    // Left untouched: still queued, still sending, for A.
-    expect(ob.pending('a1', 'A')).toEqual([expect.objectContaining({ id: m.id, state: 'sending' })]);
+    // A's messages can never be sent from this session: they are not kept around.
+    expect(ob.pending('a1', 'A')).toEqual([]);
+    expect(await stored()).toEqual([]);
+  });
+
+  it('keeps the queue when there is no session at all', async () => {
+    asUser('A');
+    mockSend.mockResolvedValue({ ok: false, error: 'network' });
+    const ob = load();
+    await ob.ready();
+    ob.enqueue('A', 'a1', 'Salut');
+    await settle();
+    asUser(null);
+    await ob.flush();
+    expect(ob.pending('a1', 'A')).toHaveLength(1);
+  });
+
+  it('only retries on a timer for the current user', async () => {
+    jest.useFakeTimers();
+    try {
+      mockSend.mockResolvedValue({ ok: false, error: 'network' });
+      const ob = load(true);
+      await ob.ready();
+      ob.enqueue('A', 'a1', 'Salut');
+      await jest.advanceTimersByTimeAsync(0);
+      asUser('B');
+      await jest.advanceTimersByTimeAsync(5000); // run as B: A's item is deleted
+      mockSend.mockClear();
+      await jest.advanceTimersByTimeAsync(300_000);
+      expect(mockSend).not.toHaveBeenCalled();
+    } finally {
+      jest.clearAllTimers();
+      jest.useRealTimers();
+    }
   });
 
   it('leaves everything sending and sends nothing without a session', async () => {
@@ -278,7 +310,7 @@ describe('corrupt storage', () => {
     mockSend.mockResolvedValue({ ok: true });
     ob.enqueue(U, 'a1', 'deux');
     await settle();
-    expect(mockSend).toHaveBeenCalledWith('a1', expect.any(String), 'deux');
+    expect(mockSend).toHaveBeenCalledWith(U, 'a1', expect.any(String), 'deux');
   });
 });
 
@@ -292,7 +324,7 @@ describe('retry, discard, subscribe', () => {
     expect(ob.pending('a1', U)[0].state).toBe('failed');
     mockSend.mockResolvedValue({ ok: true });
     await ob.retry(m.id);
-    expect(mockSend).toHaveBeenLastCalledWith('a1', m.id, 'Salut');
+    expect(mockSend).toHaveBeenLastCalledWith(U, 'a1', m.id, 'Salut');
     expect(ob.pending('a1', U)).toEqual([]);
   });
 

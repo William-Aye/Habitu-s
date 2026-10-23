@@ -124,29 +124,35 @@ describe('fetchMessages', () => {
 describe('sendMessage', () => {
   it('inserts the message with the client id', async () => {
     result = { data: null, error: null };
-    expect(await sendMessage('a1', 'id1', 'Salut')).toEqual({ ok: true });
+    expect(await sendMessage('me', 'a1', 'id1', 'Salut')).toEqual({ ok: true });
     expect(mockFrom).toHaveBeenCalledWith('messages');
     expect(lastCall('insert')?.args[0]).toEqual({ id: 'id1', activity_id: 'a1', body: 'Salut', sender_id: 'me' });
   });
 
   it('treats a duplicate id (23505) as sent', async () => {
     result = { data: null, error: { code: '23505', message: 'duplicate key' } };
-    expect(await sendMessage('a1', 'id1', 'Salut')).toEqual({ ok: true });
+    expect(await sendMessage('me', 'a1', 'id1', 'Salut')).toEqual({ ok: true });
   });
 
   it('maps limit_reached', async () => {
     result = { data: null, error: { code: '42501', message: 'limit_reached' } };
-    expect(await sendMessage('a1', 'id1', 'Salut')).toEqual({ ok: false, error: 'limit_reached' });
+    expect(await sendMessage('me', 'a1', 'id1', 'Salut')).toEqual({ ok: false, error: 'limit_reached' });
   });
 
   it('maps another 42501 to not_allowed', async () => {
     result = { data: null, error: { code: '42501', message: 'new row violates row-level security policy' } };
-    expect(await sendMessage('a1', 'id1', 'Salut')).toEqual({ ok: false, error: 'not_allowed' });
+    expect(await sendMessage('me', 'a1', 'id1', 'Salut')).toEqual({ ok: false, error: 'not_allowed' });
   });
 
   it('returns signed_out, distinct from not_allowed, when there is no session', async () => {
     mockGetSession.mockResolvedValue({ data: { session: null } });
-    expect(await sendMessage('a1', 'id1', 'Salut')).toEqual({ ok: false, error: 'signed_out' });
+    expect(await sendMessage('me', 'a1', 'id1', 'Salut')).toEqual({ ok: false, error: 'signed_out' });
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('returns signed_out without inserting when the session user is someone else', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: { user: { id: 'B' } } } });
+    expect(await sendMessage('A', 'a1', 'id1', 'Salut')).toEqual({ ok: false, error: 'signed_out' });
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
@@ -154,12 +160,12 @@ describe('sendMessage', () => {
     mockFrom.mockImplementation(() => {
       throw new TypeError('Network request failed');
     });
-    expect(await sendMessage('a1', 'id1', 'Salut')).toEqual({ ok: false, error: 'network' });
+    expect(await sendMessage('me', 'a1', 'id1', 'Salut')).toEqual({ ok: false, error: 'network' });
   });
 
   it('maps unexpected errors to unknown', async () => {
     result = { data: null, error: { code: '22001', message: 'too long' } };
-    expect(await sendMessage('a1', 'id1', 'Salut')).toEqual({ ok: false, error: 'unknown' });
+    expect(await sendMessage('me', 'a1', 'id1', 'Salut')).toEqual({ ok: false, error: 'unknown' });
   });
 });
 
