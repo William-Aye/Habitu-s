@@ -130,6 +130,10 @@ it('describes the moderation, feedback, claims, Overpass and inactivity data in 
   ] as const) {
     for (const w of words) expect(text).toContain(w);
   }
+  expect(privacyFr).toContain("voit l'adresse réseau de votre téléphone");
+  expect(privacyFr).toContain("aucune donnée de votre compte n'est envoyée");
+  expect(privacyEn).toContain("sees your phone's network address");
+  expect(privacyEn).toContain('no account data is sent');
   expect(privacyFr).not.toContain("e-mail d'avertissement");
   expect(privacyEn).not.toContain('warning email');
 });

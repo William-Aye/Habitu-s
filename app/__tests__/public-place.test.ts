@@ -21,8 +21,16 @@ it('posts a 60 m query to Overpass with the coordinates rounded to 4 decimals an
   expect(q).toContain('around:60,45.764,4.8357');
   expect(q).not.toContain('45.7640');
   expect(q).not.toContain('4.83565');
-  for (const key of ['amenity', 'shop', 'leisure', 'tourism', 'sport']) expect(q).toContain(`["${key}"]`);
+  expect(q).toContain('["amenity"~"^(cafe|restaurant|bar|pub|library|community_centre|arts_centre|cinema|theatre|townhall|place_of_worship|marketplace|fast_food|ice_cream)$"]');
+  expect(q).toContain('["shop"]');
+  expect(q).toContain('["leisure"~"^(park|sports_centre|pitch|stadium|playground|fitness_centre|dance)$"]');
+  expect(q).toContain('["tourism"~"^(museum|gallery|attraction)$"]');
+  expect(q).toContain('["sport"]["leisure"~"^(park|sports_centre|pitch|stadium|playground|fitness_centre|dance)$"]');
   expect(q).toContain('["office"="association"]');
+  // a bare key would match private places (a garden, a flat with a pool)
+  expect(q).not.toContain('["amenity"]');
+  expect(q).not.toContain('["leisure"]');
+  expect(q).not.toContain('["tourism"]');
   expect(Object.keys(init.headers ?? {}).map((h) => h.toLowerCase())).toEqual(['content-type']);
 });
 

@@ -2,17 +2,32 @@ const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 /** A slow or rate-limited service never holds up publishing for longer than this. */
 export const PUBLIC_PLACE_TIMEOUT_MS = 4000;
 const RADIUS_M = 60;
-const TAG_KEYS = ['amenity', 'shop', 'leisure', 'tourism', 'sport'] as const;
+/** Only places the public can walk into count: a tag key alone also matches private ones (a shop's flat, a pitch). */
+export const PUBLIC_AMENITIES = [
+  'cafe', 'restaurant', 'bar', 'pub', 'library', 'community_centre', 'arts_centre', 'cinema', 'theatre',
+  'townhall', 'place_of_worship', 'marketplace', 'fast_food', 'ice_cream',
+] as const;
+export const PUBLIC_LEISURE = ['park', 'sports_centre', 'pitch', 'stadium', 'playground', 'fitness_centre', 'dance'] as const;
+export const PUBLIC_TOURISM = ['museum', 'gallery', 'attraction'] as const;
+
+const alt = (values: readonly string[]) => `"^(${values.join('|')})$"`;
 
 function query(lat: number, lon: number): string {
   const around = `(around:${RADIUS_M},${lat},${lon})`;
-  const filters = [...TAG_KEYS.map((k) => `["${k}"]`), '["office"="association"]'];
+  const filters = [
+    `["amenity"~${alt(PUBLIC_AMENITIES)}]`,
+    '["shop"]',
+    `["leisure"~${alt(PUBLIC_LEISURE)}]`,
+    `["tourism"~${alt(PUBLIC_TOURISM)}]`,
+    `["sport"]["leisure"~${alt(PUBLIC_LEISURE)}]`,
+    '["office"="association"]',
+  ];
   return `[out:json][timeout:3];(${filters.map((f) => `nwr${around}${f};`).join('')});out ids 1;`;
 }
 
 /**
  * Asks OpenStreetMap (Overpass) whether a public place (cafe, shop, park, sports hall, association
- * office...) lies within 60 m. Only the position, rounded to about 10 m, is sent: no identifier of the user.
+ * office... from a fixed list of public tags) lies within 60 m. Only the position, rounded to about 10 m, is sent: no identifier of the user.
  * `'unknown'` on any failure or after 4 seconds, so the caller never blocks on this check.
  */
 export async function hasPublicPlaceNearby(lat: number, lon: number): Promise<boolean | 'unknown'> {

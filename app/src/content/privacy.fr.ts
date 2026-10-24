@@ -55,7 +55,7 @@ La suppression de votre compte est immédiate (voir plus bas).
 - Supabase (hébergement, base de données et connexion), dans l'Union européenne (Paris).
 - Google (connexion avec Google et, le cas échéant, publicités).
 - Cloudflare (protection du service, vérification anti-robot à l'inscription et Turnstile pour les messages envoyés sans compte).
-- OpenStreetMap (service Overpass) : quand vous publiez une activité ou déplacez une séance, l'application vérifie qu'un lieu public se trouve à proximité. Il ne reçoit que les coordonnées arrondies du lieu, jamais votre identité.
+- OpenStreetMap (service Overpass) : quand vous publiez une activité ou déplacez une séance, l'application envoie une requête à ce service pour vérifier qu'un lieu public se trouve à proximité. Ce service voit l'adresse réseau de votre téléphone (adresse IP). La requête ne contient que les coordonnées arrondies du lieu : aucune donnée de votre compte n'est envoyée.
 - Expo (relais d'envoi des notifications), puis Google Firebase Cloud Messaging (Android) et Apple Push Notification service (iPhone) pour les acheminer jusqu'à votre téléphone. Les notifications sont volontairement génériques : elles ne contiennent aucun nom d'activité ni prénom, seulement un texte court du type « Rappel : vous avez une activité demain ». Les détails ne s'affichent que dans l'application, après connexion.
 - GitHub (hébergement du code de l'application et du site : aucune donnée d'utilisateur).
 - geo.api.gouv.fr (service public français, data.gouv) : reçoit la position arrondie à environ 1 km pour trouver votre commune, et les noms de villes que vous tapez dans la recherche.
