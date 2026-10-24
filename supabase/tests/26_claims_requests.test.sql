@@ -95,12 +95,14 @@ select throws_ok($$ select admin_decide_claim('00000000-0000-0000-0000-0000000c1
 select throws_ok($$ select admin_claim_document_path('00000000-0000-0000-0000-0000000c1a01') $$, '42501', 'not_allowed', 'a non-admin cannot ask for a document path');
 select tests.act_as_aal1(:'adm');
 select throws_ok($$ select admin_claims('pending') $$, '42501', 'not_allowed', 'an admin without two-factor cannot list claims');
+select tests.act_as_superuser();
+select id as docid, document_path as docpath from association_claims where document_path is not null \gset
 select tests.act_as_admin(:'adm');
 select is(jsonb_array_length(admin_claims('pending')), 4, 'the admin lists the pending claims');
 select is((select e->>'role' from jsonb_array_elements(admin_claims('pending')) e where e->>'id' = '00000000-0000-0000-0000-0000000c1a01'), 'Presidente', 'a listed claim carries the role');
 select is((select e->'association'->>'name' from jsonb_array_elements(admin_claims('pending')) e where e->>'id' = '00000000-0000-0000-0000-0000000c1a01'), 'Club Alpha', 'a listed claim carries the association');
 select is((select count(*) from jsonb_array_elements(admin_claims('pending')) e where (e->>'has_document')::boolean)::int, 1, 'a claim with a document says so');
-select is(admin_claim_document_path((select id from association_claims where document_path is not null)), (select document_path from association_claims where document_path is not null), 'the admin gets the document path (the client signs it)');
+select is(admin_claim_document_path(:'docid'), :'docpath', 'the admin gets the document path (the client signs it)');
 select tests.act_as_superuser();
 select is((select count(*) from admin_audit_log where action = 'claim_document_viewed')::int, 1, 'reading a document is audited');
 select tests.act_as_admin(:'adm');

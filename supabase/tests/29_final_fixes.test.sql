@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(92);
+select plan(103);
 select tests.create_user('adm@ff.fr', 'Admin') as adm \gset
 select tests.create_user('bad@ff.fr', 'Bertrand') as bad \gset
 select tests.create_user('gud@ff.fr', 'Gaelle') as gud \gset
@@ -223,6 +223,38 @@ select public.run_inactive_accounts();
 select is((select count(*) from auth.users where id = :'bn1')::int, 0, 'a banned account inactive for 37 months is purged without any notice');
 select is((select count(*) from auth.users where id = :'bn2')::int, 1, 'a banned account inactive for 35 months is kept');
 select is((select count(*) from auth.users where id = :'bn3')::int, 1, 'a banned admin is never purged');
+
+-- ---- evidence of a moderated activity cannot be deleted by its organiser ------------------
+insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time, max_size) values
+  ('00000000-0000-0000-0000-0000000000f5', :'gud', '00000000-0000-0000-0000-0000000000c1', 'Go modere', 'Cafe', 'POINT(4.85 45.77)', 'weekly', current_date + 100, '19:00', 10),
+  ('00000000-0000-0000-0000-0000000000f6', :'gud', '00000000-0000-0000-0000-0000000000c1', 'Go libre', 'Cafe', 'POINT(4.85 45.77)', 'weekly', current_date + 100, '19:00', 10);
+update activities set archived_at = now(), removed_by_moderation_at = now() where id = '00000000-0000-0000-0000-0000000000f5';
+select tests.act_as(:'gud');
+with d as (delete from activities where id = '00000000-0000-0000-0000-0000000000f5' returning 1)
+select is((select count(*) from d)::int, 0, 'the organiser cannot delete a moderated activity');
+with d as (delete from activities where id = '00000000-0000-0000-0000-0000000000f6' returning 1)
+select is((select count(*) from d)::int, 1, 'the organiser can still delete an unmoderated activity');
+select tests.act_as_admin(:'adm');
+with d as (delete from activities where id = '00000000-0000-0000-0000-0000000000f5' returning 1)
+select is((select count(*) from d)::int, 1, 'an admin can delete a moderated activity');
+select tests.act_as_superuser();
+
+-- ---- files only through the audited RPCs ---------------------------------------------------
+insert into feedback (id, user_id, type, body, screenshot_path) values
+  ('00000000-0000-0000-0000-0000000000d1', :'mem', 'idea', 'Avec capture', :'mem' || '/00000000-0000-0000-0000-0000000000f1.png');
+insert into association_claims (id, association_id, claimant_id, proof_method, role_in_association, document_path) values
+  ('00000000-0000-0000-0000-0000000000d2', '00000000-0000-0000-0000-0000000000a1', :'mem', 'document', 'President', :'mem' || '/statuts.pdf');
+select tests.act_as_admin(:'adm');
+select throws_ok($$ select screenshot_path from feedback $$, '42501', null, 'an admin cannot select feedback.screenshot_path directly');
+select throws_ok($$ select document_path from association_claims $$, '42501', null, 'an admin cannot select association_claims.document_path directly');
+select throws_ok($$ select * from feedback $$, '42501', null, 'select * on feedback is refused too');
+select lives_ok($$ select id, type, body, status from feedback $$, 'the other feedback columns stay readable');
+select is(admin_feedback_screenshot_path('00000000-0000-0000-0000-0000000000d1'), :'mem' || '/00000000-0000-0000-0000-0000000000f1.png', 'the audited RPC still returns the screenshot path');
+select is(admin_claim_document_path('00000000-0000-0000-0000-0000000000d2'), :'mem' || '/statuts.pdf', 'the audited RPC still returns the document path');
+select tests.act_as(:'mem');
+select lives_ok($$ select id, type, body from feedback where user_id = auth.uid() $$, 'a person still reads their other feedback columns');
+select lives_ok(format($q$ insert into feedback (type, body, screenshot_path) values ('idea', 'Autre', %L) $q$, :'mem' || '/00000000-0000-0000-0000-0000000000f2.png'), 'a person can still send feedback with a screenshot');
+select tests.act_as_superuser();
 
 select * from finish();
 rollback;

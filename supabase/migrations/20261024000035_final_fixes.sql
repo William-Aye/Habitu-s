@@ -115,6 +115,18 @@ drop policy activities_select on public.activities;
 create policy activities_select on public.activities for select to anon, authenticated
   using (archived_at is null or organiser_id = auth.uid() or public.is_admin());
 
+-- The organiser cannot delete the evidence of a moderated activity (migration 4's policy plus the mark).
+drop policy activities_delete on public.activities;
+create policy activities_delete on public.activities for delete to authenticated
+  using (organiser_id = auth.uid() and removed_by_moderation_at is null);
+
+-- Private files are reached only through the audited admin RPCs: no API role selects the path columns.
+-- (Inserts need only insert privilege; the app never reads these columns back.)
+revoke select on public.feedback from authenticated;
+grant select (id, user_id, type, body, app_version, device_model, status, created_at, source)
+  on public.feedback to authenticated;
+revoke select (document_path) on public.association_claims from authenticated;
+
 -- ---------------------------------------------------------------------------------------------
 -- 3. Admin: club search for the merge picker, banned list, lifting a ban
 create function public.admin_search_associations(p_query text, p_limit int default 20) returns jsonb
