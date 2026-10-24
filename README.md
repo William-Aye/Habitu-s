@@ -244,6 +244,12 @@ and enter the 6-digit code. Until a code has been entered in the current session
 false (the token must be `aal2`), so every admin right stays off and the app shows no admin data.
 Admins cannot ban other admins; demote first with the same update (`role = 'user'`).
 
+**Two-factor sign-in in the hosted project.** `supabase/config.toml` enables TOTP for the local stack
+(`[auth.mfa.totp]`). In the hosted dashboard (Authentication, Multi-Factor, or Sign In / Providers),
+check that TOTP enrolment and verification are enabled before promoting anyone: with TOTP off, no
+admin can ever reach `aal2` and the admin area stays locked. Enrol the authenticator app right after
+being promoted to admin (the first sign-in to Administration asks for it).
+
 ### Deploying the functions and their secrets
 
 ```bash
@@ -266,11 +272,15 @@ npx supabase functions deploy storage-cleanup
 
   Until `storage_cleanup_url` exists the job does nothing, so queued files stay in Storage; locally
   nothing needs setting.
-- **`verify_jwt`.** Both functions are called with the service-role key as bearer token. If the
-  project uses the new `sb_secret_...` API keys, those are not JWTs: test both calls after deploying
-  (the cron call for `storage-cleanup`, an anonymous and a signed-in call for `submit-feedback`)
-  and, if the gateway answers 401, deploy with `--no-verify-jwt`. The functions check their own
-  credentials.
+- **Keys and `verify_jwt`.** `send-push` and `storage-cleanup` are called by the database jobs with the
+  Vault key (`send_push_key`, the service-role key) as bearer token, and compare it with the
+  `SUPABASE_SERVICE_ROLE_KEY` that Supabase injects into every function. `submit-feedback` is called
+  by the app with the public (anon/publishable) key, optionally with the user's session token, and
+  uses `SUPABASE_SERVICE_ROLE_KEY` only to write the row. If the project uses the new
+  `sb_secret_...` API keys, those are not JWTs: test the cron calls (`send-push`, `storage-cleanup`)
+  and an anonymous and a signed-in call to `submit-feedback` after deploying, and, if the gateway
+  answers 401 to the cron calls, deploy those two with `--no-verify-jwt` (they check their own
+  credentials).
 
 ### Storage buckets
 
