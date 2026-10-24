@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(41);
+select plan(49);
 select tests.create_user('org@wp.fr', 'Orga') as org \gset
 select tests.create_user('ban@wp.fr', 'Banni') as ban \gset
 update profiles set age_confirmed = true;
@@ -46,6 +46,28 @@ select is(jsonb_array_length(web_sitemap_range('associations', '00000000-0000-00
 select throws_ok($$ select web_sitemap_range('profiles', null, null) $$, '22023', 'invalid kind', 'a bad kind raises 22023');
 select is(pg_get_functiondef('public.web_sitemap_range(text,uuid,uuid)'::regprocedure) like '%limit 50000%', true, 'the 50000 cap is in the function');
 select is(to_regprocedure('public.web_sitemap_activities(uuid,int)') is null and to_regprocedure('public.web_sitemap_associations(uuid,int)') is null, true, 'the old paged functions are gone');
+
+-- ---- not yet published, removed association ----
+select tests.act_as_superuser();
+insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time, published_at) values
+  ('00000000-0000-0000-0000-0000000000f6', :'org', '00000000-0000-0000-0000-0000000000c1', 'Go futur', 'Cafe', 'POINT(4.85 45.77)', 'weekly', current_date + 10, '19:00', now() + interval '1 day'),
+  ('00000000-0000-0000-0000-0000000000f7', :'org', '00000000-0000-0000-0000-0000000000c1', 'Go club retire', 'Cafe', 'POINT(4.85 45.77)', 'weekly', current_date + 10, '19:00', now() - interval '1 day');
+update activities set organised_by_association_id = '00000000-0000-0000-0000-0000000000a4' where id = '00000000-0000-0000-0000-0000000000f7';
+select tests.act_as_anon();
+select is((select jsonb_agg(e->>'id' order by e->>'id') from jsonb_array_elements(web_sitemap_range('activities', null, null)) e),
+  '["00000000-0000-0000-0000-0000000000f1", "00000000-0000-0000-0000-0000000000f5", "00000000-0000-0000-0000-0000000000f7"]'::jsonb,
+  'activities sitemap: a future published_at is left out, a past one is listed (same filter as explore)');
+select is(web_activity_status('00000000-0000-0000-0000-0000000000f6'), 'missing', 'activity status: not yet published is missing');
+select is(web_activity_status('00000000-0000-0000-0000-0000000000f7'), 'ok', 'activity status: published in the past is ok');
+select is(web_activity_page('00000000-0000-0000-0000-0000000000f6')->>'status', 'missing', 'activity page: not yet published is missing');
+select is(get_activity('00000000-0000-0000-0000-0000000000f1')->'organised_by'->>'name', 'Club normal', 'get_activity names a live association');
+select is(get_activity('00000000-0000-0000-0000-0000000000f7')->'organised_by', 'null'::jsonb, 'get_activity does not name a removed association');
+select is((length(pg_get_functiondef('public.web_activity_page(uuid)'::regprocedure))
+           - length(replace(pg_get_functiondef('public.web_activity_page(uuid)'::regprocedure), 'web_activity_status(', ''))) / length('web_activity_status('), 1,
+  'activity page evaluates the status once');
+select is((length(pg_get_functiondef('public.web_association_page(uuid)'::regprocedure))
+           - length(replace(pg_get_functiondef('public.web_association_page(uuid)'::regprocedure), 'web_association_status(', ''))) / length('web_association_status('), 1,
+  'association page evaluates the status once');
 
 -- ---- statuses ----
 select is(web_association_status('00000000-0000-0000-0000-0000000000a1'), 'ok', 'association status: ok');
