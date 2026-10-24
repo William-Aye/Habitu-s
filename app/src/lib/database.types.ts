@@ -1199,21 +1199,20 @@ isOneToOne: true
 "touch_last_seen":
 { Args: Record<PropertyKey, never>; Returns: undefined
                            },
+"web_activity_page":
+{ Args: { "p_id": string }; Returns: Json
+                           },
 "web_activity_status":
 { Args: { "p_id": string }; Returns: string
+                           },
+"web_association_page":
+{ Args: { "p_id": string }; Returns: Json
                            },
 "web_association_status":
 { Args: { "p_id": string }; Returns: string
                            },
-"web_sitemap_activities":
-{ Args: { "p_after"?: string,"p_limit"?: number }; Returns: {
-              "id": string,"title": string,"updated_at": string
-            }[]
-                           },
-"web_sitemap_associations":
-{ Args: { "p_after"?: string,"p_limit"?: number }; Returns: {
-              "city": string,"id": string,"name": string,"updated_at": string
-            }[]
+"web_sitemap_range":
+{ Args: { "p_hi": string,"p_kind": string,"p_lo": string }; Returns: Json
                            }
           }
           Enums: {
