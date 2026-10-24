@@ -65,15 +65,15 @@ grant execute on function public.is_banned(uuid) to authenticated;
 create function public.ban_user(p_user uuid, p_reason text) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
 begin
-  update auth.users set banned_until = 'infinity' where id = p_user;
+  -- a finite far date: Auth's Go scanner returns 500 on 'infinity'
+  update auth.users set banned_until = now() + interval '100 years' where id = p_user;
   update public.profiles set banned_at = coalesce(banned_at, now()) where id = p_user;
   update public.activities set archived_at = now()
    where organiser_id = p_user and archived_at is null;
   -- the after-delete trigger frees future attendances and the welcome role
   delete from public.activity_members where user_id = p_user;
   delete from public.collectif_members where user_id = p_user;
-  delete from auth.refresh_tokens where user_id = p_user::text;
-  delete from auth.sessions where user_id = p_user;
+  -- sessions and refresh tokens are kept: Auth refuses a banned user's refresh with user_banned itself
 end $$;
 revoke all on function public.ban_user(uuid, text) from public, anon, authenticated;
 

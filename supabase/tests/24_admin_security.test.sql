@@ -73,7 +73,7 @@ select throws_ok(format($q$ select ban_user(%L, 'x') $q$, :'bad'), '42501', null
 -- ban
 select tests.act_as_superuser();
 select lives_ok(format($q$ select public.ban_user(%L, 'abus') $q$, :'bad'), 'ban_user runs');
-select is((select banned_until from auth.users where id = :'bad'), 'infinity'::timestamptz, 'banned_until infinity');
+select ok((select banned_until is not null and banned_until <> 'infinity'::timestamptz and banned_until > now() + interval '50 years' from auth.users where id = :'bad'), 'banned_until is finite and more than 50 years away');
 select ok((select banned_at is not null from profiles where id = :'bad'), 'banned_at set');
 select ok((select archived_at is not null from activities where id = '00000000-0000-0000-0000-0000000000a1'), 'activities archived');
 select is((select user_id from collectif_members where collectif_id = '00000000-0000-0000-0000-00000000c0a1' and role = 'responsable'), :'nxt'::uuid, 'next organiser promoted; banned user removed');
@@ -82,8 +82,8 @@ select public.ban_user(:'bad', 'abus');
 select ok((select b = (select banned_at from profiles where id = :'bad') and a = (select archived_at from activities where id = '00000000-0000-0000-0000-0000000000a1') from snap), 'ban is idempotent');
 
 -- banned person's content
-select is((select count(*) from auth.sessions where user_id = :'bad')::int, 0, 'sessions deleted');
-select is((select count(*) from auth.refresh_tokens where user_id = :'bad'::text)::int, 0, 'refresh tokens deleted');
+select is((select count(*) from auth.sessions where user_id = :'bad')::int, 1, 'sessions kept (Auth refuses the refresh itself)');
+select is((select count(*) from auth.refresh_tokens where user_id = :'bad'::text)::int, 1, 'refresh tokens kept');
 select is((select count(*) from activity_members where user_id = :'bad')::int, 0, 'memberships deleted');
 select is((select count(*) from attendances where user_id = :'bad')::int, 0, 'future attendance deleted');
 select is((select count(*) from messages where sender_id = :'bad')::int, 1, 'banned message row still exists');

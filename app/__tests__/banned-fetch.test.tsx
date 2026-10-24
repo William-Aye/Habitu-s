@@ -56,8 +56,17 @@ describe('ban detected at the fetch level', () => {
     expect(r.error?.message).toMatch(/banned/i);
   });
 
+  it('flags a 400 user_banned too (a refused refresh)', async () => {
+    respond = () => json(400, { code: 400, error_code: 'user_banned', msg: 'User is banned' });
+    await supabase.auth.refreshSession({ refresh_token: 'r' });
+    expect(isBannedSignal()).toBe(true);
+  });
+
   it('ignores other 403s and other endpoints', async () => {
     respond = () => json(403, { code: 403, error_code: 'not_admin', msg: 'nope' });
+    await supabase.auth.refreshSession({ refresh_token: 'r' });
+    expect(isBannedSignal()).toBe(false);
+    respond = () => json(400, { code: 400, error_code: 'validation_failed', msg: 'bad' });
     await supabase.auth.refreshSession({ refresh_token: 'r' });
     expect(isBannedSignal()).toBe(false);
     respond = (url) => (url.includes('/rest/v1/') ? json(403, BAN_BODY) : json(200, {}));

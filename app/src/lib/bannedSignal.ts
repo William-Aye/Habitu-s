@@ -1,5 +1,5 @@
 /**
- * The auth server answers 403 `user_banned` to a sign-in or a token refresh, but the SDK swallows it on a
+ * The auth server answers 400 or 403 `user_banned` to a sign-in or a token refresh, but the SDK swallows it on a
  * refresh (it just removes the session). This module sees the answer at the fetch level and remembers it
  * until a session works again.
  */
@@ -39,7 +39,7 @@ function urlOf(input: unknown): string {
 export const bannedAwareFetch: typeof fetch = async (input, init) => {
   const res = await fetch(input, init);
   try {
-    if (res.status === 403 && AUTH_PATHS.some((p) => urlOf(input).includes(p))) {
+    if ((res.status === 400 || res.status === 403) && AUTH_PATHS.some((p) => urlOf(input).includes(p))) {
       const body = (await res.clone().json()) as { error_code?: unknown; code?: unknown };
       if (body?.error_code === 'user_banned' || body?.code === 'user_banned') setBannedSignal(true);
     }
