@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
-import { useRouter, type Href } from 'expo-router';
-import { useState } from 'react';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
+import { ChevronRight } from 'lucide-react-native';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -9,6 +10,8 @@ import { MAX_FIRST_NAME, signOut } from '../../features/account/auth';
 import { pickAndUploadAvatar } from '../../features/account/avatar';
 import { currentCommune } from '../../features/account/homeArea';
 import { deleteMessagesInLeftActivities, deleteMyAccount, exportMyData } from '../../features/account/myData';
+import { useAdminRole } from '../../features/admin/useIsAdmin';
+import { useModerationUnread } from '../../features/safety/notices';
 import { MyCollectifs } from '../../features/collectifs/MyCollectifs';
 import { LocationPicker } from '../../features/explore/components/LocationPicker';
 import type { HomeAreaInput } from '../../features/account/auth';
@@ -304,6 +307,48 @@ async function changeLanguage(lng: AppLanguage, userId: string | null): Promise<
   }
 }
 
+/** The moderation notices entry (with the unread count, re-read each time the screen is shown) and, for admins, the admin area. */
+function SafetyEntries() {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const role = useAdminRole();
+  const { count, refresh } = useModerationUnread();
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh]),
+  );
+  return (
+    <>
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel={count > 0 ? t('profile.moderationUnread', { count }) : t('moderation.title')}
+        style={[styles.link, styles.linkRow]}
+        onPress={() => router.push('/moderation' as Href)}
+      >
+        <Text style={styles.linkText}>{t('moderation.title')}</Text>
+        {count > 0 ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{String(count)}</Text>
+          </View>
+        ) : null}
+        <ChevronRight size={18} color="#1a56db" />
+      </Pressable>
+      {role === 'admin' ? (
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={t('admin.title')}
+          style={[styles.link, styles.linkRow]}
+          onPress={() => router.push('/admin' as Href)}
+        >
+          <Text style={styles.linkText}>{t('admin.title')}</Text>
+          <ChevronRight size={18} color="#1a56db" />
+        </Pressable>
+      ) : null}
+    </>
+  );
+}
+
 function SignedInProfile({ userId, profile }: { userId: string; profile: SessionProfile }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -517,6 +562,7 @@ function SignedInProfile({ userId, profile }: { userId: string; profile: Session
         </Pressable>
       </View>
 
+      <SafetyEntries />
       <Pressable
         accessibilityRole="link"
         accessibilityLabel={t('safety.blockedTitle')}
@@ -579,6 +625,9 @@ const styles = StyleSheet.create({
   danger: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: '#b91c1c', alignItems: 'center', justifyContent: 'center' },
   dangerText: { color: '#b91c1c', fontSize: 16, fontWeight: '600' },
   link: { minHeight: 44, justifyContent: 'center' },
+  linkRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  badge: { minWidth: 22, height: 22, borderRadius: 11, backgroundColor: '#b91c1c', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  badgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   linkText: { color: '#1a56db', fontWeight: '600' },
   error: { color: '#b91c1c' },
   ok: { color: '#15803d' },

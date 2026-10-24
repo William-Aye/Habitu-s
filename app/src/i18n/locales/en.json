@@ -254,6 +254,8 @@
   },
   "profile": {
     "title": "Profile",
+    "moderationUnread_one": "Moderation information, {{count}} new",
+    "moderationUnread_other": "Moderation information, {{count}} new",
     "signIn": "Sign in",
     "changePhoto": "Change photo",
     "photoAlt": "Profile photo",
