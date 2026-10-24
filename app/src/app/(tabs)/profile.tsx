@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { ChevronRight } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useRequireAccount } from '../../features/account/AccountGate';
@@ -17,7 +17,11 @@ import { LocationPicker } from '../../features/explore/components/LocationPicker
 import type { HomeAreaInput } from '../../features/account/auth';
 import { useSession, type SessionProfile } from '../../features/account/useSession';
 import { setLanguage, type AppLanguage } from '../../i18n';
+import { confirmAction } from '../../lib/confirm';
 import { supabase } from '../../lib/supabase';
+
+/** The website shows a short profile: the photo, interests, collectives, home area, chat data and safety screens are app-only. */
+const isWeb = () => Platform.OS === 'web';
 
 type Notice = { kind: 'ok' | 'error'; key: string; params?: Record<string, unknown> } | null;
 
@@ -85,18 +89,16 @@ function OfflineProfile({ onRetry }: { onRetry(): void }) {
 function useConfirmDelete(onStart: () => void, onDone: (ok: boolean) => void) {
   const { t } = useTranslation();
   return () => {
-    Alert.alert(t('profile.deleteConfirm'), undefined, [
-      { text: t('profile.cancel'), style: 'cancel' },
-      {
-        text: t('profile.deleteAction'),
-        style: 'destructive',
-        onPress: async () => {
-          onStart();
-          const res = await deleteMyAccount();
-          onDone(res.ok);
-        },
+    confirmAction({
+      title: t('profile.deleteConfirm'),
+      cancelLabel: t('profile.cancel'),
+      confirmLabel: t('profile.deleteAction'),
+      onConfirm: async () => {
+        onStart();
+        const res = await deleteMyAccount();
+        onDone(res.ok);
       },
-    ]);
+    });
   };
 }
 
@@ -449,6 +451,7 @@ function SignedInProfile({ userId, profile }: { userId: string; profile: Session
         {t('profile.title')}
       </Text>
 
+{!isWeb() ? (
       <View style={styles.photoRow}>
         {profile.photoUrl ? (
           <Image
@@ -470,6 +473,7 @@ function SignedInProfile({ userId, profile }: { userId: string; profile: Session
         </Pressable>
         {busy === 'photo' ? <ActivityIndicator /> : null}
       </View>
+) : null}
 
       <Text style={styles.label}>{t('account.firstName')}</Text>
       <TextInput
@@ -504,6 +508,8 @@ function SignedInProfile({ userId, profile }: { userId: string; profile: Session
         </Text>
       ) : null}
 
+      {!isWeb() ? (
+        <>
       <Pressable
         accessibilityRole="link"
         accessibilityLabel={t('profile.interests')}
@@ -521,6 +527,8 @@ function SignedInProfile({ userId, profile }: { userId: string; profile: Session
         onSaved={refresh}
         onError={(failed) => setNotice(failed ? { kind: 'error', key: 'profile.homeAreaError' } : null)}
       />
+        </>
+      ) : null}
 
       <LanguageSwitch
         onChange={async (lng) => {
@@ -542,6 +550,7 @@ function SignedInProfile({ userId, profile }: { userId: string; profile: Session
         >
           <Text style={styles.outlineText}>{t('profile.download')}</Text>
         </Pressable>
+        {!isWeb() ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('profile.deleteMessages')}
@@ -551,6 +560,7 @@ function SignedInProfile({ userId, profile }: { userId: string; profile: Session
         >
           <Text style={styles.outlineText}>{t('profile.deleteMessages')}</Text>
         </Pressable>
+        ) : null}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('profile.delete')}
@@ -562,6 +572,8 @@ function SignedInProfile({ userId, profile }: { userId: string; profile: Session
         </Pressable>
       </View>
 
+      {!isWeb() ? (
+        <>
       <SafetyEntries />
       <Pressable
         accessibilityRole="link"
@@ -580,6 +592,8 @@ function SignedInProfile({ userId, profile }: { userId: string; profile: Session
       >
         <Text style={styles.linkText}>{t('safety.tipsLink')}</Text>
       </Pressable>
+        </>
+      ) : null}
       <Pressable
         accessibilityRole="link"
         accessibilityLabel={t('feedback.title')}

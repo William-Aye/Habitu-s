@@ -185,6 +185,7 @@
   },
   "web": {
     "siteName": "Habitués",
+    "account": "Mon compte",
     "download": "Télécharger l'application",
     "unavailable": {
       "title": "Disponible dans l'application",

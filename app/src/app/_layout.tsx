@@ -111,7 +111,8 @@ export default function RootLayout() {
 
   useEffect(() => {
     cleanupExportFiles();
-    initOutbox();
+    // Chat is not on the website: no outbox there (and no connectivity polling).
+    if (Platform.OS !== 'web') initOutbox();
   }, []);
 
   useEffect(() => {

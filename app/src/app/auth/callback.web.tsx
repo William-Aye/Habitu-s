@@ -19,17 +19,17 @@ export default function AuthCallback() {
     started.current = true;
     const code = new URLSearchParams(window.location.search).get('code');
     const finish = async () => {
-      let ok = false;
       if (code) {
         try {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          ok = !error;
+          await supabase.auth.exchangeCodeForSession(code);
         } catch {
-          ok = false;
+          // Same destination: the visitor can try again from the page.
         }
       }
-      // Failure or not, the visitor is sent back: the page offers the sign-up again.
-      router.replace((ok ? takeReturnPath() : '/') as Href);
+      // Failure or not, the visitor goes back to the page they came from (the page offers the sign-up again),
+      // and the remembered path is always consumed.
+      const back = takeReturnPath();
+      router.replace(back as Href);
     };
     void finish();
   }, [router]);

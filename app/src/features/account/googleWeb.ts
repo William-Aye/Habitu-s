@@ -3,7 +3,8 @@ import { rememberReturnPath } from './oauthReturn';
 
 /** The Google sign-in page; Supabase brings the visitor back to /app/auth/callback. */
 export async function startGoogleOAuth(): Promise<{ error: unknown }> {
-  const base = (process.env.EXPO_PUBLIC_WEB_BASE_URL ?? '').replace(/\/+$/, '') || window.location.origin;
+  // The origin the page is served from, not the configured address: preview deployments keep their own host.
+  const base = window.location.origin;
   rememberReturnPath();
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',

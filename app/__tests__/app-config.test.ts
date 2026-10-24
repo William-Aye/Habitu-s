@@ -27,3 +27,12 @@ describe('app.config.js Android App Links', () => {
     expect(makeConfig({ config: base }).android.intentFilters).toBeUndefined();
   });
 });
+
+describe('web shell (Expo public/index.html template)', () => {
+  const html = require('node:fs').readFileSync(require('node:path').join(__dirname, '../public/index.html'), 'utf8');
+  it('is French and titled Habitués', () => {
+    expect(html).toMatch(/<html lang="fr">/);
+    expect(html).toMatch(/<title>Habitués<\/title>/);
+    expect(html).toContain('<div id="root"></div>');
+  });
+});

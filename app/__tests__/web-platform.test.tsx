@@ -121,7 +121,39 @@ describe('Google on the web', () => {
     expect(takeReturnPath()).toBe('/associations/z');
   });
 
-  it('the callback goes home when the exchange fails', async () => {
+  it('redirects to the origin the page is served from, not the configured base (preview deployments)', async () => {
+    process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://production.example';
+    location.origin = 'https://abc123.habitues.pages.dev';
+    const { signInWithGoogle } = require('../src/features/account/auth');
+    await signInWithGoogle();
+    expect(mockSupabase.auth.signInWithOAuth).toHaveBeenCalledWith({
+      provider: 'google',
+      options: { redirectTo: 'https://abc123.habitues.pages.dev/app/auth/callback' },
+    });
+  });
+
+  it('the callback goes back to the remembered page when the exchange fails, and forgets it', async () => {
+    session.setItem('auth.returnTo', '/activites/abc');
+    mockSupabase.auth.exchangeCodeForSession.mockResolvedValueOnce({ data: {}, error: { message: 'bad' } });
+    location.search = '?code=x';
+    const Callback = require('../src/app/auth/callback.web').default;
+    await render(<Callback />);
+    await act(async () => {});
+    expect(mockReplace).toHaveBeenCalledWith('/activites/abc');
+    expect(session.getItem('auth.returnTo')).toBeNull();
+  });
+
+  it('the callback without a code also goes back to the remembered page', async () => {
+    session.setItem('auth.returnTo', '/associations/z');
+    location.search = '';
+    const Callback = require('../src/app/auth/callback.web').default;
+    await render(<Callback />);
+    await act(async () => {});
+    expect(mockSupabase.auth.exchangeCodeForSession).not.toHaveBeenCalled();
+    expect(mockReplace).toHaveBeenCalledWith('/associations/z');
+  });
+
+  it('the callback goes home when the exchange fails and nothing was remembered', async () => {
     mockSupabase.auth.exchangeCodeForSession.mockResolvedValueOnce({ data: {}, error: { message: 'bad' } });
     location.search = '?code=x';
     const Callback = require('../src/app/auth/callback.web').default;
