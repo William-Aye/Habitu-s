@@ -1,5 +1,4 @@
 import { SendHorizontal } from 'lucide-react-native';
-import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,30 +7,25 @@ const MAX = 2000;
 const SHOW_COUNT_FROM = 1800;
 
 /**
+ * The text lives in the screen, so a refused message can be put back into it.
  * `onSend` returns false when the message was refused (empty, too long): the text is then kept.
- * A new `draft` (a message the filter refused) replaces the text so it can be changed and sent again.
  */
 export function Composer({
+  value: text,
+  onChange,
   onSend,
-  draft,
 }: {
+  value: string;
+  onChange: (text: string) => void;
   onSend: (body: string) => boolean;
-  draft?: { text: string; key: number } | null;
 }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const [text, setText] = useState('');
   const empty = text.trim().length === 0;
-  // A new draft replaces the text (adjusted while rendering, not in an effect).
-  const [seenDraft, setSeenDraft] = useState(draft);
-  if (draft !== seenDraft) {
-    setSeenDraft(draft);
-    if (draft) setText(draft.text);
-  }
 
   const submit = () => {
     if (empty) return;
-    if (onSend(text)) setText('');
+    if (onSend(text)) onChange('');
   };
 
   return (
@@ -47,7 +41,7 @@ export function Composer({
           multiline
           maxLength={MAX}
           value={text}
-          onChangeText={setText}
+          onChangeText={onChange}
           placeholder={t('chat.placeholder')}
           accessibilityLabel={t('chat.placeholder')}
         />

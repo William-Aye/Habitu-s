@@ -65,7 +65,9 @@ export default function ModerationScreen() {
     iso ? new Date(iso).toLocaleDateString(i18n.language?.startsWith('en') ? 'en-GB' : 'fr-FR') : '';
 
   let body: React.ReactNode = null;
-  if (status === 'ready') {
+  if (status === 'loading') {
+    body = <ActivityIndicator style={styles.center} accessibilityLabel={t('moderation.loading')} />;
+  } else if (status === 'ready') {
     if (load.state === 'loading') {
       body = <ActivityIndicator style={styles.center} accessibilityLabel={t('moderation.loading')} />;
     } else if (load.state === 'error') {

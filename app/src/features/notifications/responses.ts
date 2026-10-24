@@ -61,11 +61,11 @@ async function openAccountNotice(kind: string | null, claimId: string | null): P
   } else if (kind === 'claim_decided') {
     const associationId = claimId ? await claimAssociationId(claimId) : null;
     if (associationId) router.push({ pathname: '/associations/[id]', params: { id: associationId } });
-    else router.push('/(tabs)/profile' as Href);
+    else router.navigate('/(tabs)/profile' as Href);
   } else if (kind === 'category_decided') {
     router.push('/interests' as Href);
   } else if (kind === 'inactivity_notice') {
-    router.push('/(tabs)/profile' as Href);
+    router.navigate('/(tabs)/profile' as Href);
   } else {
     return false;
   }

@@ -99,16 +99,17 @@ export async function unreadCount(userId: string): Promise<number> {
 /** The number of unseen moderation items for the signed-in person (0 while unknown); `refresh` re-reads it. */
 export function useModerationUnread(): { count: number; refresh(): void } {
   const { status, userId } = useSession();
-  const [count, setCount] = useState(0);
+  // The count is kept with the person it was read for, so another person never sees it.
+  const [read, setRead] = useState<{ userId: string; count: number } | null>(null);
   const [version, setVersion] = useState(0);
   useEffect(() => {
     if (status !== 'ready' || !userId) return;
     let active = true;
-    unreadCount(userId).then((n) => active && setCount(n));
+    unreadCount(userId).then((n) => active && setRead({ userId, count: n }));
     return () => {
       active = false;
     };
   }, [status, userId, version]);
   const refresh = useCallback(() => setVersion((v) => v + 1), []);
-  return { count: status === 'ready' && userId ? count : 0, refresh };
+  return { count: status === 'ready' && userId && read?.userId === userId ? read.count : 0, refresh };
 }

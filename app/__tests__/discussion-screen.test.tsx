@@ -611,6 +611,51 @@ describe('blocking and the membership', () => {
     expect(alert.mock.calls[0][1]).toBe('Vous ne verrez plus ses messages.');
     alert.mockRestore();
   });
+
+  describe('a message refused by the word filter', () => {
+    const refuse = async () => {
+      await open([]);
+      mSend.mockResolvedValueOnce({ ok: false, error: 'content_refused' });
+      await fireEvent.changeText(input(), 'texte refusé');
+      await fireEvent.press(sendBtn());
+      await settle();
+    };
+
+    it('shows the reason, is not sent again, and goes back to the composer on tap, then resends', async () => {
+      await refuse();
+      expect(screen.getByText('Ce texte contient un mot interdit.')).toBeTruthy();
+      expect(input().props.value).toBe('');
+      expect(mSend).toHaveBeenCalledTimes(1);
+      await fireEvent.press(screen.getByLabelText('texte refusé'));
+      await settle();
+      expect(input().props.value).toBe('texte refusé');
+      expect(screen.queryByText('Ce texte contient un mot interdit.')).toBeNull();
+      await fireEvent.changeText(input(), 'texte corrigé');
+      await fireEvent.press(sendBtn());
+      await settle();
+      expect(mSend).toHaveBeenCalledTimes(2);
+      expect(mSend.mock.calls[1][3]).toBe('texte corrigé');
+    });
+
+    it('announces how to edit it', async () => {
+      await refuse();
+      expect(screen.getByLabelText('texte refusé').props.accessibilityHint).toBe('Touchez pour modifier');
+    });
+
+    it('asks before replacing text typed since', async () => {
+      const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      await refuse();
+      await fireEvent.changeText(input(), 'autre chose');
+      await fireEvent.press(screen.getByLabelText('texte refusé'));
+      expect(alert).toHaveBeenCalledWith('Remplacer votre texte par le message refusé ?', undefined, expect.any(Array));
+      expect(input().props.value).toBe('autre chose');
+      const buttons = alert.mock.calls[0][2] as { text: string; onPress?: () => void }[];
+      await act(async () => buttons.find((b) => b.text === 'Remplacer')!.onPress!());
+      await settle();
+      expect(input().props.value).toBe('texte refusé');
+      alert.mockRestore();
+    });
+  });
 });
 
 describe('signed-out account gate', () => {

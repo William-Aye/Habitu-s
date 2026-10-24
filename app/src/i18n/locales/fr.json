@@ -557,6 +557,9 @@
     "bubbleOther": "{{name}}, {{time}} : {{body}}",
     "bubbleMine": "Vous, {{time}} : {{body}}",
     "actionsHint": "Appui long pour les actions",
+    "editHint": "Touchez pour modifier",
+    "replaceDraft": "Remplacer votre texte par le message refusé ?",
+    "replaceAction": "Remplacer",
     "listLabel": "Messages de la discussion",
     "syncError": "Impossible de mettre à jour la discussion. Réessayez.",
     "muteError": "Impossible de modifier les notifications. Réessayez."

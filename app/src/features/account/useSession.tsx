@@ -6,11 +6,13 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useSyncExternalStore,
   useState,
   type ReactNode,
 } from 'react';
 import { AppState } from 'react-native';
 import { supabase } from '../../lib/supabase';
+import { isBannedSignal, setBannedSignal, subscribeBannedSignal } from '../../lib/bannedSignal';
 import { isBannedError } from './banned';
 
 export type SessionStatus = 'loading' | 'signed_out' | 'needs_profile' | 'ready';
@@ -85,7 +87,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const failedRef = useRef(false);
   const sessionFailedRef = useRef(false);
   const [sessionFailed, setSessionFailed] = useState(false);
-  const [banned, setBanned] = useState(false);
+  // Every ban goes through the shared signal, so the sign-in path and the fetch layer agree with this state.
+  const banned = useSyncExternalStore(subscribeBannedSignal, isBannedSignal);
 
   // One fetch per user at a time: concurrent callers share the same request.
   const loadOnce = useCallback((userId: string): Promise<Loaded> => {
@@ -112,7 +115,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           // A definite answer, not a failed read: the account is suspended, so nothing will ever refresh.
           ok = true;
           if (active) {
-            setBanned(true);
+            setBannedSignal(true);
             setAuthUserId(null);
           }
         }
@@ -149,7 +152,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (event === 'INITIAL_SESSION' && !session) return;
       sessionFailedRef.current = false;
       setSessionFailed(false);
-      if (session?.user.id) setBanned(false);
+      if (session?.user.id) setBannedSignal(false);
       setAuthUserId(session?.user.id ?? null);
     });
     return () => {
@@ -193,7 +196,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (error && isBannedError(error)) {
         sessionFailedRef.current = false;
         setSessionFailed(false);
-        setBanned(true);
+        setBannedSignal(true);
         setAuthUserId(null);
         return 'signed_out';
       }

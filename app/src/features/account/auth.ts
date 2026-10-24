@@ -2,6 +2,7 @@ import { unregisterThisDevice } from '../notifications/registerPush';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { supabase } from '../../lib/supabase';
 import { clearOutbox } from '../chat/outbox';
+import { setBannedSignal } from '../../lib/bannedSignal';
 import { isBannedError } from './banned';
 
 export type AuthError =
@@ -24,7 +25,11 @@ export function mapAuthError(error: unknown): AuthError {
   if (!error || typeof error !== 'object') return 'unknown';
   const e = error as { status?: number; name?: string; message?: string; code?: string };
   const message = String(e.message ?? '').toLowerCase();
-  if (isBannedError(error)) return 'banned';
+  if (isBannedError(error)) {
+    // The full-screen notice appears too, not only the sheet's text.
+    setBannedSignal(true);
+    return 'banned';
+  }
   if (e.status === 429 || e.code === 'over_email_send_rate_limit') return 'rate_limited';
   if (message.includes('captcha')) return 'captcha';
   if (

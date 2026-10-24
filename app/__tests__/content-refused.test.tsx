@@ -5,7 +5,6 @@ import { initI18n } from '../src/i18n';
 import { mapError } from '../src/features/activities/errors';
 import { sendMessage } from '../src/features/chat/api';
 import { MessageBubble } from '../src/features/chat/MessageBubble';
-import { Composer } from '../src/features/chat/Composer';
 import type { DisplayMessage } from '../src/features/chat/useChat';
 import type { PendingMessage } from '../src/features/chat/types';
 
@@ -110,12 +109,5 @@ describe('refused message bubble', () => {
     await fireEvent.press(screen.getByLabelText('texte refusé'));
     expect(onEdit).toHaveBeenCalledWith('p1');
     expect(onRetry).not.toHaveBeenCalled();
-  });
-
-  it('puts the refused text back in the composer', async () => {
-    const onSend = jest.fn(() => true);
-    const view = await render(<Composer onSend={onSend} draft={null} />);
-    await view.rerender(<Composer onSend={onSend} draft={{ text: 'texte refusé', key: 1 }} />);
-    expect(screen.getByDisplayValue('texte refusé')).toBeTruthy();
   });
 });

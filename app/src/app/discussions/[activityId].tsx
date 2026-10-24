@@ -60,10 +60,18 @@ export default function DiscussionScreen() {
   const [target, setTarget] = useState<DisplayMessage | null>(null);
   const { openReport, reportSheet } = useReportSheet();
   const [notice, setNotice] = useState<string | null>(null);
-  const [draft, setDraft] = useState<{ text: string; key: number } | null>(null);
+  const [text, setText] = useState('');
+  // A refused message goes back into the composer; text typed since is replaced only after asking.
   const editRefused = (id: string) => {
-    const text = chat.edit(id);
-    if (text !== null) setDraft((d) => ({ text, key: (d?.key ?? 0) + 1 }));
+    const take = () => {
+      const body = chat.edit(id);
+      if (body !== null) setText(body);
+    };
+    if (text.trim() === '') return take();
+    Alert.alert(t('chat.replaceDraft'), undefined, [
+      { text: t('chat.actions.cancel'), style: 'cancel' },
+      { text: t('chat.replaceAction'), onPress: take },
+    ]);
   };
 
   // The list is inverted: newest first.
@@ -203,7 +211,7 @@ export default function DiscussionScreen() {
       {chat.archived ? (
         <Text accessibilityLiveRegion="polite" style={styles.archived}>{t('chat.archived')}</Text>
       ) : (
-        <Composer onSend={chat.send} draft={draft} />
+        <Composer value={text} onChange={setText} onSend={chat.send} />
       )}
 
       <MessageActions

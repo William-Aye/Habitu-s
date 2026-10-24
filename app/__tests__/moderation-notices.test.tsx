@@ -18,7 +18,7 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 jest.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'fr-FR' }] }));
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), back: jest.fn(), replace: jest.fn() },
+  router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), navigate: jest.fn() },
 }));
 jest.mock('../src/features/activities/api', () => ({ setAttendanceStatus: jest.fn() }));
 jest.mock('../src/features/chat/outbox', () => ({ clearOutbox: jest.fn(), flush: jest.fn() }));
@@ -157,7 +157,7 @@ describe('notification taps', () => {
   it('claim_decided falls back to Profil when the claim cannot be read', async () => {
     mockMaybeSingle.mockResolvedValue({ data: null, error: { message: 'x' } });
     await handleNotificationResponse(response({ kind: 'claim_decided', claim_id: 'c1' }));
-    expect(router.push).toHaveBeenCalledWith('/(tabs)/profile');
+    expect(router.navigate).toHaveBeenCalledWith('/(tabs)/profile');
   });
 
   it('category_decided opens the interests screen', async () => {
@@ -167,7 +167,7 @@ describe('notification taps', () => {
 
   it('inactivity_notice opens Profil', async () => {
     await handleNotificationResponse(response({ kind: 'inactivity_notice' }));
-    expect(router.push).toHaveBeenCalledWith('/(tabs)/profile');
+    expect(router.navigate).toHaveBeenCalledWith('/(tabs)/profile');
   });
 
   it('handles each response once', async () => {
