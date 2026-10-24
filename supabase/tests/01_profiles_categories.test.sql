@@ -12,7 +12,7 @@ insert into category_requests (user_id, requested_name) values (:'alice', 'Origa
 select is((select first_name from profiles where id = :'alice'), 'Alice', 'profile created by trigger');
 select is((select language from profiles where id = :'alice'), 'fr', 'language defaults to fr');
 select is((select role from profiles where id = :'alice'), 'user', 'role defaults to user');
-select columns_are('public', 'public_profiles', array['id', 'first_name', 'photo_url', 'bio', 'created_at'], 'public_profiles exposes only safe columns');
+select hasnt_view('public', 'public_profiles', 'public_profiles no longer exists');
 select is(has_table_privilege('authenticated', 'public.profiles', 'TRUNCATE'), false, 'authenticated cannot truncate profiles');
 select is(has_table_privilege('authenticated', 'public.categories', 'TRUNCATE'), false, 'authenticated cannot truncate categories');
 select is(has_table_privilege('anon', 'public.profiles', 'TRUNCATE'), false, 'anon cannot truncate profiles');
@@ -21,7 +21,7 @@ select is(has_table_privilege('anon', 'public.categories', 'TRUNCATE'), false, '
 select tests.act_as(:'alice');
 select is((select count(*) from profiles)::int, 1, 'user sees only own profile row');
 select is((select count(*) from profiles where id = :'bob')::int, 0, 'alice cannot read bob profile');
-select is((select count(*) from public_profiles)::int, 3, 'public view shows everyone');
+select throws_ok($$ select count(*) from public_profiles $$, '42P01', null, 'public_profiles cannot be read');
 select lives_ok($$ update profiles set bio = 'Hello' where id = auth.uid() $$, 'can edit own bio');
 select is((select bio from profiles where id = auth.uid()), 'Hello', 'bio actually changed');
 with u as (update profiles set bio = 'x' where id = :'bob' returning 1)

@@ -60,22 +60,10 @@ isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
     },{
-      foreignKeyName: "activities_organiser_id_fkey"
-      columns: ["organiser_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
-      referencedColumns: ["id"]
-    },{
       foreignKeyName: "activities_welcome_member_id_fkey"
       columns: ["welcome_member_id"]
 isOneToOne: false
       referencedRelation: "profiles"
-      referencedColumns: ["id"]
-    },{
-      foreignKeyName: "activities_welcome_member_id_fkey"
-      columns: ["welcome_member_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
       referencedColumns: ["id"]
     }
                   ]
@@ -103,12 +91,6 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
-    },{
-      foreignKeyName: "activity_interests_user_id_fkey"
-      columns: ["user_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
-      referencedColumns: ["id"]
     }
                   ]
                 },"activity_members": {
@@ -134,12 +116,6 @@ isOneToOne: false
       columns: ["user_id"]
 isOneToOne: false
       referencedRelation: "profiles"
-      referencedColumns: ["id"]
-    },{
-      foreignKeyName: "activity_members_user_id_fkey"
-      columns: ["user_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
       referencedColumns: ["id"]
     }
                   ]
@@ -187,12 +163,6 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
-    },{
-      foreignKeyName: "admin_audit_log_admin_id_fkey"
-      columns: ["admin_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
-      referencedColumns: ["id"]
     }
                   ]
                 },"ambiance_words": {
@@ -232,12 +202,6 @@ isOneToOne: false
       columns: ["claimant_id"]
 isOneToOne: false
       referencedRelation: "profiles"
-      referencedColumns: ["id"]
-    },{
-      foreignKeyName: "association_claims_claimant_id_fkey"
-      columns: ["claimant_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
       referencedColumns: ["id"]
     }
                   ]
@@ -291,12 +255,6 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
-    },{
-      foreignKeyName: "association_waiters_user_id_fkey"
-      columns: ["user_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
-      referencedColumns: ["id"]
     }
                   ]
                 },"associations": {
@@ -318,22 +276,10 @@ isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
     },{
-      foreignKeyName: "associations_claimed_by_fkey"
-      columns: ["claimed_by"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
-      referencedColumns: ["id"]
-    },{
       foreignKeyName: "associations_created_by_fkey"
       columns: ["created_by"]
 isOneToOne: false
       referencedRelation: "profiles"
-      referencedColumns: ["id"]
-    },{
-      foreignKeyName: "associations_created_by_fkey"
-      columns: ["created_by"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
       referencedColumns: ["id"]
     }
                   ]
@@ -361,12 +307,6 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
-    },{
-      foreignKeyName: "attendances_user_id_fkey"
-      columns: ["user_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
-      referencedColumns: ["id"]
     }
                   ]
                 },"banned_words": {
@@ -386,12 +326,6 @@ isOneToOne: false
       columns: ["added_by"]
 isOneToOne: false
       referencedRelation: "profiles"
-      referencedColumns: ["id"]
-    },{
-      foreignKeyName: "banned_words_added_by_fkey"
-      columns: ["added_by"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
       referencedColumns: ["id"]
     }
                   ]
@@ -414,22 +348,10 @@ isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
     },{
-      foreignKeyName: "blocks_blocked_id_fkey"
-      columns: ["blocked_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
-      referencedColumns: ["id"]
-    },{
       foreignKeyName: "blocks_blocker_id_fkey"
       columns: ["blocker_id"]
 isOneToOne: false
       referencedRelation: "profiles"
-      referencedColumns: ["id"]
-    },{
-      foreignKeyName: "blocks_blocker_id_fkey"
-      columns: ["blocker_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
       referencedColumns: ["id"]
     }
                   ]
@@ -471,12 +393,6 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
-    },{
-      foreignKeyName: "category_requests_user_id_fkey"
-      columns: ["user_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
-      referencedColumns: ["id"]
     }
                   ]
                 },"chat_send_log": {
@@ -496,12 +412,6 @@ isOneToOne: false
       columns: ["user_id"]
 isOneToOne: false
       referencedRelation: "profiles"
-      referencedColumns: ["id"]
-    },{
-      foreignKeyName: "chat_send_log_user_id_fkey"
-      columns: ["user_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
       referencedColumns: ["id"]
     }
                   ]
@@ -529,12 +439,6 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
-    },{
-      foreignKeyName: "chat_states_user_id_fkey"
-      columns: ["user_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
-      referencedColumns: ["id"]
     }
                   ]
                 },"collectif_invite_log": {
@@ -554,12 +458,6 @@ isOneToOne: false
       columns: ["invited_by"]
 isOneToOne: false
       referencedRelation: "profiles"
-      referencedColumns: ["id"]
-    },{
-      foreignKeyName: "collectif_invite_log_invited_by_fkey"
-      columns: ["invited_by"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
       referencedColumns: ["id"]
     }
                   ]
@@ -588,22 +486,10 @@ isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
     },{
-      foreignKeyName: "collectif_members_invited_by_fkey"
-      columns: ["invited_by"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
-      referencedColumns: ["id"]
-    },{
       foreignKeyName: "collectif_members_user_id_fkey"
       columns: ["user_id"]
 isOneToOne: false
       referencedRelation: "profiles"
-      referencedColumns: ["id"]
-    },{
-      foreignKeyName: "collectif_members_user_id_fkey"
-      columns: ["user_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
       referencedColumns: ["id"]
     }
                   ]
@@ -625,12 +511,6 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
-    },{
-      foreignKeyName: "collectifs_created_by_fkey"
-      columns: ["created_by"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
-      referencedColumns: ["id"]
     }
                   ]
                 },"feedback": {
@@ -650,12 +530,6 @@ isOneToOne: false
       columns: ["user_id"]
 isOneToOne: false
       referencedRelation: "profiles"
-      referencedColumns: ["id"]
-    },{
-      foreignKeyName: "feedback_user_id_fkey"
-      columns: ["user_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
       referencedColumns: ["id"]
     }
                   ]
@@ -691,12 +565,6 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
-    },{
-      foreignKeyName: "limit_log_user_id_fkey"
-      columns: ["user_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
-      referencedColumns: ["id"]
     }
                   ]
                 },"messages": {
@@ -724,22 +592,10 @@ isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
     },{
-      foreignKeyName: "messages_recipient_id_fkey"
-      columns: ["recipient_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
-      referencedColumns: ["id"]
-    },{
       foreignKeyName: "messages_sender_id_fkey"
       columns: ["sender_id"]
 isOneToOne: false
       referencedRelation: "profiles"
-      referencedColumns: ["id"]
-    },{
-      foreignKeyName: "messages_sender_id_fkey"
-      columns: ["sender_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
       referencedColumns: ["id"]
     }
                   ]
@@ -761,12 +617,6 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
-    },{
-      foreignKeyName: "notification_log_user_id_fkey"
-      columns: ["user_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
-      referencedColumns: ["id"]
     }
                   ]
                 },"notification_outbox": {
@@ -787,12 +637,6 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
-    },{
-      foreignKeyName: "notification_outbox_user_id_fkey"
-      columns: ["user_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
-      referencedColumns: ["id"]
     }
                   ]
                 },"organiser_stats": {
@@ -812,12 +656,6 @@ isOneToOne: false
       columns: ["user_id"]
 isOneToOne: true
       referencedRelation: "profiles"
-      referencedColumns: ["id"]
-    },{
-      foreignKeyName: "organiser_stats_user_id_fkey"
-      columns: ["user_id"]
-isOneToOne: true
-      referencedRelation: "public_profiles"
       referencedColumns: ["id"]
     }
                   ]
@@ -852,12 +690,6 @@ isOneToOne: true
       columns: ["user_id"]
 isOneToOne: false
       referencedRelation: "profiles"
-      referencedColumns: ["id"]
-    },{
-      foreignKeyName: "push_tokens_user_id_fkey"
-      columns: ["user_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
       referencedColumns: ["id"]
     }
                   ]
@@ -900,26 +732,8 @@ isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
     },{
-      foreignKeyName: "reports_decided_by_fkey"
-      columns: ["decided_by"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
-      referencedColumns: ["id"]
-    },{
       foreignKeyName: "reports_reporter_id_fkey"
       columns: ["reporter_id"]
-isOneToOne: false
-      referencedRelation: "profiles"
-      referencedColumns: ["id"]
-    },{
-      foreignKeyName: "reports_reporter_id_fkey"
-      columns: ["reporter_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
-      referencedColumns: ["id"]
-    },{
-      foreignKeyName: "reports_target_owner_fkey"
-      columns: ["target_owner"]
 isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
@@ -927,7 +741,7 @@ isOneToOne: false
       foreignKeyName: "reports_target_owner_fkey"
       columns: ["target_owner"]
 isOneToOne: false
-      referencedRelation: "public_profiles"
+      referencedRelation: "profiles"
       referencedColumns: ["id"]
     }
                   ]
@@ -949,12 +763,6 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
-    },{
-      foreignKeyName: "safety_tips_seen_user_id_fkey"
-      columns: ["user_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
-      referencedColumns: ["id"]
     }
                   ]
                 },"saved_searches": {
@@ -974,12 +782,6 @@ isOneToOne: false
       columns: ["user_id"]
 isOneToOne: false
       referencedRelation: "profiles"
-      referencedColumns: ["id"]
-    },{
-      foreignKeyName: "saved_searches_user_id_fkey"
-      columns: ["user_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
       referencedColumns: ["id"]
     }
                   ]
@@ -1020,12 +822,6 @@ isOneToOne: false
       columns: ["user_id"]
 isOneToOne: false
       referencedRelation: "profiles"
-      referencedColumns: ["id"]
-    },{
-      foreignKeyName: "session_feedback_user_id_fkey"
-      columns: ["user_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
       referencedColumns: ["id"]
     }
                   ]
@@ -1121,12 +917,6 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
-    },{
-      foreignKeyName: "user_interests_user_id_fkey"
-      columns: ["user_id"]
-isOneToOne: false
-      referencedRelation: "public_profiles"
-      referencedColumns: ["id"]
     }
                   ]
                 }
@@ -1150,27 +940,7 @@ isOneToOne: false
 isOneToOne: true
       referencedRelation: "profiles"
       referencedColumns: ["id"]
-    },{
-      foreignKeyName: "organiser_stats_user_id_fkey"
-      columns: ["user_id"]
-isOneToOne: true
-      referencedRelation: "public_profiles"
-      referencedColumns: ["id"]
     }
-                  ]
-                },"public_profiles": {
-                  Row: {
-                    "bio": string | null,"created_at": string | null,"first_name": string | null,"id": string | null,"photo_url": string | null
-                  }
-                  ComputedFields: never
-                  Insert: {
-                           "bio"?: string | null,"created_at"?: string | null,"first_name"?: string | null,"id"?: string | null,"photo_url"?: string | null
-                         }
-                        Update: {
-                           "bio"?: string | null,"created_at"?: string | null,"first_name"?: string | null,"id"?: string | null,"photo_url"?: string | null
-                         }
-                        Relationships: [
-                    
                   ]
                 }
           }
@@ -1185,6 +955,9 @@ isOneToOne: true
                            },
 "admin_audit_page":
 { Args: { "p_before_at"?: string,"p_before_id"?: string,"p_limit"?: number }; Returns: Json
+                           },
+"admin_banned_users":
+{ Args: { "p_limit"?: number,"p_query"?: string }; Returns: Json
                            },
 "admin_category_requests":
 { Args: { "p_before_at"?: string,"p_before_id"?: string,"p_limit"?: number }; Returns: Json
@@ -1216,11 +989,17 @@ isOneToOne: true
 "admin_feedback_screenshot_path":
 { Args: { "p_id": string }; Returns: string
                            },
+"admin_lift_ban":
+{ Args: { "p_statement": string,"p_user": string }; Returns: undefined
+                           },
 "admin_log":
 { Args: { "p_action": string,"p_details"?: Json,"p_target_id": string,"p_target_type": string }; Returns: undefined
                            },
 "admin_reports":
 { Args: { "p_before_at"?: string,"p_before_id"?: string,"p_limit"?: number,"p_status"?: string }; Returns: Json
+                           },
+"admin_search_associations":
+{ Args: { "p_limit"?: number,"p_query": string }; Returns: Json
                            },
 "admin_set_banned_word":
 { Args: { "p_add": boolean,"p_word": string }; Returns: undefined

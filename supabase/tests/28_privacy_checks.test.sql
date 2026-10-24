@@ -1,22 +1,13 @@
 begin;
 \ir helpers.inc
-select plan(16);
+select plan(15);
 select tests.create_user('aa@pc.fr', 'Alice') as alice \gset
 select tests.create_user('bb@pc.fr', 'Bob') as bob \gset
 select tests.create_user('ad@pc.fr', 'Admin') as adm \gset
 update profiles set role = 'admin' where id = :'adm';
 
 -- 1. No API path lists users.
-select is((select string_agg(column_name, ',' order by column_name)
-             from information_schema.column_privileges
-            where table_schema = 'public' and table_name = 'public_profiles'
-              and grantee = 'anon' and privilege_type = 'SELECT'),
-          'bio,created_at,first_name,id,photo_url', 'anon sees exactly these public_profiles columns');
-select is((select string_agg(column_name, ',' order by column_name)
-             from information_schema.column_privileges
-            where table_schema = 'public' and table_name = 'public_profiles'
-              and grantee = 'authenticated' and privilege_type = 'SELECT'),
-          'bio,created_at,first_name,id,photo_url', 'authenticated sees exactly these public_profiles columns');
+select hasnt_view('public', 'public_profiles', 'the public_profiles view no longer exists (no API path lists users)');
 select is((select string_agg(column_name, ',' order by column_name)
              from information_schema.column_privileges
             where table_schema = 'public' and table_name = 'profiles'
@@ -28,9 +19,8 @@ select ok(not exists (select 1 from information_schema.table_privileges
                          and grantee in ('anon', 'authenticated') and privilege_type in ('INSERT', 'DELETE', 'TRUNCATE')),
           'API roles cannot insert, delete or truncate profiles');
 select ok(not exists (select 1 from information_schema.table_privileges
-                       where table_schema = 'public' and table_name = 'public_profiles'
-                         and grantee in ('anon', 'authenticated') and privilege_type <> 'SELECT'),
-          'public_profiles is read-only for API roles');
+                       where table_schema = 'public' and table_name = 'public_profiles'),
+          'no privilege on public_profiles is left for anyone');
 
 set local role anon;
 select is((select count(*) from public.profiles)::int, 0, 'anon reads no row of profiles');
