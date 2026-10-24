@@ -138,3 +138,14 @@ Deno.test("recurrence wording for weekdays", () => {
   const two = renderActivityPage(activityFixture({ recurrence_kind: "weekdays", recurrence_weekdays: [1, 2] }), BASE);
   assertStringIncludes(two, "Les lundis et mardis");
 });
+
+Deno.test("confirmed count: 1 is singular, 0 is not shown", () => {
+  const one = renderActivityPage(activityFixture({ next_sessions: [{ starts_at: "2026-11-02T18:00:00Z", confirmed_count: 1 }] }), "https://h.test");
+  assertStringIncludes(one, "<li>1 confirmé</li>");
+  assertEquals(one.includes("1 confirmés"), false);
+  const zero = renderActivityPage(activityFixture({ next_sessions: [{ starts_at: "2026-11-02T18:00:00Z", confirmed_count: 0 }] }), "https://h.test");
+  assertEquals(zero.includes("confirmé"), false);
+  assertStringIncludes(zero, "Prochaine séance");
+  const missing = renderActivityPage(activityFixture({ next_sessions: [{ starts_at: "2026-11-02T18:00:00Z" }] }), "https://h.test");
+  assertEquals(missing.includes("confirmé"), false);
+});

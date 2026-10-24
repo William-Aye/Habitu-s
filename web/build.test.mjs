@@ -24,16 +24,17 @@ function run({ fake, out }, env = {}) {
 }
 const base = { SUPABASE_URL: "https://abc.supabase.co" };
 
-test("fills _headers and copies the export under app/", () => {
+test("copies the export under app/ with _headers and _routes.json, no _redirects", () => {
   const s = setup();
   const r = run(s, base);
   assert.equal(r.status, 0, r.stderr);
   const h = fs.readFileSync(path.join(s.out, "_headers"), "utf8");
-  assert.ok(h.includes("connect-src 'self' https://abc.supabase.co wss://abc.supabase.co"));
   assert.ok(!h.includes("{{"));
+  assert.ok(h.includes("X-Frame-Options: DENY"));
   assert.ok(fs.existsSync(path.join(s.out, "app", "index.html")));
   assert.ok(fs.existsSync(path.join(s.out, "styles.css")));
-  assert.ok(fs.existsSync(path.join(s.out, "_redirects")));
+  assert.ok(!fs.existsSync(path.join(s.out, "_redirects")));
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(s.out, "_routes.json"), "utf8")).include, ["/*"]);
   assert.ok(!fs.existsSync(path.join(s.out, ".well-known", "assetlinks.json.template")));
 });
 
@@ -71,4 +72,19 @@ test("secret check fails the build", () => {
 test("the bare sb_secret_ prefix (supabase-js internals) is not a secret", () => {
   const s = setup({ "index.html": "x", "a.js": 'e.startsWith("sb_secret_")' });
   assert.equal(run(s, base).status, 0);
+});
+
+test("build fails when SUPABASE_URL and EXPO_PUBLIC_SUPABASE_URL have different origins", () => {
+  const r = run(setup(), { ...base, EXPO_PUBLIC_SUPABASE_URL: "https://other.supabase.co" });
+  assert.notEqual(r.status, 0);
+  assert.match(r.stderr, /EXPO_PUBLIC_SUPABASE_URL/);
+});
+
+test("build accepts matching origins (trailing slash and path ignored)", () => {
+  const r = run(setup(), { ...base, EXPO_PUBLIC_SUPABASE_URL: "https://abc.supabase.co/" });
+  assert.equal(r.status, 0, r.stderr);
+});
+
+test("build writes into web/dist by default", () => {
+  assert.match(fs.readFileSync(build, "utf8"), /path\.join\(here, "dist"\)/);
 });

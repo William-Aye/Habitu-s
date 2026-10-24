@@ -1,12 +1,10 @@
 // Request handlers for the public pages. No Cloudflare-only APIs: Deno can test them.
-import { copy } from "./copy.ts";
 import {
   DEFAULT_PLAY_STORE,
   escapeHtml,
   renderActivityPage,
   renderAssociationPage,
   renderHome,
-  renderLegal,
   renderNotFound,
   renderUnavailable,
 } from "./html.ts";
@@ -248,6 +246,7 @@ export function handleHome(req: Request, env: Env): Response {
   return html(renderHome(baseUrl(env, req), env.PLAY_STORE_URL || DEFAULT_PLAY_STORE));
 }
 
-export function handleLegal(kind: "mentions" | "terms" | "privacy"): Response {
-  return html(renderLegal(copy.legal[kind]));
+/** HEAD / : 200 with the headers only, no rendering. */
+export function handleHomeHead(): Response {
+  return respond(null, 200, HTML, { "Cache-Control": CACHE_OK });
 }

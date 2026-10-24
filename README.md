@@ -465,12 +465,15 @@ The website has two parts, both on Cloudflare Pages (free plan):
 ### 1. Create the Cloudflare Pages project
 
 1. Cloudflare dashboard, Workers & Pages, Create, Pages, connect the Git repository.
-2. Build command: `npm run web:build`. Build output directory: `web/dist`. Root directory: the repo root.
+2. Project settings:
+   - Root directory: `web`.
+   - Build command: `cd .. && npm ci && npm ci --prefix app && npm run web:build` (the repo root and `app/` each have a `package-lock.json`; `web:build` writes `web/dist`).
+   - Build output directory: `dist`. The Functions are read from `web/functions` (next to the root directory).
 3. Set the variables below under Settings, Environment variables (Production and Preview).
 
 | Variable | Meaning |
 | --- | --- |
-| `SUPABASE_URL` | Supabase project URL (also used for the CSP of `/app/*`) |
+| `SUPABASE_URL` | Supabase project URL. Read at build time and at runtime: the Function `web/functions/app/[[path]].ts` builds the CSP of `/app/*` from it. The build fails if `EXPO_PUBLIC_SUPABASE_URL` is set to another origin |
 | `SUPABASE_ANON_KEY` | anon key, read by the Worker |
 | `WEB_BASE_URL` | public address without trailing slash (canonical links, sitemaps). Until a domain is bought, the `*.pages.dev` address |
 | `PLAY_STORE_URL` | Play Store listing, used by the Worker pages |
@@ -490,13 +493,16 @@ Android App Links: the same `EXPO_PUBLIC_WEB_BASE_URL` must be set when building
 1. Buy a domain (or keep the free `*.pages.dev` address) and add it under the Pages project, Custom domains.
    DNS is managed on Cloudflare.
 2. SSL/TLS: Always Use HTTPS on; enable DNSSEC and add the DS record at the registrar.
-3. Security: WAF managed rules on, Bot Fight Mode on, and a rate-limiting rule on `/app/*`.
+3. Security: turn on the WAF managed rules and add a rate-limiting rule on `/app/*`. Do not use a challenge on the public pages: WhatsApp, Instagram and Google fetch them without a browser.
 4. Change `WEB_BASE_URL` and `EXPO_PUBLIC_WEB_BASE_URL` to the new domain and redeploy.
 
 ### 3. Supabase Auth
 
 - Authentication, URL Configuration: set the Site URL to `<WEB_BASE_URL>` and add
-  `<WEB_BASE_URL>/app/auth/callback` to the Redirect URLs.
+  `<WEB_BASE_URL>/app/auth/callback` to the Redirect URLs. Google sign-in redirects to the origin the page is
+  served from, so to sign in on Cloudflare preview deployments also add the preview address
+  (`https://*.<project>.pages.dev/app/auth/callback`). Locally, `http://127.0.0.1:8788/app/auth/callback` is in
+  `supabase/config.toml`.
 - Google sign-in on the web needs an OAuth client of type "Web application" whose authorised redirect URI
   is the Supabase callback (`https://<project>.supabase.co/auth/v1/callback`); its client id goes in
   `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`.
@@ -510,18 +516,28 @@ widget's hostnames, next to `challenges.cloudflare.com`.
 
 Submit `<WEB_BASE_URL>/sitemap.xml` in Google Search Console (add the domain property first).
 
+### 5b. After the first deploy
+
+- Link preview: paste an activity link (`<WEB_BASE_URL>/activites/<slug>-<id>`) in a WhatsApp chat with yourself and check that
+  the card shows the title, description and the Habitués image. If it does not, the WAF or a challenge rule is blocking the crawler.
+- Android App Links: open
+  `https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=<WEB_BASE_URL>&relation=delegate_permission/common.handle_all_urls`
+  and check that the answer lists your package (`fr.friendapp.app`) and the SHA-256 of the signing certificate.
+
 ### 6. Before launch
 
 Fill in the placeholders in the "Mentions légales" (publisher name and contact, hosts) and "Conditions
-d'utilisation" pages (`web/functions/_lib/legal.ts`).
+d'utilisation" pages (`web/src/legal.ts`).
 
 ### Tests and local checks
 
-- `npm run web:test` runs the Deno tests (`deno test --allow-read=web/public web/functions`, the flag is
-  needed to read `_headers`) and the Node build tests. Delete the `deno.lock` it leaves behind (git-ignored).
-- `CI=1 SUPABASE_URL=http://127.0.0.1:55321 npm run web:build` builds `web/dist`.
-- **`web/public/_redirects` lists the app's top-level routes explicitly** (a catch-all would hide the
-  exported assets). When you add a new top-level route under `app/src/app`, add a line for it (and for
-  `/<route>/*`) in `_redirects`, or the page answers 404 when opened directly on the web.
-- Slugs: `app/src/lib/links.ts` and `web/functions/_lib/slug.ts` must give the same result; both are
-  tested against `web/functions/_lib/slug_fixtures.json`.
+- `npm run web:test` runs the Deno tests (`deno test --allow-read=web/public web/src`, the flag is
+  needed to read `_headers` and `_routes.json`) and the Node build tests. Delete the `deno.lock` it leaves behind (git-ignored).
+- `CI=1 SUPABASE_URL=http://127.0.0.1:55321 EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:55321 npm run web:build` builds `web/dist`.
+- Local run of the whole site: put `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `WEB_BASE_URL=http://127.0.0.1:8788` in `web/.dev.vars`
+  (git-ignored), then `cd web && npx --yes wrangler@4 pages dev dist`.
+- The interactive app is a single-page app under `/app/`. `web/functions/app/[[path]].ts` serves the app shell for every
+  route that is not a file, so a new route under `app/src/app` needs nothing else. `web/public/_routes.json` keeps the static
+  files (`/app/_expo/*`, `/app/assets/*`, the favicon, `styles.css`, the preview image, `/.well-known/*`) out of the Function.
+- Slugs: `app/src/lib/links.ts` and `web/src/slug.ts` must give the same result; both are
+  tested against `web/src/slug_fixtures.json`.

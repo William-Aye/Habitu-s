@@ -1,5 +1,5 @@
-// Shared and public addresses. slugify must stay identical to web/functions/_lib/slug.ts
-// (both are tested against web/functions/_lib/slug_fixtures.json).
+// Shared and public addresses. slugify must stay identical to web/src/slug.ts
+// (both are tested against web/src/slug_fixtures.json).
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const LINK_RE = new RegExp(`^(?:[a-z][a-z0-9+.-]*:\/\/[^/]*)?(?:\/app)?\/?(activites|associations)\/(?:[^/?#]*-)?(${UUID})\/?(?:[?#].*)?$`, 'i');
 const TRANSLIT: Record<string, string> = { ł: 'l', ø: 'o', đ: 'd', ß: 'ss', æ: 'ae', œ: 'oe' };

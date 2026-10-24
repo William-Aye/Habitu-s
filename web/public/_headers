@@ -1,3 +1,5 @@
+# Static files. Pages Functions responses carry their own headers (see src/pages.ts and src/spa.ts):
+# /app/* gets a CSP built at runtime from SUPABASE_URL by functions/app/[[path]].ts.
 /*
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Content-Type-Options: nosniff
@@ -5,7 +7,3 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Content-Security-Policy: default-src 'none'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
-
-/app/*
-  ! Content-Security-Policy
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; connect-src 'self' {{SUPABASE_URL}} wss://{{SUPABASE_HOST}}; img-src 'self' data: blob: {{SUPABASE_URL}}; style-src 'self' 'unsafe-inline'; font-src 'self' data:; base-uri 'none'; frame-ancestors 'none'

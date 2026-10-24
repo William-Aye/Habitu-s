@@ -1,4 +1,4 @@
-// Builds web/dist: the Expo web export under /app, the static files from web/public, filled templates.
+// Builds web/dist: the Expo web export under /app, the static files from web/public, assetlinks.json.
 // Env: SUPABASE_URL (required), ANDROID_PACKAGE and ANDROID_SHA256_CERT (optional: assetlinks.json).
 // Test flags: --skip-export --export-dir <dir> (use a ready export), --out <dir>.
 import fs from "node:fs";
@@ -20,7 +20,12 @@ const fail = (m) => {
 
 const supabaseUrl = (process.env.SUPABASE_URL ?? "").replace(/\/+$/, "");
 if (!/^https?:\/\/[^\s/]+/.test(supabaseUrl)) fail("SUPABASE_URL is missing or not an http(s) URL");
-const supabaseHost = new URL(supabaseUrl).host;
+// The /app CSP is built at runtime from SUPABASE_URL (functions/app/[[path]].ts). The app export reads
+// EXPO_PUBLIC_SUPABASE_URL: both must name the same origin, or the app would talk to a blocked host.
+const exposed = (process.env.EXPO_PUBLIC_SUPABASE_URL ?? "").trim();
+if (exposed && new URL(exposed).origin !== new URL(supabaseUrl).origin) {
+  fail("SUPABASE_URL and EXPO_PUBLIC_SUPABASE_URL must have the same origin");
+}
 
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out, { recursive: true });
@@ -45,11 +50,6 @@ fs.cpSync(pub, out, { recursive: true, filter: (src) => !src.endsWith(".template
 
 // 3. Templates.
 const fill = (s, vars) => s.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => (k in vars ? vars[k] : m));
-const headersPath = path.join(out, "_headers");
-const headers = fill(fs.readFileSync(headersPath, "utf8"), { SUPABASE_URL: supabaseUrl, SUPABASE_HOST: supabaseHost });
-if (/\{\{[A-Z_]+\}\}/.test(headers)) fail("_headers still has unfilled placeholders");
-fs.writeFileSync(headersPath, headers);
-
 const pkg = process.env.ANDROID_PACKAGE, cert = process.env.ANDROID_SHA256_CERT;
 if (pkg && cert) {
   const tpl = fs.readFileSync(path.join(pub, ".well-known", "assetlinks.json.template"), "utf8");

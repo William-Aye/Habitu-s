@@ -6,6 +6,7 @@ import {
   handleActivity,
   handleAssociation,
   handleHome,
+  handleHomeHead,
   handleRobots,
   handleSitemap,
   handleSitemapIndex,
@@ -276,5 +277,12 @@ Deno.test("home page", async () => {
   assertStringIncludes(t, "Des activités régulières près de chez vous");
   assertStringIncludes(t, "https://play.google.com/store/apps/details?id=x");
   assertStringIncludes(t, "Mentions légales");
+  assertSecurity(r);
+});
+
+Deno.test("HEAD / answers 200 cheaply, with the security headers and no body", async () => {
+  const r = handleHomeHead();
+  assertEquals(r.status, 200);
+  assertEquals(await r.text(), "");
   assertSecurity(r);
 });

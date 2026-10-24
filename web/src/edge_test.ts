@@ -78,3 +78,19 @@ Deno.test("the stored copy keeps the security headers and the content type", asy
   assertEquals(s.headers.get("Content-Security-Policy"), "default-src 'none'");
   assertEquals(s.headers.get("Strict-Transport-Security"), "max-age=1");
 });
+
+Deno.test("the stored copy keeps the original Cache-Control (max-age) and sets s-maxage", async () => {
+  for (const [status, orig, ttl, want] of [
+    [200, "public, s-maxage=300, max-age=60", 300, "public, max-age=60, s-maxage=300"],
+    [200, "public, max-age=60", 3600, "public, max-age=60, s-maxage=3600"],
+    [404, "public, s-maxage=60, max-age=30", 3600, "public, max-age=30, s-maxage=60"],
+    [200, "", 300, "public, s-maxage=300"],
+  ] as const) {
+    const { c, store } = fakeCache();
+    const x = ctx();
+    const headers: Record<string, string> = orig ? { "Cache-Control": orig } : {};
+    await withEdgeCache(req, x, ttl, () => Promise.resolve(new Response("x", { status, headers })), c);
+    await x.flush();
+    assertEquals(store.get(req.url)!.headers.get("Cache-Control"), want, orig);
+  }
+});

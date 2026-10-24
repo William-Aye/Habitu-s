@@ -154,6 +154,7 @@ export function renderActivityPage(a: Json, base: string, opts: RenderOpts = {})
   const url = base + activityPath(a.id, a.title ?? "");
   const sessions: Json[] = Array.isArray(a.next_sessions) ? a.next_sessions : [];
   const next = sessions.find((s) => s.status !== "cancelled") ?? null;
+  const confirmed = next ? copy.confirmed(Number(next.confirmed_count ?? 0)) : "";
   const org: string | null = a.organised_by?.name ?? a.organiser?.first_name ?? null;
   const desc: string = a.description ?? "";
   const rec = recurrenceText(a);
@@ -197,8 +198,8 @@ ${desc ? `<p class="description">${escapeHtml(desc)}</p>` : ""}
 <ul class="facts">
 ${place ? `<li>${escapeHtml(place)}</li>` : ""}
 ${rec ? `<li>${escapeHtml(rec)}</li>` : ""}
-${next ? `<li>${escapeHtml(copy.nextSession(formatParisDate(next.starts_at)))}</li>
-<li>${escapeHtml(copy.confirmed(Number(next.confirmed_count ?? 0)))}</li>` : ""}
+${next ? `<li>${escapeHtml(copy.nextSession(formatParisDate(next.starts_at)))}</li>` : ""}
+${next && confirmed ? `<li>${escapeHtml(confirmed)}</li>` : ""}
 ${org ? `<li>${escapeHtml(copy.organisedBy(org))}</li>` : ""}
 </ul>
 ${actions({ webPath: `/app/activites/${a.id}`, intent: intentUrl(`activites/${a.id}`, playStore, pkg), playStore, map: mapUrl })}
@@ -272,16 +273,5 @@ export function renderHome(base: string, playStore: string = DEFAULT_PLAY_STORE)
     main: `<h1>${escapeHtml(copy.siteName)}</h1>
 <p class="tagline">${escapeHtml(copy.tagline)}</p>
 <p class="actions"><a class="button primary" href="${escapeHtml(playStore)}">${escapeHtml(copy.downloadApp)}</a></p>`,
-  });
-}
-
-export function renderLegal(title: string): string {
-  return layout({
-    title,
-    description: copy.tagline,
-    canonical: "",
-    base: "",
-    noindex: true,
-    main: `<h1>${escapeHtml(title)}</h1>\n<p>${escapeHtml(copy.legalPlaceholder)}</p>`,
   });
 }

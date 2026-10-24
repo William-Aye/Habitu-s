@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "include": ["/*"],
+  "exclude": [
+    "/app/_expo/*",
+    "/app/assets/*",
+    "/app/favicon.ico",
+    "/styles.css",
+    "/og-default.png",
+    "/.well-known/*"
+  ]
+}

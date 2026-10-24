@@ -29,7 +29,11 @@ export async function withEdgeCache(
   if (CACHEABLE.has(res.status)) {
     const ttl = res.status === 404 || res.status === 410 ? Math.min(60, ttlSeconds) : ttlSeconds;
     const copy = new Response(res.clone().body, res);
-    copy.headers.set("Cache-Control", `public, s-maxage=${ttl}`);
+    // Keep the original directives (max-age for browsers), set s-maxage for the edge.
+    const kept = (res.headers.get("Cache-Control") ?? "")
+      .split(",").map((d) => d.trim()).filter((d) => d && !/^s-maxage=/i.test(d));
+    if (!kept.some((d) => d.toLowerCase() === "public")) kept.unshift("public");
+    copy.headers.set("Cache-Control", [...kept, `s-maxage=${ttl}`].join(", "));
     ctx.waitUntil(cache.put(key, copy));
   }
   return res;

@@ -1,6 +1,6 @@
-import { withEdgeCache } from "../_lib/edge.ts";
-import { defaultDeps, handleAssociation } from "../_lib/pages.ts";
-import type { Env } from "../_lib/pages.ts";
+import { withEdgeCache } from "../../src/edge.ts";
+import { defaultDeps, handleAssociation } from "../../src/pages.ts";
+import type { Env } from "../../src/pages.ts";
 
 type Ctx = { request: Request; env: Env; waitUntil: (p: Promise<unknown>) => void };
 

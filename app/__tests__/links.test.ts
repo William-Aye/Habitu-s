@@ -3,7 +3,7 @@ import path from 'path';
 import { activityUrl, associationUrl, idFromLink, slugify } from '../src/lib/links';
 
 const fixtures = JSON.parse(
-  fs.readFileSync(path.join(__dirname, '../../web/functions/_lib/slug_fixtures.json'), 'utf8'),
+  fs.readFileSync(path.join(__dirname, '../../web/src/slug_fixtures.json'), 'utf8'),
 );
 const ID = '123e4567-e89b-12d3-a456-426614174000';
 

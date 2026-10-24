@@ -11,12 +11,12 @@ export const copy = {
   unavailableTitle: "Service momentanément indisponible",
   unavailable: "Le service est momentanément indisponible. Merci de réessayer dans quelques instants.",
   nextSession: (date: string) => `Prochaine séance : ${date}`,
-  confirmed: (n: number) => `${n} confirmés`,
+  /** Empty when nobody has confirmed yet: the page then shows no count. */
+  confirmed: (n: number) => (n <= 0 ? "" : n === 1 ? "1 confirmé" : `${n} confirmés`),
   organisedBy: (name: string) => `Organisé par ${name}`,
   website: "Site web",
   activitiesHeading: "Activités",
   legal: { mentions: "Mentions légales", terms: "Conditions d'utilisation", privacy: "Confidentialité" },
-  legalPlaceholder: "Ce texte sera complété par l'éditeur avant le lancement.",
   recurrence: {
     weekly: "Toutes les semaines",
     everyNDays: (n: number) => `Tous les ${n} jours`,

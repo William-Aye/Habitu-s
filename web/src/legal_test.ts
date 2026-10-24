@@ -1,6 +1,6 @@
 import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import { legalResponse, parseHeadersFile } from "./legal.ts";
-import { PRIVACY_CONTACT } from "../../../app/src/content/contact.ts";
+import { PRIVACY_CONTACT } from "../../app/src/content/contact.ts";
 
 Deno.test("mentions légales: placeholders and hosts", async () => {
   const r = legalResponse("mentions");
@@ -12,6 +12,10 @@ Deno.test("mentions légales: placeholders and hosts", async () => {
   assertStringIncludes(t, `Contact : ${PRIVACY_CONTACT.replace("<", "&lt;").replace(">", "&gt;")}`);
   assertStringIncludes(t, "Hébergeur : Cloudflare, Inc.");
   assertStringIncludes(t, "Supabase (région UE)");
+  assertStringIncludes(t, "101 Townsend Street, San Francisco, CA 94107");
+  assertStringIncludes(t, "Hébergeur : Cloudflare, Inc.");
+  assertStringIncludes(t, "Téléphone de l&#39;hébergeur : [À COMPLÉTER]");
+  assertStringIncludes(t, "Supabase : société [À COMPLÉTER], adresse [À COMPLÉTER], téléphone [À COMPLÉTER]");
   assertEquals(t.includes("<script"), false);
 });
 
@@ -35,8 +39,8 @@ Deno.test("confidentialité: renders the privacy text", async () => {
   assertEquals(t.includes("<domaine>"), false); // escaped
 });
 
-Deno.test("_headers file: every required header and both CSPs", async () => {
-  const text = await Deno.readTextFile(new URL("../../../web/public/_headers", import.meta.url));
+Deno.test("_headers file: every required header and the public CSP", async () => {
+  const text = await Deno.readTextFile(new URL("../public/_headers", import.meta.url));
   const blocks = parseHeadersFile(text);
   const all = blocks.get("/*")!;
   assertEquals(all["Strict-Transport-Security"], "max-age=31536000; includeSubDomains");
@@ -48,17 +52,5 @@ Deno.test("_headers file: every required header and both CSPs", async () => {
     all["Content-Security-Policy"],
     "default-src 'none'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
   );
-  const app = blocks.get("/app/*")!;
-  const csp = app["Content-Security-Policy"];
-  assertStringIncludes(csp, "default-src 'self'");
-  assertStringIncludes(csp, "script-src 'self' https://challenges.cloudflare.com");
-  assertStringIncludes(csp, "frame-src https://challenges.cloudflare.com");
-  assertStringIncludes(csp, "connect-src 'self' {{SUPABASE_URL}} wss://{{SUPABASE_HOST}}");
-  assertStringIncludes(csp, "img-src 'self' data: blob: {{SUPABASE_URL}}");
-  assertStringIncludes(csp, "style-src 'self' 'unsafe-inline'");
-  assertStringIncludes(csp, "font-src 'self' data:");
-  assertStringIncludes(csp, "base-uri 'none'");
-  assertStringIncludes(csp, "frame-ancestors 'none'");
-  const origins = new Set(csp.match(/https?:\/\/[^\s;]+/g)!.filter((o) => !o.includes("{{")));
-  assertEquals([...origins], ["https://challenges.cloudflare.com"]);
+  assertEquals(blocks.has("/app/*"), false); // the /app CSP is built at runtime (spa.ts)
 });

@@ -1,5 +1,5 @@
-import { withEdgeCache } from "./_lib/edge.ts";
-import { legalResponse } from "./_lib/legal.ts";
+import { withEdgeCache } from "../src/edge.ts";
+import { legalResponse } from "../src/legal.ts";
 
 type Ctx = { request: Request; waitUntil: (p: Promise<unknown>) => void };
 
