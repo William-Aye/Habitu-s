@@ -1,0 +1,21 @@
+{
+  "slugify": [
+    { "input": "Jeu de go — le Mardi à Lyon!", "slug": "jeu-de-go-le-mardi-a-lyon" },
+    { "input": "Café-théâtre Œuvre & Noël", "slug": "cafe-theatre-oeuvre-noel" },
+    { "input": "  ---  ", "slug": "" },
+    { "input": "日本語", "slug": "" },
+    { "input": "Ça va très bien, ÉLÈVES", "slug": "ca-va-tres-bien-eleves" }
+  ],
+  "slugifyMax60": {
+    "input": "abcdefghi abcdefghi abcdefghi abcdefghi abcdefghi abcdefghi abcdefghi",
+    "slug": "abcdefghi-abcdefghi-abcdefghi-abcdefghi-abcdefghi-abcdefghi"
+  },
+  "parseSlugId": [
+    { "input": "jeu-de-go-123e4567-e89b-12d3-a456-426614174000", "id": "123e4567-e89b-12d3-a456-426614174000", "slug": "jeu-de-go" },
+    { "input": "123e4567-e89b-12d3-a456-426614174000", "id": "123e4567-e89b-12d3-a456-426614174000", "slug": "" },
+    { "input": "123E4567-E89B-12D3-A456-426614174000", "id": "123e4567-e89b-12d3-a456-426614174000", "slug": "" },
+    { "input": "garbage", "id": null, "slug": "garbage" },
+    { "input": "jeu-de-go-123e4567", "id": null, "slug": "jeu-de-go-123e4567" },
+    { "input": "", "id": null, "slug": "" }
+  ]
+}

@@ -1,0 +1,27 @@
+// All French copy of the public pages lives here.
+export const copy = {
+  siteName: "Habitués",
+  tagline: "Des activités régulières près de chez vous",
+  openInApp: "Ouvrir dans l'application",
+  downloadApp: "Télécharger l'application",
+  imThere: "Je serai là",
+  joinActivity: "Rejoindre l'activité",
+  seeOnMap: "Voir sur la carte",
+  availableInApp: "Disponible dans l'application",
+  notFound: "Cette page n'existe pas ou n'est plus disponible.",
+  unavailableTitle: "Service momentanément indisponible",
+  unavailable: "Le service est momentanément indisponible. Merci de réessayer dans quelques instants.",
+  nextSession: (date: string) => `Prochaine séance : ${date}`,
+  confirmed: (n: number) => `${n} confirmés`,
+  organisedBy: (name: string) => `Organisé par ${name}`,
+  website: "Site web",
+  activitiesHeading: "Activités",
+  legal: { mentions: "Mentions légales", terms: "Conditions d'utilisation", privacy: "Confidentialité" },
+  legalPlaceholder: "Ce texte sera complété par l'éditeur avant le lancement.",
+  recurrence: {
+    weekly: "Toutes les semaines",
+    everyNDays: (n: number) => `Tous les ${n} jours`,
+    weekdays: (days: string) => `Chaque ${days}`,
+  },
+  weekdayNames: ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"],
+} as const;
