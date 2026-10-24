@@ -152,7 +152,9 @@ function AddClubForm({ onAdded, onCancel }: { onAdded(a: { id: string; name: str
               ? t('create.errors.not_allowed')
               : error === 'invalid_website'
                 ? t('create.who.clubWebsiteInvalid')
-                : t('create.who.clubError')}
+                : error === 'content_refused'
+                  ? t('create.errors.content_refused')
+                  : t('create.who.clubError')}
         </Text>
       ) : null}
       <Pressable

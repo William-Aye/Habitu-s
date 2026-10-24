@@ -7,6 +7,7 @@ import { shareActivity } from '../src/features/activities/share';
 import { askForPush } from '../src/features/notifications/registerPush';
 import { createCollectif, myCollectifs } from '../src/features/collectifs/api';
 import { fetchCategories } from '../src/features/interests/categories';
+import { hasPublicPlaceNearby } from '../src/features/safety/publicPlace';
 import { initI18n } from '../src/i18n';
 
 jest.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'fr-FR' }] }));
@@ -21,6 +22,7 @@ jest.mock('../src/features/activities/associationDirectory', () => ({
 }));
 jest.mock('../src/features/notifications/registerPush', () => ({ askForPush: jest.fn(async () => {}) }));
 jest.mock('../src/features/activities/share', () => ({ shareActivity: jest.fn(async () => {}) }));
+jest.mock('../src/features/safety/publicPlace', () => ({ hasPublicPlaceNearby: jest.fn() }));
 jest.mock('../src/features/collectifs/api', () => ({ createCollectif: jest.fn(), myCollectifs: jest.fn() }));
 jest.mock('../src/features/interests/categories', () => ({
   ...jest.requireActual('../src/features/interests/categories'),
@@ -56,6 +58,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockGate.mockResolvedValue(true);
   mockSession.userId = 'u1';
+  (hasPublicPlaceNearby as jest.Mock).mockResolvedValue(true);
   mockCollectifs.mockResolvedValue({ ok: true, collectifs: [] });
   mockCategories.mockResolvedValue([
     { id: 'cat1', slug: 'jeux', nameFr: 'Jeux de société', nameEn: 'Board games', icon: 'dice-5', parentId: null },
@@ -415,4 +418,47 @@ it('goes back a step keeping what was typed', async () => {
   await screen.findByText('Étape 1 sur 5');
   await fireEvent.press(next());
   expect(screen.getByLabelText('Titre').props.value).toBe('Mon titre');
+});
+
+describe('public place check before publishing', () => {
+  const CONFIRM = "Je confirme : c'est un lieu public";
+  const WARNING = "Aucun lieu public trouvé à proximité. Confirmez que ce n'est pas un domicile.";
+
+  it('asks the check with the chosen position and publishes straight away when a place is found', async () => {
+    mockCreate.mockResolvedValue({ ok: true, id: 'act9' });
+    await publishFlow();
+    await screen.findByText('Partagez-la avec vos amis');
+    expect(hasPublicPlaceNearby).toHaveBeenCalledWith(45.76, 4.83);
+    expect(screen.queryByText(WARNING)).toBeNull();
+  });
+
+  it('shows the stronger warning and does not publish until the organiser confirms', async () => {
+    (hasPublicPlaceNearby as jest.Mock).mockResolvedValue(false);
+    mockCreate.mockResolvedValue({ ok: true, id: 'act9' });
+    await publishFlow();
+    expect(await screen.findByText(WARNING)).toBeTruthy();
+    expect(mockCreate).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Publier').props.accessibilityState.disabled).toBe(true);
+    await fireEvent.press(screen.getByLabelText(CONFIRM));
+    await screen.findByText('Partagez-la avec vos amis');
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+    expect(hasPublicPlaceNearby).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets the organiser go back and change the place instead of confirming', async () => {
+    (hasPublicPlaceNearby as jest.Mock).mockResolvedValue(false);
+    await publishFlow();
+    await screen.findByText(WARNING);
+    await fireEvent.press(screen.getByLabelText('Modifier le lieu'));
+    expect(screen.queryByText(WARNING)).toBeNull();
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('publishes without the warning when the service could not answer', async () => {
+    (hasPublicPlaceNearby as jest.Mock).mockResolvedValue('unknown');
+    mockCreate.mockResolvedValue({ ok: true, id: 'act9' });
+    await publishFlow();
+    await screen.findByText('Partagez-la avec vos amis');
+    expect(screen.queryByText(WARNING)).toBeNull();
+  });
 });

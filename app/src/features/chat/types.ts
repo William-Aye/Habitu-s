@@ -1,5 +1,5 @@
 /** signed_out: no session to send with. Never a verdict on the message, so the outbox keeps it queued. */
-export type ChatError = 'not_allowed' | 'limit_reached' | 'network' | 'unknown' | 'signed_out';
+export type ChatError = 'not_allowed' | 'limit_reached' | 'content_refused' | 'network' | 'unknown' | 'signed_out';
 
 export type ChatResult<T = Record<never, never>> = ({ ok: true } & T) | { ok: false; error: ChatError };
 
@@ -42,5 +42,3 @@ export interface PendingMessage {
   /** Derived: still sending after 3 attempts or 2 minutes, so the UI can offer a manual retry. */
   stalled: boolean;
 }
-
-export type ReportReason = 'inappropriate' | 'harassment' | 'scam' | 'other';

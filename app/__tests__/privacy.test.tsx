@@ -48,8 +48,8 @@ it('renders the French policy', async () => {
 
 it('marks every not-yet-built feature in both languages', () => {
   const body = (s: string) => s.split('\n').filter((l) => !l.startsWith('//')).join('\n');
-  expect(body(privacyFr).split('(dès que cette fonctionnalité sera disponible)')).toHaveLength(9);
-  expect(body(privacyEn).split('(once this feature is available)')).toHaveLength(9);
+  expect(body(privacyFr).split('(dès que cette fonctionnalité sera disponible)')).toHaveLength(6);
+  expect(body(privacyEn).split('(once this feature is available)')).toHaveLength(6);
 });
 
 it('names the push processors, the lock screen exposure and the 30-day retention of notifications', () => {
@@ -100,4 +100,40 @@ it('names the suggestion form instead of the ambiguous reviews, and mentions the
 it('says a copy of a reported message is kept with the report, in both languages', () => {
   expect(privacyFr).toContain('Lorsqu\'un message est signalé, une copie est conservée avec le signalement');
   expect(privacyEn).toContain('When a message is reported, a copy is kept with the report');
+});
+
+it('no longer marks the shipped retention rules as pending', () => {
+  for (const [text, marker] of [
+    [privacyFr, '(dès que cette fonctionnalité sera disponible)'],
+    [privacyEn, '(once this feature is available)'],
+  ] as const) {
+    for (const line of text.split(String.fromCharCode(10))) {
+      if (/^- (Messages de groupe|Group messages|Signalements|Reports|Comptes inactifs|Accounts inactive)/.test(line)) {
+        expect(line).not.toContain(marker);
+      }
+    }
+  }
+});
+
+it('describes the moderation, feedback, claims, Overpass and inactivity data in both languages', () => {
+  for (const [text, words] of [
+    [
+      privacyFr,
+      ['Turnstile', 'Overpass', 'coordonnées arrondies', 'motif de la décision', 'justificatif', '2 ans', "Journal d'administration",
+       '30 jours avant', 'notification', "version de l'application", "tant que l'association reste vérifiée", '1 an'],
+    ],
+    [
+      privacyEn,
+      ['Turnstile', 'Overpass', 'rounded coordinates', 'statement of reasons', 'supporting document', '2 years', 'Admin audit log',
+       '30 days before', 'notification', 'app version', 'while the association stays verified', '1 year'],
+    ],
+  ] as const) {
+    for (const w of words) expect(text).toContain(w);
+  }
+  expect(privacyFr).toContain("voit l'adresse réseau de votre téléphone");
+  expect(privacyFr).toContain("aucune donnée de votre compte n'est envoyée");
+  expect(privacyEn).toContain("sees your phone's network address");
+  expect(privacyEn).toContain('no account data is sent');
+  expect(privacyFr).not.toContain("e-mail d'avertissement");
+  expect(privacyEn).not.toContain('warning email');
 });

@@ -1,5 +1,4 @@
 import { SendHorizontal } from 'lucide-react-native';
-import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,16 +6,26 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const MAX = 2000;
 const SHOW_COUNT_FROM = 1800;
 
-/** `onSend` returns false when the message was refused (empty, too long): the text is then kept. */
-export function Composer({ onSend }: { onSend: (body: string) => boolean }) {
+/**
+ * The text lives in the screen, so a refused message can be put back into it.
+ * `onSend` returns false when the message was refused (empty, too long): the text is then kept.
+ */
+export function Composer({
+  value: text,
+  onChange,
+  onSend,
+}: {
+  value: string;
+  onChange: (text: string) => void;
+  onSend: (body: string) => boolean;
+}) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const [text, setText] = useState('');
   const empty = text.trim().length === 0;
 
   const submit = () => {
     if (empty) return;
-    if (onSend(text)) setText('');
+    if (onSend(text)) onChange('');
   };
 
   return (
@@ -32,7 +41,7 @@ export function Composer({ onSend }: { onSend: (body: string) => boolean }) {
           multiline
           maxLength={MAX}
           value={text}
-          onChangeText={setText}
+          onChangeText={onChange}
           placeholder={t('chat.placeholder')}
           accessibilityLabel={t('chat.placeholder')}
         />

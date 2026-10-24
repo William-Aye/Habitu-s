@@ -66,10 +66,10 @@ select throws_ok($$ insert into session_feedback (session_id, user_id, went_well
   '42501', null, 'feedback on a cancelled session is rejected');
 
 -- reports
-select lives_ok(format($$ insert into reports (reporter_id, target_type, target_id, reason) values (auth.uid(), 'user', %L, 'fake_or_spam') $$, :'ben'), 'ana files a report');
-select throws_ok(format($$ insert into reports (reporter_id, target_type, target_id, reason, status, statement_of_reasons) values (auth.uid(), 'user', %L, 'other', 'actioned', 'x') $$, :'ben'),
+select lives_ok(format($$ insert into reports (reporter_id, target_type, target_id, reason) values (auth.uid(), 'user', %L, 'fake_or_spam') $$, :'org'), 'ana files a report');
+select throws_ok(format($$ insert into reports (reporter_id, target_type, target_id, reason, status, statement_of_reasons) values (auth.uid(), 'user', %L, 'other', 'actioned', 'x') $$, :'org'),
   '42501', null, 'cannot self-set a decided status');
-select throws_ok(format($$ insert into reports (reporter_id, target_type, target_id, reason) values (%L, 'user', %L, 'other') $$, :'cat', :'ben'),
+select throws_ok(format($$ insert into reports (reporter_id, target_type, target_id, reason) values (%L, 'user', %L, 'other') $$, :'cat', :'org'),
   '42501', null, 'cannot report as someone else');
 select is((select count(*) from reports)::int, 1, 'user sees own report');
 update reports set status = 'actioned', statement_of_reasons = 'x';
@@ -116,8 +116,8 @@ select throws_ok($$ insert into messages (activity_id, sender_id, body) values (
   '42501', null, 'non-member cannot post');
 
 select tests.act_as_anon();
-select lives_ok($$ insert into feedback (type, body) values ('idea', 'Ajouter le mode sombre') $$, 'anon sends idea');
-select is((select count(*) from feedback)::int, 0, 'anon cannot read feedback');
+select throws_ok($$ insert into feedback (type, body) values ('idea', 'Ajouter le mode sombre') $$, '42501', null, 'anon cannot insert feedback directly (the Edge Function does)');
+select throws_ok($$ select count(*) from feedback $$, '42501', null, 'anon cannot read feedback');
 select throws_ok(format($$ insert into feedback (user_id, type, body) values (%L, 'idea', 'x') $$, :'ana'), '42501', null, 'anon cannot set user_id');
 select is((select count(*) from ambiance_words where id::text like '00000000-0000-0000-0000-0000000000d%')::int, 4, 'anon reads ambiance words');
 select is((select count(*) from organiser_badges)::int, 2, 'anon reads organiser badges');
@@ -128,8 +128,8 @@ select throws_ok($$ select count(*) from messages $$, '42501', null, 'anon canno
 select throws_ok($$ select count(*) from reports $$, '42501', null, 'anon cannot read reports');
 
 -- admin
-select tests.act_as(:'root');
-select is((select count(*) from feedback)::int, 2, 'admin reads feedback');
+select tests.act_as_admin(:'root');
+select is((select count(*) from feedback)::int, 1, 'admin reads feedback');
 select is((select count(*) from session_feedback)::int, 1, 'admin reads session_feedback');
 select is((select count(*) from reports)::int, 1, 'admin reads reports');
 select is((select count(*) from search_misses)::int, 1, 'admin reads search_misses');

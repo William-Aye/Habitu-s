@@ -123,6 +123,14 @@ jest.mock('../src/lib/supabase', () => ({
   supabase: { from: () => ({ update: (p: unknown) => mockUpdate(p) }) },
 }));
 
+let mockRole: 'loading' | 'admin' | 'other' = 'other';
+jest.mock('../src/features/admin/useIsAdmin', () => ({ useAdminRole: () => mockRole }));
+let mockUnread = 0;
+const mockUnreadRefresh = jest.fn();
+jest.mock('../src/features/safety/notices', () => ({
+  useModerationUnread: () => ({ count: mockUnread, refresh: mockUnreadRefresh }),
+}));
+
 const mockDelete = deleteMyAccount as jest.Mock;
 const mockExport = exportMyData as jest.Mock;
 const mockPick = pickAndUploadAvatar as jest.Mock;
@@ -138,6 +146,8 @@ afterEach(async () => {
 beforeEach(() => {
   jest.clearAllMocks();
   mockCurrent = mockSignedIn;
+  mockRole = 'other';
+  mockUnread = 0;
   mockGate.mockResolvedValue(false);
   mockMine.mockResolvedValue({ ok: true, collectifs: [] });
   mockInvites.mockResolvedValue({ ok: true, invitations: [] });
@@ -150,6 +160,7 @@ it('signed out shows Se connecter, language and privacy but no Mes données', as
   expect(screen.getByText('Politique de confidentialité')).toBeTruthy();
   expect(screen.getByText('English')).toBeTruthy();
   expect(screen.queryByText('Mes données')).toBeNull();
+  expect(screen.getByRole('link', { name: 'Une idée ? Un problème ?' })).toBeTruthy();
   await fireEvent.press(screen.getByText('Se connecter'));
   expect(mockGate).toHaveBeenCalledWith();
 });
@@ -231,6 +242,24 @@ it('opens the interests screen and the privacy policy', async () => {
   expect(mockPush).toHaveBeenCalledWith('/interests');
   await fireEvent.press(screen.getByText('Politique de confidentialité'));
   expect(mockPush).toHaveBeenCalledWith('/privacy');
+});
+
+it('opens the blocked people screen from Profil', async () => {
+  await render(<Profile />);
+  await fireEvent.press(screen.getByRole('link', { name: 'Personnes bloquées' }));
+  expect(mockPush).toHaveBeenCalledWith('/blocked');
+});
+
+it('opens the safety tips page from Profil', async () => {
+  await render(<Profile />);
+  await fireEvent.press(screen.getByRole('link', { name: 'Conseils de sécurité' }));
+  expect(mockPush).toHaveBeenCalledWith('/safety-tips');
+});
+
+it('opens the feedback form from Profil, next to the safety tips', async () => {
+  await render(<Profile />);
+  await fireEvent.press(screen.getByRole('link', { name: 'Une idée ? Un problème ?' }));
+  expect(mockPush).toHaveBeenCalledWith('/feedback');
 });
 
 it('asks for confirmation with the exact copy; Annuler does nothing', async () => {
@@ -471,5 +500,56 @@ describe('offline', () => {
     expect(screen.queryByText('Se connecter')).toBeNull();
     await fireEvent.press(screen.getByText('Réessayer'));
     expect(mockRefresh).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('moderation and administration entries', () => {
+  it('never shows Administration to someone who is not an admin, or while the role is loading', async () => {
+    await render(<Profile />);
+    expect(screen.queryByRole('link', { name: 'Administration' })).toBeNull();
+    mockRole = 'loading';
+    await render(<Profile />);
+    expect(screen.queryByRole('link', { name: 'Administration' })).toBeNull();
+  });
+
+  it('shows Administration to an admin and opens the admin area', async () => {
+    mockRole = 'admin';
+    await render(<Profile />);
+    await fireEvent.press(screen.getByRole('link', { name: 'Administration' }));
+    expect(mockPush).toHaveBeenCalledWith('/admin');
+  });
+
+  it('shows no Administration entry when signed out', async () => {
+    mockRole = 'admin';
+    mockCurrent = mockSignedOut;
+    await render(<Profile />);
+    expect(screen.queryByRole('link', { name: 'Administration' })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Informations de modération/ })).toBeNull();
+  });
+
+  it('shows Informations de modération with the unread count, and opens it', async () => {
+    mockUnread = 2;
+    await render(<Profile />);
+    const link = screen.getByRole('link', { name: 'Informations de modération, 2 nouvelles' });
+    expect(link).toBeTruthy();
+    expect(screen.getByText('2')).toBeTruthy();
+    await fireEvent.press(link);
+    expect(mockPush).toHaveBeenCalledWith('/moderation');
+  });
+
+  it('shows no count when nothing is unread', async () => {
+    await render(<Profile />);
+    expect(screen.getByRole('link', { name: 'Informations de modération' })).toBeTruthy();
+    expect(screen.queryByText('0')).toBeNull();
+  });
+
+  it('re-reads the unread count each time the screen regains focus', async () => {
+    await render(<Profile />);
+    const calls = mockUnreadRefresh.mock.calls.length;
+    expect(calls).toBeGreaterThan(0);
+    await act(async () => {
+      mockFocusListeners.forEach((cb) => cb());
+    });
+    expect(mockUnreadRefresh.mock.calls.length).toBeGreaterThan(calls);
   });
 });

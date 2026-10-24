@@ -24,6 +24,7 @@ import {
   type AuthError,
 } from './auth';
 import { resolveHomeArea } from './homeArea';
+import { PRIVACY_CONTACT } from '../../content/contact';
 import { Turnstile } from './Turnstile';
 import { useSession } from './useSession';
 import type { GateReason } from './AccountGate';
@@ -357,7 +358,7 @@ export function SignUpSheet({
             ) : null}
             {error ? (
               <Text accessibilityRole="alert" style={styles.error}>
-                {t(`account.errors.${error}`)}
+                {t(`account.errors.${error}`, { contact: PRIVACY_CONTACT })}
               </Text>
             ) : null}
             {captchaFailed || error === 'captcha' ? (

@@ -96,7 +96,9 @@
       "rna": "Source: National directory of associations (Open Licence / Etalab 2.0)",
       "osm": "© OpenStreetMap contributors (ODbL)"
     },
-    "waitError": "Could not save your request. Try again."
+    "waitError": "Could not save your request. Try again.",
+    "claimPending": "Request pending",
+    "claimApproved": "You manage this association"
   },
   "activity": {
     "loading": "Loading",
@@ -212,6 +214,7 @@
       "captcha": "The security check failed.",
       "network": "No connection. Check your network and try again.",
       "rate_limited": "Too many attempts. Please wait a little before trying again.",
+      "banned": "Your account has been suspended for breaking the rules of use. To find out the reason for the decision or to contest it, write to {{contact}}.",
       "unknown": "Something went wrong. Please try again.",
       "first_name": "Enter a first name of 40 characters or fewer.",
       "age": "You must be 18 or older."
@@ -251,6 +254,8 @@
   },
   "profile": {
     "title": "Profile",
+    "moderationUnread_one": "Moderation information, {{count}} new",
+    "moderationUnread_other": "Moderation information, {{count}} new",
     "signIn": "Sign in",
     "changePhoto": "Change photo",
     "photoAlt": "Profile photo",
@@ -331,7 +336,8 @@
       "session_full": "This activity is full.",
       "network": "Cannot connect. Check your network and try again.",
       "unknown": "Something went wrong. Try again.",
-      "association_unavailable": "This association no longer accepts linked activities. Choose another option."
+      "association_unavailable": "This association no longer accepts linked activities. Choose another option.",
+      "content_refused": "This text contains a forbidden word."
     },
     "who": {
       "me": "Me",
@@ -481,10 +487,17 @@
     "deleteAction": "Delete",
     "errors": {
       "limit_reached": "Limit reached: you can invite 10 people per 24 hours. Try again later.",
+      "content_refused": "This text contains a forbidden word.",
       "not_allowed": "Not possible: your permissions may have changed. Reopen the page and try again.",
       "network": "Cannot connect. Check your network and try again.",
       "unknown": "Something went wrong. Try again."
-    }
+    },
+    "link": "Link the collectif to this association",
+    "linkPick": "Choose the association to link the collectif to.",
+    "linkConfirm": "Confirm the link",
+    "linkError": "Couldn't link the collectif. Try again.",
+    "linkDone_one": "{{count}} activity linked.",
+    "linkDone_other": "{{count}} activities linked."
   },
   "notifications": {
     "yes": "Yes",
@@ -537,20 +550,18 @@
       "deleteConfirm": "Delete this message for everyone?",
       "discard": "Do not send",
       "cancel": "Cancel",
-      "reportTitle": "Why are you reporting this message?",
-      "reportSent": "Thank you, your report has been sent.",
       "error": "That did not work. Try again.",
       "back": "Back"
     },
-    "reasons": {
-      "inappropriate": "Inappropriate content",
-      "harassment": "Harassment",
-      "scam": "Scam or spam",
-      "other": "Other"
+    "errors": {
+      "content_refused": "This text contains a forbidden word."
     },
     "bubbleOther": "{{name}}, {{time}}: {{body}}",
     "bubbleMine": "You, {{time}}: {{body}}",
     "actionsHint": "Long press for actions",
+    "editHint": "Tap to edit",
+    "replaceDraft": "Replace your text with the refused message?",
+    "replaceAction": "Replace",
     "listLabel": "Discussion messages",
     "syncError": "Could not update the discussion. Try again.",
     "muteError": "Could not change notifications. Try again."
@@ -571,5 +582,268 @@
     "yesterday": "yesterday",
     "previewOther": "{{prenom}}: {{texte}}",
     "previewMine": "You: {{texte}}"
+  },
+  "safety": {
+    "report": "Report",
+    "reportActivity": "Report this activity",
+    "reportPerson": "Report this person",
+    "reportCollectif": "Report this collective",
+    "reportSession": "Report this session",
+    "reasons": {
+      "unsafe_place": "Unsafe or unsuitable place",
+      "inappropriate_behaviour": "Inappropriate behaviour",
+      "harassment": "Harassment",
+      "fake_or_spam": "Fake or spam",
+      "did_not_happen": "Did not happen",
+      "other": "Other"
+    },
+    "details": "Tell us more (optional)",
+    "send": "Send report",
+    "sent": "Thank you, your report has been sent.",
+    "limit": "You have reached the reporting limit. Try again later.",
+    "error": "Action failed. Try again.",
+    "close": "Close",
+    "cancel": "Cancel",
+    "back": "Back",
+    "retry": "Retry",
+    "block": "Block",
+    "unblock": "Unblock",
+    "unblockAria": "Unblock {{prenom}}",
+    "blockedTitle": "Blocked people",
+    "blockedEmpty": "No blocked people",
+    "blockedLoading": "Loading blocked people",
+    "blockedError": "Could not load blocked people. Try again.",
+    "personHint": "Long press to report or block",
+    "gone": "This content is no longer available.",
+    "tipsTitle": "Safety tips",
+    "tipsLink": "Safety tips",
+    "tipsHint": "Opens the list of safety tips",
+    "understood": "Got it",
+    "tipLabel": "Safety tip",
+    "sharePlans": "Share my plans",
+    "sharePlansTip": "Share my plans for this session",
+    "sharePlansAria": "Share my plans for {{date}}",
+    "shareMessage": "{{titre}} — {{date}} at {{heure}}, {{lieu}}. Letting you know just in case. (Habitués)",
+    "tips": {
+      "first_session": {
+        "a": "For a first meeting, stay in the public place and arrange your own way there and back.",
+        "b": "Tell someone close to you where you are going."
+      },
+      "moved_place": "Activities must take place in a public place. If this new place seems unsuitable to you, report it."
+    }
+  },
+  "admin": {
+    "title": "Administration",
+    "back": "Back",
+    "loading": "Loading",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "approve": "Approve",
+    "reject": "Reject",
+    "note": "Note (optional)",
+    "unknownPerson": "Unknown",
+    "queueAria": "{{nom}}, {{nombre}} pending",
+    "queues": {
+      "reports": "Reports",
+      "claims": "Claims",
+      "clubs": "Added clubs",
+      "categories": "Categories",
+      "feedback": "Ideas and problems"
+    },
+    "liftBan": {
+      "title": "Lift a suspension",
+      "note": "The person will be able to sign in again. Content archived by the suspension stays archived.",
+      "search": "Search by first name",
+      "empty": "No suspended person.",
+      "person": "{{prenom}}, suspended on {{date}}",
+      "statement": "Reason for lifting (required)",
+      "statementHelp": "Between {{min}} and {{max}} characters. It is kept in the admin audit log.",
+      "action": "Lift the suspension"
+    },
+    "errors": {
+      "load": "Could not load the list.",
+      "network": "Cannot connect. Try again.",
+      "unknown": "Something went wrong. Try again.",
+      "invalid": "Invalid decision.",
+      "not_found": "This item no longer exists.",
+      "already_decided": "This item has already been handled.",
+      "not_allowed": "Action not allowed.",
+      "refused": "Action refused for this item.",
+      "limit_reached": "Limit reached (500 words).",
+      "invalid_statement": "The statement must be between 10 and 1000 characters.",
+      "invalid_target": "Invalid target for this merge.",
+      "invalid_category": "Invalid category: pick a parent category and an English name of 2 to 80 characters.",
+      "invalid_word": "Invalid word: 3 to 50 characters."
+    },
+    "mfa": {
+      "enrollTitle": "Turn on two-factor authentication",
+      "enrollIntro": "Scan this code with an authenticator app, then enter the code it shows.",
+      "qrAlt": "QR code to scan with your authenticator app",
+      "secretLabel": "Or enter this key in your app:",
+      "verifyTitle": "Two-factor authentication",
+      "verifyIntro": "Enter the code shown by your authenticator app.",
+      "code": "6-digit code",
+      "verify": "Verify",
+      "wrong": "Wrong code. Try again.",
+      "unavailable": "Could not check the code. Try again.",
+      "leave": "Leave"
+    },
+    "reports": {
+      "empty": "No reports to handle.",
+      "noPreview": "Content unavailable",
+      "sourceAuto": "Automatic",
+      "sourceUser": "Reported by {{prenom}}",
+      "owner": "Concerns: {{prenom}}",
+      "statement": "Statement of reasons (required)",
+      "statementHelp": "Between {{min}} and {{max}} characters. The statement is sent to the people concerned.",
+      "banConfirm": "Confirm the ban",
+      "decisions": {
+        "dismiss": "Dismiss",
+        "warn": "Warn",
+        "remove": "Remove",
+        "ban": "Ban"
+      }
+    },
+    "claims": {
+      "empty": "No pending claims.",
+      "claimant": "Requested by {{prenom}}",
+      "role": "Role: {{role}}",
+      "email": "Email: {{email}}",
+      "viewDocument": "View the document"
+    },
+    "clubs": {
+      "empty": "No clubs to review.",
+      "by": "Added by {{prenom}}",
+      "activities_one": "{{count}} activity",
+      "activities_other": "{{count}} activities",
+      "merge": "Merge",
+      "mergeInto": "Merge into",
+      "search": "Search for an association",
+      "mergeConfirm": "Confirm the merge",
+      "rejectNote": "Reason for rejecting",
+      "rejectHelp": "At least 10 characters if there are reports on this club.",
+      "rejectConfirm": "Confirm the rejection"
+    },
+    "categories": {
+      "empty": "No category requests.",
+      "by": "Requested by {{prenom}}",
+      "parent": "Parent category",
+      "nameEn": "English name",
+      "approveConfirm": "Create the category",
+      "merge": "Merge",
+      "mergeInto": "Merge into",
+      "mergeConfirm": "Confirm the merge"
+    },
+    "feedback": {
+      "empty": "No messages to read.",
+      "from": "From {{prenom}}",
+      "anonymous": "Anonymous",
+      "screenshot": "View the screenshot",
+      "types": {
+        "idea": "Idea",
+        "problem": "Problem",
+        "other": "Other"
+      },
+      "statuses": {
+        "planned": "Planned",
+        "done": "Done",
+        "wont_do": "Won't do"
+      }
+    },
+    "bannedWords": {
+      "title": "Banned words",
+      "add": "Add a word",
+      "addAction": "Add",
+      "empty": "No banned words.",
+      "remove": "Remove the word {{mot}}"
+    },
+    "done": "Decision saved."
+  },
+  "moderation": {
+    "title": "Moderation information",
+    "back": "Back",
+    "loading": "Loading moderation information",
+    "error": "Could not load the moderation information. Try again.",
+    "retry": "Try again",
+    "empty": "No moderation information.",
+    "decisionsTitle": "Decisions about your content",
+    "reportsTitle": "Your reports",
+    "reportHandled": "Your report has been handled",
+    "reasonsLabel": "Reasons for the decision",
+    "redress": "To contest this decision, write to {{contact}}.",
+    "new": "New",
+    "decisionAria": "{{decision}}, {{target}}, {{date}}. Reasons: {{reasons}}",
+    "decision": {
+      "warn": "Warning",
+      "remove": "Content removed",
+      "ban": "Account suspended"
+    },
+    "target": {
+      "user": "Your profile",
+      "activity": "Your activity",
+      "message": "Your message",
+      "association": "Your association listing",
+      "collectif": "Your collectif",
+      "session": "Your session"
+    }
+  },
+  "banned": {
+    "title": "Account suspended",
+    "message": "Your account has been suspended for breaking the rules of use. To find out the reason for the decision or to contest it, write to {{contact}}.",
+    "dismiss": "Got it"
+  },
+  "feedback": {
+    "title": "An idea? A problem?",
+    "back": "Back",
+    "typeLabel": "Type of message",
+    "types": {
+      "idea": "Idea",
+      "problem": "Problem",
+      "other": "Other"
+    },
+    "body": "Your message",
+    "count": "{{n}} / {{max}}",
+    "addScreenshot": "Add a screenshot",
+    "screenshotAdded": "Screenshot attached",
+    "removeScreenshot": "Remove the screenshot",
+    "send": "Send",
+    "sending": "Sending",
+    "thanks": "Thank you! Your message has been sent to the team.",
+    "close": "Close",
+    "limit": "You've reached the sending limit. Try again later.",
+    "captcha": "The security check failed. Try again.",
+    "error": "Couldn't send your message. Try again.",
+    "notice": "We receive your message, the app version and the device model. Please don't include personal information. Kept for 2 years.",
+    "tooLarge": "File too large (5 MB maximum)."
+  },
+  "claim": {
+    "title": "This is my association",
+    "role": "Your role in the association",
+    "email": "The association's e-mail address",
+    "emailHint": "An address on the association's own domain, for example bureau@myclub.org.",
+    "attach": "Or attach a proof",
+    "attachHint": "Statutes, registration receipt or a signed letter (PDF, JPG or PNG).",
+    "attached": "Proof attached: {{name}}",
+    "removeDocument": "Remove the proof",
+    "send": "Send the request",
+    "sending": "Sending",
+    "sent": "Request sent. We'll get back to you within a few days.",
+    "close": "Close",
+    "cancel": "Cancel",
+    "errors": {
+      "limit_reached": "You've reached the limit of requests. Try again later.",
+      "not_allowed": "This request is not possible right now. A request may already be pending.",
+      "network": "Can't connect. Check your network and try again.",
+      "unknown": "Something went wrong. Try again.",
+      "duplicate": "You already have a pending request for this association.",
+      "too_large": "File too large (10 MB maximum).",
+      "unsupported": "Unsupported format (PDF, JPG or PNG)."
+    },
+    "notice": "Your proof is only used to check your request. It is deleted at the latest one year after the decision."
+  },
+  "publicPlace": {
+    "warning": "No public place found nearby. Confirm that this isn't a home.",
+    "confirm": "I confirm: this is a public place",
+    "change": "Change the place"
   }
 }

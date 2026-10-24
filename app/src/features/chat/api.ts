@@ -1,14 +1,14 @@
 import { supabase } from '../../lib/supabase';
 import { run } from '../activities/errors';
 import type { ApiResult } from '../activities/types';
-import type { ChatError, ChatMessage, ChatPage, ChatResult, ChatSummary, ReportReason } from './types';
+import type { ChatError, ChatMessage, ChatPage, ChatResult, ChatSummary } from './types';
 
 const none = () => ({});
 
 /** The shared errors cover more cases than chat shows; anything else is unknown. */
 function narrow<T extends object>(r: ApiResult<T>): ChatResult<T> {
   if (r.ok) return r;
-  const known: string[] = ['not_allowed', 'limit_reached', 'network'];
+  const known: string[] = ['not_allowed', 'limit_reached', 'content_refused', 'network'];
   return { ok: false, error: (known.includes(r.error) ? r.error : 'unknown') as ChatError };
 }
 
@@ -142,33 +142,4 @@ export async function markRead(activityId: string): Promise<ChatResult> {
 
 export async function setMuted(activityId: string, muted: boolean): Promise<ChatResult> {
   return narrow(await run(() => supabase.rpc('set_chat_muted', { p_activity: activityId, p_muted: muted }), none));
-}
-
-// The reports table has its own reason list; harassment has none, so it is filed as inappropriate behaviour
-// with the detail kept for the reviewer.
-const REPORT_REASON = {
-  inappropriate: { reason: 'inappropriate_behaviour' },
-  harassment: { reason: 'inappropriate_behaviour', details: 'harassment' },
-  scam: { reason: 'fake_or_spam' },
-  other: { reason: 'other' },
-} as const;
-
-export async function reportMessage(messageId: string, reason: ReportReason): Promise<ChatResult> {
-  return authed(
-    (userId) =>
-      supabase
-        .from('reports')
-        .insert({ reporter_id: userId, target_type: 'message', target_id: messageId, ...REPORT_REASON[reason] }),
-    none,
-  );
-}
-
-export async function blockUser(userId: string): Promise<ChatResult> {
-  return authed(
-    (me) =>
-      supabase
-        .from('blocks')
-        .upsert({ blocker_id: me, blocked_id: userId }, { onConflict: 'blocker_id,blocked_id', ignoreDuplicates: true }),
-    none,
-  );
 }

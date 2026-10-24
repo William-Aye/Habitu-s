@@ -17,7 +17,7 @@ export type { ApiError, ApiResult } from './types';
 const none = () => ({});
 
 function mapPerson(p: any) {
-  return { firstName: p.first_name as string, photoUrl: (p.photo_url ?? null) as string | null };
+  return { ...(p.id ? { id: p.id as string } : {}), firstName: p.first_name as string, photoUrl: (p.photo_url ?? null) as string | null };
 }
 
 export function mapSession(s: any): SessionInfo {

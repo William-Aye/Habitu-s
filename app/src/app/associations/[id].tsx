@@ -4,8 +4,11 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRequireAccount } from '../../features/account/AccountGate';
+import { myClaimStatus } from '../../features/claims/api';
+import { ClaimForm } from '../../features/claims/ClaimForm';
 import { addWaiter, getAssociation, removeWaiter } from '../../features/explore/api';
 import { TownMap } from '../../features/explore/components/TownMap';
+import { useReportSheet } from '../../features/safety/ReportSheet';
 import type { AssociationDetail } from '../../features/explore/types';
 
 type Load = { state: 'loading' } | { state: 'error' } | { state: 'ready'; data: AssociationDetail | null };
@@ -19,8 +22,10 @@ export default function AssociationPage() {
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [wait, setWait] = useState<Wait>('idle');
   const [waitError, setWaitError] = useState(false);
-  const [soon, setSoon] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [claimStatus, setClaimStatus] = useState<'pending' | 'approved' | null>(null);
   const requireAccount = useRequireAccount();
+  const { openReport, reportSheet } = useReportSheet();
 
   useEffect(() => {
     let active = true;
@@ -31,6 +36,15 @@ export default function AssociationPage() {
         if (data?.isWaiting) setWait('waiting');
       })
       .catch(() => active && setLoad({ state: 'error' }));
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  // My own claim on this listing, if any (a signed-out visitor has none).
+  useEffect(() => {
+    let active = true;
+    void myClaimStatus(id).then((s) => active && setClaimStatus(s));
     return () => {
       active = false;
     };
@@ -176,23 +190,35 @@ export default function AssociationPage() {
         </View>
       ) : null}
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('association.claim')}
-        style={styles.outline}
-        onPress={() => setSoon(true)}
-      >
-        <Text style={styles.outlineText}>{t('association.claim')}</Text>
-      </Pressable>
+      {claimStatus ? (
+        <Text accessibilityLiveRegion="polite" style={styles.badge}>
+          {t(claimStatus === 'approved' ? 'association.claimApproved' : 'association.claimPending')}
+        </Text>
+      ) : claiming ? (
+        <ClaimForm
+          associationId={a.id}
+          onClose={() => setClaiming(false)}
+          onSent={() => setClaimStatus('pending')}
+        />
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('association.claim')}
+          style={styles.outline}
+          onPress={() => setClaiming(true)}
+        >
+          <Text style={styles.outlineText}>{t('association.claim')}</Text>
+        </Pressable>
+      )}
       <Pressable
         accessibilityRole="link"
         accessibilityLabel={t('association.report')}
         style={styles.link}
-        onPress={() => setSoon(true)}
+        onPress={() => void openReport({ type: 'association', id: a.id })}
       >
         <Text style={styles.linkText}>{t('association.report')}</Text>
       </Pressable>
-      {soon ? <Text accessibilityLiveRegion="polite">{t('common.comingSoon')}</Text> : null}
+      {reportSheet}
 
       {keys.map((k) => (
         <Text key={k} style={styles.source}>{t(`association.source.${k}`)}</Text>

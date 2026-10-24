@@ -231,7 +231,7 @@ select lives_ok($$ update activities set archived_at = now() where id = '0000000
 select lives_ok($$ delete from activities where id = '00000000-0000-0000-0000-0000000000f5' $$, 'can delete an activity with no past sessions');
 
 -- admin
-select tests.act_as(:'root');
+select tests.act_as_admin(:'root');
 select lives_ok($$ update activities set title = 'Admin edit' where id = '00000000-0000-0000-0000-0000000000f3' $$, 'admin updates any activity');
 select is((select title from activities where id = '00000000-0000-0000-0000-0000000000f3'), 'Admin edit', 'admin update applied');
 

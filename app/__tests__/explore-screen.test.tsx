@@ -239,13 +239,14 @@ it('asks for a location instead of showing results when none is set', async () =
   expect(mockSearch).toHaveBeenLastCalledWith(null);
 });
 
-it('offers a feedback button on an empty search, with a coming-soon notice', async () => {
+it('offers a feedback button on an empty search, that opens the feedback form', async () => {
   setSearch(response([]));
   await render(<Explore />);
   await fireEvent.changeText(screen.getByPlaceholderText(PLACEHOLDER), 'zzz');
   expect(screen.getByText("Aucun résultat pertinent près d'ici")).toBeTruthy();
   await fireEvent.press(screen.getByText('Une idée ? Un problème ?'));
-  expect(screen.getByText('Bientôt disponible')).toBeTruthy();
+  expect(router.push).toHaveBeenCalledWith('/feedback');
+  expect(screen.queryByText('Bientôt disponible')).toBeNull();
 });
 
 describe('creating an activity from Explore', () => {

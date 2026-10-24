@@ -28,6 +28,20 @@ begin
     json_build_object('sub', p_uid, 'role', 'authenticated')::text, true);
 end $$;
 
+create or replace function tests.act_as_admin(p_uid uuid) returns void language plpgsql as $$
+begin
+  set local role authenticated;
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', p_uid, 'role', 'authenticated', 'aal', 'aal2')::text, true);
+end $$;
+
+create or replace function tests.act_as_aal1(p_uid uuid) returns void language plpgsql as $$
+begin
+  set local role authenticated;
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', p_uid, 'role', 'authenticated', 'aal', 'aal1')::text, true);
+end $$;
+
 create or replace function tests.act_as_anon() returns void language plpgsql as $$
 begin
   set local role anon;

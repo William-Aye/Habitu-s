@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(51);
+select plan(54);
 
 select tests.create_user('ana@acc.fr', 'Ana') as ana \gset
 select tests.create_user('ben@acc.fr', 'Ben') as ben \gset
@@ -41,8 +41,8 @@ insert into activity_interests (activity_id, user_id) values ('00000000-0000-000
 insert into associations (id, name, source, confidence, location)
 values ('00000000-0000-0000-0000-00000000ac0d', 'Asso test', 'rna', 60, 'SRID=4326;POINT(4.8 45.7)');
 insert into association_waiters (association_id, user_id) values ('00000000-0000-0000-0000-00000000ac0d', :'ana');
-insert into association_claims (association_id, claimant_id, proof_method)
-values ('00000000-0000-0000-0000-00000000ac0d', :'ana', 'document');
+insert into association_claims (association_id, claimant_id, proof_method, role_in_association, contact_email)
+values ('00000000-0000-0000-0000-00000000ac0d', :'ana', 'document', 'Presidente', 'p@club.fr');
 insert into organiser_stats (user_id, sessions_held) values (:'ana', 4)
 on conflict (user_id) do update set sessions_held = 4;
 
@@ -177,9 +177,15 @@ select tests.act_as_superuser();
 select is((select count(*) from auth.users where id = :'ana')
   + (select count(*) from profiles where id = :'ana')
   + (select count(*) from user_interests where user_id = :'ana')
-  + (select count(*) from category_requests where user_id = :'ana')
-  + (select count(*) from storage.objects where bucket_id = 'avatars' and name like :'ana' || '/%'), 0::bigint,
-  'Ana''s account, rows and avatars are gone');
+  + (select count(*) from category_requests where user_id = :'ana'), 0::bigint,
+  'Ana''s account and rows are gone');
+select is((select array_agg(path order by path) from storage_deletions where bucket = 'avatars' and path like :'ana' || '/%'),
+  (select array_agg(name order by name) from storage.objects where bucket_id = 'avatars' and name like :'ana' || '/%'),
+  'Ana''s avatars are queued with their exact paths');
+select is((select count(*) from storage.objects o where o.bucket_id = 'avatars' and o.name like :'ana' || '/%'
+    and not exists (select 1 from storage_deletions d where d.bucket = o.bucket_id and d.path = o.name)), 0::bigint,
+  'no Ana object is left unqueued');
+select is((select count(*) from storage_deletions where bucket = 'avatars' and path = :'ben' || '/b.jpg'), 0::bigint, 'Ben''s avatar is not queued');
 select is((select count(*) from auth.users where id = :'ben') + (select count(*) from user_interests where user_id = :'ben')
   + (select count(*) from storage.objects where bucket_id = 'avatars' and name = :'ben' || '/b.jpg'), 3::bigint,
   'Ben is untouched');

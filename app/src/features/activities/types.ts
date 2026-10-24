@@ -31,6 +31,7 @@ export type ApiError =
   | 'not_allowed'
   | 'association_unavailable'
   | 'invalid_website'
+  | 'content_refused'
   | 'session_full'
   | 'network'
   | 'unknown';
@@ -41,6 +42,8 @@ export type SessionStatus = 'scheduled' | 'held' | 'cancelled_by_organiser' | 'c
 export type MyStatus = 'none' | 'member' | 'pending';
 
 export interface PersonInfo {
+  /** Needed to report or block this person; absent when the server does not send it. */
+  id?: string;
   firstName: string;
   photoUrl: string | null;
 }

@@ -34,7 +34,7 @@ select is((select count(*) from import_runs)::int, 0, 'non-admin sees no runs');
 select throws_ok($$ select importer.normalise_name('x') $$, '42501', null, 'authenticated cannot execute importer functions');
 select tests.act_as_superuser();
 update public.profiles set role = 'admin' where id = :'u';
-select tests.act_as(:'u');
+select tests.act_as_admin(:'u');
 select is((select count(*) from import_runs)::int, 1, 'admin sees the run');
 select tests.act_as_anon();
 select throws_ok($$ select * from import_runs $$, '42501', null, 'anon cannot read runs');
@@ -77,8 +77,8 @@ insert into associations (name, website, location, source, claimed_by, verified,
 values ('Atelier Arduino Villeurbanne', 'https://arduino-villeurbanne.example', pg_temp.pt('ard'), 'community',
         :'claimant', true, '{website}', :'organiser')
 returning id as community \gset
-insert into association_claims (association_id, claimant_id, proof_method, status)
-values (:'community', :'claimant', 'document', 'approved');
+insert into association_claims (association_id, claimant_id, proof_method, status, role_in_association, contact_email)
+values (:'community', :'claimant', 'document', 'approved', 'Presidente', 'p@club.fr');
 insert into activities (organiser_id, organised_by_association_id, category_id, title, place_label, place,
                         recurrence_kind, start_date, start_time)
 values
@@ -237,8 +237,8 @@ values
 update associations set claimed_by = :'claimant', verified = true where osm_id in ('node/3805', 'node/3807');
 update associations set claimed_by = :'claimant' where rna_id = 'W381999001';
 update associations set claimed_by = :'organiser' where rna_id = 'W381000007';
-insert into association_claims (association_id, claimant_id, proof_method, status)
-select id, :'claimant', 'document', 'approved' from associations where osm_id = 'node/3805';
+insert into association_claims (association_id, claimant_id, proof_method, status, role_in_association, contact_email)
+select id, :'claimant', 'document', 'approved', 'Presidente', 'p@club.fr' from associations where osm_id = 'node/3805';
 insert into activities (organiser_id, organised_by_association_id, category_id, title, place_label, place,
                         recurrence_kind, start_date, start_time)
 select :'organiser', id, (select id from categories where slug = 'games'), 'Réparation vélo', 'Meylan',
@@ -491,7 +491,7 @@ select tests.act_as_superuser();
 select is((select locked_fields from associations where rna_id = 'W441000002'),
   array['purpose', 'website', 'phone'], 'claimant edits add the edited columns to locked_fields, once each');
 update profiles set role = 'admin' where id = :'organiser';
-select tests.act_as(:'organiser');
+select tests.act_as_admin(:'organiser');
 update associations set opening_hours = 'Mo 18:00-20:00' where rna_id = 'W441000002';
 select tests.act_as_superuser();
 select ok((select not 'opening_hours' = any(locked_fields) from associations where rna_id = 'W441000002'),

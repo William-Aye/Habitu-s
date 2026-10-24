@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(80);
+select plan(82);
 select tests.create_user('org@ses.fr', 'Olivier') as org \gset
 select tests.create_user('mem@ses.fr', 'Mia') as mem \gset
 select tests.create_user('mem2@ses.fr', 'Marc') as mem2 \gset
@@ -101,12 +101,15 @@ select is(public.get_activity('00000000-0000-0000-0000-0000000000f4') ? 'welcome
 select is(public.get_activity('00000000-0000-0000-0000-0000000000f4')->>'my_status', 'none', 'anon status none');
 select is(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'organised_by', '{"kind": "association", "id": "00000000-0000-0000-0000-0000000000a1", "name": "Club de go"}'::jsonb, 'organised by the association');
 select is((select array_agg(k order by k) from jsonb_object_keys(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'organiser') k),
-  array['first_name', 'photo_url'], 'organiser: public fields only');
+  array['first_name', 'id', 'photo_url'], 'organiser: public fields only (id for report and block)');
+select is(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'organiser'->>'id', :'org', 'the organiser id is present');
 select is(jsonb_array_length(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'next_sessions'), 8, 'next 8 sessions');
 select tests.act_as(:'mem');
 select is(jsonb_array_length(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'next_sessions'->0->'attendees'), 2, 'member sees the 2 attendees');
 select is((select array_agg(k order by k) from jsonb_object_keys(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'next_sessions'->0->'attendees'->0) k),
-  array['first_name', 'photo_url'], 'attendees: public fields only');
+  array['first_name', 'id', 'photo_url'], 'attendees: public fields only (id for report and block)');
+select is((select array_agg(e->>'id' order by e->>'id') from jsonb_array_elements(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'next_sessions'->0->'attendees') e),
+  (select array_agg(x order by x) from unnest(array[:'mem', :'mem2']) x), 'a member sees the attendee ids');
 select is(public.get_activity('00000000-0000-0000-0000-0000000000f4')->>'welcome_first_name', 'Mia', 'member sees the welcome first name');
 select is(public.get_activity('00000000-0000-0000-0000-0000000000f4')->>'my_status', 'member', 'member status');
 select is(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'next_sessions'->0->'my_attendance', '{"status": "confirmed", "guest_count": 1}'::jsonb, 'own attendance');

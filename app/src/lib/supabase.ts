@@ -1,6 +1,7 @@
 import 'react-native-url-polyfill/auto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { secureSessionStorage } from './secureSessionStorage';
+import { bannedAwareFetch } from './bannedSignal';
 import type { Database } from './database.types';
 
 export function createSupabaseClient(
@@ -11,6 +12,7 @@ export function createSupabaseClient(
     throw new Error('Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY');
   }
   return createClient<Database>(url, anonKey, {
+    global: { fetch: bannedAwareFetch },
     auth: {
       storage: secureSessionStorage,
       autoRefreshToken: true,

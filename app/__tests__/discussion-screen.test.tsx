@@ -3,7 +3,9 @@ import { Alert, AppState } from 'react-native';
 import { useEffect as mockUseEffect } from 'react';
 import { initI18n } from '../src/i18n';
 import Discussion from '../src/app/discussions/[activityId]';
-import { blockUser, deleteMessage, fetchMessages, markRead, reportMessage, sendMessage, setMuted } from '../src/features/chat/api';
+import { deleteMessage, fetchMessages, markRead, sendMessage, setMuted } from '../src/features/chat/api';
+import { block as blockUser } from '../src/features/safety/blocks';
+import { reportTarget } from '../src/features/safety/reports';
 import { onUnreadChanged } from '../src/features/chat/unreadEvents';
 import { clearOutbox, initOutbox } from '../src/features/chat/outbox';
 import type { ChatMessage } from '../src/features/chat/types';
@@ -56,9 +58,9 @@ jest.mock('../src/features/chat/api', () => ({
   deleteMessage: jest.fn(),
   markRead: jest.fn(),
   setMuted: jest.fn(),
-  reportMessage: jest.fn(),
-  blockUser: jest.fn(),
 }));
+jest.mock('../src/features/safety/reports', () => ({ reportTarget: jest.fn() }));
+jest.mock('../src/features/safety/blocks', () => ({ block: jest.fn() }));
 const mockHandlers: { filter: any; cb: (p: any) => void }[] = [];
 // Like realtime-js: the same topic returns the same channel, and callbacks cannot be added once subscribed.
 const mockChannels = new Map<string, any>();
@@ -156,7 +158,7 @@ beforeEach(async () => {
   }) as never);
   (markRead as jest.Mock).mockResolvedValue(ok);
   (setMuted as jest.Mock).mockResolvedValue(ok);
-  (reportMessage as jest.Mock).mockResolvedValue(ok);
+  (reportTarget as jest.Mock).mockResolvedValue(ok);
   (blockUser as jest.Mock).mockResolvedValue(ok);
   (deleteMessage as jest.Mock).mockResolvedValue(ok);
   mSend.mockReset();
@@ -333,9 +335,19 @@ describe('discussion screen', () => {
     expect(screen.queryByRole('button', { name: 'Supprimer le message' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Bloquer Camille' })).toBeTruthy();
     await fireEvent.press(screen.getByRole('button', { name: 'Signaler' }));
-    await fireEvent.press(screen.getByRole('button', { name: 'Harcèlement' }));
+    await fireEvent.press(await screen.findByRole('radio', { name: 'Harcèlement' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Envoyer le signalement' }));
     await settle();
-    expect(reportMessage).toHaveBeenCalledWith('m1', 'harassment');
+    expect(reportTarget).toHaveBeenCalledWith('message', 'm1', 'harassment', undefined);
+    expect(screen.getByText('Merci, votre signalement a été envoyé.')).toBeTruthy();
+  });
+
+  it('opens the message actions through an accessibility action, without a long press', async () => {
+    await open([msg(1, 'Salut')]);
+    const bubble = screen.getByLabelText(/Salut/);
+    expect(bubble.props.accessibilityActions).toEqual([{ name: 'actions', label: 'Actions sur le message' }]);
+    await fireEvent(bubble, 'accessibilityAction', { nativeEvent: { actionName: 'actions' } });
+    expect(screen.getByRole('button', { name: 'Bloquer Camille' })).toBeTruthy();
   });
 
   it('blocks after a confirmation, then reloads the list', async () => {
@@ -598,6 +610,51 @@ describe('blocking and the membership', () => {
     await pressBlock('Salut');
     expect(alert.mock.calls[0][1]).toBe('Vous ne verrez plus ses messages.');
     alert.mockRestore();
+  });
+
+  describe('a message refused by the word filter', () => {
+    const refuse = async () => {
+      await open([]);
+      mSend.mockResolvedValueOnce({ ok: false, error: 'content_refused' });
+      await fireEvent.changeText(input(), 'texte refusé');
+      await fireEvent.press(sendBtn());
+      await settle();
+    };
+
+    it('shows the reason, is not sent again, and goes back to the composer on tap, then resends', async () => {
+      await refuse();
+      expect(screen.getByText('Ce texte contient un mot interdit.')).toBeTruthy();
+      expect(input().props.value).toBe('');
+      expect(mSend).toHaveBeenCalledTimes(1);
+      await fireEvent.press(screen.getByLabelText('texte refusé'));
+      await settle();
+      expect(input().props.value).toBe('texte refusé');
+      expect(screen.queryByText('Ce texte contient un mot interdit.')).toBeNull();
+      await fireEvent.changeText(input(), 'texte corrigé');
+      await fireEvent.press(sendBtn());
+      await settle();
+      expect(mSend).toHaveBeenCalledTimes(2);
+      expect(mSend.mock.calls[1][3]).toBe('texte corrigé');
+    });
+
+    it('announces how to edit it', async () => {
+      await refuse();
+      expect(screen.getByLabelText('texte refusé').props.accessibilityHint).toBe('Touchez pour modifier');
+    });
+
+    it('asks before replacing text typed since', async () => {
+      const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      await refuse();
+      await fireEvent.changeText(input(), 'autre chose');
+      await fireEvent.press(screen.getByLabelText('texte refusé'));
+      expect(alert).toHaveBeenCalledWith('Remplacer votre texte par le message refusé ?', undefined, expect.any(Array));
+      expect(input().props.value).toBe('autre chose');
+      const buttons = alert.mock.calls[0][2] as { text: string; onPress?: () => void }[];
+      await act(async () => buttons.find((b) => b.text === 'Remplacer')!.onPress!());
+      await settle();
+      expect(input().props.value).toBe('texte refusé');
+      alert.mockRestore();
+    });
   });
 });
 

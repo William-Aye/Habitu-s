@@ -1,33 +1,51 @@
-import { CalendarPlus, Check, Square, SquareCheck } from 'lucide-react-native';
+import { CalendarPlus, Check, Flag, Share2, Square, SquareCheck } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { SessionTools } from './OrganiserTools';
 import { PersonAvatar } from './PersonAvatar';
 import { setAttendance } from './api';
+import { useSession } from '../account/useSession';
 import { askForPush } from '../notifications/registerPush';
+import { leaveScreen } from '../safety/confirmBlock';
+import { SafetyTip } from '../safety/SafetyTip';
+import { shareMyPlans } from '../safety/shareMyPlans';
+import { usePersonActions } from '../safety/PersonActions';
+import { useReportSheet } from '../safety/ReportSheet';
 import { addSessionToCalendar } from './calendar';
 import { formatSessionDate } from './recurrence';
-import type { ActivityPage, ApiError, SessionInfo } from './types';
+import { KNOWN_ERRORS } from './errors';
+import type { ActivityPage, SessionInfo } from './types';
 
-const KNOWN: ApiError[] = ['limit_reached', 'not_allowed', 'session_full', 'network', 'association_unavailable'];
 
 interface Props {
   session: SessionInfo;
   activity: ActivityPage;
   /** Show "À votre arrivée, demandez ..." on this session. */
   showWelcome: boolean;
+  /** Show the first-meeting safety tip above this session (the first one I ever confirmed). */
+  showFirstTip?: boolean;
   /** Re-reads the activity page. */
   onChanged: () => void;
 }
 
-export function SessionRow({ session, activity, showWelcome, onChanged }: Props) {
+export function SessionRow({ session, activity, showWelcome, showFirstTip = false, onChanged }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language?.startsWith('en') ? 'en' : 'fr';
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [calendarMsg, setCalendarMsg] = useState<string | null>(null);
   const [knownFull, setKnownFull] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const { userId: me } = useSession();
+  const { openReport, reportSheet } = useReportSheet();
+  const { openPerson, reportPerson, blockPerson, personSheet } = usePersonActions({
+    // Blocking the organiser ends my membership; the organiser blocking a member removes them.
+    effectOf: (p) =>
+      p.id === activity.organiser?.id ? 'leaves_activity' : activity.isOrganiser ? 'removes_member' : 'plain',
+    // Blocking the organiser removes me from the activity: this page is no longer mine to show.
+    onBlocked: (_p, effect) => (effect === 'leaves_activity' ? leaveScreen() : onChanged()),
+  });
 
   const date = formatSessionDate(session.startsAt, lang);
   const cancelled = session.status !== 'scheduled';
@@ -35,6 +53,9 @@ export function SessionRow({ session, activity, showWelcome, onChanged }: Props)
   const mine = session.myAttendance;
   const isConfirmed = mine?.status === 'confirmed';
   const guest = (mine?.guestCount ?? 0) === 1;
+  const norm = (v: string) => v.trim().replace(/\s+/g, ' ').toLowerCase();
+  const movedPlace =
+    !activity.isOrganiser && !!session.placeLabel.trim() && norm(session.placeLabel) !== norm(activity.placeLabel);
   const full = (session.isFull || knownFull) && !isConfirmed;
 
   const attend = async (status: 'confirmed' | 'cancelled', guestCount: 0 | 1) => {
@@ -45,12 +66,23 @@ export function SessionRow({ session, activity, showWelcome, onChanged }: Props)
     setBusy(false);
     if (!r.ok) {
       if (r.error === 'session_full') setKnownFull(true);
-      setError(t(`create.errors.${KNOWN.includes(r.error) ? r.error : 'unknown'}`));
+      setError(t(`create.errors.${KNOWN_ERRORS.includes(r.error) ? r.error : 'unknown'}`));
       return;
     }
     setKnownFull(false);
     if (status === 'confirmed') void askForPush();
     onChanged();
+  };
+
+  const sharePlans = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      await shareMyPlans(session, activity);
+    } catch {
+      // A share sheet that cannot open is not worth an error message.
+    }
+    setSharing(false);
   };
 
   const addToCalendar = async () => {
@@ -61,6 +93,10 @@ export function SessionRow({ session, activity, showWelcome, onChanged }: Props)
 
   return (
     <View style={styles.row}>
+      {showFirstTip && isConfirmed && !cancelled ? <SafetyTip id="first_session" onShare={sharePlans} /> : null}
+      {movedPlace && !cancelled ? (
+        <SafetyTip id="moved_place" scope={session.id} onReport={() => void openReport({ type: 'session', id: session.id })} />
+      ) : null}
       <View style={styles.wrap}>
         <Text style={styles.date}>{date}</Text>
         {session.isDiscovery ? <Text style={styles.badge}>{t('activity.session.discovery')}</Text> : null}
@@ -72,12 +108,40 @@ export function SessionRow({ session, activity, showWelcome, onChanged }: Props)
 
       {session.attendees && session.attendees.length > 0 ? (
         <View style={styles.wrap} accessibilityLabel={t('activity.session.attendees')}>
-          {session.attendees.map((p, i) => (
-            <View key={`${p.firstName}-${i}`} style={styles.person}>
-              <PersonAvatar name={p.firstName} photoUrl={p.photoUrl} size={28} />
-              <Text>{p.firstName}</Text>
-            </View>
-          ))}
+          {session.attendees.map((p, i) => {
+            const body = (
+              <>
+                <PersonAvatar name={p.firstName} photoUrl={p.photoUrl} size={28} />
+                <Text>{p.firstName}</Text>
+              </>
+            );
+            const id = p.id;
+            // Long press: report or block someone else (not myself, not someone the server did not identify).
+            return id && id !== me ? (
+              <Pressable
+                key={`${id}-${i}`}
+                accessibilityLabel={p.firstName}
+                accessibilityHint={t('safety.personHint')}
+                style={styles.person}
+                accessibilityActions={[
+                  { name: 'report', label: t('safety.reportPerson') },
+                  { name: 'block', label: t('safety.block') },
+                ]}
+                onAccessibilityAction={(e) => {
+                  const person = { id, firstName: p.firstName };
+                  if (e.nativeEvent.actionName === 'report') void reportPerson(person);
+                  else if (e.nativeEvent.actionName === 'block') blockPerson(person);
+                }}
+                onLongPress={() => void openPerson({ id, firstName: p.firstName })}
+              >
+                {body}
+              </Pressable>
+            ) : (
+              <View key={`${p.firstName}-${i}`} accessibilityLabel={id ? p.firstName : undefined} style={styles.person}>
+                {body}
+              </View>
+            );
+          })}
         </View>
       ) : null}
 
@@ -119,6 +183,17 @@ export function SessionRow({ session, activity, showWelcome, onChanged }: Props)
                 <CalendarPlus size={18} color="#1a56db" />
                 <Text style={styles.linkText}>{t('activity.session.addToCalendar')}</Text>
               </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('safety.sharePlansAria', { date })}
+                accessibilityState={{ disabled: sharing }}
+                disabled={sharing}
+                style={[styles.link, sharing && styles.dim]}
+                onPress={sharePlans}
+              >
+                <Share2 size={18} color="#1a56db" />
+                <Text style={styles.linkText}>{t('safety.sharePlans')}</Text>
+              </Pressable>
               {showWelcome && activity.welcomeFirstName ? (
                 <Text>{t('activity.session.welcomeHint', { prenom: activity.welcomeFirstName })}</Text>
               ) : null}
@@ -142,6 +217,18 @@ export function SessionRow({ session, activity, showWelcome, onChanged }: Props)
           ) : null}
         </View>
       ) : null}
+
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel={t('safety.reportSession')}
+        style={styles.link}
+        onPress={() => void openReport({ type: 'session', id: session.id })}
+      >
+        <Flag size={16} color="#1a56db" />
+        <Text style={styles.linkText}>{t('safety.reportSession')}</Text>
+      </Pressable>
+      {personSheet}
+      {reportSheet}
 
       {calendarMsg ? <Text accessibilityLiveRegion="polite">{calendarMsg}</Text> : null}
       {error ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}

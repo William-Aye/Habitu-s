@@ -16,12 +16,13 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRequireAccount } from '../../features/account/AccountGate';
 import { useSession } from '../../features/account/useSession';
-import { blockUser, reportMessage } from '../../features/chat/api';
 import { Composer } from '../../features/chat/Composer';
 import { MessageActions } from '../../features/chat/MessageActions';
 import { MessageBubble } from '../../features/chat/MessageBubble';
-import type { ReportReason } from '../../features/chat/types';
 import { useChat, type DisplayMessage } from '../../features/chat/useChat';
+import { block } from '../../features/safety/blocks';
+import { afterModalClosed, confirmBlock } from '../../features/safety/confirmBlock';
+import { useReportSheet } from '../../features/safety/ReportSheet';
 
 export default function DiscussionScreen() {
   const { t } = useTranslation();
@@ -57,8 +58,21 @@ export default function DiscussionScreen() {
     });
   }, [signedOut, requireAccount, retryLoad]);
   const [target, setTarget] = useState<DisplayMessage | null>(null);
-  const [busy, setBusy] = useState(false);
+  const { openReport, reportSheet } = useReportSheet();
   const [notice, setNotice] = useState<string | null>(null);
+  const [text, setText] = useState('');
+  // A refused message goes back into the composer; text typed since is replaced only after asking.
+  const editRefused = (id: string) => {
+    const take = () => {
+      const body = chat.edit(id);
+      if (body !== null) setText(body);
+    };
+    if (text.trim() === '') return take();
+    Alert.alert(t('chat.replaceDraft'), undefined, [
+      { text: t('chat.actions.cancel'), style: 'cancel' },
+      { text: t('chat.replaceAction'), onPress: take },
+    ]);
+  };
 
   // The list is inverted: newest first.
   const data = useMemo(() => [...chat.messages].reverse(), [chat.messages]);
@@ -78,45 +92,30 @@ export default function DiscussionScreen() {
     ]);
   };
 
-  const confirmBlock = (m: DisplayMessage) => {
+  const blockSender = (m: DisplayMessage) => {
     setTarget(null);
-    const prenom = m.sender.firstName;
     // Blocking also ends the membership when the organiser is one of the two people.
     const blocksOrganiser = !!chat.organiserId && m.sender.id === chat.organiserId;
     const iAmOrganiser = !!chat.organiserId && userId === chat.organiserId;
-    const body = blocksOrganiser
-      ? t('chat.actions.blockBodyOrganiser')
-      : iAmOrganiser
-        ? t('chat.actions.blockBodyMember')
-        : t('chat.actions.blockBody');
-    Alert.alert(t('chat.actions.blockTitle', { prenom }), body, [
-      { text: t('chat.actions.cancel'), style: 'cancel' },
-      {
-        text: t('chat.actions.block', { prenom }),
-        style: 'destructive',
-        onPress: async () => {
-          const r = await blockUser(m.sender.id);
-          if (r.ok && blocksOrganiser) {
-            // The membership is gone: leave rather than show the join prompt.
-            router.back();
-          } else if (r.ok) {
-            setNotice(null);
-            await chat.reload();
-          } else {
-            setNotice(t('chat.actions.error'));
-          }
-        },
-      },
-    ]);
+    const effect = blocksOrganiser ? 'leaves_activity' : iAmOrganiser ? 'removes_member' : 'plain';
+    confirmBlock(t, m.sender.firstName, effect, async () => {
+      const r = await block(m.sender.id);
+      if (r.ok && blocksOrganiser) {
+        // The membership is gone: leave rather than show the join prompt.
+        router.back();
+      } else if (r.ok) {
+        setNotice(null);
+        await chat.reload();
+      } else {
+        setNotice(t('chat.actions.error'));
+      }
+    });
   };
 
-  const report = async (m: DisplayMessage, reason: ReportReason) => {
-    if (busy) return;
-    setBusy(true);
-    const r = await reportMessage(m.id, reason);
-    setBusy(false);
+  const report = (m: DisplayMessage) => {
     setTarget(null);
-    setNotice(r.ok ? t('chat.actions.reportSent') : t('chat.actions.error'));
+    // Open the report sheet once the actions menu is gone (iOS drops a modal opened mid-dismiss).
+    afterModalClosed(() => void openReport({ type: 'message', id: m.id }));
   };
 
   if (chat.state === 'error' || (signedOut && gateDone)) {
@@ -201,7 +200,7 @@ export default function DiscussionScreen() {
         data={data}
         keyExtractor={(m) => m.id}
         renderItem={({ item }) => (
-          <MessageBubble message={item} onLongPress={setTarget} onRetry={chat.retry} />
+          <MessageBubble message={item} onLongPress={setTarget} onRetry={chat.retry} onEdit={editRefused} />
         )}
         onEndReached={() => void chat.loadOlder()}
         onEndReachedThreshold={0.5}
@@ -212,12 +211,11 @@ export default function DiscussionScreen() {
       {chat.archived ? (
         <Text accessibilityLiveRegion="polite" style={styles.archived}>{t('chat.archived')}</Text>
       ) : (
-        <Composer onSend={chat.send} />
+        <Composer value={text} onChange={setText} onSend={chat.send} />
       )}
 
       <MessageActions
         target={target}
-        busy={busy}
         onClose={() => setTarget(null)}
         onDelete={confirmDelete}
         onDiscard={(m) => {
@@ -225,8 +223,9 @@ export default function DiscussionScreen() {
           chat.discard(m.id);
         }}
         onReport={report}
-        onBlock={confirmBlock}
+        onBlock={blockSender}
       />
+      {reportSheet}
     </KeyboardAvoidingView>
   );
 }

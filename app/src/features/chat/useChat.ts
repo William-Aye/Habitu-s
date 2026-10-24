@@ -331,6 +331,17 @@ export function useChat(activityId: string, screenFocused = true) {
     discarded.current.add(id);
     discardPending(id);
   }, []);
+  /** Takes a refused message back out of the queue and returns its text, so the person can change it. */
+  const edit = useCallback(
+    (id: string): string | null => {
+      const m = userId ? pending(activityId, userId).find((p) => p.id === id) : undefined;
+      if (!m) return null;
+      discarded.current.add(id);
+      discardPending(id);
+      return m.body;
+    },
+    [userId, activityId],
+  );
 
   const remove = useCallback(async (id: string): Promise<{ ok: true } | { ok: false; error: ChatError }> => {
     const r = await deleteMessage(id);
@@ -369,6 +380,7 @@ export function useChat(activityId: string, screenFocused = true) {
     send,
     retry,
     discard,
+    edit,
     remove,
     reload,
     retryLoad: load,

@@ -1,10 +1,8 @@
 import {
-  blockUser,
   deleteMessage,
   fetchMessages,
   markRead,
   myChats,
-  reportMessage,
   sendMessage,
   setMuted,
   unreadTotal,
@@ -268,46 +266,5 @@ describe('markRead and setMuted', () => {
   it('maps a refusal', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { code: '42501', message: 'not_allowed' } });
     expect(await markRead('a1')).toEqual({ ok: false, error: 'not_allowed' });
-  });
-});
-
-describe('reportMessage and blockUser', () => {
-  it('reports a message on the existing reports table', async () => {
-    result = { data: null, error: null };
-    expect(await reportMessage('m1', 'harassment')).toEqual({ ok: true });
-    expect(mockFrom).toHaveBeenCalledWith('reports');
-    expect(lastCall('insert')?.args[0]).toEqual({
-      reporter_id: 'me',
-      target_type: 'message',
-      target_id: 'm1',
-      reason: 'inappropriate_behaviour',
-      details: 'harassment',
-    });
-  });
-
-  it.each([
-    ['inappropriate', 'inappropriate_behaviour'],
-    ['scam', 'fake_or_spam'],
-    ['other', 'other'],
-  ] as const)('maps the %s reason to %s', async (reason, column) => {
-    result = { data: null, error: null };
-    await reportMessage('m1', reason);
-    expect((lastCall('insert')?.args[0] as any).reason).toBe(column);
-  });
-
-  it('blocks a user as the signed-in user', async () => {
-    result = { data: null, error: null };
-    expect(await blockUser('u2')).toEqual({ ok: true });
-    expect(mockFrom).toHaveBeenCalledWith('blocks');
-    expect(lastCall('upsert')?.args).toEqual([
-      { blocker_id: 'me', blocked_id: 'u2' },
-      { onConflict: 'blocker_id,blocked_id', ignoreDuplicates: true },
-    ]);
-  });
-
-  it('is signed_out when signed out', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: null } });
-    expect(await blockUser('u2')).toEqual({ ok: false, error: 'signed_out' });
-    expect(await reportMessage('m1', 'other')).toEqual({ ok: false, error: 'signed_out' });
   });
 });

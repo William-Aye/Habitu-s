@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { List, Map, Plus } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -34,7 +34,6 @@ export default function Explore() {
   const [sort, setSort] = useState<'best' | 'nearest'>('best');
   const [view, setView] = useState<'list' | 'map'>('list');
   const [editingLocation, setEditingLocation] = useState(false);
-  const [notice, setNotice] = useState(false);
 
   const hasQuery = normaliseQuery(query) !== '';
   // Without a query the interests shape the results: wait for them so the search runs once.
@@ -132,10 +131,14 @@ export default function Explore() {
       <View style={styles.empty}>
         <WidenBanner response={response} radiusKm={filters.radiusKm} onWiden={widen} />
         <Text style={styles.heading}>{t('explore.empty')}</Text>
-        <Pressable accessibilityRole="button" style={styles.outline} onPress={() => setNotice(true)}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('explore.feedback')}
+          style={styles.outline}
+          onPress={() => router.push('/feedback' as Href)}
+        >
           <Text style={styles.outlineText}>{t('explore.feedback')}</Text>
         </Pressable>
-        {notice ? <Text accessibilityLiveRegion="polite">{t('common.comingSoon')}</Text> : null}
       </View>
     );
   } else {
@@ -215,9 +218,6 @@ export default function Explore() {
             </View>
           </View>
         </>
-      ) : null}
-      {notice && !(response && results.length === 0) ? (
-        <Text accessibilityLiveRegion="polite">{t('common.comingSoon')}</Text>
       ) : null}
       {location && !needsLocation ? (
         <Pressable
