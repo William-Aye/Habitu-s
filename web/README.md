@@ -23,7 +23,7 @@ For local runs put them in `web/.dev.vars` (git-ignored), one `NAME=value` per l
 ## Tests
 
 ```
-npx --yes deno@2 test web/functions
+npx --yes deno@2 test --allow-read=web/public web/functions
 rm -f deno.lock
 ```
 

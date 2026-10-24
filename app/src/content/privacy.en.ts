@@ -1,4 +1,4 @@
-import { PRIVACY_CONTACT } from './contact';
+import { PRIVACY_CONTACT } from './contact.ts';
 
 // Stored as a TypeScript string because Metro does not load .md files as source by default.
 // MARKERS: every sentence tagged "(once this feature is available)" describes a feature that
