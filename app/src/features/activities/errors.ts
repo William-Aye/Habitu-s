@@ -6,6 +6,16 @@ interface PgError {
   message?: string | null;
 }
 
+/** The errors a screen with its own copy under `create.errors.*` can show; anything else reads as unknown. */
+export const KNOWN_ERRORS: ApiError[] = [
+  'limit_reached',
+  'not_allowed',
+  'session_full',
+  'network',
+  'association_unavailable',
+  'content_refused',
+];
+
 export function mapError(error: PgError): ApiError {
   const message = error.message ?? '';
   if (error.code === '42501') {
@@ -14,6 +24,8 @@ export function mapError(error: PgError): ApiError {
     return message.includes('association not linkable') ? 'association_unavailable' : 'not_allowed';
   }
   if (error.code === '22023' && message.includes('invalid_website')) return 'invalid_website';
+  // The forbidden-word filter on messages, activities, collectifs and community clubs.
+  if (error.code === '23514' && message.includes('content_refused')) return 'content_refused';
   // Unique violation: rejoining after removal, or a double tap.
   if (error.code === '23505') return 'not_allowed';
   if (message.includes('session_full')) return 'session_full';

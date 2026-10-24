@@ -14,9 +14,9 @@ import { usePersonActions } from '../safety/PersonActions';
 import { useReportSheet } from '../safety/ReportSheet';
 import { addSessionToCalendar } from './calendar';
 import { formatSessionDate } from './recurrence';
-import type { ActivityPage, ApiError, SessionInfo } from './types';
+import { KNOWN_ERRORS } from './errors';
+import type { ActivityPage, SessionInfo } from './types';
 
-const KNOWN: ApiError[] = ['limit_reached', 'not_allowed', 'session_full', 'network', 'association_unavailable'];
 
 interface Props {
   session: SessionInfo;
@@ -66,7 +66,7 @@ export function SessionRow({ session, activity, showWelcome, showFirstTip = fals
     setBusy(false);
     if (!r.ok) {
       if (r.error === 'session_full') setKnownFull(true);
-      setError(t(`create.errors.${KNOWN.includes(r.error) ? r.error : 'unknown'}`));
+      setError(t(`create.errors.${KNOWN_ERRORS.includes(r.error) ? r.error : 'unknown'}`));
       return;
     }
     setKnownFull(false);

@@ -1,3 +1,5 @@
+import { PRIVACY_CONTACT } from './contact';
+
 // Stored as a TypeScript string because Metro does not load .md files as source by default.
 // MARKERS: every sentence tagged "(dès que cette fonctionnalité sera disponible)" describes a feature that
 // is not built yet. Remove the marker when it ships: messages and group/private chat, post-session
@@ -64,7 +66,7 @@ Dans l'application, ouvrez Profil, puis « Mes données » :
 
 Supprimer votre compte supprime aussi les activités que vous organisez, avec leurs séances, leurs présences et les messages de leur groupe. Les signalements et vos suggestions « Une idée ? Un problème ? » restent, mais ne sont plus rattachés à vous.
 
-Vous pouvez aussi vous opposer à un traitement ou demander une limitation en nous écrivant : confidentialite@<domaine>. Nous répondons dans un délai d'un mois.
+Vous pouvez aussi vous opposer à un traitement ou demander une limitation en nous écrivant : ${PRIVACY_CONTACT}. Nous répondons dans un délai d'un mois.
 
 # Réclamation
 
@@ -72,5 +74,5 @@ Si vous pensez que vos droits ne sont pas respectés, vous pouvez saisir la CNIL
 
 # Contact
 
-confidentialite@<domaine>
+${PRIVACY_CONTACT}
 `;

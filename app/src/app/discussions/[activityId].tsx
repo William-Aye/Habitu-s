@@ -60,6 +60,11 @@ export default function DiscussionScreen() {
   const [target, setTarget] = useState<DisplayMessage | null>(null);
   const { openReport, reportSheet } = useReportSheet();
   const [notice, setNotice] = useState<string | null>(null);
+  const [draft, setDraft] = useState<{ text: string; key: number } | null>(null);
+  const editRefused = (id: string) => {
+    const text = chat.edit(id);
+    if (text !== null) setDraft((d) => ({ text, key: (d?.key ?? 0) + 1 }));
+  };
 
   // The list is inverted: newest first.
   const data = useMemo(() => [...chat.messages].reverse(), [chat.messages]);
@@ -187,7 +192,7 @@ export default function DiscussionScreen() {
         data={data}
         keyExtractor={(m) => m.id}
         renderItem={({ item }) => (
-          <MessageBubble message={item} onLongPress={setTarget} onRetry={chat.retry} />
+          <MessageBubble message={item} onLongPress={setTarget} onRetry={chat.retry} onEdit={editRefused} />
         )}
         onEndReached={() => void chat.loadOlder()}
         onEndReachedThreshold={0.5}
@@ -198,7 +203,7 @@ export default function DiscussionScreen() {
       {chat.archived ? (
         <Text accessibilityLiveRegion="polite" style={styles.archived}>{t('chat.archived')}</Text>
       ) : (
-        <Composer onSend={chat.send} />
+        <Composer onSend={chat.send} draft={draft} />
       )}
 
       <MessageActions

@@ -31,6 +31,7 @@ export type ApiError =
   | 'not_allowed'
   | 'association_unavailable'
   | 'invalid_website'
+  | 'content_refused'
   | 'session_full'
   | 'network'
   | 'unknown';

@@ -12,6 +12,7 @@ import { touchLastSeen } from '../features/account/lastSeen';
 import { InterestsMerger, mergeInterests } from '../features/interests/InterestsMerger';
 import { LanguageSync } from '../features/account/LanguageSync';
 import { initOutbox } from '../features/chat/outbox';
+import { SuspendedNotice } from '../features/account/SuspendedNotice';
 import { NotificationResponder } from '../features/notifications/NotificationResponder';
 
 /** Tells the server the signed-in user is active, at launch and whenever the app returns to the foreground. */
@@ -136,6 +137,7 @@ export default function RootLayout() {
           <LanguageSync />
           <NotificationResponder />
           <OnboardingGate />
+          <SuspendedNotice />
         </AccountGateProvider>
       </SessionProvider>
     </I18nextProvider>

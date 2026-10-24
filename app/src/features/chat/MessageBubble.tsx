@@ -8,20 +8,25 @@ interface Props {
   message: DisplayMessage;
   onLongPress: (m: DisplayMessage) => void;
   onRetry: (id: string) => void;
+  /** A refused message goes back to the composer to be changed. */
+  onEdit?: (id: string) => void;
 }
 
 /** One message. URLs stay plain text on purpose: no auto-link. */
-export function MessageBubble({ message: m, onLongPress, onRetry }: Props) {
+export function MessageBubble({ message: m, onLongPress, onRetry, onEdit }: Props) {
   const { t } = useTranslation();
   const p = m.pending;
-  const needsRetry = !!p && (p.state === 'failed' || p.stalled);
+  const refused = !!p && p.state === 'failed' && p.error === 'content_refused';
+  const needsRetry = !!p && !refused && (p.state === 'failed' || p.stalled);
   const time = p ? '' : formatMessageTime(m.createdAt, new Date(), t('messages.yesterday'));
   const label = p
     ? m.body
     : t(m.isMine ? 'chat.bubbleMine' : 'chat.bubbleOther', { name: m.sender.firstName, time, body: m.body });
   const status = !p
     ? null
-    : p.state === 'failed' && p.error === 'limit_reached'
+    : refused
+      ? t('chat.errors.content_refused')
+      : p.state === 'failed' && p.error === 'limit_reached'
       ? t('chat.limit')
       : needsRetry
         ? t('chat.unsent')
@@ -31,21 +36,23 @@ export function MessageBubble({ message: m, onLongPress, onRetry }: Props) {
     <View style={[styles.row, m.isMine && styles.rowMine]}>
       {m.isMine ? null : <PersonAvatar name={m.sender.firstName} photoUrl={m.sender.photoUrl} size={32} />}
       <Pressable
-        accessibilityRole={needsRetry ? 'button' : undefined}
+        accessibilityRole={needsRetry || (refused && !!onEdit) ? 'button' : undefined}
         accessibilityLabel={label}
         accessibilityHint={t('chat.actionsHint')}
         accessibilityActions={[{ name: 'actions', label: t('chat.actions.title') }]}
         onAccessibilityAction={(e) => {
           if (e.nativeEvent.actionName === 'actions') onLongPress(m);
         }}
-        onPress={needsRetry && p ? () => onRetry(p.id) : undefined}
+        onPress={
+          refused && p && onEdit ? () => onEdit(p.id) : needsRetry && p ? () => onRetry(p.id) : undefined
+        }
         onLongPress={() => onLongPress(m)}
         style={[styles.bubble, m.isMine ? styles.bubbleMine : styles.bubbleOther]}
       >
         {m.isMine ? null : <Text style={styles.name}>{m.sender.firstName}</Text>}
         <Text style={m.isMine ? styles.bodyMine : styles.body}>{m.body}</Text>
         {status ? (
-          <Text style={[styles.meta, needsRetry && styles.metaError]}>{status}</Text>
+          <Text accessibilityLiveRegion={refused ? 'polite' : undefined} style={[styles.meta, (needsRetry || refused) && styles.metaError]}>{status}</Text>
         ) : (
           <Text style={m.isMine ? styles.metaMine : styles.meta}>{time}</Text>
         )}

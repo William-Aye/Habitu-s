@@ -11,13 +11,13 @@ import { SessionRow } from '../../features/activities/SessionRow';
 import { getActivity, joinActivity, leaveActivity } from '../../features/activities/api';
 import { describeRecurrence } from '../../features/activities/recurrence';
 import { shareActivity } from '../../features/activities/share';
+import { KNOWN_ERRORS } from '../../features/activities/errors';
 import type { ActivityPage, ApiError } from '../../features/activities/types';
 import { TownMap } from '../../features/explore/components/TownMap';
 import { useReportSheet } from '../../features/safety/ReportSheet';
 
 type Load = { state: 'loading' } | { state: 'error' } | { state: 'ready'; activity: ActivityPage | null };
 
-const KNOWN: ApiError[] = ['limit_reached', 'not_allowed', 'session_full', 'network', 'association_unavailable'];
 
 export default function ActivityScreen() {
   const { t, i18n } = useTranslation();
@@ -70,7 +70,7 @@ export default function ActivityScreen() {
 
   const lang = i18n.language?.startsWith('en') ? 'en' : 'fr';
   const archived = !!a.archivedAt;
-  const errorText = (e: ApiError) => t(`create.errors.${KNOWN.includes(e) ? e : 'unknown'}`);
+  const errorText = (e: ApiError) => t(`create.errors.${KNOWN_ERRORS.includes(e) ? e : 'unknown'}`);
 
   const act = async (call: () => Promise<{ ok: true } | { ok: false; error: ApiError }>) => {
     if (busy) return;

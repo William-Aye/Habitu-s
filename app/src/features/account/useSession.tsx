@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { AppState } from 'react-native';
 import { supabase } from '../../lib/supabase';
+import { isBannedError } from './banned';
 
 export type SessionStatus = 'loading' | 'signed_out' | 'needs_profile' | 'ready';
 
@@ -28,6 +29,8 @@ export interface SessionValue {
   profile: SessionProfile | null;
   /** True when the profile could not be fetched (status stays 'loading' while it is retried). */
   error: boolean;
+  /** True when the server refused the stored session because the account is banned. */
+  banned: boolean;
   /** Re-reads the session and profile once; resolves with the settled status ('loading' on failure). */
   refresh(): Promise<SessionStatus>;
 }
@@ -40,6 +43,7 @@ const SessionContext = createContext<SessionValue>({
   userId: null,
   profile: null,
   error: false,
+  banned: false,
   refresh: async () => 'loading',
 });
 
@@ -81,6 +85,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const failedRef = useRef(false);
   const sessionFailedRef = useRef(false);
   const [sessionFailed, setSessionFailed] = useState(false);
+  const [banned, setBanned] = useState(false);
 
   // One fetch per user at a time: concurrent callers share the same request.
   const loadOnce = useCallback((userId: string): Promise<Loaded> => {
@@ -103,6 +108,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (!error) {
           ok = true;
           if (active) setAuthUserId(data.session?.user.id ?? null);
+        } else if (isBannedError(error)) {
+          // A definite answer, not a failed read: the account is suspended, so nothing will ever refresh.
+          ok = true;
+          if (active) {
+            setBanned(true);
+            setAuthUserId(null);
+          }
         }
       } catch {
         // treated as a failed read below
@@ -137,6 +149,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (event === 'INITIAL_SESSION' && !session) return;
       sessionFailedRef.current = false;
       setSessionFailed(false);
+      if (session?.user.id) setBanned(false);
       setAuthUserId(session?.user.id ?? null);
     });
     return () => {
@@ -177,6 +190,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async (): Promise<SessionStatus> => {
     try {
       const { data, error } = await supabase.auth.getSession();
+      if (error && isBannedError(error)) {
+        sessionFailedRef.current = false;
+        setSessionFailed(false);
+        setBanned(true);
+        setAuthUserId(null);
+        return 'signed_out';
+      }
       if (error) {
         sessionFailedRef.current = true;
         setSessionFailed(true);
@@ -201,23 +221,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<SessionValue>(() => {
     if (authUserId === undefined) {
-      return { status: 'loading', userId: null, profile: null, error: sessionFailed, refresh };
+      return { status: 'loading', userId: null, profile: null, error: sessionFailed, banned, refresh };
     }
     if (authUserId === null) {
-      return { status: 'signed_out', userId: null, profile: null, error: false, refresh };
+      return { status: 'signed_out', userId: null, profile: null, error: false, banned, refresh };
     }
     if (!loaded || loaded.userId !== authUserId || loaded.failed) {
       const error = !!loaded && loaded.userId === authUserId && loaded.failed;
-      return { status: 'loading', userId: authUserId, profile: null, error, refresh };
+      return { status: 'loading', userId: authUserId, profile: null, error, banned, refresh };
     }
     return {
       status: loaded.needsProfile ? 'needs_profile' : 'ready',
       userId: authUserId,
       profile: loaded.profile,
       error: false,
+      banned,
       refresh,
     };
-  }, [authUserId, loaded, refresh, sessionFailed]);
+  }, [authUserId, loaded, refresh, sessionFailed, banned]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

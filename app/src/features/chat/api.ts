@@ -8,7 +8,7 @@ const none = () => ({});
 /** The shared errors cover more cases than chat shows; anything else is unknown. */
 function narrow<T extends object>(r: ApiResult<T>): ChatResult<T> {
   if (r.ok) return r;
-  const known: string[] = ['not_allowed', 'limit_reached', 'network'];
+  const known: string[] = ['not_allowed', 'limit_reached', 'content_refused', 'network'];
   return { ok: false, error: (known.includes(r.error) ? r.error : 'unknown') as ChatError };
 }
 

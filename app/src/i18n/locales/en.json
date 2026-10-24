@@ -212,6 +212,7 @@
       "captcha": "The security check failed.",
       "network": "No connection. Check your network and try again.",
       "rate_limited": "Too many attempts. Please wait a little before trying again.",
+      "banned": "Your account has been suspended for breaking the rules of use. To find out the reason for the decision or to contest it, write to {{contact}}.",
       "unknown": "Something went wrong. Please try again.",
       "first_name": "Enter a first name of 40 characters or fewer.",
       "age": "You must be 18 or older."
@@ -331,7 +332,8 @@
       "session_full": "This activity is full.",
       "network": "Cannot connect. Check your network and try again.",
       "unknown": "Something went wrong. Try again.",
-      "association_unavailable": "This association no longer accepts linked activities. Choose another option."
+      "association_unavailable": "This association no longer accepts linked activities. Choose another option.",
+      "content_refused": "This text contains a forbidden word."
     },
     "who": {
       "me": "Me",
@@ -481,6 +483,7 @@
     "deleteAction": "Delete",
     "errors": {
       "limit_reached": "Limit reached: you can invite 10 people per 24 hours. Try again later.",
+      "content_refused": "This text contains a forbidden word.",
       "not_allowed": "Not possible: your permissions may have changed. Reopen the page and try again.",
       "network": "Cannot connect. Check your network and try again.",
       "unknown": "Something went wrong. Try again."
@@ -539,6 +542,9 @@
       "cancel": "Cancel",
       "error": "That did not work. Try again.",
       "back": "Back"
+    },
+    "errors": {
+      "content_refused": "This text contains a forbidden word."
     },
     "bubbleOther": "{{name}}, {{time}}: {{body}}",
     "bubbleMine": "You, {{time}}: {{body}}",
@@ -729,5 +735,37 @@
       "remove": "Remove the word {{mot}}"
     },
     "done": "Decision saved."
+  },
+  "moderation": {
+    "title": "Moderation information",
+    "back": "Back",
+    "loading": "Loading moderation information",
+    "error": "Could not load the moderation information. Try again.",
+    "retry": "Try again",
+    "empty": "No moderation information.",
+    "decisionsTitle": "Decisions about your content",
+    "reportsTitle": "Your reports",
+    "reportHandled": "Your report has been handled",
+    "reasonsLabel": "Reasons for the decision",
+    "new": "New",
+    "decisionAria": "{{decision}}, {{target}}, {{date}}. Reasons: {{reasons}}",
+    "decision": {
+      "warn": "Warning",
+      "remove": "Content removed",
+      "ban": "Account suspended"
+    },
+    "target": {
+      "user": "Your profile",
+      "activity": "Your activity",
+      "message": "Your message",
+      "association": "Your association listing",
+      "collectif": "Your collectif",
+      "session": "Your session"
+    }
+  },
+  "banned": {
+    "title": "Account suspended",
+    "message": "Your account has been suspended for breaking the rules of use. To find out the reason for the decision or to contest it, write to {{contact}}.",
+    "dismiss": "Got it"
   }
 }

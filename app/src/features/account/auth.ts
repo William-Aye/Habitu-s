@@ -2,6 +2,7 @@ import { unregisterThisDevice } from '../notifications/registerPush';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { supabase } from '../../lib/supabase';
 import { clearOutbox } from '../chat/outbox';
+import { isBannedError } from './banned';
 
 export type AuthError =
   | 'captcha'
@@ -10,6 +11,7 @@ export type AuthError =
   | 'expired_code'
   | 'rate_limited'
   | 'cancelled'
+  | 'banned'
   | 'unknown';
 
 type Ok = { ok: true };
@@ -22,6 +24,7 @@ export function mapAuthError(error: unknown): AuthError {
   if (!error || typeof error !== 'object') return 'unknown';
   const e = error as { status?: number; name?: string; message?: string; code?: string };
   const message = String(e.message ?? '').toLowerCase();
+  if (isBannedError(error)) return 'banned';
   if (e.status === 429 || e.code === 'over_email_send_rate_limit') return 'rate_limited';
   if (message.includes('captcha')) return 'captcha';
   if (
@@ -39,7 +42,7 @@ export function mapAuthError(error: unknown): AuthError {
 /** For calls that involve no one-time code: only network, rate-limit and cancel are meaningful. */
 function mapGeneralError(error: unknown): AuthError {
   const mapped = mapAuthError(error);
-  return mapped === 'network' || mapped === 'rate_limited' || mapped === 'cancelled'
+  return mapped === 'network' || mapped === 'rate_limited' || mapped === 'cancelled' || mapped === 'banned'
     ? mapped
     : 'unknown';
 }

@@ -7,12 +7,27 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const MAX = 2000;
 const SHOW_COUNT_FROM = 1800;
 
-/** `onSend` returns false when the message was refused (empty, too long): the text is then kept. */
-export function Composer({ onSend }: { onSend: (body: string) => boolean }) {
+/**
+ * `onSend` returns false when the message was refused (empty, too long): the text is then kept.
+ * A new `draft` (a message the filter refused) replaces the text so it can be changed and sent again.
+ */
+export function Composer({
+  onSend,
+  draft,
+}: {
+  onSend: (body: string) => boolean;
+  draft?: { text: string; key: number } | null;
+}) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [text, setText] = useState('');
   const empty = text.trim().length === 0;
+  // A new draft replaces the text (adjusted while rendering, not in an effect).
+  const [seenDraft, setSeenDraft] = useState(draft);
+  if (draft !== seenDraft) {
+    setSeenDraft(draft);
+    if (draft) setText(draft.text);
+  }
 
   const submit = () => {
     if (empty) return;

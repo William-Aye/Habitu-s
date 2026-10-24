@@ -1,3 +1,5 @@
+import { PRIVACY_CONTACT } from './contact';
+
 // Stored as a TypeScript string because Metro does not load .md files as source by default.
 // MARKERS: every sentence tagged "(once this feature is available)" describes a feature that
 // is not built yet. Remove the marker when it ships: messages and group/private chat, post-session
@@ -63,7 +65,7 @@ In the app, open Profile, then "My data":
 
 Deleting your account also deletes the activities you organise, including their sessions, attendances and group messages. Reports and your "Une idée ? Un problème ?" suggestions stay, but are no longer linked to you.
 
-You can also object to a processing or ask for a restriction by writing to us: confidentialite@<domaine>. We answer within one month.
+You can also object to a processing or ask for a restriction by writing to us: ${PRIVACY_CONTACT}. We answer within one month.
 
 # Complaints
 
@@ -71,5 +73,5 @@ If you think your rights are not respected, you can complain to the CNIL (the Fr
 
 # Contact
 
-confidentialite@<domaine>
+${PRIVACY_CONTACT}
 `;
