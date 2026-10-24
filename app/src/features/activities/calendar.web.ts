@@ -1,12 +1,8 @@
+import { activityUrl, webBaseUrl } from '../../lib/links';
 import { buildIcs } from './ics';
 import type { ActivityPage, SessionInfo } from './types';
 
 export type CalendarResult = 'added' | 'cancelled' | 'unavailable';
-
-function publicUrl(activityId: string): string {
-  const base = (process.env.EXPO_PUBLIC_WEB_BASE_URL ?? '').replace(/\/+$/, '') || window.location.origin;
-  return `${base}/activites/${activityId}`;
-}
 
 /** The browser has no calendar to open: it downloads an .ics file the visitor's calendar app can import. */
 export async function addSessionToCalendar(
@@ -14,7 +10,7 @@ export async function addSessionToCalendar(
   activity: Pick<ActivityPage, 'id' | 'title'>,
 ): Promise<CalendarResult> {
   try {
-    const ics = buildIcs(session, activity, publicUrl(activity.id));
+    const ics = buildIcs(session, activity, activityUrl(activity.id, activity.title, webBaseUrl() || window.location.origin));
     const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');

@@ -307,7 +307,7 @@ describe('shareActivity', () => {
     const spy = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' } as never);
     process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://habitues.example/';
     await shareActivity('abc', 'Go du mardi');
-    expect(spy).toHaveBeenCalledWith({ message: 'Go du mardi sur Habitués : https://habitues.example/activites/abc' });
+    expect(spy).toHaveBeenCalledWith({ message: 'Go du mardi sur Habitués : https://habitues.example/activites/go-du-mardi-abc' });
   });
   it('falls back to the app link', async () => {
     const spy = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' } as never);

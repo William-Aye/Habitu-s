@@ -260,7 +260,7 @@ describe('calendar and share on the web', () => {
     Object.defineProperty(globalThis, 'navigator', { value: { clipboard: { writeText } }, configurable: true });
     const { shareActivity } = require('../src/features/activities/share.web');
     expect(await shareActivity('abc', 'Go')).toBe('copied');
-    expect(writeText).toHaveBeenCalledWith('Go sur Habitués : https://habitues.example/activites/abc');
+    expect(writeText).toHaveBeenCalledWith('Go sur Habitués : https://habitues.example/activites/go-abc');
   });
 
   it('uses navigator.share when it exists', async () => {
@@ -268,6 +268,6 @@ describe('calendar and share on the web', () => {
     Object.defineProperty(globalThis, 'navigator', { value: { share }, configurable: true });
     const { shareActivity } = require('../src/features/activities/share.web');
     expect(await shareActivity('abc', 'Go')).toBe('shared');
-    expect(share).toHaveBeenCalledWith({ text: 'Go sur Habitués : https://habitues.example/activites/abc' });
+    expect(share).toHaveBeenCalledWith({ text: 'Go sur Habitués : https://habitues.example/activites/go-abc' });
   });
 });
