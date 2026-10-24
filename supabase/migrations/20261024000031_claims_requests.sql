@@ -386,7 +386,7 @@ begin
         select f.id, f.created_at, jsonb_build_object(
             'id', f.id, 'created_at', f.created_at, 'type', f.type, 'body', f.body, 'source', f.source,
             'status', f.status, 'app_version', f.app_version, 'device_model', f.device_model,
-            'screenshot_path', f.screenshot_path,
+            'has_screenshot', f.screenshot_path is not null,
             'sender_first_name', (select p.first_name from public.profiles p where p.id = f.user_id)) as j
           from public.feedback f
          where (p_status = 'all' or f.status = p_status)
@@ -647,6 +647,8 @@ as $$
       and not p_discovery_only and cardinality(p_interest_slugs) = 0
       and extensions.ST_DWithin(c.town_point, p_point, p_radius_m)
       and not (c.id = any(blkc.ids))
+      -- a collectif whose last responsable or organiser is gone (banned, say) is hidden
+      and exists (select 1 from public.collectif_members m where m.collectif_id = c.id and m.status = 'active')
   ),
   scored as (
     select c.*, k.keyword,

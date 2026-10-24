@@ -214,7 +214,7 @@ begin
   -- Never-seen accounts count from their last sign-in, else from their creation.
   for r in select p.id from public.profiles p join auth.users u on u.id = p.id
             where coalesce(p.last_seen_at, u.last_sign_in_at, u.created_at) < now() - interval '35 months'
-              and p.inactivity_notice_at is null
+              and p.inactivity_notice_at is null and p.banned_at is null
             order by p.id loop
     perform public.notify_user(r.id, 'inactivity_notice', 'Compte inactif',
       'Votre compte sera supprimé dans 30 jours faute d''activité. Ouvrez l''application pour le garder.',

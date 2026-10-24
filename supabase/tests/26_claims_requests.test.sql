@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(117);
+select plan(118);
 select tests.create_user('adm@cr.fr', 'Admin') as adm \gset
 select tests.create_user('cla@cr.fr', 'Claude') as cla \gset
 select tests.create_user('cl2@cr.fr', 'Clara') as cl2 \gset
@@ -253,7 +253,8 @@ select tests.act_as_superuser();
 select is((select status from feedback where body = 'Anonyme'), 'planned', 'the status changed');
 select tests.act_as_admin(:'adm');
 select is((select count(*) from storage.objects where bucket_id = 'feedback-screenshots')::int, 1, 'an admin reads screenshots');
-select is((select e->>'screenshot_path' from jsonb_array_elements(admin_feedback('new')) e where e->>'body' = 'Capture'), :'nor' || '/00000000-0000-0000-0000-0000000000f1.png', 'admin_feedback returns the screenshot path');
+select is((select e->>'has_screenshot' from jsonb_array_elements(admin_feedback('new')) e where e->>'body' = 'Capture'), 'true', 'admin_feedback says there is a screenshot');
+select is((select e ? 'screenshot_path' from jsonb_array_elements(admin_feedback('new')) e where e->>'body' = 'Capture'), false, 'admin_feedback does not return the screenshot path');
 select is(admin_feedback_screenshot_path((select id from feedback where body = 'Capture')), :'nor' || '/00000000-0000-0000-0000-0000000000f1.png', 'the admin gets the screenshot path');
 select tests.act_as_superuser();
 select is((select count(*) from admin_audit_log where action = 'feedback_screenshot_viewed')::int, 1, 'viewing a screenshot is audited');
