@@ -245,6 +245,7 @@ export default function ActivityScreen() {
             session={s}
             activity={a}
             showWelcome={!a.isOrganiser && a.myPastAttendanceCount === 0 && s.id === firstConfirmed}
+            showFirstTip={!a.isOrganiser && a.myPastAttendanceCount === 0 && s.id === firstConfirmed}
             onChanged={reload}
           />
         ))

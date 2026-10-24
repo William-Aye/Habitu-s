@@ -595,7 +595,22 @@
     "blockedLoading": "Loading blocked people",
     "blockedError": "Could not load blocked people. Try again.",
     "personHint": "Long press to report or block",
-    "gone": "This content is no longer available."
+    "gone": "This content is no longer available.",
+    "tipsTitle": "Safety tips",
+    "tipsLink": "Safety tips",
+    "tipsHint": "Opens the list of safety tips",
+    "understood": "Got it",
+    "tipLabel": "Safety tip",
+    "sharePlans": "Share my plans",
+    "sharePlansAria": "Share my plans for {{date}}",
+    "shareMessage": "{{titre}} — {{date}} at {{heure}}, {{lieu}}. Letting you know just in case. (Habitués)",
+    "tips": {
+      "first_session": {
+        "a": "For a first meeting, stay in the public place and arrange your own way there and back.",
+        "b": "Tell someone close to you where you are going."
+      },
+      "moved_place": "Activities must take place in a public place. If this new place seems unsuitable to you, report it."
+    }
   },
   "admin": {
     "title": "Administration",

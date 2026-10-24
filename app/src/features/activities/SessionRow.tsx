@@ -1,4 +1,4 @@
-import { CalendarPlus, Check, Flag, Square, SquareCheck } from 'lucide-react-native';
+import { CalendarPlus, Check, Flag, Share2, Square, SquareCheck } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -8,6 +8,8 @@ import { setAttendance } from './api';
 import { useSession } from '../account/useSession';
 import { askForPush } from '../notifications/registerPush';
 import { leaveScreen } from '../safety/confirmBlock';
+import { SafetyTip } from '../safety/SafetyTip';
+import { shareMyPlans } from '../safety/shareMyPlans';
 import { usePersonActions } from '../safety/PersonActions';
 import { useReportSheet } from '../safety/ReportSheet';
 import { addSessionToCalendar } from './calendar';
@@ -21,17 +23,20 @@ interface Props {
   activity: ActivityPage;
   /** Show "À votre arrivée, demandez ..." on this session. */
   showWelcome: boolean;
+  /** Show the first-meeting safety tip above this session (the first one I ever confirmed). */
+  showFirstTip?: boolean;
   /** Re-reads the activity page. */
   onChanged: () => void;
 }
 
-export function SessionRow({ session, activity, showWelcome, onChanged }: Props) {
+export function SessionRow({ session, activity, showWelcome, showFirstTip = false, onChanged }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language?.startsWith('en') ? 'en' : 'fr';
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [calendarMsg, setCalendarMsg] = useState<string | null>(null);
   const [knownFull, setKnownFull] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const { userId: me } = useSession();
   const { openReport, reportSheet } = useReportSheet();
   const { openPerson, reportPerson, blockPerson, personSheet } = usePersonActions({
@@ -48,6 +53,7 @@ export function SessionRow({ session, activity, showWelcome, onChanged }: Props)
   const mine = session.myAttendance;
   const isConfirmed = mine?.status === 'confirmed';
   const guest = (mine?.guestCount ?? 0) === 1;
+  const movedPlace = !!session.placeLabel && session.placeLabel !== activity.placeLabel;
   const full = (session.isFull || knownFull) && !isConfirmed;
 
   const attend = async (status: 'confirmed' | 'cancelled', guestCount: 0 | 1) => {
@@ -66,6 +72,17 @@ export function SessionRow({ session, activity, showWelcome, onChanged }: Props)
     onChanged();
   };
 
+  const sharePlans = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      await shareMyPlans(session, activity);
+    } catch {
+      // A share sheet that cannot open is not worth an error message.
+    }
+    setSharing(false);
+  };
+
   const addToCalendar = async () => {
     setCalendarMsg(null);
     const result = await addSessionToCalendar(session, activity);
@@ -74,6 +91,10 @@ export function SessionRow({ session, activity, showWelcome, onChanged }: Props)
 
   return (
     <View style={styles.row}>
+      {showFirstTip && isConfirmed && !cancelled ? <SafetyTip id="first_session" onShare={sharePlans} /> : null}
+      {movedPlace && !cancelled ? (
+        <SafetyTip id="moved_place" onReport={() => void openReport({ type: 'session', id: session.id })} />
+      ) : null}
       <View style={styles.wrap}>
         <Text style={styles.date}>{date}</Text>
         {session.isDiscovery ? <Text style={styles.badge}>{t('activity.session.discovery')}</Text> : null}
@@ -159,6 +180,17 @@ export function SessionRow({ session, activity, showWelcome, onChanged }: Props)
               >
                 <CalendarPlus size={18} color="#1a56db" />
                 <Text style={styles.linkText}>{t('activity.session.addToCalendar')}</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('safety.sharePlansAria', { date })}
+                accessibilityState={{ disabled: sharing }}
+                disabled={sharing}
+                style={[styles.link, sharing && styles.dim]}
+                onPress={sharePlans}
+              >
+                <Share2 size={18} color="#1a56db" />
+                <Text style={styles.linkText}>{t('safety.sharePlans')}</Text>
               </Pressable>
               {showWelcome && activity.welcomeFirstName ? (
                 <Text>{t('activity.session.welcomeHint', { prenom: activity.welcomeFirstName })}</Text>

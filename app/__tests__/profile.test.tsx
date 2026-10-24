@@ -239,6 +239,12 @@ it('opens the blocked people screen from Profil', async () => {
   expect(mockPush).toHaveBeenCalledWith('/blocked');
 });
 
+it('opens the safety tips page from Profil', async () => {
+  await render(<Profile />);
+  await fireEvent.press(screen.getByRole('link', { name: 'Conseils de sécurité' }));
+  expect(mockPush).toHaveBeenCalledWith('/safety-tips');
+});
+
 it('asks for confirmation with the exact copy; Annuler does nothing', async () => {
   const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
   await render(<Profile />);

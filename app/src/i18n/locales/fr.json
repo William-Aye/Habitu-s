@@ -595,7 +595,22 @@
     "blockedLoading": "Chargement des personnes bloquées",
     "blockedError": "Impossible de charger les personnes bloquées. Réessayez.",
     "personHint": "Appui long pour signaler ou bloquer",
-    "gone": "Ce contenu n'est plus disponible."
+    "gone": "Ce contenu n'est plus disponible.",
+    "tipsTitle": "Conseils de sécurité",
+    "tipsLink": "Conseils de sécurité",
+    "tipsHint": "Ouvre la liste des conseils de sécurité",
+    "understood": "Compris",
+    "tipLabel": "Conseil de sécurité",
+    "sharePlans": "Partager mon programme",
+    "sharePlansAria": "Partager mon programme pour {{date}}",
+    "shareMessage": "{{titre}} — {{date}} à {{heure}}, {{lieu}}. Je vous préviens au cas où. (Habitués)",
+    "tips": {
+      "first_session": {
+        "a": "Pour une première rencontre, restez dans le lieu public et organisez votre propre trajet.",
+        "b": "Prévenez un proche de l'endroit où vous allez."
+      },
+      "moved_place": "Les activités doivent se dérouler dans un lieu public. Si ce nouveau lieu vous semble inadapté, signalez-le."
+    }
   },
   "admin": {
     "title": "Administration",
