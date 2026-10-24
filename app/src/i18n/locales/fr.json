@@ -602,6 +602,7 @@
     "understood": "Compris",
     "tipLabel": "Conseil de sécurité",
     "sharePlans": "Partager mon programme",
+    "sharePlansTip": "Partager mon programme pour cette séance",
     "sharePlansAria": "Partager mon programme pour {{date}}",
     "shareMessage": "{{titre}} — {{date}} à {{heure}}, {{lieu}}. Je vous préviens au cas où. (Habitués)",
     "tips": {

@@ -602,6 +602,7 @@
     "understood": "Got it",
     "tipLabel": "Safety tip",
     "sharePlans": "Share my plans",
+    "sharePlansTip": "Share my plans for this session",
     "sharePlansAria": "Share my plans for {{date}}",
     "shareMessage": "{{titre}} — {{date}} at {{heure}}, {{lieu}}. Letting you know just in case. (Habitués)",
     "tips": {

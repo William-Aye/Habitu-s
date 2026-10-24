@@ -8,7 +8,12 @@ import { TIPS, useTipSeen, type TipId } from './tips';
 export function TipCard({ id, children }: { id: TipId; children?: ReactNode }) {
   const { t } = useTranslation();
   return (
-    <View style={styles.tip}>
+    <View
+      style={styles.tip}
+      accessibilityRole="summary"
+      accessibilityLabel={t('safety.tipLabel')}
+      accessibilityLiveRegion="polite"
+    >
       <View style={styles.head}>
         <ShieldAlert size={20} color="#92400e" />
         <View style={styles.lines}>
@@ -24,6 +29,8 @@ export function TipCard({ id, children }: { id: TipId; children?: ReactNode }) {
 
 interface Props {
   id: TipId;
+  /** Makes the dismissal specific to one thing (a session): stored as `<id>:<scope>`. */
+  scope?: string;
   /** Shows a "Signaler cette séance" link under the tip. */
   onReport?: () => void;
   /** Shows a "Partager mon programme" button under the tip. */
@@ -31,9 +38,9 @@ interface Props {
 }
 
 /** A tip shown until the person says "Compris"; then never again. */
-export function SafetyTip({ id, onReport, onShare }: Props) {
+export function SafetyTip({ id, scope, onReport, onShare }: Props) {
   const { t } = useTranslation();
-  const { seen, dismiss } = useTipSeen(id);
+  const { seen, dismiss } = useTipSeen(scope ? `${id}:${scope}` : id);
   const [busy, setBusy] = useState(false);
   if (seen) return null;
 
@@ -60,7 +67,7 @@ export function SafetyTip({ id, onReport, onShare }: Props) {
         {onShare ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={t('safety.sharePlans')}
+            accessibilityLabel={t('safety.sharePlansTip')}
             accessibilityState={{ disabled: busy }}
             disabled={busy}
             style={[styles.link, busy && styles.dim]}

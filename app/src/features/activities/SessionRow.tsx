@@ -53,7 +53,9 @@ export function SessionRow({ session, activity, showWelcome, showFirstTip = fals
   const mine = session.myAttendance;
   const isConfirmed = mine?.status === 'confirmed';
   const guest = (mine?.guestCount ?? 0) === 1;
-  const movedPlace = !!session.placeLabel && session.placeLabel !== activity.placeLabel;
+  const norm = (v: string) => v.trim().replace(/\s+/g, ' ').toLowerCase();
+  const movedPlace =
+    !activity.isOrganiser && !!session.placeLabel.trim() && norm(session.placeLabel) !== norm(activity.placeLabel);
   const full = (session.isFull || knownFull) && !isConfirmed;
 
   const attend = async (status: 'confirmed' | 'cancelled', guestCount: 0 | 1) => {
@@ -93,7 +95,7 @@ export function SessionRow({ session, activity, showWelcome, showFirstTip = fals
     <View style={styles.row}>
       {showFirstTip && isConfirmed && !cancelled ? <SafetyTip id="first_session" onShare={sharePlans} /> : null}
       {movedPlace && !cancelled ? (
-        <SafetyTip id="moved_place" onReport={() => void openReport({ type: 'session', id: session.id })} />
+        <SafetyTip id="moved_place" scope={session.id} onReport={() => void openReport({ type: 'session', id: session.id })} />
       ) : null}
       <View style={styles.wrap}>
         <Text style={styles.date}>{date}</Text>

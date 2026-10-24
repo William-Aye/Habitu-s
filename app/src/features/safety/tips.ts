@@ -19,14 +19,23 @@ interface Cache {
   owner: string | null; // user id, or null when signed out
   seen: Set<string> | null; // null: not known yet (or not readable)
   loading: Promise<void> | null;
+  added: Set<string>; // dismissed while the first load was still running
+  unsynced: Set<string>; // dismissed but not yet written to the server
 }
-let cache: Cache = { owner: null, seen: null, loading: null };
+const fresh = (owner: string | null): Cache => ({
+  owner,
+  seen: null,
+  loading: null,
+  added: new Set(),
+  unsynced: new Set(),
+});
+let cache: Cache = fresh(null);
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((l) => l());
 
 /** Test hook: forget the shared copy (as after an app restart). */
 export function resetTipsCache() {
-  cache = { owner: null, seen: null, loading: null };
+  cache = fresh(null);
 }
 
 async function readLocal(): Promise<string[]> {
@@ -47,35 +56,53 @@ async function writeLocal(ids: string[]) {
   }
 }
 
-async function load(owner: string | null): Promise<Set<string> | null> {
+async function clearLocal() {
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Harmless.
+  }
+}
+
+async function load(owner: string | null, c: Cache): Promise<Set<string> | null> {
   const local = await readLocal();
   if (owner === null) return new Set(local);
-  // Signed in: copy what was dismissed while signed out, then drop the local copy once it is safe on the server.
-  let copied = false;
+  // Signed in: the signed-out list is copied once (first sign-in after it was written), then dropped,
+  // so on a shared device the next account never inherits it. A failed copy is retried from memory.
   if (local.length > 0) {
     const r = await markTipsSeen(local);
-    copied = r.ok;
-    if (r.ok) {
-      try {
-        await AsyncStorage.removeItem(STORAGE_KEY);
-      } catch {
-        // Harmless: the next sync writes the same rows again.
-      }
-    }
+    if (!r.ok) local.forEach((id) => c.unsynced.add(id));
+    await clearLocal();
   }
   const server = await listSeenTips();
-  if (!server.ok) return local.length > 0 && !copied ? new Set(local) : null;
+  if (!server.ok) return local.length > 0 ? new Set(local) : null;
   return new Set([...server.tips, ...local]);
 }
 
+async function flushUnsynced(c: Cache) {
+  if (c.owner === null || c.unsynced.size === 0) return;
+  const ids = [...c.unsynced];
+  const r = await markTipsSeen(ids);
+  if (r.ok) ids.forEach((id) => c.unsynced.delete(id));
+}
+
 function ensureLoaded(owner: string | null) {
-  if (cache.owner !== owner) cache = { owner, seen: null, loading: null };
-  if (cache.seen || cache.loading) return;
+  let clearing: Promise<void> = Promise.resolve();
+  if (cache.owner !== owner) {
+    // An account signing out leaves nothing behind for the next person.
+    if (cache.owner !== null && owner === null) clearing = clearLocal();
+    cache = fresh(owner);
+  }
   const mine = cache;
-  mine.loading = load(owner)
-    .then((seen) => {
-      if (cache === mine) mine.seen = seen;
-    })
+  if (mine.seen || mine.loading) {
+    void flushUnsynced(mine);
+    return;
+  }
+  mine.loading = (async () => {
+    await clearing; // clearing on sign-out must finish before the signed-out list is read
+    const seen = await load(owner, mine);
+    if (cache === mine) mine.seen = seen ? new Set([...seen, ...mine.added]) : null;
+  })()
     .catch(() => {})
     .finally(() => {
       mine.loading = null;
@@ -109,12 +136,16 @@ export function useTipSeen(id: string): { seen: boolean; dismiss: () => Promise<
   const dismiss = useCallback(async () => {
     if (owner === undefined) return;
     ensureLoaded(owner);
-    const set = cache.owner === owner && cache.seen ? cache.seen : new Set<string>();
-    set.add(id);
-    if (cache.owner === owner) cache.seen = set;
+    const c = cache;
+    c.added.add(id);
+    c.seen?.add(id);
     notify();
-    if (owner === null) await writeLocal([...set]);
-    else await markTipsSeen([id]);
+    if (owner === null) {
+      await writeLocal([...new Set([...c.added, ...(c.seen ?? [])])]);
+      return;
+    }
+    c.unsynced.add(id);
+    await flushUnsynced(c);
   }, [owner, id]);
 
   return { seen, dismiss };

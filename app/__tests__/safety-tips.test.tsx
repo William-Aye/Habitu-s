@@ -5,7 +5,7 @@ import { initI18n } from '../src/i18n';
 import fr from '../src/i18n/locales/fr.json';
 import ActivityScreen from '../src/app/activites/[id]';
 import SafetyTipsScreen from '../src/app/safety-tips';
-import { getActivity, setAttendance } from '../src/features/activities/api';
+import { activityRoster, getActivity, getChatHistory, setAttendance } from '../src/features/activities/api';
 import { SessionRow } from '../src/features/activities/SessionRow';
 import { TIPS, resetTipsCache, useTipSeen } from '../src/features/safety/tips';
 import { shareMyPlans } from '../src/features/safety/shareMyPlans';
@@ -89,6 +89,8 @@ beforeEach(async () => {
   mockGate.mockResolvedValue(true);
   mList.mockResolvedValue({ ok: true, tips: [] });
   mMark.mockResolvedValue({ ok: true });
+  (getChatHistory as jest.Mock).mockResolvedValue({ ok: true, chatHistory: 'all' });
+  (activityRoster as jest.Mock).mockResolvedValue({ ok: true, people: [] });
 });
 
 describe('tips list', () => {
@@ -201,12 +203,40 @@ describe('moved_place tip', () => {
     expect(screen.queryByText(TIP_MOVED)).toBeNull();
   });
 
+  it('is dismissed per session: another moved session still shows its reminder', async () => {
+    await openActivity(
+      activity({
+        nextSessions: [session({ id: 's1', placeLabel: 'Ailleurs' }), session({ id: 's2', placeLabel: 'Autre part' })],
+      }),
+    );
+    await waitFor(() => expect(screen.getAllByText(TIP_MOVED)).toHaveLength(2));
+    await fireEvent.press(screen.getAllByRole('button', { name: 'Compris' })[0]);
+    await waitFor(() => expect(screen.getAllByText(TIP_MOVED)).toHaveLength(1));
+  });
+
+  it('is not shown to the organiser', async () => {
+    await openActivity(activity({ isOrganiser: true, nextSessions: [session({ placeLabel: 'Ailleurs' })] }));
+    expect(screen.queryByText(TIP_MOVED)).toBeNull();
+  });
+
+  it('ignores differences of case and spacing in the place', async () => {
+    await openActivity(activity({ nextSessions: [session({ placeLabel: '  café   DES arts ' })] }));
+    expect(screen.queryByText(TIP_MOVED)).toBeNull();
+  });
+
+  it('has a polite, labelled summary container and its own share label', async () => {
+    await openActivity(activity({ nextSessions: [session({ myAttendance: CONFIRMED })] }));
+    await screen.findByText(TIP_A);
+    expect(screen.getByLabelText('Conseil de sécurité').props.accessibilityLiveRegion).toBe('polite');
+    expect(screen.getByRole('button', { name: 'Partager mon programme pour cette séance' })).toBeTruthy();
+  });
+
   it('is hidden by Compris', async () => {
     await openActivity(activity({ nextSessions: [session({ placeLabel: 'Ailleurs' })] }));
     await screen.findByText(TIP_MOVED);
     await fireEvent.press(screen.getByRole('button', { name: 'Compris' }));
     await waitFor(() => expect(screen.queryByText(TIP_MOVED)).toBeNull());
-    expect(mMark).toHaveBeenCalledWith(['moved_place']);
+    expect(mMark).toHaveBeenCalledWith(['moved_place:s1']);
   });
 });
 
@@ -271,12 +301,62 @@ describe('useTipSeen', () => {
     expect(await AsyncStorage.getItem('tips.seen.v1')).toBeNull();
   });
 
-  it('keeps the local values when the copy to the server fails', async () => {
-    await AsyncStorage.setItem('tips.seen.v1', JSON.stringify(['moved_place']));
+  it('uses the local set when the copy worked but the list cannot be read', async () => {
+    await AsyncStorage.setItem('tips.seen.v1', JSON.stringify(['where']));
+    mList.mockResolvedValue({ ok: false, error: 'network' });
+    const h = await renderHook(() => useTipSeen('where'));
+    await waitFor(() => expect(h.result.current.seen).toBe(true));
+    const other = await renderHook(() => useTipSeen('first_session'));
+    await waitFor(() => expect(mList).toHaveBeenCalled());
+    expect(other.result.current.seen).toBe(false);
+  });
+
+  it('keeps a dismissal made while the first load is still running', async () => {
+    let release!: (v: unknown) => void;
+    mList.mockReturnValue(new Promise((r) => (release = r)));
+    const h = await renderHook(() => useTipSeen('first_session'));
+    await waitFor(() => expect(mList).toHaveBeenCalled());
+    await act(async () => {
+      await h.result.current.dismiss();
+    });
+    await act(async () => {
+      release({ ok: true, tips: [] });
+    });
+    expect(h.result.current.seen).toBe(true);
+    const again = await renderHook(() => useTipSeen('first_session'));
+    expect(again.result.current.seen).toBe(true);
+  });
+
+  it('keeps the tip hidden when the write fails and retries it at the next mount', async () => {
+    mList.mockResolvedValue({ ok: true, tips: [] });
+    mMark.mockResolvedValueOnce({ ok: false, error: 'network' });
+    const h = await renderHook(() => useTipSeen('first_session'));
+    await waitFor(() => expect(h.result.current.seen).toBe(false));
+    await act(async () => {
+      await h.result.current.dismiss();
+    });
+    expect(h.result.current.seen).toBe(true);
+    await h.unmount();
+    mMark.mockClear();
+    const next = await renderHook(() => useTipSeen('moved_place:s1'));
+    await waitFor(() => expect(mMark).toHaveBeenCalledWith(['first_session']));
+    expect(next.result.current.seen).toBe(false);
+  });
+
+  it('does not let the next account inherit the signed-out list', async () => {
+    await AsyncStorage.setItem('tips.seen.v1', JSON.stringify(['first_session']));
     mMark.mockResolvedValue({ ok: false, error: 'network' });
-    await renderHook(() => useTipSeen('moved_place'));
+    const h = await renderHook(() => useTipSeen('first_session'));
     await waitFor(() => expect(mMark).toHaveBeenCalled());
-    expect(await AsyncStorage.getItem('tips.seen.v1')).not.toBeNull();
+    // one attempt only: the local copy is gone whatever the outcome
+    await waitFor(() => expect(AsyncStorage.removeItem).toHaveBeenCalledWith('tips.seen.v1'));
+    await h.unmount();
+    // a stale list left behind is cleared when an account signs out
+    await AsyncStorage.setItem('tips.seen.v1', JSON.stringify(['where']));
+    mockSession = { status: 'signed_out', userId: null };
+    const out = await renderHook(() => useTipSeen('where'));
+    await waitFor(() => expect(AsyncStorage.removeItem).toHaveBeenCalledTimes(2));
+    expect(out.result.current.seen).toBe(false);
   });
 });
 
