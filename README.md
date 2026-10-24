@@ -223,6 +223,106 @@ Each activity has a text-only discussion for its organiser and members (Messages
   keyboard behaviour on a real Android device (edge-to-edge), where the inset and the keyboard
   height may both apply.
 
+## Safety and moderation
+
+Reporting, blocking, moderation decisions, the word filter, feedback, association claims, retention
+and the admin area. Admin rights need a second factor (see below); everything else works for any
+signed-in person.
+
+### Making the first admin
+
+There is no sign-up path to the admin role. Promote an account in the SQL editor (the person must
+have signed up first):
+
+```sql
+update public.profiles set role = 'admin' where id = '<user id>';
+```
+
+Then open the app, Profil, Administration. Without a second factor the screen asks for
+enrolment ("Activer la double authentification"): scan the QR code in an authenticator app (TOTP)
+and enter the 6-digit code. Until a code has been entered in the current session `is_admin()` is
+false (the token must be `aal2`), so every admin right stays off and the app shows no admin data.
+Admins cannot ban other admins; demote first with the same update (`role = 'user'`).
+
+### Deploying the functions and their secrets
+
+```bash
+npx supabase functions deploy submit-feedback
+npx supabase functions deploy storage-cleanup
+```
+
+- **`submit-feedback`** (anonymous feedback). Set `TURNSTILE_SECRET` (the Cloudflare Turnstile
+  secret key of the widget used by the app) as a function secret:
+  `npx supabase secrets set TURNSTILE_SECRET=<secret>`. Without it the function refuses every
+  anonymous send. The Turnstile widget in the app must be rendered with the action `feedback`; a
+  token minted for another action is rejected. Signed-in senders do not need Turnstile.
+- **`storage-cleanup`** (deletes files queued in `storage_deletions`). The pg_cron job
+  `storage-cleanup` calls it every 10 minutes through pg_net, using two Vault secrets (the first is
+  shared with `send-push`, see above):
+
+  ```sql
+  select vault.create_secret('https://<project-ref>.supabase.co/functions/v1/storage-cleanup', 'storage_cleanup_url');
+  ```
+
+  Until `storage_cleanup_url` exists the job does nothing, so queued files stay in Storage; locally
+  nothing needs setting.
+- **`verify_jwt`.** Both functions are called with the service-role key as bearer token. If the
+  project uses the new `sb_secret_...` API keys, those are not JWTs: test both calls after deploying
+  (the cron call for `storage-cleanup`, an anonymous and a signed-in call for `submit-feedback`)
+  and, if the gateway answers 401, deploy with `--no-verify-jwt`. The functions check their own
+  credentials.
+
+### Storage buckets
+
+Created by the migrations, all private except avatars:
+
+| Bucket | Content | Rules |
+| --- | --- | --- |
+| `avatars` | profile photos | public read, owner writes into their own folder |
+| `claim-documents` | proof for association claims (PDF, JPEG, PNG, 10 MB) | owner uploads into their own folder, only admins read |
+| `feedback-screenshots` | screenshots attached to feedback (JPEG, PNG, WebP, 5 MB) | signed-in senders only, only admins read |
+
+Files are only ever removed through the Storage API: SQL queues them in `storage_deletions` and
+`storage-cleanup` deletes them (account deletion, retention, claim decisions, orphan uploads).
+
+### Retention schedule
+
+Nightly pg_cron jobs, in UTC (Paris is one or two hours ahead).
+
+| Data | Kept | Job |
+| --- | --- | --- |
+| Group messages | 12 months | `prune-messages` 04:10 |
+| Notifications outbox | 30 days | `prune-outbox` 03:45 |
+| Reports and their snapshots, decisions | 3 years after `decided_at` (after `created_at` while open) | `retention` 03:20 |
+| Admin audit log | 3 years | `retention` |
+| Feedback and its screenshot | 2 years | `retention` |
+| Raw post-session feedback | 6 months | `retention` |
+| Claim documents | deleted 1 year after the decision (after submission if never decided); the approved claim itself stays while the association is verified | `retention` |
+| Inactive accounts | notice at 35 months without a visit, deletion at 36 months plus 30 days if still inactive | `inactive-accounts` 03:40 |
+| Rate-limit log (`limit_log`) | 1 day | `hourly-limits` (every hour at :05) |
+| Queued storage deletions | drained every 10 minutes | `storage-cleanup` |
+
+The inactivity notice is a push notification and a notice in the app (no email yet), so it only
+reaches people who enabled notifications; opening the app clears it. Admins are never deleted for
+inactivity.
+
+### Managing banned words
+
+Admin, Administration, "Mots interdits": add or remove a word (3 to 50 characters; matched without
+accents or case, on whole words). A chat message, activity, collectif or community club containing
+one is refused with "Ce texte contient un mot interdit.". Text that looks like spam (more than 3
+links, or the same text 3 times in 10 minutes) is accepted but goes into the reports queue as an
+automatic report. The same change from SQL, as an admin session only:
+`select public.admin_set_banned_word('<mot>', true);` (use `false` to remove).
+
+### Before launch
+
+- Replace the placeholder `PRIVACY_CONTACT` in `app/src/content/contact.ts`
+  (`confidentialite@<domaine>`) with a real mailbox. It is the address for privacy requests and for
+  contesting a moderation decision (shown to suspended people too).
+- Have the privacy texts (`app/src/content/privacy.fr.ts`, `privacy.en.ts`) reviewed by a qualified
+  person.
+
 ## Search
 
 Search combines keyword matching with semantic ranking. The semantic side needs an

@@ -2,9 +2,10 @@ import { PRIVACY_CONTACT } from './contact';
 
 // Stored as a TypeScript string because Metro does not load .md files as source by default.
 // MARKERS: every sentence tagged "(once this feature is available)" describes a feature that
-// is not built yet. Remove the marker when it ships: messages and group/private chat, post-session
-// feedback, 12-month/6-month automatic deletion, inactive-account warning and deletion, phone
-// verification for organisers, reports and moderation (3-year purge), private messages (their mention in the export paragraph) (keep in sync with privacy.fr.ts).
+// is not built yet. Remove the marker when it ships: post-session feedback (collection and its 6-month
+// deletion), phone verification for organisers, private messages (retention and their mention in the
+// export paragraph). Group chat, reports and moderation, feedback, claims and inactive-account deletion
+// are live (keep in sync with privacy.fr.ts).
 export const privacyEn = `Version to be reviewed by a qualified person before publication.
 
 # Privacy policy
@@ -20,6 +21,8 @@ Habitués helps you meet people around regular activities. This page explains, i
 - Your interests, the activities you join, your attendance, your group messages and your feedback after sessions (once this feature is available).
 - Your phone number, only if you organise activities, to verify your identity. It is held by our sign-in service and never appears in the app (once this feature is available).
 - The date of your last visit, updated at most once an hour.
+- If you write to us through "Une idée ? Un problème ?": your message, its type, the app version and the type of device, and an optional screenshot (signed-in people only). You can write without an account: the submission is then protected by Cloudflare Turnstile, an invisible anti-bot check.
+- If you report content or a person: the reason and the details you write. If you claim an association: your role, the association's email address or a supporting document (statutes, receipt or signed letter).
 - If you turn notifications on: your phone's identifier to send them, and the text of the notifications (session reminders, new members, invitations). You can refuse or turn them off in your phone's settings.
 
 Your interests and the activities you follow can reveal sensitive information (religion, health, orientation, opinions). We treat them as such: they are never public, only people in the same activity see that you take part, and they are never given to advertisers or used to personalise ads.
@@ -34,11 +37,15 @@ We use no third-party advertising trackers. Usage statistics are totals, not lin
 
 # How long we keep your data
 
-- Group messages: 12 months, then deleted automatically (once this feature is available).
+- Group messages: 12 months, then deleted automatically.
 - Private messages: 12 months, then deleted automatically (once this feature is available).
 - Feedback answers after sessions: aggregated into statistics, then the raw answers are deleted after 6 months (once this feature is available).
-- Reports and moderation decisions: 3 years, then deleted (once this feature is available). When a message is reported, a copy is kept with the report for moderation, for the same period.
-- Accounts inactive for 3 years: warning email, then deletion 30 days later (once this feature is available).
+- Reports and moderation decisions: 3 years after the decision, then deleted. The report's details and the statement of reasons are kept with it as evidence. When a message is reported, a copy is kept with the report, for the same period.
+- Admin audit log (the actions taken by the moderation team): 3 years.
+- Ideas and problems you send (text, app version, type of device) and their screenshot: 2 years.
+- Association claims: kept while the association stays verified. The supporting document is deleted at most 1 year after the decision.
+- Accounts inactive for 3 years: a notification (and a notice in the app) warns you 30 days before deletion; opening the app keeps the account. This warning only reaches people who turned notifications on.
+- Accounts suspended for breaking the rules: the data is hidden from other people and kept as evidence for the period set for reports. To learn the statement of reasons or contest the decision, write to ${PRIVACY_CONTACT}.
 - Notifications: 30 days on our servers after they are sent, then deleted.
 - Technical logs (including IP addresses): our host's default retention, at most 90 days.
 
@@ -48,12 +55,17 @@ Deleting your account is immediate (see below).
 
 - Supabase (hosting, database and sign-in), in the European Union (Paris).
 - Google (Google sign-in and, where applicable, ads).
-- Cloudflare (protecting the service and the anti-bot check at sign-up).
+- Cloudflare (protecting the service, the anti-bot check at sign-up and Turnstile for messages sent without an account).
+- OpenStreetMap (Overpass service): when you publish an activity or move a session, the app checks that a public place is nearby. It only receives the rounded coordinates of the place, never your identity.
 - Expo (notification relay), then Google Firebase Cloud Messaging (Android) and Apple Push Notification service (iPhone) to deliver them to your phone. Notifications are deliberately generic: they contain no activity name or first name, only a short text such as "Reminder: you have an activity tomorrow". The details only show inside the app, after you sign in.
 - GitHub (hosting the code of the app and the website: no user data).
 - geo.api.gouv.fr (French public service, data.gouv): receives the position rounded to about 1 km to find your town, and the town names you type in the search.
 
 When one of these services is located outside the European Union, the transfer is covered by the EU–US Data Privacy Framework or by standard contractual clauses.
+
+# Moderation information
+
+When a report is handled, the person who sent it is told in the app. The person affected by a removal, a warning or a suspension receives the statement of reasons. Both get a discreet notification ("Information de modération") with no detail. You find them in Profile, "Informations de modération".
 
 # Your rights and how to use them
 
