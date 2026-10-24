@@ -64,6 +64,47 @@ begin
 end $$;
 revoke all on function public.messages_notify() from public, anon, authenticated;
 
+-- Moderation removal cannot be undone by the organiser, and a moderated activity takes nothing new.
+create function public.activities_moderation_guard() returns trigger
+language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  if current_setting('role', true) in ('anon', 'authenticated') and not public.is_admin()
+     and (new.removed_by_moderation_at is distinct from old.removed_by_moderation_at
+          or (old.removed_by_moderation_at is not null and new.archived_at is distinct from old.archived_at)) then
+    raise exception 'not_allowed' using errcode = '42501';
+  end if;
+  return new;
+end $$;
+revoke all on function public.activities_moderation_guard() from public, anon, authenticated;
+create trigger activities_moderation_guard before update of archived_at, removed_by_moderation_at on public.activities
+  for each row execute function public.activities_moderation_guard();
+
+create function public.refuse_moderated_activity() returns trigger
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_activity uuid;
+begin
+  if current_setting('role', true) not in ('anon', 'authenticated') then
+    return new;
+  end if;
+  if tg_table_name = 'attendances' then
+    select s.activity_id into v_activity from public.sessions s where s.id = new.session_id;
+  else
+    v_activity := new.activity_id;
+  end if;
+  if exists (select 1 from public.activities a where a.id = v_activity and a.removed_by_moderation_at is not null) then
+    raise exception 'not_allowed' using errcode = '42501';
+  end if;
+  return new;
+end $$;
+revoke all on function public.refuse_moderated_activity() from public, anon, authenticated;
+create trigger refuse_moderated_activity before insert on public.sessions
+  for each row execute function public.refuse_moderated_activity();
+create trigger refuse_moderated_activity before insert on public.activity_members
+  for each row execute function public.refuse_moderated_activity();
+create trigger refuse_moderated_activity before insert on public.attendances
+  for each row execute function public.refuse_moderated_activity();
+
 -- ---------------------------------------------------------------------------------------------
 -- 2. Removed content stays out of the table API
 drop policy associations_select on public.associations;

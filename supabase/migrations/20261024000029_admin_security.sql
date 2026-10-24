@@ -13,6 +13,10 @@ grant execute on function public.is_admin() to anon, authenticated;
 
 alter table public.profiles add column banned_at timestamptz;
 
+-- Set when moderation removes an activity (or bans its organiser). While set, the organiser cannot bring it back
+-- (guard in migration 35); only an admin can restore it.
+alter table public.activities add column removed_by_moderation_at timestamptz;
+
 create table public.admin_audit_log (
   id uuid primary key default gen_random_uuid(),
   admin_id uuid references public.profiles on delete set null,
@@ -68,8 +72,8 @@ begin
   -- a finite far date: Auth's Go scanner returns 500 on 'infinity'
   update auth.users set banned_until = now() + interval '100 years' where id = p_user;
   update public.profiles set banned_at = coalesce(banned_at, now()) where id = p_user;
-  update public.activities set archived_at = now()
-   where organiser_id = p_user and archived_at is null;
+  update public.activities set archived_at = coalesce(archived_at, now()), removed_by_moderation_at = coalesce(removed_by_moderation_at, now())
+   where organiser_id = p_user and (archived_at is null or removed_by_moderation_at is null);
   -- the after-delete trigger frees future attendances and the welcome role
   delete from public.activity_members where user_id = p_user;
   delete from public.collectif_members where user_id = p_user;

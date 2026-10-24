@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(71);
+select plan(92);
 select tests.create_user('adm@ff.fr', 'Admin') as adm \gset
 select tests.create_user('bad@ff.fr', 'Bertrand') as bad \gset
 select tests.create_user('gud@ff.fr', 'Gaelle') as gud \gset
@@ -160,6 +160,69 @@ update profiles set banned_at = now() where id = :'olb';
 select public.run_inactive_accounts();
 select isnt((select inactivity_notice_at from profiles where id = :'old'), null, 'control: an inactive person gets the notice');
 select is((select inactivity_notice_at from profiles where id = :'olb'), null, 'a banned person gets none');
+
+-- ---- moderation removal cannot be undone by the organiser ---------------------------------
+select has_column('public', 'activities', 'removed_by_moderation_at', 'activities.removed_by_moderation_at exists');
+-- today an organiser may un-archive their own normal archived activity, and still can
+select tests.act_as(:'gud');
+select lives_ok($$ update activities set archived_at = null where id = '00000000-0000-0000-0000-0000000000f2' $$, 'an organiser can un-archive their own normal archived activity');
+select tests.act_as_superuser();
+update activities set archived_at = now() where id = '00000000-0000-0000-0000-0000000000f2';
+
+insert into reports (id, reporter_id, target_type, target_id, reason) values
+  ('00000000-0000-0000-0000-0000000000b3', :'mem', 'activity', '00000000-0000-0000-0000-0000000000f1', 'other');
+select tests.act_as_admin(:'adm');
+select lives_ok($$ select admin_decide_report('00000000-0000-0000-0000-0000000000b3', 'remove', 'Activite retiree apres examen') $$, 'moderation removes the activity');
+select tests.act_as_superuser();
+select ok((select archived_at is not null and removed_by_moderation_at is not null from activities where id = '00000000-0000-0000-0000-0000000000f1'), 'removal archives it and marks it as moderated');
+
+select tests.act_as(:'gud');
+select throws_ok($$ update activities set archived_at = null where id = '00000000-0000-0000-0000-0000000000f1' $$, '42501', 'not_allowed', 'the organiser cannot un-archive a moderated activity');
+select throws_ok($$ update activities set removed_by_moderation_at = null where id = '00000000-0000-0000-0000-0000000000f1' $$, '42501', 'not_allowed', 'the organiser cannot clear the moderation mark');
+select throws_ok($$ update activities set archived_at = null, removed_by_moderation_at = null where id = '00000000-0000-0000-0000-0000000000f1' $$, '42501', 'not_allowed', 'nor both together');
+select lives_ok($$ update activities set title = 'Go renomme' where id = '00000000-0000-0000-0000-0000000000f1' $$, 'other edits are not this guard''s business');
+select throws_ok($$ update activities set removed_by_moderation_at = now() where id = '00000000-0000-0000-0000-0000000000f2' $$, '42501', 'not_allowed', 'an organiser cannot set the mark either');
+select throws_ok($$ insert into sessions (activity_id, starts_at) values ('00000000-0000-0000-0000-0000000000f1', now() + interval '9 days') $$, '42501', 'not_allowed', 'no new session on a moderated activity');
+select tests.act_as(:'old');
+select throws_ok($$ insert into activity_members (activity_id, user_id) values ('00000000-0000-0000-0000-0000000000f1', auth.uid()) $$, '42501', 'not_allowed', 'no new membership on a moderated activity');
+select throws_ok($$ insert into attendances (session_id, user_id, status) values ('00000000-0000-0000-0000-0000000000e1', auth.uid(), 'confirmed') $$, '42501', 'not_allowed', 'no new attendance on a moderated activity');
+select tests.act_as_admin(:'adm');
+select lives_ok($$ update activities set archived_at = null, removed_by_moderation_at = null where id = '00000000-0000-0000-0000-0000000000f1' $$, 'an admin can restore it');
+select tests.act_as_aal1(:'adm');
+select is((select count(*) from (select 1 from activities where id = '00000000-0000-0000-0000-0000000000f1' and archived_at is null) x)::int, 1, 'restored');
+select tests.act_as_superuser();
+
+-- a session removal: the activity is marked only when it was already archived
+insert into sessions (id, activity_id, starts_at) values
+  ('00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-0000000000f2', now() + interval '5 days');
+insert into reports (id, reporter_id, target_type, target_id, reason) values
+  ('00000000-0000-0000-0000-0000000000b4', :'mem', 'session', '00000000-0000-0000-0000-0000000000e1', 'other'),
+  ('00000000-0000-0000-0000-0000000000b5', :'mem', 'session', '00000000-0000-0000-0000-0000000000e2', 'other');
+select tests.act_as_admin(:'adm');
+select admin_decide_report('00000000-0000-0000-0000-0000000000b4', 'remove', 'Seance annulee apres examen');
+select admin_decide_report('00000000-0000-0000-0000-0000000000b5', 'remove', 'Seance annulee apres examen');
+select tests.act_as_superuser();
+select is((select status from sessions where id = '00000000-0000-0000-0000-0000000000e1'), 'cancelled_by_organiser', 'the session is cancelled');
+select is((select removed_by_moderation_at from activities where id = '00000000-0000-0000-0000-0000000000f1'), null, 'its live activity is not marked');
+select isnt((select removed_by_moderation_at from activities where id = '00000000-0000-0000-0000-0000000000f2'), null, 'an activity that was already archived is marked');
+
+-- a ban marks the banned person''s activities too
+insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time, max_size) values
+  ('00000000-0000-0000-0000-0000000000f4', :'olb', '00000000-0000-0000-0000-0000000000c1', 'Go de Odile', 'Cafe', 'POINT(4.85 45.77)', 'weekly', current_date + 100, '19:00', 10);
+select ban_user(:'olb', 'abus');
+select isnt((select removed_by_moderation_at from activities where id = '00000000-0000-0000-0000-0000000000f4'), null, 'a ban marks the banned person''s activities as moderated');
+
+-- ---- banned accounts are purged after 36 months and 30 days -------------------------------
+select tests.create_user('bn1@ff.fr', 'Bn1') as bn1 \gset
+select tests.create_user('bn2@ff.fr', 'Bn2') as bn2 \gset
+select tests.create_user('bn3@ff.fr', 'Bn3') as bn3 \gset
+update profiles set banned_at = now(), last_seen_at = now() - interval '37 months 1 day' where id = :'bn1';
+update profiles set banned_at = now(), last_seen_at = now() - interval '35 months' where id = :'bn2';
+update profiles set banned_at = now(), role = 'admin', last_seen_at = now() - interval '40 months' where id = :'bn3';
+select public.run_inactive_accounts();
+select is((select count(*) from auth.users where id = :'bn1')::int, 0, 'a banned account inactive for 37 months is purged without any notice');
+select is((select count(*) from auth.users where id = :'bn2')::int, 1, 'a banned account inactive for 35 months is kept');
+select is((select count(*) from auth.users where id = :'bn3')::int, 1, 'a banned admin is never purged');
 
 select * from finish();
 rollback;

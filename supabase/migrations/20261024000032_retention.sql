@@ -197,7 +197,7 @@ end $$;
 revoke all on function public.run_retention() from public, anon, authenticated;
 select cron.schedule('retention', '20 3 * * *', 'select public.run_retention()');
 
--- Notice at 35 months without activity; deletion 30 days later if still inactive.
+-- Notice at 35 months without activity; deletion 30 days later if still inactive (banned accounts: no notice).
 create function public.run_inactive_accounts() returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
@@ -228,6 +228,15 @@ begin
   for r in select p.id from public.profiles p join auth.users u on u.id = p.id
             where p.inactivity_notice_at < now() - interval '30 days' and p.role <> 'admin'
               and coalesce(p.last_seen_at, u.last_sign_in_at, u.created_at) < p.inactivity_notice_at
+            order by p.id loop
+    perform public.purge_account(r.id);
+    v_deleted := v_deleted + 1;
+  end loop;
+  -- A banned account gets no notice (it cannot open the app to answer it): it goes once it has been inactive
+  -- for 36 months and 30 days. Admins are never purged automatically.
+  for r in select p.id from public.profiles p join auth.users u on u.id = p.id
+            where p.banned_at is not null and p.role <> 'admin'
+              and coalesce(p.last_seen_at, u.last_sign_in_at, u.created_at) < now() - interval '36 months 30 days'
             order by p.id loop
     perform public.purge_account(r.id);
     v_deleted := v_deleted + 1;

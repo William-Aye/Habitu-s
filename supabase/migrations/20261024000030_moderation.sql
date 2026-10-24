@@ -300,10 +300,16 @@ begin
       when 'message' then
         delete from public.messages where id = r.target_id;
       when 'activity' then
-        update public.activities set archived_at = coalesce(archived_at, now()) where id = r.target_id;
+        update public.activities set archived_at = coalesce(archived_at, now()),
+               removed_by_moderation_at = coalesce(removed_by_moderation_at, now())
+         where id = r.target_id;
       when 'session' then
         update public.sessions set status = 'cancelled_by_organiser'
          where id = r.target_id and status = 'scheduled';
+        -- the activity is marked as moderated only when the organiser had already archived it
+        update public.activities set removed_by_moderation_at = coalesce(removed_by_moderation_at, now())
+         where id = (select s.activity_id from public.sessions s where s.id = r.target_id)
+           and archived_at is not null;
       when 'association' then
         -- associations.removed_at arrives with the claims migration
         if exists (select 1 from information_schema.columns
@@ -314,7 +320,8 @@ begin
       when 'collectif' then
         delete from public.collectifs where id = r.target_id;
       when 'user' then
-        update public.activities set archived_at = coalesce(archived_at, now())
+        update public.activities set archived_at = coalesce(archived_at, now()),
+               removed_by_moderation_at = coalesce(removed_by_moderation_at, now())
          where organiser_id = r.target_id;
         delete from public.messages where sender_id = r.target_id;
     end case;
