@@ -92,3 +92,54 @@ Deno.test("not found and unavailable pages", () => {
   assertStringIncludes(u, "noindex");
   assert(!u.includes("Error"));
 });
+
+Deno.test("jsonLd escapes U+2028 and U+2029 to backslash-u text", () => {
+  const ls = String.fromCharCode(0x2028), ps = String.fromCharCode(0x2029), bs = String.fromCharCode(92);
+  const out = jsonLd({ a: `x${ls}y${ps}z` });
+  assert(!out.includes(ls) && !out.includes(ps));
+  assertStringIncludes(out, `${bs}${bs}u2028`.slice(1));
+  assertStringIncludes(out, `${bs}u2029`);
+  assertEquals(JSON.parse(out).a, `x${ls}y${ps}z`);
+});
+
+Deno.test("open-in-app is an Android intent link with the Play Store fallback", () => {
+  const store = "https://play.google.com/store/apps/details?id=fr.x";
+  const html = renderActivityPage(activityFixture(), BASE, { playStore: store, androidPackage: "fr.test.app" });
+  const href = html.match(/href="(intent:[^"]+)"/)![1].replaceAll("&amp;", "&");
+  assertStringIncludes(href, "intent://activites/11111111-1111-4111-8111-111111111111#Intent;scheme=friendapp;package=fr.test.app;");
+  assertStringIncludes(href, "S.browser_fallback_url=" + encodeURIComponent(store));
+  assert(href.endsWith(";end"));
+  const def = renderActivityPage(activityFixture(), BASE);
+  assertStringIncludes(def, "package=fr.friendapp.app;");
+});
+
+Deno.test("map uses the session coordinates when present, else the activity label and coordinates together", () => {
+  const withSession = renderActivityPage(activityFixture({
+    next_sessions: [{ starts_at: "2026-10-27T18:00:00Z", status: "scheduled", confirmed_count: 1, place_label: "Autre lieu", lat: 10.5, lon: 20.5 }],
+  }), BASE);
+  assertStringIncludes(withSession, "mlat=10.5&amp;mlon=20.5");
+  assertStringIncludes(withSession, "Autre lieu");
+  const noCoords = renderActivityPage(activityFixture({
+    next_sessions: [{ starts_at: "2026-10-27T18:00:00Z", status: "scheduled", confirmed_count: 1, place_label: "Autre lieu" }],
+  }), BASE);
+  assertStringIncludes(noCoords, "mlat=45.764&amp;mlon=4.8357");
+  assertStringIncludes(noCoords, "Café des Arts, Lyon");
+  assert(!noCoords.includes("Autre lieu"));
+});
+
+Deno.test("association primary button is Ouvrir dans l'application, download stays visible", () => {
+  const html = renderAssociationPage(associationFixture(), BASE);
+  assertStringIncludes(html, 'class="button primary" href="intent://associations/');
+  assertStringIncludes(html, "Ouvrir dans l&#39;application");
+  assertStringIncludes(html, "Télécharger l&#39;application");
+  assert(!html.includes("Rejoindre l&#39;activité"));
+});
+
+Deno.test("recurrence wording for weekdays", () => {
+  const one = renderActivityPage(activityFixture({ recurrence_kind: "weekdays", recurrence_weekdays: [1] }), BASE);
+  assertStringIncludes(one, "Le lundi");
+  const many = renderActivityPage(activityFixture({ recurrence_kind: "weekdays", recurrence_weekdays: [1, 2, 4] }), BASE);
+  assertStringIncludes(many, "Les lundis, mardis et jeudis");
+  const two = renderActivityPage(activityFixture({ recurrence_kind: "weekdays", recurrence_weekdays: [1, 2] }), BASE);
+  assertStringIncludes(two, "Les lundis et mardis");
+});

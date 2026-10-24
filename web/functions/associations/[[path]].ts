@@ -1,5 +1,8 @@
+import { withEdgeCache } from "../_lib/edge.ts";
 import { defaultDeps, handleAssociation } from "../_lib/pages.ts";
 import type { Env } from "../_lib/pages.ts";
 
-export const onRequestGet = ({ request, env }: { request: Request; env: Env }) =>
-  handleAssociation(request, env, defaultDeps(env));
+type Ctx = { request: Request; env: Env; waitUntil: (p: Promise<unknown>) => void };
+
+export const onRequestGet = ({ request, env, waitUntil }: Ctx) =>
+  withEdgeCache(request, { waitUntil }, 300, () => handleAssociation(request, env, defaultDeps(env)));

@@ -12,14 +12,16 @@ export function escapeHtml(s: unknown): string {
     .replace(/'/g, "&#39;");
 }
 
+const bs = String.fromCharCode(92);
+const LINE_SEPARATORS = new RegExp("[" + String.fromCharCode(0x2028) + String.fromCharCode(0x2029) + "]", "g");
+
 /** JSON for a <script type="application/ld+json">: no raw "<" can close the element. */
 export function jsonLd(obj: unknown): string {
   return JSON.stringify(obj)
     .replace(/</g, "\\u003c")
     .replace(/>/g, "\\u003e")
     .replace(/&/g, "\\u0026")
-    .replace(new RegExp("\u2028", "g"), "\u2028")
-    .replace(new RegExp("\u2029", "g"), "\u2029");
+    .replace(LINE_SEPARATORS, (c) => bs + "u" + c.charCodeAt(0).toString(16));
 }
 
 const parisFmt = new Intl.DateTimeFormat("fr-FR", {
@@ -110,10 +112,22 @@ function osmUrl(lat: unknown, lon: unknown, decimals?: number): string | null {
   return `https://www.openstreetmap.org/?mlat=${la}&mlon=${lo}#map=17/${la}/${lo}`;
 }
 
-function actions(appPath: string, appScheme: string, playStore: string, primary: string, map: string | null): string {
+export interface RenderOpts {
+  playStore?: string;
+  androidPackage?: string;
+}
+export const DEFAULT_ANDROID_PACKAGE = "fr.friendapp.app";
+
+function intentUrl(route: string, playStore: string, pkg: string): string {
+  return `intent://${route}#Intent;scheme=friendapp;package=${pkg};S.browser_fallback_url=${encodeURIComponent(playStore)};end`;
+}
+
+function actions(o: { webPath?: string; intent: string; playStore: string; map: string | null }): string {
+  const map = o.map;
+  const playStore = o.playStore;
   return `<p class="actions">
-<a class="button primary" href="${escapeHtml(appPath)}">${escapeHtml(primary)}</a>
-<a class="button" href="${escapeHtml(appScheme)}">${escapeHtml(copy.openInApp)}</a>
+${o.webPath ? `<a class="button primary" href="${escapeHtml(o.webPath)}">${escapeHtml(copy.imThere)}</a>
+<a class="button" href="${escapeHtml(o.intent)}">${escapeHtml(copy.openInApp)}</a>` : `<a class="button primary" href="${escapeHtml(o.intent)}">${escapeHtml(copy.openInApp)}</a>`}
 <a class="button" href="${escapeHtml(playStore)}">${escapeHtml(copy.downloadApp)}</a>
 ${map ? `<a class="button" href="${escapeHtml(map)}" rel="noopener nofollow">${escapeHtml(copy.seeOnMap)}</a>` : ""}
 </p>`;
@@ -125,20 +139,28 @@ function recurrenceText(a: Json): string {
     return copy.recurrence.everyNDays(a.recurrence_interval_days);
   }
   if (a.recurrence_kind === "weekdays" && Array.isArray(a.recurrence_weekdays)) {
-    const names = (a.recurrence_weekdays as number[]).map((d) => copy.weekdayNames[d - 1]).filter(Boolean);
-    return names.length ? copy.recurrence.weekdays(names.join(", ")) : "";
+    const days = [...new Set(a.recurrence_weekdays as number[])].sort((x, y) => x - y).filter((d) => d >= 1 && d <= 7);
+    if (days.length === 0) return "";
+    if (days.length === 1) return copy.recurrence.oneDay(copy.weekdayNames[days[0] - 1]);
+    const names = days.map((d) => copy.weekdayPlurals[d - 1]);
+    return copy.recurrence.manyDays(`${names.slice(0, -1).join(", ")} ${copy.and} ${names[names.length - 1]}`);
   }
   return "";
 }
 
-export function renderActivityPage(a: Json, base: string, playStore = DEFAULT_PLAY_STORE): string {
+export function renderActivityPage(a: Json, base: string, opts: RenderOpts = {}): string {
+  const playStore = opts.playStore ?? DEFAULT_PLAY_STORE;
+  const pkg = opts.androidPackage ?? DEFAULT_ANDROID_PACKAGE;
   const url = base + activityPath(a.id, a.title ?? "");
   const sessions: Json[] = Array.isArray(a.next_sessions) ? a.next_sessions : [];
   const next = sessions.find((s) => s.status !== "cancelled") ?? null;
   const org: string | null = a.organised_by?.name ?? a.organiser?.first_name ?? null;
   const desc: string = a.description ?? "";
   const rec = recurrenceText(a);
-  const place = next?.place_label ?? a.place_label;
+  const sessionCoords = next && next.lat != null && next.lon != null && Number.isFinite(Number(next.lat)) && Number.isFinite(Number(next.lon));
+  // The label and the coordinates always come from the same place.
+  const place = sessionCoords ? (next.place_label ?? a.place_label) : a.place_label;
+  const mapUrl = sessionCoords ? osmUrl(next.lat, next.lon) : osmUrl(a.lat, a.lon);
 
   const ld: Json = {
     "@context": "https://schema.org",
@@ -181,12 +203,14 @@ ${next ? `<li>${escapeHtml(copy.nextSession(formatParisDate(next.starts_at)))}</
 <li>${escapeHtml(copy.confirmed(Number(next.confirmed_count ?? 0)))}</li>` : ""}
 ${org ? `<li>${escapeHtml(copy.organisedBy(org))}</li>` : ""}
 </ul>
-${actions(`/app/activites/${a.id}`, `friendapp://activites/${a.id}`, playStore, copy.imThere, osmUrl(a.lat, a.lon))}
+${actions({ webPath: `/app/activites/${a.id}`, intent: intentUrl(`activites/${a.id}`, playStore, pkg), playStore, map: mapUrl })}
 </article>`;
   return layout({ title: a.title ?? copy.siteName, description: desc || copy.tagline, canonical: url, base, ld, main });
 }
 
-export function renderAssociationPage(x: Json, base: string, playStore = DEFAULT_PLAY_STORE): string {
+export function renderAssociationPage(x: Json, base: string, opts: RenderOpts = {}): string {
+  const playStore = opts.playStore ?? DEFAULT_PLAY_STORE;
+  const pkg = opts.androidPackage ?? DEFAULT_ANDROID_PACKAGE;
   const url = base + associationPath(x.id, x.name ?? "", x.city);
   const desc: string = x.purpose ?? "";
   const ld: Json = {
@@ -214,7 +238,7 @@ ${acts.length ? `<h2>${escapeHtml(copy.activitiesHeading)}</h2>
 ${acts.map((t) => `<li><a href="${escapeHtml(activityPath(t.id, t.title ?? ""))}">${escapeHtml(t.title)}</a></li>`).join("\n")}
 </ul>` : ""}
 <p class="in-app">${escapeHtml(copy.availableInApp)}</p>
-${actions(`/app/associations/${x.id}`, `friendapp://associations/${x.id}`, playStore, copy.joinActivity, osmUrl(x.lat, x.lon, 3))}
+${actions({ intent: intentUrl(`associations/${x.id}`, playStore, pkg), playStore, map: osmUrl(x.lat, x.lon, 3) })}
 </article>`;
   return layout({ title: x.name ?? copy.siteName, description: desc || copy.tagline, canonical: url, base, ld, main });
 }
@@ -241,7 +265,7 @@ export function renderUnavailable(): string {
   });
 }
 
-export function renderHome(base: string, playStore = DEFAULT_PLAY_STORE): string {
+export function renderHome(base: string, playStore: string = DEFAULT_PLAY_STORE): string {
   return layout({
     title: copy.siteName,
     description: copy.tagline,

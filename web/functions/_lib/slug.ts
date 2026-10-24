@@ -1,12 +1,13 @@
 const UUID_RE = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
+const TRANSLIT: Record<string, string> = { "ł": "l", "ø": "o", "đ": "d", "ß": "ss", "æ": "ae", "œ": "oe" };
+
 export function slugify(text: string, max = 60): string {
   const s = text
     .normalize("NFKD")
     .replace(/\p{M}/gu, "")
-    .replace(/œ/gi, "oe")
-    .replace(/æ/gi, "ae")
     .toLowerCase()
+    .replace(/[łøđßæœ]/g, (c) => TRANSLIT[c])
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
   return s.slice(0, max).replace(/-+$/g, "");

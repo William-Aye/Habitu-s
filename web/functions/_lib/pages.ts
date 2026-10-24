@@ -10,6 +10,7 @@ import {
   renderNotFound,
   renderUnavailable,
 } from "./html.ts";
+import type { RenderOpts } from "./html.ts";
 import { activityPath, associationPath, parseSlugId } from "./slug.ts";
 import { makeRpc } from "./supabase.ts";
 
@@ -18,23 +19,31 @@ export interface Env {
   SUPABASE_ANON_KEY: string;
   WEB_BASE_URL?: string;
   PLAY_STORE_URL?: string;
+  ANDROID_PACKAGE?: string;
 }
 
 export interface Deps {
-  rpc: (name: string, args?: Record<string, unknown>) => Promise<unknown>;
-  /** Per-call timeout in milliseconds (default 5000). */
+  rpc: (name: string, args?: Record<string, unknown>, signal?: AbortSignal) => Promise<unknown>;
+  /** One deadline per request, in milliseconds (default 5000). */
   timeoutMs?: number;
 }
 
-export const SITEMAP_PAGE = 50000;
-const DEFAULT_BASE = "https://habitues.pages.dev";
+/** Sitemap buckets: ids are random v4 uuids, so the first bits split them evenly. */
+export const ASSOCIATION_BUCKETS = 64; // first 6 bits
+export const ACTIVITY_BUCKETS = 16; // first 4 bits
 
 export function defaultDeps(env: Env): Deps {
   return { rpc: makeRpc(env) };
 }
 
-export const baseUrl = (env: Env) => (env.WEB_BASE_URL || DEFAULT_BASE).replace(/\/+$/, "");
-const playStore = (env: Env) => env.PLAY_STORE_URL || DEFAULT_PLAY_STORE;
+/** WEB_BASE_URL, else the origin of the request. */
+export const baseUrl = (env: Env, req: Request) =>
+  (env.WEB_BASE_URL || new URL(req.url).origin).replace(/\/+$/, "");
+
+const renderOpts = (env: Env): RenderOpts => ({
+  playStore: env.PLAY_STORE_URL || DEFAULT_PLAY_STORE,
+  androidPackage: env.ANDROID_PACKAGE || undefined,
+});
 
 const PUBLIC_CSP =
   "default-src 'none'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
@@ -65,15 +74,29 @@ const unavailable = () =>
   respond(renderUnavailable(), 503, HTML, { "Retry-After": "60", "Cache-Control": "no-store" });
 const redirect = (to: string) => respond(null, 301, "", { Location: to, "Cache-Control": CACHE_OK });
 
-class Timeout extends Error {}
+class DeadlineError extends Error {
+  override name = "DeadlineError";
+}
 
-async function call(deps: Deps, name: string, args: Record<string, unknown>): Promise<unknown> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_, rej) => {
-    timer = setTimeout(() => rej(new Timeout("timeout")), deps.timeoutMs ?? 5000);
+/** Failure log: route, rpc name and an error code only. Never a URL, an IP or an error message. */
+function logFailure(route: string, rpc: string, e: unknown) {
+  const raw = (e as { code?: unknown })?.code;
+  const code = typeof raw === "string" ? raw : e instanceof DeadlineError ? "timeout" : "error";
+  console.error(JSON.stringify({ route, rpc, code }));
+}
+
+type Rpc = (name: string, args: Record<string, unknown>) => Promise<unknown>;
+
+/** One deadline for the whole request: its signal is passed to every RPC. */
+async function withDeadline<T>(deps: Deps, fn: (rpc: Rpc) => Promise<T>): Promise<T> {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), deps.timeoutMs ?? 5000);
+  const aborted = new Promise<never>((_, rej) => {
+    ac.signal.addEventListener("abort", () => rej(new DeadlineError("deadline")), { once: true });
   });
+  aborted.catch(() => {});
   try {
-    return await Promise.race([deps.rpc(name, args), timeout]);
+    return await Promise.race([fn((name, args) => deps.rpc(name, args, ac.signal)), aborted]);
   } finally {
     clearTimeout(timer);
   }
@@ -99,12 +122,12 @@ async function handleEntity(
   env: Env,
   deps: Deps,
   cfg: {
+    route: string;
     prefix: string;
-    statusFn: string;
-    getFn: string;
-    removed: (s: string) => boolean;
+    rpcName: string;
+    field: string;
     path: (x: Json) => string;
-    render: (x: Json, base: string, store: string) => string;
+    render: (x: Json, base: string, opts: RenderOpts) => string;
   },
 ): Promise<Response> {
   const seg = segmentAfter(req, cfg.prefix);
@@ -112,26 +135,29 @@ async function handleEntity(
   const { id } = parseSlugId(seg);
   if (!id) return gone(404);
   try {
-    const status = await call(deps, cfg.statusFn, { p_id: id });
+    const page = (await withDeadline(deps, (rpc) => rpc(cfg.rpcName, { p_id: id }))) as Json;
+    const status = page?.status;
     if (status === "ok") {
-      const x = await call(deps, cfg.getFn, { p_id: id });
+      const x = page[cfg.field];
       if (!x || typeof x !== "object") return gone(404);
       const canonical = cfg.path(x);
-      if (new URL(req.url).pathname !== canonical) return redirect(baseUrl(env) + canonical);
-      return html(cfg.render(x, baseUrl(env), playStore(env)));
+      const base = baseUrl(env, req);
+      if (new URL(req.url).pathname !== canonical) return redirect(base + canonical);
+      return html(cfg.render(x, base, renderOpts(env)));
     }
-    return gone(typeof status === "string" && cfg.removed(status) ? 410 : 404);
-  } catch {
+    return gone(status === "removed" ? 410 : 404);
+  } catch (e) {
+    logFailure(cfg.route, cfg.rpcName, e);
     return unavailable();
   }
 }
 
 export function handleActivity(req: Request, env: Env, deps: Deps): Promise<Response> {
   return handleEntity(req, env, deps, {
+    route: "activity",
     prefix: "/activites/",
-    statusFn: "web_activity_status",
-    getFn: "get_activity",
-    removed: (s) => s === "removed",
+    rpcName: "web_activity_page",
+    field: "activity",
     path: (a) => activityPath(a.id, a.title ?? ""),
     render: renderActivityPage,
   });
@@ -139,10 +165,10 @@ export function handleActivity(req: Request, env: Env, deps: Deps): Promise<Resp
 
 export function handleAssociation(req: Request, env: Env, deps: Deps): Promise<Response> {
   return handleEntity(req, env, deps, {
+    route: "association",
     prefix: "/associations/",
-    statusFn: "web_association_status",
-    getFn: "get_association",
-    removed: (s) => s === "removed",
+    rpcName: "web_association_page",
+    field: "association",
     path: (x) => associationPath(x.id, x.name ?? "", x.city),
     render: renderAssociationPage,
   });
@@ -151,87 +177,75 @@ export function handleAssociation(req: Request, env: Env, deps: Deps): Promise<R
 // ---- sitemaps ----
 
 const KINDS = {
-  a: {
-    fn: "web_sitemap_activities",
-    path: (r: Json) => activityPath(r.id, r.title ?? ""),
-  },
+  a: { kind: "activities", buckets: ACTIVITY_BUCKETS, path: (r: Json) => activityPath(r.id, r.title ?? "") },
   s: {
-    fn: "web_sitemap_associations",
+    kind: "associations",
+    buckets: ASSOCIATION_BUCKETS,
     path: (r: Json) => associationPath(r.id, r.name ?? "", r.city),
   },
 } as const;
 type Kind = keyof typeof KINDS;
 
-/** Walk the keyset to the end. The server may cap a page (PostgREST max_rows), so stop on an empty page. */
-async function walk(deps: Deps, fn: string, onRows: (rows: Json[]) => void): Promise<void> {
-  let after: string | null = null;
-  for (;;) {
-    const rows = (await call(deps, fn, { p_after: after, p_limit: SITEMAP_PAGE })) as Json[] | null;
-    if (!Array.isArray(rows) || rows.length === 0) return;
-    onRows(rows);
-    after = rows[rows.length - 1].id;
-  }
+const ZERO_TAIL = "000000-0000-0000-0000-000000000000";
+
+/** The [lo, hi) uuid range of bucket n out of `count` (a power of two up to 256). hi is null for the last one. */
+export function bucketBounds(count: number, n: number): { lo: string; hi: string | null } | null {
+  if (!Number.isInteger(n) || n < 0 || n >= count) return null;
+  const step = 256 / count;
+  const hex = (v: number) => v.toString(16).padStart(2, "0") + ZERO_TAIL;
+  return { lo: hex(n * step), hi: n === count - 1 ? null : hex((n + 1) * step) };
 }
 
 const XML = "application/xml; charset=utf-8";
 const xmlEsc = escapeHtml;
 
-export async function handleSitemapIndex(_req: Request, env: Env, deps: Deps): Promise<Response> {
-  try {
-    const base = baseUrl(env);
-    const entries: string[] = [];
-    for (const k of ["a", "s"] as Kind[]) {
-      let total = 0;
-      await walk(deps, KINDS[k].fn, (rows) => (total += rows.length));
-      for (let n = 1; n <= Math.ceil(total / SITEMAP_PAGE); n++) {
-        entries.push(`<sitemap><loc>${xmlEsc(`${base}/sitemaps/${k}-${n}.xml`)}</loc></sitemap>`);
-      }
+/** Static: lists every bucket, makes no database call. */
+export function handleSitemapIndex(req: Request, env: Env, _deps?: Deps): Promise<Response> {
+  const base = baseUrl(env, req);
+  const entries: string[] = [];
+  for (const k of ["a", "s"] as Kind[]) {
+    for (let n = 0; n < KINDS[k].buckets; n++) {
+      entries.push(`<sitemap><loc>${xmlEsc(`${base}/sitemaps/${k}-${n}.xml`)}</loc></sitemap>`);
     }
-    const body = `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries.join("\n")}\n</sitemapindex>\n`;
-    return respond(body, 200, XML, { "Cache-Control": CACHE_LONG });
-  } catch {
-    return unavailable();
   }
+  const body =
+    `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries.join("\n")}\n</sitemapindex>\n`;
+  return Promise.resolve(respond(body, 200, XML, { "Cache-Control": CACHE_LONG }));
 }
 
-/** `file` is the last path segment, e.g. "s-3.xml". */
-export async function handleSitemap(_req: Request, env: Env, deps: Deps, file: string): Promise<Response> {
-  const m = /^([as])-([1-9][0-9]{0,5})\.xml$/.exec(file);
+/** `file` is the last path segment, e.g. "s-3.xml". One RPC per file. */
+export async function handleSitemap(req: Request, env: Env, deps: Deps, file: string): Promise<Response> {
+  const m = /^([as])-(0|[1-9][0-9]?)\.xml$/.exec(file);
   if (!m) return gone(404);
-  const kind = m[1] as Kind;
-  const n = Number(m[2]);
-  const from = (n - 1) * SITEMAP_PAGE;
-  const to = n * SITEMAP_PAGE;
+  const k = KINDS[m[1] as Kind];
+  const b = bucketBounds(k.buckets, Number(m[2]));
+  if (!b) return gone(404);
   try {
-    const base = baseUrl(env);
-    const urls: string[] = [];
-    let seen = 0;
-    await walk(deps, KINDS[kind].fn, (rows) => {
-      for (const r of rows) {
-        if (seen >= from && seen < to) {
-          const last = r.updated_at ? new Date(r.updated_at).toISOString() : null;
-          urls.push(`<url><loc>${xmlEsc(base + KINDS[kind].path(r))}</loc>${last ? `<lastmod>${last}</lastmod>` : ""}</url>`);
-        }
-        seen++;
-      }
+    const rows = (await withDeadline(deps, (rpc) =>
+      rpc("web_sitemap_range", { p_kind: k.kind, p_lo: b.lo, p_hi: b.hi }))) as Json[] | null;
+    const base = baseUrl(env, req);
+    const urls = (Array.isArray(rows) ? rows : []).map((r) => {
+      const last = r.updated_at ? new Date(r.updated_at).toISOString() : null;
+      return `<url><loc>${xmlEsc(base + k.path(r))}</loc>${last ? `<lastmod>${last}</lastmod>` : ""}</url>`;
     });
-    if (urls.length === 0) return gone(404);
-    const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`;
+    const body =
+      `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`;
     return respond(body, 200, XML, { "Cache-Control": CACHE_LONG });
-  } catch {
+  } catch (e) {
+    logFailure("sitemap", "web_sitemap_range", e);
     return unavailable();
   }
 }
 
 // ---- static ----
 
-export function handleRobots(_req: Request, env: Env): Response {
-  const body = `User-agent: *\nAllow: /\nDisallow: /app/\n\nSitemap: ${baseUrl(env)}/sitemap.xml\n`;
+export function handleRobots(req: Request, env: Env): Response {
+  const body = `User-agent: *\nAllow: /\nDisallow: /app/\n\nSitemap: ${baseUrl(env, req)}/sitemap.xml\n`;
   return respond(body, 200, "text/plain; charset=utf-8", { "Cache-Control": CACHE_LONG });
 }
 
-export function handleHome(_req: Request, env: Env): Response {
-  return html(renderHome(baseUrl(env), playStore(env)));
+export function handleHome(req: Request, env: Env): Response {
+  return html(renderHome(baseUrl(env, req), env.PLAY_STORE_URL || DEFAULT_PLAY_STORE));
 }
 
 export function handleLegal(kind: "mentions" | "terms" | "privacy"): Response {

@@ -21,7 +21,10 @@ export const copy = {
   recurrence: {
     weekly: "Toutes les semaines",
     everyNDays: (n: number) => `Tous les ${n} jours`,
-    weekdays: (days: string) => `Chaque ${days}`,
+    oneDay: (day: string) => `Le ${day}`,
+    manyDays: (days: string) => `Les ${days}`,
   },
   weekdayNames: ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"],
+  weekdayPlurals: ["lundis", "mardis", "mercredis", "jeudis", "vendredis", "samedis", "dimanches"],
+  and: "et",
 } as const;
