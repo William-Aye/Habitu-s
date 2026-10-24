@@ -650,6 +650,16 @@
       "categories": "Catégories",
       "feedback": "Idées et problèmes"
     },
+    "liftBan": {
+      "title": "Lever une suspension",
+      "note": "La personne pourra de nouveau se connecter. Les contenus archivés lors de la suspension restent archivés.",
+      "search": "Rechercher par prénom",
+      "empty": "Aucune personne suspendue.",
+      "person": "{{prenom}}, suspendu(e) le {{date}}",
+      "statement": "Motif de la levée (obligatoire)",
+      "statementHelp": "Entre {{min}} et {{max}} caractères. Il est conservé dans le journal d'administration.",
+      "action": "Lever la suspension"
+    },
     "errors": {
       "load": "Impossible de charger la liste.",
       "network": "Connexion impossible. Réessayez.",
@@ -760,6 +770,7 @@
     "reportsTitle": "Vos signalements",
     "reportHandled": "Votre signalement a été traité",
     "reasonsLabel": "Motif de la décision",
+    "redress": "Pour contester cette décision, écrivez à {{contact}}.",
     "new": "Nouveau",
     "decisionAria": "{{decision}}, {{target}}, {{date}}. Motif : {{reasons}}",
     "decision": {

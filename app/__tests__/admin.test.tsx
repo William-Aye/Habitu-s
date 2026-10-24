@@ -4,6 +4,7 @@ import { initI18n } from '../src/i18n';
 import AdminLayout from '../src/app/admin/_layout';
 import AdminQueue from '../src/app/admin/[queue]';
 import AdminHome from '../src/app/admin/index';
+import LiftBanScreen from '../src/app/admin/lift-ban';
 import { supabase } from '../src/lib/supabase';
 
 jest.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'fr-FR' }] }));
@@ -434,7 +435,7 @@ describe('clubs, feedback and home', () => {
       error: null,
     });
     rpcHandlers.admin_decide_club = () => ({ data: null, error: null });
-    assocRows = [{ id: 'a9', name: 'Boule Niçoise', city: 'Nice' }];
+    rpcHandlers.admin_search_associations = () => ({ data: [{ id: 'a9', name: 'Boule Niçoise', city: 'Nice' }], error: null });
     await render(<AdminQueue />);
     await fireEvent.press(await screen.findByRole('button', { name: 'Fusionner' }));
     await fireEvent.changeText(screen.getByLabelText('Rechercher une association'), 'Boule');
@@ -443,6 +444,9 @@ describe('clubs, feedback and home', () => {
     await waitFor(() =>
       expect(rpc).toHaveBeenCalledWith('admin_decide_club', { p_id: 'k1', p_action: 'merge', p_into: 'a9', p_note: null }),
     );
+    // the search goes through the admin RPC, never a direct read of the table
+    expect(rpc).toHaveBeenCalledWith('admin_search_associations', { p_query: 'Boule', p_limit: 8 });
+    expect(from).not.toHaveBeenCalledWith('associations');
   });
 
   it('rejects a club with a note', async () => {
@@ -553,3 +557,44 @@ describe('clubs, feedback and home', () => {
 
 // Keeps the unused import honest for the Text-based mocks above.
 void Text;
+
+describe('lifting a suspension', () => {
+  const PEOPLE = [{ id: 'u1', first_name: 'Bertrand', banned_at: '2026-10-01T10:00:00Z' }];
+
+  it('lists suspended people, searches by first name and needs the reason', async () => {
+    rpcHandlers.admin_banned_users = () => ({ data: PEOPLE, error: null });
+    rpcHandlers.admin_lift_ban = () => ({ data: null, error: null });
+    await render(<LiftBanScreen />);
+    await screen.findByRole('radio', { name: /Bertrand/ });
+    expect(rpc).toHaveBeenCalledWith('admin_banned_users', { p_query: null, p_limit: 50 });
+    await fireEvent.changeText(screen.getByLabelText('Rechercher par prénom'), 'bert');
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith('admin_banned_users', { p_query: 'bert', p_limit: 50 }));
+    await fireEvent.press(await screen.findByRole('radio', { name: /Bertrand/ }));
+    expect(screen.getByRole('button', { name: 'Lever la suspension' }).props.accessibilityState.disabled).toBe(true);
+    await fireEvent.changeText(screen.getByLabelText('Motif de la levée (obligatoire)'), 'court');
+    expect(screen.getByRole('button', { name: 'Lever la suspension' }).props.accessibilityState.disabled).toBe(true);
+    await fireEvent.changeText(screen.getByLabelText('Motif de la levée (obligatoire)'), 'Levée après réexamen du dossier');
+    await fireEvent.press(screen.getByRole('button', { name: 'Lever la suspension' }));
+    await waitFor(() =>
+      expect(rpc).toHaveBeenCalledWith('admin_lift_ban', { p_user: 'u1', p_statement: 'Levée après réexamen du dossier' }),
+    );
+    expect(await screen.findByText('Décision enregistrée.')).toBeTruthy();
+    expect(screen.queryByRole('radio', { name: /Bertrand/ })).toBeNull();
+  });
+
+  it('shows the refusal when the server refuses', async () => {
+    rpcHandlers.admin_banned_users = () => ({ data: PEOPLE, error: null });
+    rpcHandlers.admin_lift_ban = () => ({ error: { code: '23514', message: 'invalid_statement' } });
+    await render(<LiftBanScreen />);
+    await fireEvent.press(await screen.findByRole('radio', { name: /Bertrand/ }));
+    await fireEvent.changeText(screen.getByLabelText('Motif de la levée (obligatoire)'), 'Levée après réexamen du dossier');
+    await fireEvent.press(screen.getByRole('button', { name: 'Lever la suspension' }));
+    expect(await screen.findByText('Le motif doit faire entre 10 et 1000 caractères.')).toBeTruthy();
+  });
+
+  it('is reachable from the admin home', async () => {
+    await render(<AdminHome />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Lever une suspension' }));
+    expect(require('expo-router').router.push).toHaveBeenCalledWith('/admin/lift-ban');
+  });
+});

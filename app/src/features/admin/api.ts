@@ -197,12 +197,31 @@ export function decideClub(id: string, action: 'approve' | 'merge' | 'reject', o
 }
 
 export async function searchAssociations(q: string): Promise<AdminResult<{ items: AssociationHit[] }>> {
-  const text = q.trim().replace(/[%_,()]/g, ' ');
+  const text = q.trim(); // the server matches wildcards literally
   if (text.length < 2) return { ok: true, items: [] };
   return call(
-    () => supabase.from('associations').select('id, name, city').is('removed_at', null).ilike('name', `%${text}%`).limit(8),
+    () => rpc('admin_search_associations', { p_query: text, p_limit: 8 }),
     (d) => ({ items: arr(d).map((a): AssociationHit => ({ id: a.id, name: a.name, city: a.city ?? null })) }),
   );
+}
+
+export interface BannedPerson {
+  id: string;
+  firstName: string;
+  bannedAt: string | null;
+}
+
+export function listBannedUsers(query: string) {
+  return call(
+    () => rpc('admin_banned_users', { p_query: query.trim() || null, p_limit: 50 }),
+    (d) => ({
+      items: arr(d).map((u): BannedPerson => ({ id: u.id, firstName: u.first_name ?? '', bannedAt: u.banned_at ?? null })),
+    }),
+  );
+}
+
+export function liftBan(id: string, statement: string) {
+  return call(() => rpc('admin_lift_ban', { p_user: id, p_statement: statement.trim() }), none);
 }
 
 export function listCategoryRequests() {
@@ -261,7 +280,7 @@ export function listFeedback() {
           body: f.body,
           status: f.status,
           senderFirstName: f.sender_first_name ?? null,
-          hasScreenshot: !!f.screenshot_path,
+          hasScreenshot: f.has_screenshot === true,
         }),
       ),
     }),

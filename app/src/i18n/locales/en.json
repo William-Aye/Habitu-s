@@ -650,6 +650,16 @@
       "categories": "Categories",
       "feedback": "Ideas and problems"
     },
+    "liftBan": {
+      "title": "Lift a suspension",
+      "note": "The person will be able to sign in again. Content archived by the suspension stays archived.",
+      "search": "Search by first name",
+      "empty": "No suspended person.",
+      "person": "{{prenom}}, suspended on {{date}}",
+      "statement": "Reason for lifting (required)",
+      "statementHelp": "Between {{min}} and {{max}} characters. It is kept in the admin audit log.",
+      "action": "Lift the suspension"
+    },
     "errors": {
       "load": "Could not load the list.",
       "network": "Cannot connect. Try again.",
@@ -760,6 +770,7 @@
     "reportsTitle": "Your reports",
     "reportHandled": "Your report has been handled",
     "reasonsLabel": "Reasons for the decision",
+    "redress": "To contest this decision, write to {{contact}}.",
     "new": "New",
     "decisionAria": "{{decision}}, {{target}}, {{date}}. Reasons: {{reasons}}",
     "decision": {

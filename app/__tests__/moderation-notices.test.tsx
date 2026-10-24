@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Linking } from 'react-native';
 import { router } from 'expo-router';
 import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
@@ -73,7 +74,7 @@ beforeEach(async () => {
   jest.clearAllMocks();
   await AsyncStorage.clear();
   mockSession = { status: 'ready', userId: 'me' };
-  mockGate.mockResolvedValue(true);
+  mockGate.mockResolvedValue(undefined);
   mockGetSession.mockResolvedValue({ data: { session: { user: { id: 'me' } } }, error: null });
   mockRpc.mockResolvedValue({ data: NOTICES, error: null });
 });
@@ -97,6 +98,20 @@ describe('moderation notices', () => {
     expect(screen.getByText('Contenu retiré')).toBeTruthy();
     expect(screen.getByText('Votre signalement a été traité')).toBeTruthy();
     expect(screen.getByText('Informations de modération')).toBeTruthy();
+  });
+
+  it('adds the redress line to every decision, with the contact as a mailto link', async () => {
+    const second = { ...NOTICES.decisions[0], report_id: 'r3', decision: 'warn', target_type: 'activity' };
+    mockRpc.mockResolvedValue({ data: { ...NOTICES, decisions: [NOTICES.decisions[0], second] }, error: null });
+    const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+    await render(<ModerationScreen />);
+    await screen.findByText('Contenu retiré');
+    expect(screen.getAllByText(/Pour contester cette décision, écrivez à/)).toHaveLength(2);
+    const links = screen.getAllByText(PRIVACY_CONTACT);
+    expect(links).toHaveLength(2);
+    await fireEvent.press(links[0]);
+    expect(open).toHaveBeenCalledWith(`mailto:${PRIVACY_CONTACT}`);
+    open.mockRestore();
   });
 
   it('counts unseen items until the screen has been opened', async () => {

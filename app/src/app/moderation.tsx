@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PRIVACY_CONTACT } from '../content/contact';
 import { useRequireAccount } from '../features/account/AccountGate';
 import { useSession } from '../features/account/useSession';
 import {
@@ -18,6 +19,27 @@ type Load =
   | { state: 'loading' }
   | { state: 'error' }
   | { state: 'ready'; notices: ModerationNotices; fresh: Set<string> };
+
+/** The way to contest a decision (DSA Art. 20): the contact is a link inside one translated sentence. */
+function RedressLine() {
+  const { t } = useTranslation();
+  const message = t('moderation.redress', { contact: PRIVACY_CONTACT });
+  const at = message.indexOf(PRIVACY_CONTACT);
+  if (at < 0) return <Text style={styles.meta}>{message}</Text>;
+  return (
+    <Text style={styles.meta}>
+      {message.slice(0, at)}
+      <Text
+        accessibilityRole="link"
+        style={styles.linkText}
+        onPress={() => void Linking.openURL(`mailto:${PRIVACY_CONTACT}`).catch(() => {})}
+      >
+        {PRIVACY_CONTACT}
+      </Text>
+      {message.slice(at + PRIVACY_CONTACT.length)}
+    </Text>
+  );
+}
 
 export default function ModerationScreen() {
   const { t, i18n } = useTranslation();
@@ -113,6 +135,7 @@ export default function ModerationScreen() {
               </Text>
               <Text style={styles.label}>{t('moderation.reasonsLabel')}</Text>
               <Text>{d.statementOfReasons}</Text>
+              <RedressLine />
             </View>
           ))}
           {handledReports.length > 0 ? (

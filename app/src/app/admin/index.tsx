@@ -80,6 +80,15 @@ export default function AdminHome() {
           </Pressable>
         );
       })}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('admin.liftBan.title')}
+        style={styles.row}
+        onPress={() => router.push('/admin/lift-ban')}
+      >
+        <Text style={styles.label}>{t('admin.liftBan.title')}</Text>
+        <ChevronRight size={20} color="#4b5563" />
+      </Pressable>
       <BannedWords />
     </AdminScreen>
   );
