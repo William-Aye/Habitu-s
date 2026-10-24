@@ -113,18 +113,13 @@ Deno.test("open-in-app is an Android intent link with the Play Store fallback", 
   assertStringIncludes(def, "package=fr.friendapp.app;");
 });
 
-Deno.test("map uses the session coordinates when present, else the activity label and coordinates together", () => {
-  const withSession = renderActivityPage(activityFixture({
-    next_sessions: [{ starts_at: "2026-10-27T18:00:00Z", status: "scheduled", confirmed_count: 1, place_label: "Autre lieu", lat: 10.5, lon: 20.5 }],
-  }), BASE);
-  assertStringIncludes(withSession, "mlat=10.5&amp;mlon=20.5");
-  assertStringIncludes(withSession, "Autre lieu");
-  const noCoords = renderActivityPage(activityFixture({
+Deno.test("label and map pin both come from the activity, whatever the session says", () => {
+  const html = renderActivityPage(activityFixture({
     next_sessions: [{ starts_at: "2026-10-27T18:00:00Z", status: "scheduled", confirmed_count: 1, place_label: "Autre lieu" }],
   }), BASE);
-  assertStringIncludes(noCoords, "mlat=45.764&amp;mlon=4.8357");
-  assertStringIncludes(noCoords, "Café des Arts, Lyon");
-  assert(!noCoords.includes("Autre lieu"));
+  assertStringIncludes(html, "mlat=45.764&amp;mlon=4.8357");
+  assertStringIncludes(html, "Café des Arts, Lyon");
+  assert(!html.includes("Autre lieu"));
 });
 
 Deno.test("association primary button is Ouvrir dans l'application, download stays visible", () => {

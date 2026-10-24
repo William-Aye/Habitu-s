@@ -5,7 +5,6 @@ export const copy = {
   openInApp: "Ouvrir dans l'application",
   downloadApp: "Télécharger l'application",
   imThere: "Je serai là",
-  joinActivity: "Rejoindre l'activité",
   seeOnMap: "Voir sur la carte",
   availableInApp: "Disponible dans l'application",
   notFound: "Cette page n'existe pas ou n'est plus disponible.",

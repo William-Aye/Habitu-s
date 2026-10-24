@@ -157,10 +157,8 @@ export function renderActivityPage(a: Json, base: string, opts: RenderOpts = {})
   const org: string | null = a.organised_by?.name ?? a.organiser?.first_name ?? null;
   const desc: string = a.description ?? "";
   const rec = recurrenceText(a);
-  const sessionCoords = next && next.lat != null && next.lon != null && Number.isFinite(Number(next.lat)) && Number.isFinite(Number(next.lon));
-  // The label and the coordinates always come from the same place.
-  const place = sessionCoords ? (next.place_label ?? a.place_label) : a.place_label;
-  const mapUrl = sessionCoords ? osmUrl(next.lat, next.lon) : osmUrl(a.lat, a.lon);
+  const place = a.place_label;
+  const mapUrl = osmUrl(a.lat, a.lon);
 
   const ld: Json = {
     "@context": "https://schema.org",

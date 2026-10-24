@@ -20,7 +20,9 @@ export async function withEdgeCache(
   cache: CacheLike | undefined = defaultCache(),
 ): Promise<Response> {
   if (!cache || request.method !== "GET") return handler();
-  const key = new Request(new URL(request.url).toString(), { method: "GET" });
+  const url = new URL(request.url);
+  url.search = "";
+  const key = new Request(url.toString(), { method: "GET" });
   const hit = await cache.match(key);
   if (hit) return hit;
   const res = await handler();

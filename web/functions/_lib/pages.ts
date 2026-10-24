@@ -29,7 +29,7 @@ export interface Deps {
 }
 
 /** Sitemap buckets: ids are random v4 uuids, so the first bits split them evenly. */
-export const ASSOCIATION_BUCKETS = 64; // first 6 bits
+export const ASSOCIATION_BUCKETS = 256; // first 8 bits (about 6k rows per file at 1.5M)
 export const ACTIVITY_BUCKETS = 16; // first 4 bits
 
 export function defaultDeps(env: Env): Deps {
@@ -215,7 +215,7 @@ export function handleSitemapIndex(req: Request, env: Env, _deps?: Deps): Promis
 
 /** `file` is the last path segment, e.g. "s-3.xml". One RPC per file. */
 export async function handleSitemap(req: Request, env: Env, deps: Deps, file: string): Promise<Response> {
-  const m = /^([as])-(0|[1-9][0-9]?)\.xml$/.exec(file);
+  const m = /^([as])-(0|[1-9][0-9]{0,2})\.xml$/.exec(file);
   if (!m) return gone(404);
   const k = KINDS[m[1] as Kind];
   const b = bucketBounds(k.buckets, Number(m[2]));

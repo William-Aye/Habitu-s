@@ -42,5 +42,5 @@ Start local Supabase first (`npm run db:start`) so the RPCs answer. Without it t
 ## Notes
 
 - Public pages carry no script (JSON-LD only) and no inline style: `styles.css` is served from `/styles.css`.
-- Sitemaps: `/sitemap.xml` is static and lists `/sitemaps/a-0..15.xml` (activities, 16 buckets) and `/sitemaps/s-0..63.xml` (associations, 64 buckets) split on the first bits of the random id; each file is one `web_sitemap_range` call.
+- Sitemaps: `/sitemap.xml` is static and lists `/sitemaps/a-0..15.xml` (activities, 16 buckets) and `/sitemaps/s-0..255.xml` (associations, 256 buckets, small files for the 10 ms CPU limit) split on the first bits of the random id; each file is one `web_sitemap_range` call.
 - Every route is wrapped in `withEdgeCache` (Cache API): 300 s pages, 3600 s sitemaps, 60 s for 404/410, never 503.

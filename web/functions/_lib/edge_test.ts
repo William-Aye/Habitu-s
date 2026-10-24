@@ -49,3 +49,32 @@ Deno.test("no cache available runs the handler", async () => {
   const r = await withEdgeCache(req, ctx(), 300, () => Promise.resolve(new Response("ok")), undefined);
   assertEquals(await r.text(), "ok");
 });
+
+Deno.test("query string is not part of the cache key", async () => {
+  const { c, store } = fakeCache();
+  const x = ctx();
+  let n = 0;
+  const h = () => (n++, Promise.resolve(new Response("body")));
+  await withEdgeCache(new Request("https://h.test/p?cb=1"), x, 300, h, c);
+  await x.flush();
+  const r = await withEdgeCache(new Request("https://h.test/p?cb=2"), x, 300, h, c);
+  assertEquals(await r.text(), "body");
+  assertEquals(n, 1);
+  assertEquals(store.size, 1);
+  assertEquals([...store.keys()], ["https://h.test/p"]);
+});
+
+Deno.test("the stored copy keeps the security headers and the content type", async () => {
+  const { c, store } = fakeCache();
+  const x = ctx();
+  const res = new Response("<p>x</p>", {
+    headers: { "Content-Type": "text/html; charset=utf-8", "X-Frame-Options": "DENY", "Content-Security-Policy": "default-src 'none'", "Strict-Transport-Security": "max-age=1" },
+  });
+  await withEdgeCache(req, x, 300, () => Promise.resolve(res), c);
+  await x.flush();
+  const s = store.get(req.url)!;
+  assertEquals(s.headers.get("Content-Type"), "text/html; charset=utf-8");
+  assertEquals(s.headers.get("X-Frame-Options"), "DENY");
+  assertEquals(s.headers.get("Content-Security-Policy"), "default-src 'none'");
+  assertEquals(s.headers.get("Strict-Transport-Security"), "max-age=1");
+});

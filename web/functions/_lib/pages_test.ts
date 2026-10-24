@@ -186,8 +186,8 @@ Deno.test("javascript: website is dropped; cancelled first session is skipped", 
 
 // ---- sitemaps ----
 Deno.test("bucket bounds: contiguous, first lo is zero, last hi is null", () => {
-  for (const [count, step] of [[ASSOCIATION_BUCKETS, 4], [ACTIVITY_BUCKETS, 16]] as const) {
-    assertEquals(count === 64 || count === 16, true);
+  for (const [count, step] of [[ASSOCIATION_BUCKETS, 1], [ACTIVITY_BUCKETS, 16]] as const) {
+    assertEquals(count === 256 || count === 16, true);
     assertEquals(bucketBounds(count, 0)!.lo, "00000000-0000-0000-0000-000000000000");
     assertEquals(bucketBounds(count, count - 1)!.hi, null);
     for (let n = 0; n < count - 1; n++) {
@@ -200,17 +200,17 @@ Deno.test("bucket bounds: contiguous, first lo is zero, last hi is null", () => 
   }
 });
 
-Deno.test("sitemap index is static: no RPC, lists s-0..s-63 and a-0..a-15", async () => {
+Deno.test("sitemap index is static: no RPC, lists s-0..s-255 and a-0..a-15", async () => {
   const r = await handleSitemapIndex(req("/sitemap.xml"), env);
   assertEquals(r.status, 200);
   assertStringIncludes(r.headers.get("Content-Type")!, "xml");
   const xml = await r.text();
-  assertEquals((xml.match(/<sitemap>/g) ?? []).length, 80);
+  assertEquals((xml.match(/<sitemap>/g) ?? []).length, 272);
   assertStringIncludes(xml, "https://habitues.test/sitemaps/s-0.xml");
-  assertStringIncludes(xml, "https://habitues.test/sitemaps/s-63.xml");
+  assertStringIncludes(xml, "https://habitues.test/sitemaps/s-255.xml");
   assertStringIncludes(xml, "https://habitues.test/sitemaps/a-0.xml");
   assertStringIncludes(xml, "https://habitues.test/sitemaps/a-15.xml");
-  assert(!xml.includes("s-64.xml") && !xml.includes("a-16.xml"));
+  assert(!xml.includes("s-256.xml") && !xml.includes("a-16.xml"));
   assertSecurity(r);
 });
 
@@ -249,7 +249,7 @@ Deno.test("empty bucket is a valid empty urlset with 200", async () => {
 Deno.test("out-of-range or malformed bucket is 404 with no RPC", async () => {
   const calls: { name: string; args: Record<string, unknown> }[] = [];
   const d = deps({ web_sitemap_range: () => [] }, calls);
-  for (const f of ["s-64.xml", "a-16.xml", "a-01.xml", "x-1.xml", "s-1.txt", "s--1.xml", "zzz.xml"]) {
+  for (const f of ["s-256.xml", "s-1000.xml", "a-16.xml", "a-01.xml", "x-1.xml", "s-1.txt", "s--1.xml", "zzz.xml"]) {
     assertEquals((await handleSitemap(req("/sitemaps/" + f), env, d, f)).status, 404, f);
   }
   assertEquals(calls.length, 0);
