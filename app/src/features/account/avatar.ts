@@ -10,6 +10,16 @@ export type AvatarResult =
   | { ok: false; error: 'cancelled' | 'too_large' | 'network' };
 
 /**
+ * Re-encodes a picked image on the phone as JPEG (which drops all metadata, GPS included), at most
+ * `maxWidth` wide. Only shrinks: a small image is re-encoded as is (never upscaled). Unknown width: resize.
+ */
+export async function reencodeJpeg(uri: string, width: number | undefined, maxWidth: number): Promise<File> {
+  const actions = width !== undefined && width <= maxWidth ? [] : [{ resize: { width: maxWidth } }];
+  const out = await manipulateAsync(uri, actions, { compress: 0.7, format: SaveFormat.JPEG });
+  return new File(out.uri);
+}
+
+/**
  * Picks a photo, re-encodes it on the phone (JPEG, 800 px wide, which drops all metadata incl. GPS),
  * uploads it to `avatars/<userId>/avatar.jpg` and saves the public URL on the profile.
  */
@@ -19,13 +29,7 @@ export async function pickAndUploadAvatar(userId: string): Promise<AvatarResult>
     if (picked.canceled || !picked.assets?.[0]) return { ok: false, error: 'cancelled' };
 
     const asset = picked.assets[0];
-    // Only shrink: a small image is re-encoded as is (never upscaled). Unknown width: resize.
-    const actions = asset.width !== undefined && asset.width <= 800 ? [] : [{ resize: { width: 800 } }];
-    const out = await manipulateAsync(asset.uri, actions, {
-      compress: 0.7,
-      format: SaveFormat.JPEG,
-    });
-    const file = new File(out.uri);
+    const file = await reencodeJpeg(asset.uri, asset.width, 800);
     if ((file.size ?? 0) > MAX_AVATAR_BYTES) return { ok: false, error: 'too_large' };
 
     const path = `${userId}/avatar.jpg`;

@@ -487,7 +487,12 @@
       "not_allowed": "Not possible: your permissions may have changed. Reopen the page and try again.",
       "network": "Cannot connect. Check your network and try again.",
       "unknown": "Something went wrong. Try again."
-    }
+    },
+    "link": "Link the collectif to this association",
+    "linkPick": "Choose the association to link the collectif to.",
+    "linkConfirm": "Confirm the link",
+    "linkDone": "The collectif is now linked to {{name}}.",
+    "linkError": "Couldn't link the collectif. Try again."
   },
   "notifications": {
     "yes": "Yes",
@@ -767,5 +772,55 @@
     "title": "Account suspended",
     "message": "Your account has been suspended for breaking the rules of use. To find out the reason for the decision or to contest it, write to {{contact}}.",
     "dismiss": "Got it"
+  },
+  "feedback": {
+    "title": "An idea? A problem?",
+    "back": "Back",
+    "typeLabel": "Type of message",
+    "types": {
+      "idea": "Idea",
+      "problem": "Problem",
+      "other": "Other"
+    },
+    "body": "Your message",
+    "count": "{{n}} / {{max}}",
+    "addScreenshot": "Add a screenshot",
+    "screenshotAdded": "Screenshot attached",
+    "removeScreenshot": "Remove the screenshot",
+    "send": "Send",
+    "sending": "Sending",
+    "thanks": "Thank you! Your message has been sent to the team.",
+    "close": "Close",
+    "limit": "You've reached the sending limit. Try again later.",
+    "captcha": "The security check failed. Try again.",
+    "captchaWait": "Security check in progress",
+    "error": "Couldn't send your message. Try again."
+  },
+  "claim": {
+    "title": "This is my association",
+    "role": "Your role in the association",
+    "email": "The association's e-mail address",
+    "emailHint": "An address on the association's own domain, for example bureau@myclub.org.",
+    "attach": "Or attach a proof",
+    "attachHint": "Statutes, registration receipt or a signed letter (PDF, JPG or PNG).",
+    "attached": "Proof attached: {{name}}",
+    "removeDocument": "Remove the proof",
+    "send": "Send the request",
+    "sending": "Sending",
+    "sent": "Request sent. We'll get back to you within a few days.",
+    "close": "Close",
+    "cancel": "Cancel",
+    "errors": {
+      "limit_reached": "You've reached the limit of requests. Try again later.",
+      "not_allowed": "This request is not possible right now. A request may already be pending.",
+      "network": "Can't connect. Check your network and try again.",
+      "unknown": "Something went wrong. Try again."
+    }
+  },
+  "publicPlace": {
+    "warning": "No public place found nearby. Confirm that this isn't a home.",
+    "confirm": "I confirm: this is a public place",
+    "change": "Change the place",
+    "checking": "Checking the place"
   }
 }

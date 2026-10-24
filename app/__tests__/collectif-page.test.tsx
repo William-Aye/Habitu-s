@@ -13,6 +13,7 @@ import {
   myInvitation,
   updateCollectif,
 } from '../src/features/collectifs/api';
+import { linkCollectifToAssociation, myVerifiedAssociations } from '../src/features/claims/api';
 import type { CollectifPage } from '../src/features/activities/types';
 
 jest.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'fr-FR' }] }));
@@ -43,6 +44,12 @@ jest.mock('../src/features/collectifs/api', () => ({
   deleteCollectif: jest.fn(),
 }));
 
+jest.mock('../src/features/claims/api', () => ({
+  myVerifiedAssociations: jest.fn(),
+  linkCollectifToAssociation: jest.fn(),
+}));
+const mockVerified = myVerifiedAssociations as jest.Mock;
+const mockLink = linkCollectifToAssociation as jest.Mock;
 const mockGet = getCollectif as jest.Mock;
 const mockInvitation = myInvitation as jest.Mock;
 const mockAnswer = answerInvitation as jest.Mock;
@@ -85,6 +92,8 @@ beforeAll(async () => {
 beforeEach(() => {
   jest.resetAllMocks();
   mockAnswer.mockResolvedValue({ ok: true });
+  mockVerified.mockResolvedValue({ ok: true, associations: [] });
+  mockLink.mockResolvedValue({ ok: true, moved: 2 });
   mockInvite.mockResolvedValue({ ok: true });
   mockUpdate.mockResolvedValue({ ok: true });
   mockLeave.mockResolvedValue({ ok: true });
@@ -301,4 +310,48 @@ it('offers a retry when the page cannot be loaded', async () => {
   mockGet.mockResolvedValue({ ok: true, collectif: page() });
   await fireEvent.press(screen.getByText('Réessayer'));
   await screen.findByText('Les Boulistes');
+});
+
+describe('linking the collectif to an association', () => {
+  const LINK = 'Rattacher le collectif à cette association';
+  const mine = { ok: true, associations: [{ id: 'as1', name: 'Club Boules' }, { id: 'as2', name: 'Les Joueurs' }] };
+
+  it('is offered only to the responsable who has a verified association', async () => {
+    mockVerified.mockResolvedValue(mine);
+    await show(page({ myRole: 'responsable' }));
+    expect(await screen.findByLabelText(LINK)).toBeTruthy();
+  });
+
+  it('is hidden without a verified association, for an organiser and for a visitor', async () => {
+    await show(page({ myRole: 'responsable' }));
+    expect(screen.queryByLabelText(LINK)).toBeNull();
+    mockVerified.mockResolvedValue(mine);
+    await show(page({ myRole: 'organiser' }));
+    expect(screen.queryByLabelText(LINK)).toBeNull();
+    expect(mockVerified).toHaveBeenCalledTimes(1);
+    await show(page({ myRole: null }));
+    expect(screen.queryByLabelText(LINK)).toBeNull();
+  });
+
+  it('lists the associations in a picker and calls the RPC when confirmed', async () => {
+    mockVerified.mockResolvedValue(mine);
+    await show(page({ myRole: 'responsable' }));
+    await fireEvent.press(await screen.findByLabelText(LINK));
+    expect(screen.getByLabelText('Les Joueurs')).toBeTruthy();
+    expect(screen.getByLabelText('Confirmer le rattachement').props.accessibilityState.disabled).toBe(true);
+    await fireEvent.press(screen.getByLabelText('Club Boules'));
+    await fireEvent.press(screen.getByLabelText('Confirmer le rattachement'));
+    expect(mockLink).toHaveBeenCalledWith('c1', 'as1');
+    expect(await screen.findByText('Le collectif est rattaché à Club Boules.')).toBeTruthy();
+  });
+
+  it('shows an error when the link is refused', async () => {
+    mockVerified.mockResolvedValue(mine);
+    mockLink.mockResolvedValue({ ok: false, error: 'not_allowed' });
+    await show(page({ myRole: 'responsable' }));
+    await fireEvent.press(await screen.findByLabelText(LINK));
+    await fireEvent.press(screen.getByLabelText('Club Boules'));
+    await fireEvent.press(screen.getByLabelText('Confirmer le rattachement'));
+    expect(await screen.findByText('Impossible de rattacher le collectif. Réessayez.')).toBeTruthy();
+  });
 });

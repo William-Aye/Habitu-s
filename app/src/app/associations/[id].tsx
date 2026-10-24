@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRequireAccount } from '../../features/account/AccountGate';
+import { ClaimForm } from '../../features/claims/ClaimForm';
 import { addWaiter, getAssociation, removeWaiter } from '../../features/explore/api';
 import { TownMap } from '../../features/explore/components/TownMap';
 import { useReportSheet } from '../../features/safety/ReportSheet';
@@ -20,7 +21,7 @@ export default function AssociationPage() {
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [wait, setWait] = useState<Wait>('idle');
   const [waitError, setWaitError] = useState(false);
-  const [soon, setSoon] = useState(false);
+  const [claiming, setClaiming] = useState(false);
   const requireAccount = useRequireAccount();
   const { openReport, reportSheet } = useReportSheet();
 
@@ -178,14 +179,18 @@ export default function AssociationPage() {
         </View>
       ) : null}
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('association.claim')}
-        style={styles.outline}
-        onPress={() => setSoon(true)}
-      >
-        <Text style={styles.outlineText}>{t('association.claim')}</Text>
-      </Pressable>
+      {claiming ? (
+        <ClaimForm associationId={a.id} onClose={() => setClaiming(false)} />
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('association.claim')}
+          style={styles.outline}
+          onPress={() => setClaiming(true)}
+        >
+          <Text style={styles.outlineText}>{t('association.claim')}</Text>
+        </Pressable>
+      )}
       <Pressable
         accessibilityRole="link"
         accessibilityLabel={t('association.report')}
@@ -194,7 +199,6 @@ export default function AssociationPage() {
       >
         <Text style={styles.linkText}>{t('association.report')}</Text>
       </Pressable>
-      {soon ? <Text accessibilityLiveRegion="polite">{t('common.comingSoon')}</Text> : null}
       {reportSheet}
 
       {keys.map((k) => (

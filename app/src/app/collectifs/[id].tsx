@@ -15,6 +15,7 @@ import {
 import { CollectifEditForm } from '../../features/collectifs/CollectifEditForm';
 import { useCollectifErrorText } from '../../features/collectifs/errors';
 import { InviteOrganiser } from '../../features/collectifs/InviteOrganiser';
+import { LinkToAssociation } from '../../features/collectifs/LinkToAssociation';
 import { OrganisersList } from '../../features/collectifs/OrganisersList';
 import { TownMap } from '../../features/explore/components/TownMap';
 import { useReportSheet } from '../../features/safety/ReportSheet';
@@ -213,6 +214,8 @@ export default function CollectifScreen() {
           </Pressable>
         )
       ) : null}
+
+      {isResponsable ? <LinkToAssociation collectifId={c.id} /> : null}
 
       <Text accessibilityRole="header" style={styles.heading}>
         {t('collectif.activities')}

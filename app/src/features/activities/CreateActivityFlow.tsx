@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { askForPush } from '../notifications/registerPush';
+import { hasPublicPlaceNearby } from '../safety/publicPlace';
 import { createActivity } from './api';
 import { STEP_COUNT, initialForm, stepValid, toDraft, type FormState } from './form';
 import { shareActivity } from './share';
@@ -34,6 +35,8 @@ export function CreateActivityFlow({
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const [error, setError] = useState<ApiError | null>(null);
+  // The place check found nothing public nearby: the organiser must confirm before publishing.
+  const [placeWarning, setPlaceWarning] = useState(false);
   const [created, setCreated] = useState<{ id: string; title: string } | null>(null);
 
   const set = useCallback((patch: Partial<FormState>) => setForm((prev) => ({ ...prev, ...patch })), []);
@@ -73,12 +76,23 @@ export function CreateActivityFlow({
   const valid = stepValid(step, form);
   const Step = STEPS[step];
 
-  const publish = async () => {
+  const publish = async (placeConfirmed = false) => {
     const draft = toDraft(form);
     if (!draft || busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
     setError(null);
+    setPlaceWarning(false);
+    if (!placeConfirmed) {
+      // Only an explicit "nothing public here" stops the flow; an unknown answer (service down, 4 s timeout) never does.
+      const nearby = await hasPublicPlaceNearby(draft.place.lat, draft.place.lon);
+      if (nearby === false) {
+        busyRef.current = false;
+        setBusy(false);
+        setPlaceWarning(true);
+        return;
+      }
+    }
     const result = await createActivity(draft);
     busyRef.current = false;
     setBusy(false);
@@ -89,6 +103,7 @@ export function CreateActivityFlow({
 
   const go = (to: number) => {
     setError(null);
+    setPlaceWarning(false);
     setStep(to);
   };
 
@@ -101,6 +116,31 @@ export function CreateActivityFlow({
       <Text accessibilityRole="header" style={s.heading}>{t(`create.steps.${STEP_KEYS[step]}`)}</Text>
       <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} keyboardShouldPersistTaps="handled">
         <Step form={form} set={set} />
+        {placeWarning ? (
+          <View style={styles.warning}>
+            <Text accessibilityLiveRegion="polite" style={styles.warningText}>{t('publicPlace.warning')}</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('publicPlace.confirm')}
+              accessibilityState={{ disabled: busy, busy }}
+              disabled={busy}
+              style={[s.button, busy && s.disabled]}
+              onPress={() => publish(true)}
+            >
+              <Text style={s.buttonText}>{t('publicPlace.confirm')}</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('publicPlace.change')}
+              accessibilityState={{ disabled: busy }}
+              disabled={busy}
+              style={[s.outline, busy && s.disabled]}
+              onPress={() => go(STEP_KEYS.indexOf('where'))}
+            >
+              <Text style={s.outlineText}>{t('publicPlace.change')}</Text>
+            </Pressable>
+          </View>
+        ) : null}
         {error ? (
           <Text accessibilityLiveRegion="polite" style={s.error}>
             {t(`create.errors.${error}`)}
@@ -127,7 +167,7 @@ export function CreateActivityFlow({
             accessibilityState={{ disabled: !valid || busy, busy }}
             disabled={!valid || busy}
             style={[s.button, styles.footerButton, (!valid || busy) && s.disabled]}
-            onPress={publish}
+            onPress={() => publish()}
           >
             <Text style={s.buttonText}>{busy ? t('create.publishing') : t('create.publish')}</Text>
           </Pressable>
@@ -156,4 +196,6 @@ const styles = StyleSheet.create({
   footer: { flexDirection: 'row', gap: 12, paddingVertical: 12 },
   footerButton: { flex: 1 },
   inline: { flexDirection: 'row', gap: 8 },
+  warning: { gap: 8, padding: 12, borderRadius: 12, backgroundColor: '#fef3c7' },
+  warningText: { color: '#92400e', fontWeight: '600' },
 });

@@ -517,6 +517,14 @@ function SignedInProfile({ userId, profile }: { userId: string; profile: Session
       >
         <Text style={styles.linkText}>{t('safety.tipsLink')}</Text>
       </Pressable>
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel={t('feedback.title')}
+        style={styles.link}
+        onPress={() => router.push('/feedback' as Href)}
+      >
+        <Text style={styles.linkText}>{t('feedback.title')}</Text>
+      </Pressable>
       <PrivacyLink onPress={() => router.push('/privacy' as Href)} />
 
       <Pressable

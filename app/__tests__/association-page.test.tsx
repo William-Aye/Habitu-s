@@ -16,6 +16,11 @@ jest.mock('../src/features/explore/api', () => ({
   removeWaiter: jest.fn(),
 }));
 
+jest.mock('../src/features/claims/ClaimForm', () => {
+  const { Text } = require('react-native');
+  return { ClaimForm: ({ associationId }: { associationId: string }) => <Text>{`claim-form ${associationId}`}</Text> };
+});
+
 const mockGate = jest.fn();
 jest.mock('../src/features/account/AccountGate', () => ({
   useRequireAccount: () => mockGate,
@@ -150,14 +155,15 @@ it('registers the waiter when signed in, and can cancel', async () => {
   expect(await screen.findByText(WAIT)).toBeTruthy();
 });
 
-it('labels the claim and report controls for screen readers; the claim is still coming soon', async () => {
+it('labels the claim and report controls for screen readers; pressing the claim opens the claim form', async () => {
   await show(assoc());
   const claim = screen.getByLabelText("C'est mon association");
   const report = screen.getByLabelText('Signaler une erreur / Retirer cette fiche');
   expect(claim.props.accessibilityRole).toBe('button');
   expect(report.props.accessibilityRole).toBe('link');
   await fireEvent.press(claim);
-  expect(screen.getByText('Bientôt disponible')).toBeTruthy();
+  expect(screen.getByText('claim-form a1')).toBeTruthy();
+  expect(screen.queryByText('Bientôt disponible')).toBeNull();
 });
 
 it('renders both attribution lines', async () => {

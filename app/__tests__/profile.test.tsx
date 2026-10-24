@@ -245,6 +245,12 @@ it('opens the safety tips page from Profil', async () => {
   expect(mockPush).toHaveBeenCalledWith('/safety-tips');
 });
 
+it('opens the feedback form from Profil, next to the safety tips', async () => {
+  await render(<Profile />);
+  await fireEvent.press(screen.getByRole('link', { name: 'Une idée ? Un problème ?' }));
+  expect(mockPush).toHaveBeenCalledWith('/feedback');
+});
+
 it('asks for confirmation with the exact copy; Annuler does nothing', async () => {
   const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
   await render(<Profile />);
