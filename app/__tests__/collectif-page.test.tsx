@@ -356,3 +356,15 @@ describe('linking the collectif to an association', () => {
     expect(await screen.findByText('Impossible de rattacher le collectif. Réessayez.')).toBeTruthy();
   });
 });
+
+it('signed out: organiser names are not sent, so only their number shows', async () => {
+  await show(page({ organisers: [{ role: 'responsable' }, { role: 'organiser' }] as never }));
+  expect(screen.getByText('2 organisateurs')).toBeTruthy();
+  expect(screen.queryByText('Responsable')).toBeNull();
+  expect(screen.queryByText('undefined')).toBeNull();
+});
+
+it('signed out with a single organiser: singular', async () => {
+  await show(page({ organisers: [{ role: 'responsable' }] as never }));
+  expect(screen.getByText('1 organisateur')).toBeTruthy();
+});

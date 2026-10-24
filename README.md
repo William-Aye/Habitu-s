@@ -472,7 +472,7 @@ The website has two parts, both on Cloudflare Pages (free plan):
    - Root directory: `web`.
    - Build command: `cd .. && npm ci && npm ci --prefix app && npm run web:build` (the repo root and `app/` each have a `package-lock.json`; `web:build` writes `web/dist`).
    - Build output directory: `dist`. The Functions are read from `web/functions` (next to the root directory).
-3. Set the variables below under Settings, Environment variables (Production and Preview).
+3. Set the variables below under Settings, Environment variables (Production and Preview), including `NODE_VERSION=22` (pins the Node version of the Pages build).
 
 | Variable | Meaning |
 | --- | --- |

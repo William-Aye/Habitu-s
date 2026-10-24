@@ -5,6 +5,7 @@
     "/app/_expo/*",
     "/app/assets/*",
     "/app/favicon.ico",
+    "/favicon.ico",
     "/styles.css",
     "/og-default.png",
     "/.well-known/*"

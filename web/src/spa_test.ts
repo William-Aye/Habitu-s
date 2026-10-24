@@ -115,7 +115,7 @@ Deno.test("_routes.json excludes the static paths and includes everything else",
   const j = JSON.parse(await Deno.readTextFile("web/public/_routes.json"));
   assertEquals(j.version, 1);
   assertEquals(j.include, ["/*"]);
-  for (const e of ["/app/_expo/*", "/app/assets/*", "/app/favicon.ico", "/styles.css", "/og-default.png", "/.well-known/*"]) {
+  for (const e of ["/app/_expo/*", "/app/assets/*", "/app/favicon.ico", "/favicon.ico", "/styles.css", "/og-default.png", "/.well-known/*"]) {
     assert(j.exclude.includes(e), e);
   }
   assert(!existsPublic("_redirects"));
@@ -136,4 +136,12 @@ Deno.test("_headers keeps the default security headers for static files and has 
   for (const k of ["Strict-Transport-Security", "X-Content-Type-Options", "X-Frame-Options", "Referrer-Policy", "Permissions-Policy"]) {
     assertStringIncludes(h, k);
   }
+});
+
+Deno.test("web/public/favicon.ico is a valid 16x16 icon", async () => {
+  const b = await Deno.readFile("web/public/favicon.ico");
+  assert(b.length > 22 && b.length < 4096);
+  assertEquals([b[0], b[1], b[2], b[3]], [0, 0, 1, 0]); // ICONDIR, type icon
+  assertEquals(b[4], 1); // one image
+  assertEquals([b[6], b[7]], [16, 16]);
 });

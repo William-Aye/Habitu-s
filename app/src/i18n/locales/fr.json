@@ -465,6 +465,8 @@
     "notFound": "Ce collectif n'existe plus",
     "mapLabel": "Carte de {{place}}",
     "organisers": "Organisateurs",
+    "organisersCount_one": "{{count}} organisateur",
+    "organisersCount_other": "{{count}} organisateurs",
     "role": {
       "responsable": "Responsable",
       "organiser": "Organisateur"

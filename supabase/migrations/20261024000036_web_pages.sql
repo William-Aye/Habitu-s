@@ -195,6 +195,39 @@ end $$;
 revoke all on function public.get_activity(uuid) from public;
 grant execute on function public.get_activity(uuid) to anon, authenticated;
 
+-- get_collectif: migration 35's, plus: a signed-out reader gets the organisers' roles only (no first name, no photo).
+create or replace function public.get_collectif(p_id uuid) returns jsonb
+language sql stable security definer set search_path = public, extensions, pg_temp as $$
+  select jsonb_build_object(
+    'id', c.id, 'name', c.name, 'description', c.description,
+    'town_label', c.town_label,
+    'lon', ST_X(c.town_point::geometry), 'lat', ST_Y(c.town_point::geometry),
+    'organisers', coalesce((select jsonb_agg(case when auth.uid() is null then jsonb_build_object('role', m.role)
+                     else jsonb_build_object('first_name', p.first_name, 'photo_url', p.photo_url, 'role', m.role) end
+                     order by (m.role = 'responsable') desc, m.accepted_at, m.user_id)
+                   from public.collectif_members m join public.profiles p on p.id = m.user_id
+                  where m.collectif_id = c.id and m.status = 'active'), '[]'::jsonb),
+    'activities', coalesce((select jsonb_agg(jsonb_build_object(
+                     'id', x.id, 'title', x.title,
+                     'next_starts_at', (select min(s.starts_at) from public.sessions s
+                                         where s.activity_id = x.id and s.status = 'scheduled'
+                                           and s.starts_at > now()))
+                     order by x.start_date, x.id)
+                   from public.activities x
+                  where x.organised_by_collectif_id = c.id and x.archived_at is null
+                    and x.published_at <= now()
+                    and (auth.uid() is null or not public.is_blocked_between(x.organiser_id))),
+                   '[]'::jsonb),
+    'my_role', (select m.role from public.collectif_members m
+                 where m.collectif_id = c.id and m.user_id = auth.uid() and m.status = 'active'))
+  from public.collectifs c
+  where c.id = p_id and not public.collectif_blocked_for_me(c.id)
+    -- a collectif with no active responsable or organiser left (banned, say) is hidden
+    and exists (select 1 from public.collectif_members m where m.collectif_id = c.id and m.status = 'active')
+$$;
+revoke all on function public.get_collectif(uuid) from public;
+grant execute on function public.get_collectif(uuid) to anon, authenticated;
+
 revoke all on function public.web_sitemap_range(text, uuid, uuid) from public;
 revoke all on function public.web_association_status(uuid) from public;
 revoke all on function public.web_activity_status(uuid) from public;

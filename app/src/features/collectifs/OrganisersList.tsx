@@ -6,6 +6,10 @@ import type { CollectifPage } from '../activities/types';
 /** First names and photos of the active organisers, the responsable first. */
 export function OrganisersList({ organisers }: { organisers: CollectifPage['organisers'] }) {
   const { t } = useTranslation();
+  // Signed-out visitors get the roles only (no names or photos): show how many organisers there are.
+  if (organisers.length > 0 && organisers.every((o) => !o.firstName)) {
+    return <Text>{t('collectif.organisersCount', { count: organisers.length })}</Text>;
+  }
   return (
     <View style={styles.list}>
       {organisers.map((o, i) => (
