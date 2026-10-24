@@ -5,6 +5,8 @@ import { PRIVACY_CONTACT } from './contact.ts';
 // is not built yet. Remove the marker when it ships: post-session feedback (collection and its 6-month
 // deletion), phone verification for organisers, private messages (retention and their mention in the
 // export paragraph). Group chat, reports and moderation, feedback, claims and inactive-account deletion are live.
+// PENDING (owner ruling): whether the organiser's first name appears on the public activity pages.
+// Once decided, add it to the public-activity-pages bullet of the website section, in both languages.
 export const privacyFr = `Version à faire relire par une personne qualifiée avant la publication.
 
 # Politique de confidentialité
@@ -54,7 +56,7 @@ La suppression de votre compte est immédiate (voir plus bas).
 
 - Supabase (hébergement, base de données et connexion), dans l'Union européenne (Paris).
 - Google (connexion avec Google et, le cas échéant, publicités).
-- Cloudflare (protection du service, vérification anti-robot à l'inscription et Turnstile pour les messages envoyés sans compte).
+- Cloudflare (hébergement du site web avec Cloudflare Pages, protection du service, vérification anti-robot à l'inscription et Turnstile pour les messages envoyés sans compte).
 - OpenStreetMap (service Overpass) : quand vous publiez une activité ou déplacez une séance, l'application envoie une requête à ce service pour vérifier qu'un lieu public se trouve à proximité. Ce service voit l'adresse réseau de votre téléphone (adresse IP). La requête ne contient que les coordonnées arrondies du lieu : aucune donnée de votre compte n'est envoyée.
 - Expo (relais d'envoi des notifications), puis Google Firebase Cloud Messaging (Android) et Apple Push Notification service (iPhone) pour les acheminer jusqu'à votre téléphone. Les notifications sont volontairement génériques : elles ne contiennent aucun nom d'activité ni prénom, seulement un texte court du type « Rappel : vous avez une activité demain ». Les détails ne s'affichent que dans l'application, après connexion.
 - GitHub (hébergement du code de l'application et du site : aucune donnée d'utilisateur).
@@ -62,16 +64,25 @@ La suppression de votre compte est immédiate (voir plus bas).
 
 Quand un de ces services est situé hors de l'Union européenne, le transfert est encadré par le cadre de protection des données UE–États-Unis ou par des clauses contractuelles types.
 
+# Site web
+
+Le site web comprend les pages publiques (accueil, activités, associations, mentions légales) et une version web de l'application, sous /app.
+
+- Hébergement : le site est hébergé par Cloudflare Pages. Cloudflare conserve des journaux techniques (adresse IP, page demandée, date) pour la sécurité et le bon fonctionnement du service, pendant sa durée par défaut. Notre propre code ne journalise aucune adresse IP et nous n'ajoutons aucun traceur publicitaire.
+- Votre session : si vous vous connectez sur le site, votre session est conservée dans le stockage de votre navigateur (localStorage). Elle est strictement nécessaire pour vous garder connecté : aucune bannière de consentement n'est affichée. Elle est effacée quand vous vous déconnectez. Les pages publiques ne déposent aucun cookie.
+- Inscription : sur la page d'inscription, un script de Cloudflare Turnstile (challenges.cloudflare.com) s'exécute pour vérifier que vous n'êtes pas un robot ; Cloudflare reçoit à cette occasion des informations techniques sur votre navigateur. Le même script sert au formulaire « Une idée ? Un problème ? » sans compte. Il n'est chargé sur aucune page publique.
+- Pages publiques des activités : chaque activité en cours a une page publique, lisible sans compte et référencée par les moteurs de recherche. Elle montre l'activité (titre, description, catégorie), la ville ou le lieu de rendez-vous, la prochaine séance et le nombre de personnes confirmées. Les noms et les photos des participants n'y figurent jamais.
+
 # Information de modération
 
-Quand un signalement est traité, la personne qui l'a envoyé en est informée dans l'application. La personne concernée par un retrait, un avertissement ou une suspension reçoit le motif de la décision. Les deux reçoivent une notification discrète (« Information de modération »), sans détail. Vous les retrouvez dans Profil, « Informations de modération ».
+Quand un signalement est traité, la personne qui l'a envoyé en est informée dans l'application. La personne concernée par un retrait, un avertissement ou une suspension reçoit le motif de la décision. Les deux reçoivent une notification discrète (« Information de modération »), sans détail. Vous les retrouvez, dans l'application, dans Profil, « Informations de modération ».
 
 # Vos droits et comment les exercer
 
-Dans l'application, ouvrez Profil, puis « Mes données » :
+Connectez-vous, puis ouvrez Profil (dans l'application, l'onglet Profil ; sur le site, « Mon compte »), puis « Mes données » :
 
 - Télécharger mes données : vous recevez un fichier avec toutes les données personnelles que nous avons sur vous (dont votre adresse e-mail, vos dates de création de compte et de dernière connexion, et vos moyens de connexion), et rien sur les autres. Les messages privés que vous avez reçus sont supprimés avec votre compte, mais ne figurent pas dans votre export : ils appartiennent à leur expéditeur (art. 15, § 4 du RGPD) (dès que cette fonctionnalité sera disponible).
-- Corriger : modifiez votre prénom, votre présentation, votre photo et votre ville directement dans Profil (vous pouvez aussi retirer votre ville).
+- Corriger : modifiez votre prénom, votre présentation, votre photo et votre ville directement dans Profil (vous pouvez aussi retirer votre ville). Sur le site, vous pouvez modifier votre prénom et votre présentation.
 - Supprimer mon compte : la suppression est immédiate et définitive, après confirmation.
 
 Supprimer votre compte supprime aussi les activités que vous organisez, avec leurs séances, leurs présences et les messages de leur groupe. Les signalements et vos suggestions « Une idée ? Un problème ? » restent, mais ne sont plus rattachés à vous.
