@@ -342,7 +342,8 @@ describe('linking the collectif to an association', () => {
     await fireEvent.press(screen.getByLabelText('Club Boules'));
     await fireEvent.press(screen.getByLabelText('Confirmer le rattachement'));
     expect(mockLink).toHaveBeenCalledWith('c1', 'as1');
-    expect(await screen.findByText('Le collectif est rattaché à Club Boules.')).toBeTruthy();
+    expect(await screen.findByText('2 activités rattachées.')).toBeTruthy();
+    await waitFor(() => expect(mockGet.mock.calls.length).toBeGreaterThan(1));
   });
 
   it('shows an error when the link is refused', async () => {

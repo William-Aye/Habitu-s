@@ -164,9 +164,9 @@ export function CreateActivityFlow({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('create.publish')}
-            accessibilityState={{ disabled: !valid || busy, busy }}
-            disabled={!valid || busy}
-            style={[s.button, styles.footerButton, (!valid || busy) && s.disabled]}
+            accessibilityState={{ disabled: !valid || busy || placeWarning, busy }}
+            disabled={!valid || busy || placeWarning}
+            style={[s.button, styles.footerButton, (!valid || busy || placeWarning) && s.disabled]}
             onPress={() => publish()}
           >
             <Text style={s.buttonText}>{busy ? t('create.publishing') : t('create.publish')}</Text>

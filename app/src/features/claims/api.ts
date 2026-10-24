@@ -2,11 +2,28 @@ import { randomUUID } from 'expo-crypto';
 import { File } from 'expo-file-system';
 import { supabase } from '../../lib/supabase';
 import { authed } from '../safety/authed';
-import type { SafetyResult } from '../safety/types';
+import { storageFailure } from '../safety/storageError';
+import type { SafetyError, SafetyResult } from '../safety/types';
 
 export const CLAIM_ROLE_MAX = 80;
 export const CLAIM_DOCUMENT_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 const EXTENSIONS: Record<string, string> = { 'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png' };
+
+export type ClaimError = SafetyError | 'duplicate' | 'too_large' | 'unsupported';
+export type ClaimResult = { ok: true } | { ok: false; error: ClaimError };
+
+const EXTENSION_TYPES: Record<string, string> = {
+  pdf: 'application/pdf',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+};
+
+/** The type of a picked document: the picker's own when it gives one, else guessed from the extension. */
+export function documentMimeType(name: string, mimeType: string | null | undefined): string | null {
+  if (mimeType) return mimeType;
+  return EXTENSION_TYPES[name.split('.').pop()?.toLowerCase() ?? ''] ?? null;
+}
 
 export interface ClaimInput {
   associationId: string;
@@ -20,26 +37,34 @@ export interface ClaimInput {
  * Files a claim on a listing. The proof is an e-mail address or a document (stored privately at
  * `claim-documents/<uid>/<uuid>.<ext>`); an admin checks it by hand.
  */
-export function submitClaim(input: ClaimInput): Promise<SafetyResult> {
+export async function submitClaim(input: ClaimInput): Promise<ClaimResult> {
   const email = input.contactEmail?.trim() || undefined;
-  return authed(async (userId) => {
+  let special: ClaimError | null = null;
+  const result = await authed(async (userId) => {
     let documentPath: string | null = null;
     if (input.documentUri) {
       const ext = EXTENSIONS[input.documentMimeType ?? ''];
-      if (!ext) return { error: { code: '22023', message: 'unsupported_document' } };
+      if (!ext) {
+        special = 'unsupported';
+        return { error: { code: '22023', message: 'unsupported_document' } };
+      }
       const path = `${userId}/${randomUUID()}.${ext}`;
       try {
         const bytes = await new File(input.documentUri).arrayBuffer();
         const { error } = await supabase.storage
           .from('claim-documents')
           .upload(path, bytes, { contentType: input.documentMimeType });
-        if (error) return { error: { message: 'network' } };
+        if (error) {
+          const failure = storageFailure(error);
+          if (failure === 'too_large') special = 'too_large';
+          return { error: { code: failure === 'network' ? null : 'storage', message: failure === 'network' ? 'network' : error.message } };
+        }
       } catch {
         return { error: { message: 'network' } };
       }
       documentPath = path;
     }
-    return supabase.from('association_claims').insert({
+    const inserted = await supabase.from('association_claims').insert({
       association_id: input.associationId,
       claimant_id: userId,
       proof_method: email ? 'domain_email' : 'document',
@@ -47,7 +72,30 @@ export function submitClaim(input: ClaimInput): Promise<SafetyResult> {
       contact_email: email ?? null,
       document_path: documentPath,
     });
+    // A second pending claim on the same association (unique index).
+    if (inserted.error?.code === '23505') special = 'duplicate';
+    return inserted;
   });
+  const found = special as ClaimError | null;
+  if (!result.ok && found) return { ok: false, error: found };
+  return result;
+}
+
+/** My claim on a listing: 'approved' wins over 'pending'; null when none (or signed out). */
+export async function myClaimStatus(associationId: string): Promise<'pending' | 'approved' | null> {
+  const r = await authed<{ statuses: string[] }>(
+    (userId) =>
+      supabase
+        .from('association_claims')
+        .select('status')
+        .eq('association_id', associationId)
+        .eq('claimant_id', userId)
+        .in('status', ['pending', 'approved']),
+    (rows) => ({ statuses: ((rows ?? []) as { status: string }[]).map((x) => x.status) }),
+  );
+  if (!r.ok) return null;
+  if (r.statuses.includes('approved')) return 'approved';
+  return r.statuses.includes('pending') ? 'pending' : null;
 }
 
 export interface ClaimedAssociation {

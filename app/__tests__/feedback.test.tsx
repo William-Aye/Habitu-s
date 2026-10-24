@@ -137,7 +137,50 @@ describe('sendFeedback', () => {
   });
 });
 
+describe('sendFeedback limits', () => {
+  it('refuses a screenshot above 5 MB once re-encoded, sending nothing', async () => {
+    mockReencode.mockResolvedValueOnce({ size: 5 * 1024 * 1024 + 1, arrayBuffer: async () => new ArrayBuffer(4) });
+    expect(await sendFeedback({ type: 'idea', body: 'x', screenshotUri: 'file:///s.png' })).toEqual({
+      ok: false,
+      error: 'too_large',
+    });
+    expect(mockUpload).not.toHaveBeenCalled();
+    expect(mockInsert).not.toHaveBeenCalled();
+  });
+
+  it('does not report a storage error that has a status as a network error', async () => {
+    mockUpload.mockResolvedValue({ error: { message: 'Forbidden', statusCode: '403' } });
+    expect(await sendFeedback({ type: 'idea', body: 'x', screenshotUri: 'file:///s.png' })).toEqual({
+      ok: false,
+      error: 'unknown',
+    });
+    mockUpload.mockResolvedValue({ error: { message: 'too big', statusCode: '413' } });
+    expect(await sendFeedback({ type: 'idea', body: 'x', screenshotUri: 'file:///s.png' })).toEqual({
+      ok: false,
+      error: 'too_large',
+    });
+  });
+});
+
 describe('FeedbackForm', () => {
+  it('tells what is collected and for how long', async () => {
+    await render(<FeedbackForm />);
+    expect(
+      screen.getByText(
+        "Nous recevons votre message, la version de l'application et le modèle de l'appareil. Évitez d'y mettre des informations personnelles. Conservé 2 ans.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it('shows the size message when the screenshot is too large', async () => {
+    mockReencode.mockResolvedValueOnce({ size: 6 * 1024 * 1024, arrayBuffer: async () => new ArrayBuffer(4) });
+    await render(<FeedbackForm />);
+    await fireEvent.press(screen.getByLabelText("Ajouter une capture d'écran"));
+    await fireEvent.changeText(screen.getByLabelText('Votre message'), 'Bonjour');
+    await fireEvent.press(screen.getByLabelText('Envoyer'));
+    expect(await screen.findByText('Fichier trop volumineux (5 Mo maximum).')).toBeTruthy();
+  });
+
   const send = () => screen.getByLabelText('Envoyer');
   const disabled = (el: { props: any }) => el.props.accessibilityState?.disabled === true;
 

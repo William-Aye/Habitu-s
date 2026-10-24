@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(115);
+select plan(117);
 select tests.create_user('adm@cr.fr', 'Admin') as adm \gset
 select tests.create_user('cla@cr.fr', 'Claude') as cla \gset
 select tests.create_user('cl2@cr.fr', 'Clara') as cl2 \gset
@@ -47,6 +47,11 @@ select throws_ok($$ insert into association_claims (association_id, claimant_id,
   'a claimant cannot write the admin note');
 select lives_ok(format($$ insert into association_claims (id, association_id, claimant_id, proof_method, role_in_association, contact_email)
   values ('00000000-0000-0000-0000-0000000c1a01', '00000000-0000-0000-0000-0000000000d1', %L, 'domain_email', 'Presidente', 'a@club.fr') $$, :'cla'), 'a claim with an email is accepted');
+select throws_ok(format($$ insert into association_claims (association_id, claimant_id, proof_method, role_in_association, contact_email)
+  values ('00000000-0000-0000-0000-0000000000d1', %L, 'domain_email', 'Presidente', 'again@club.fr') $$, :'cla'), '23505', null,
+  'a second pending claim by the same person on the same association is refused');
+select ok(exists (select 1 from pg_indexes where indexname = 'association_claims_one_pending' and indexdef like '%WHERE (status = ''pending''%'),
+  'the uniqueness is a partial index on pending claims only');
 select lives_ok(format($$ insert into association_claims (association_id, claimant_id, proof_method, role_in_association, document_path)
   values ('00000000-0000-0000-0000-0000000000d4', %L, 'document', 'Tresoriere', %L) $$, :'cla', :'cla' || '/statuts.pdf'), 'a claim with a document is accepted');
 select lives_ok(format($$ insert into association_claims (association_id, claimant_id, proof_method, role_in_association, contact_email)

@@ -96,7 +96,9 @@
       "rna": "Source : Répertoire national des associations (Licence Ouverte / Etalab 2.0)",
       "osm": "© les contributeurs d'OpenStreetMap (ODbL)"
     },
-    "waitError": "Impossible d'enregistrer votre demande. Réessayez."
+    "waitError": "Impossible d'enregistrer votre demande. Réessayez.",
+    "claimPending": "Demande en cours",
+    "claimApproved": "Vous gérez cette association"
   },
   "activity": {
     "loading": "Chargement",
@@ -491,8 +493,9 @@
     "link": "Rattacher le collectif à cette association",
     "linkPick": "Choisissez l'association à laquelle rattacher le collectif.",
     "linkConfirm": "Confirmer le rattachement",
-    "linkDone": "Le collectif est rattaché à {{name}}.",
-    "linkError": "Impossible de rattacher le collectif. Réessayez."
+    "linkError": "Impossible de rattacher le collectif. Réessayez.",
+    "linkDone_one": "{{count}} activité rattachée.",
+    "linkDone_other": "{{count}} activités rattachées."
   },
   "notifications": {
     "yes": "Oui",
@@ -793,8 +796,9 @@
     "close": "Fermer",
     "limit": "Vous avez atteint la limite d'envois. Réessayez plus tard.",
     "captcha": "La vérification de sécurité a échoué. Réessayez.",
-    "captchaWait": "Vérification de sécurité en cours",
-    "error": "Impossible d'envoyer votre message. Réessayez."
+    "error": "Impossible d'envoyer votre message. Réessayez.",
+    "notice": "Nous recevons votre message, la version de l'application et le modèle de l'appareil. Évitez d'y mettre des informations personnelles. Conservé 2 ans.",
+    "tooLarge": "Fichier trop volumineux (5 Mo maximum)."
   },
   "claim": {
     "title": "C'est mon association",
@@ -814,13 +818,16 @@
       "limit_reached": "Vous avez atteint la limite de demandes. Réessayez plus tard.",
       "not_allowed": "Cette demande est impossible pour le moment. Une demande est peut-être déjà en cours.",
       "network": "Connexion impossible. Vérifiez votre réseau et réessayez.",
-      "unknown": "Une erreur est survenue. Réessayez."
-    }
+      "unknown": "Une erreur est survenue. Réessayez.",
+      "duplicate": "Vous avez déjà une demande en cours pour cette association.",
+      "too_large": "Fichier trop volumineux (10 Mo maximum).",
+      "unsupported": "Format non pris en charge (PDF, JPG ou PNG)."
+    },
+    "notice": "Votre justificatif sert uniquement à vérifier votre demande. Il est supprimé au plus tard un an après la décision."
   },
   "publicPlace": {
     "warning": "Aucun lieu public trouvé à proximité. Confirmez que ce n'est pas un domicile.",
     "confirm": "Je confirme : c'est un lieu public",
-    "change": "Modifier le lieu",
-    "checking": "Vérification du lieu"
+    "change": "Modifier le lieu"
   }
 }

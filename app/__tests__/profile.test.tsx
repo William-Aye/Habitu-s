@@ -150,6 +150,7 @@ it('signed out shows Se connecter, language and privacy but no Mes données', as
   expect(screen.getByText('Politique de confidentialité')).toBeTruthy();
   expect(screen.getByText('English')).toBeTruthy();
   expect(screen.queryByText('Mes données')).toBeNull();
+  expect(screen.getByRole('link', { name: 'Une idée ? Un problème ?' })).toBeTruthy();
   await fireEvent.press(screen.getByText('Se connecter'));
   expect(mockGate).toHaveBeenCalledWith();
 });

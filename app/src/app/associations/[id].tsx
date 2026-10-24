@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRequireAccount } from '../../features/account/AccountGate';
+import { myClaimStatus } from '../../features/claims/api';
 import { ClaimForm } from '../../features/claims/ClaimForm';
 import { addWaiter, getAssociation, removeWaiter } from '../../features/explore/api';
 import { TownMap } from '../../features/explore/components/TownMap';
@@ -22,6 +23,7 @@ export default function AssociationPage() {
   const [wait, setWait] = useState<Wait>('idle');
   const [waitError, setWaitError] = useState(false);
   const [claiming, setClaiming] = useState(false);
+  const [claimStatus, setClaimStatus] = useState<'pending' | 'approved' | null>(null);
   const requireAccount = useRequireAccount();
   const { openReport, reportSheet } = useReportSheet();
 
@@ -34,6 +36,15 @@ export default function AssociationPage() {
         if (data?.isWaiting) setWait('waiting');
       })
       .catch(() => active && setLoad({ state: 'error' }));
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  // My own claim on this listing, if any (a signed-out visitor has none).
+  useEffect(() => {
+    let active = true;
+    void myClaimStatus(id).then((s) => active && setClaimStatus(s));
     return () => {
       active = false;
     };
@@ -179,8 +190,16 @@ export default function AssociationPage() {
         </View>
       ) : null}
 
-      {claiming ? (
-        <ClaimForm associationId={a.id} onClose={() => setClaiming(false)} />
+      {claimStatus ? (
+        <Text accessibilityLiveRegion="polite" style={styles.badge}>
+          {t(claimStatus === 'approved' ? 'association.claimApproved' : 'association.claimPending')}
+        </Text>
+      ) : claiming ? (
+        <ClaimForm
+          associationId={a.id}
+          onClose={() => setClaiming(false)}
+          onSent={() => setClaimStatus('pending')}
+        />
       ) : (
         <Pressable
           accessibilityRole="button"

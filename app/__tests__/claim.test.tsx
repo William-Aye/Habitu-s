@@ -1,7 +1,13 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { ClaimForm } from '../src/features/claims/ClaimForm';
-import { linkCollectifToAssociation, myVerifiedAssociations, submitClaim } from '../src/features/claims/api';
+import {
+  documentMimeType,
+  linkCollectifToAssociation,
+  myClaimStatus,
+  myVerifiedAssociations,
+  submitClaim,
+} from '../src/features/claims/api';
 import { initI18n } from '../src/i18n';
 
 jest.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'fr-FR' }] }));
@@ -27,6 +33,7 @@ jest.mock('../src/lib/supabase', () => ({
       select: () => {
         const b: any = {
           eq: () => b,
+          in: () => b,
           then: (res: (v: unknown) => unknown) => Promise.resolve(mockRowsValue).then(res),
         };
         return b;
@@ -98,6 +105,104 @@ describe('submitClaim', () => {
       ok: false,
       error: 'signed_out',
     });
+  });
+});
+
+describe('claim errors and files', () => {
+  it('maps a duplicate pending claim (23505) to duplicate', async () => {
+    mockInsert.mockResolvedValue({ error: { code: '23505', message: 'duplicate key' } });
+    expect(await submitClaim({ associationId: 'a1', role: 'Chef', contactEmail: 'a@b.fr' })).toEqual({
+      ok: false,
+      error: 'duplicate',
+    });
+  });
+
+  it('refuses an unsupported document type and maps storage statuses', async () => {
+    expect(
+      await submitClaim({ associationId: 'a1', role: 'Chef', documentUri: 'f', documentMimeType: 'text/plain' }),
+    ).toEqual({ ok: false, error: 'unsupported' });
+    mockUpload.mockResolvedValue({ error: { message: 'big', statusCode: '413' } });
+    expect(
+      await submitClaim({ associationId: 'a1', role: 'Chef', documentUri: 'f', documentMimeType: 'image/png' }),
+    ).toEqual({ ok: false, error: 'too_large' });
+    mockUpload.mockResolvedValue({ error: { message: 'denied', statusCode: '403' } });
+    expect(
+      await submitClaim({ associationId: 'a1', role: 'Chef', documentUri: 'f', documentMimeType: 'image/png' }),
+    ).toEqual({ ok: false, error: 'unknown' });
+  });
+
+  it('infers the type from the extension when the picker gives none', () => {
+    expect(documentMimeType('Statuts.PDF', undefined)).toBe('application/pdf');
+    expect(documentMimeType('a.jpeg', null)).toBe('image/jpeg');
+    expect(documentMimeType('a.jpg', '')).toBe('image/jpeg');
+    expect(documentMimeType('a.png', undefined)).toBe('image/png');
+    expect(documentMimeType('a.docx', undefined)).toBeNull();
+    expect(documentMimeType('a.pdf', 'application/pdf')).toBe('application/pdf');
+  });
+
+  it('reads my claim status on an association (approved wins)', async () => {
+    mockRowsValue = { data: [{ status: 'pending' }, { status: 'approved' }], error: null };
+    expect(await myClaimStatus('a1')).toBe('approved');
+    mockRowsValue = { data: [{ status: 'pending' }], error: null };
+    expect(await myClaimStatus('a1')).toBe('pending');
+    mockRowsValue = { data: [], error: null };
+    expect(await myClaimStatus('a1')).toBeNull();
+    mockGetSession.mockResolvedValue({ data: { session: null } });
+    expect(await myClaimStatus('a1')).toBeNull();
+  });
+});
+
+describe('ClaimForm extras', () => {
+  const PICK = 'Ou joindre un justificatif';
+
+  it('shows the privacy notice', async () => {
+    await render(<ClaimForm associationId="a1" onClose={jest.fn()} />);
+    expect(
+      await screen.findByText(
+        'Votre justificatif sert uniquement à vérifier votre demande. Il est supprimé au plus tard un an après la décision.',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('refuses a document above 10 MB, and one of an unknown type', async () => {
+    await render(<ClaimForm associationId="a1" onClose={jest.fn()} />);
+    (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValueOnce({
+      canceled: false,
+      assets: [{ uri: 'f', name: 'gros.pdf', mimeType: 'application/pdf', size: 10 * 1024 * 1024 + 1 }],
+    });
+    await fireEvent.press(await screen.findByLabelText(PICK));
+    expect(await screen.findByText('Fichier trop volumineux (10 Mo maximum).')).toBeTruthy();
+    expect(screen.queryByText(/Justificatif joint/)).toBeNull();
+    (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValueOnce({
+      canceled: false,
+      assets: [{ uri: 'f', name: 'lettre.docx', size: 100 }],
+    });
+    await fireEvent.press(screen.getByLabelText(PICK));
+    expect(await screen.findByText('Format non pris en charge (PDF, JPG ou PNG).')).toBeTruthy();
+  });
+
+  it('accepts a document without a MIME type when the extension is known', async () => {
+    await render(<ClaimForm associationId="a1" onClose={jest.fn()} />);
+    (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValueOnce({
+      canceled: false,
+      assets: [{ uri: 'f', name: 'statuts.PDF', size: 100 }],
+    });
+    await fireEvent.press(await screen.findByLabelText(PICK));
+    expect(await screen.findByText('Justificatif joint : statuts.PDF')).toBeTruthy();
+  });
+
+  it('says so when a claim is already pending, and tells the page when sent', async () => {
+    mockInsert.mockResolvedValueOnce({ error: { code: '23505', message: 'dup' } });
+    const onSent = jest.fn();
+    await render(<ClaimForm associationId="a1" onClose={jest.fn()} onSent={onSent} />);
+    await fireEvent.changeText(await screen.findByLabelText("Votre rôle dans l'association"), 'Présidente');
+    await fireEvent.changeText(screen.getByLabelText("Adresse e-mail de l'association"), 'bureau@club.fr');
+    await fireEvent.press(screen.getByLabelText('Envoyer la demande'));
+    expect(await screen.findByText('Vous avez déjà une demande en cours pour cette association.')).toBeTruthy();
+    expect(onSent).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByLabelText('Envoyer la demande'));
+    await screen.findByText('Demande envoyée. Nous vous répondrons sous quelques jours.');
+    expect(onSent).toHaveBeenCalledTimes(1);
   });
 });
 

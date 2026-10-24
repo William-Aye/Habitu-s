@@ -129,6 +129,7 @@ function NeedsProfileProfile() {
         <Text style={styles.primaryText}>{t('profile.finishSignup')}</Text>
       </Pressable>
       <LanguageSwitch onChange={(lng) => changeLanguage(lng, null)} />
+      <FeedbackLink />
       <PrivacyLink onPress={() => router.push('/privacy' as Href)} />
       <Pressable
         accessibilityRole="button"
@@ -237,6 +238,21 @@ function HomeAreaSection({
   );
 }
 
+function FeedbackLink() {
+  const { t } = useTranslation();
+  const router = useRouter();
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={t('feedback.title')}
+      style={styles.link}
+      onPress={() => router.push('/feedback' as Href)}
+    >
+      <Text style={styles.linkText}>{t('feedback.title')}</Text>
+    </Pressable>
+  );
+}
+
 function SignedOutProfile() {
   const { t } = useTranslation();
   const router = useRouter();
@@ -256,6 +272,7 @@ function SignedOutProfile() {
         <Text style={styles.primaryText}>{t('profile.signIn')}</Text>
       </Pressable>
       <LanguageSwitch onChange={(lng) => changeLanguage(lng, null)} />
+      <FeedbackLink />
       <PrivacyLink onPress={() => router.push('/privacy' as Href)} />
     </ScrollView>
   );

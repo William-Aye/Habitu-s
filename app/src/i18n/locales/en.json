@@ -96,7 +96,9 @@
       "rna": "Source: National directory of associations (Open Licence / Etalab 2.0)",
       "osm": "© OpenStreetMap contributors (ODbL)"
     },
-    "waitError": "Could not save your request. Try again."
+    "waitError": "Could not save your request. Try again.",
+    "claimPending": "Request pending",
+    "claimApproved": "You manage this association"
   },
   "activity": {
     "loading": "Loading",
@@ -491,8 +493,9 @@
     "link": "Link the collectif to this association",
     "linkPick": "Choose the association to link the collectif to.",
     "linkConfirm": "Confirm the link",
-    "linkDone": "The collectif is now linked to {{name}}.",
-    "linkError": "Couldn't link the collectif. Try again."
+    "linkError": "Couldn't link the collectif. Try again.",
+    "linkDone_one": "{{count}} activity linked.",
+    "linkDone_other": "{{count}} activities linked."
   },
   "notifications": {
     "yes": "Yes",
@@ -793,8 +796,9 @@
     "close": "Close",
     "limit": "You've reached the sending limit. Try again later.",
     "captcha": "The security check failed. Try again.",
-    "captchaWait": "Security check in progress",
-    "error": "Couldn't send your message. Try again."
+    "error": "Couldn't send your message. Try again.",
+    "notice": "We receive your message, the app version and the device model. Please don't include personal information. Kept for 2 years.",
+    "tooLarge": "File too large (5 MB maximum)."
   },
   "claim": {
     "title": "This is my association",
@@ -814,13 +818,16 @@
       "limit_reached": "You've reached the limit of requests. Try again later.",
       "not_allowed": "This request is not possible right now. A request may already be pending.",
       "network": "Can't connect. Check your network and try again.",
-      "unknown": "Something went wrong. Try again."
-    }
+      "unknown": "Something went wrong. Try again.",
+      "duplicate": "You already have a pending request for this association.",
+      "too_large": "File too large (10 MB maximum).",
+      "unsupported": "Unsupported format (PDF, JPG or PNG)."
+    },
+    "notice": "Your proof is only used to check your request. It is deleted at the latest one year after the decision."
   },
   "publicPlace": {
     "warning": "No public place found nearby. Confirm that this isn't a home.",
     "confirm": "I confirm: this is a public place",
-    "change": "Change the place",
-    "checking": "Checking the place"
+    "change": "Change the place"
   }
 }

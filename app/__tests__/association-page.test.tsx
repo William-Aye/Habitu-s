@@ -4,6 +4,7 @@ import type { AssociationDetail } from '../src/features/explore/types';
 import { initI18n } from '../src/i18n';
 import Association from '../src/app/associations/[id]';
 import { addWaiter, getAssociation, removeWaiter } from '../src/features/explore/api';
+import { myClaimStatus } from '../src/features/claims/api';
 
 jest.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'fr-FR' }] }));
 jest.mock('expo-router', () => ({
@@ -17,9 +18,20 @@ jest.mock('../src/features/explore/api', () => ({
 }));
 
 jest.mock('../src/features/claims/ClaimForm', () => {
-  const { Text } = require('react-native');
-  return { ClaimForm: ({ associationId }: { associationId: string }) => <Text>{`claim-form ${associationId}`}</Text> };
+  const { Pressable, Text, View } = require('react-native');
+  return {
+    ClaimForm: ({ associationId, onSent }: { associationId: string; onSent?: () => void }) => (
+      <View>
+        <Text>{`claim-form ${associationId}`}</Text>
+        <Pressable accessibilityLabel="simulate-sent" onPress={onSent}>
+          <Text>sent</Text>
+        </Pressable>
+      </View>
+    ),
+  };
 });
+jest.mock('../src/features/claims/api', () => ({ myClaimStatus: jest.fn() }));
+const mockClaimStatus = myClaimStatus as jest.Mock;
 
 const mockGate = jest.fn();
 jest.mock('../src/features/account/AccountGate', () => ({
@@ -50,6 +62,7 @@ beforeEach(() => {
   mockAdd.mockResolvedValue('added');
   mockRemove.mockResolvedValue(undefined);
   mockGate.mockReset();
+  mockClaimStatus.mockResolvedValue(null);
   mockGate.mockResolvedValue(false);
 });
 
@@ -191,4 +204,27 @@ it('lists activities and links to them', async () => {
   expect(screen.getByText('Activités organisées')).toBeTruthy();
   await fireEvent.press(screen.getByText('Yoga'));
   expect(router.push).toHaveBeenCalledWith({ pathname: '/activites/[id]', params: { id: 'x1', title: 'Yoga' } });
+});
+
+describe('my existing claim on this association', () => {
+  it('replaces the button by "Demande en cours" while a claim is pending', async () => {
+    mockClaimStatus.mockResolvedValue('pending');
+    await show(assoc());
+    expect(await screen.findByText('Demande en cours')).toBeTruthy();
+    expect(screen.queryByLabelText("C'est mon association")).toBeNull();
+  });
+
+  it('shows "Vous gérez cette association" once the claim was approved', async () => {
+    mockClaimStatus.mockResolvedValue('approved');
+    await show(assoc());
+    expect(await screen.findByText('Vous gérez cette association')).toBeTruthy();
+    expect(screen.queryByLabelText("C'est mon association")).toBeNull();
+  });
+
+  it('switches to "Demande en cours" after the form reports a sent claim', async () => {
+    await show(assoc());
+    await fireEvent.press(screen.getByLabelText("C'est mon association"));
+    await fireEvent.press(screen.getByLabelText('simulate-sent'));
+    expect(await screen.findByText('Demande en cours')).toBeTruthy();
+  });
 });

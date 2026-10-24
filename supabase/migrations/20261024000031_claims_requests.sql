@@ -37,6 +37,10 @@ grant select (id, association_id, claimant_id, proof_method, status, created_at,
               contact_email, document_path, decided_at)
   on public.association_claims to authenticated;
 
+-- One pending claim per person and association (a decided claim does not block a new one).
+create unique index association_claims_one_pending on public.association_claims (association_id, claimant_id)
+  where status = 'pending';
+
 create function public.association_claims_limit() returns trigger
 language plpgsql security definer set search_path = public, pg_temp as $$
 begin

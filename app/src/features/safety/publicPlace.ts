@@ -27,7 +27,9 @@ export async function hasPublicPlaceNearby(lat: number, lon: number): Promise<bo
       signal: controller.signal,
     });
     if (!res.ok) return 'unknown';
-    const json = (await res.json()) as { elements?: unknown };
+    const json = (await res.json()) as { elements?: unknown; remark?: unknown };
+    // Overpass answers 200 with an empty list and a remark when it ran out of time or memory.
+    if (typeof json.remark === 'string' && /runtime error/i.test(json.remark)) return 'unknown';
     if (!Array.isArray(json.elements)) return 'unknown';
     return json.elements.length > 0;
   } catch {

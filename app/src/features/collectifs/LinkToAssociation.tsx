@@ -8,13 +8,13 @@ import { linkCollectifToAssociation, myVerifiedAssociations, type ClaimedAssocia
  * "Rattacher le collectif à cette association": for a responsable who has a verified association (an
  * approved claim). Nothing is shown otherwise. The collectif stays; its activities then show the association.
  */
-export function LinkToAssociation({ collectifId }: { collectifId: string }) {
+export function LinkToAssociation({ collectifId, onLinked }: { collectifId: string; onLinked?: () => void }) {
   const { t } = useTranslation();
   const [options, setOptions] = useState<ClaimedAssociation[]>([]);
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<string | null>(null);
+  const [done, setDone] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
   const linking = useRef(false);
 
@@ -41,13 +41,14 @@ export function LinkToAssociation({ collectifId }: { collectifId: string }) {
     setBusy(false);
     if (!r.ok) return setFailed(true);
     setOpen(false);
-    setDone(target.name);
+    setDone(r.moved);
+    onLinked?.();
   };
 
   return (
     <View style={styles.box}>
       <View accessibilityLiveRegion="polite">
-        {done ? <Text>{t('collectif.linkDone', { name: done })}</Text> : null}
+        {done !== null ? <Text>{t('collectif.linkDone', { count: done })}</Text> : null}
         {failed ? <Text style={styles.error}>{t('collectif.linkError')}</Text> : null}
       </View>
       {open ? (

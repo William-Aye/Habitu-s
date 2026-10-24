@@ -21,7 +21,7 @@ export function FeedbackForm({ onDone }: { onDone?: () => void }) {
   const [body, setBody] = useState('');
   const [shot, setShot] = useState<{ uri: string; width?: number } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [outcome, setOutcome] = useState<'sent' | 'limit' | 'captcha' | 'error' | null>(null);
+  const [outcome, setOutcome] = useState<'sent' | 'limit' | 'captcha' | 'tooLarge' | 'error' | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [captchaKey, setCaptchaKey] = useState(0);
   const [captchaFailed, setCaptchaFailed] = useState(false);
@@ -71,7 +71,9 @@ export function FeedbackForm({ onDone }: { onDone?: () => void }) {
     setBusy(false);
     if (r.ok) return setOutcome('sent');
     if (signedOut) freshCaptcha();
-    setOutcome(r.error === 'limit_reached' ? 'limit' : r.error === 'captcha' ? 'captcha' : 'error');
+    setOutcome(
+      r.error === 'limit_reached' ? 'limit' : r.error === 'captcha' ? 'captcha' : r.error === 'too_large' ? 'tooLarge' : 'error',
+    );
   };
 
   const close = () => (onDone ? onDone() : router.back());
@@ -177,6 +179,7 @@ export function FeedbackForm({ onDone }: { onDone?: () => void }) {
         </View>
       ) : null}
 
+      <Text style={styles.notice}>{t('feedback.notice')}</Text>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t('feedback.send')}
@@ -201,6 +204,7 @@ const styles = StyleSheet.create({
   choiceOnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, fontSize: 16, minHeight: 140, textAlignVertical: 'top' },
   hint: { fontSize: 12, color: '#555', textAlign: 'right' },
+  notice: { fontSize: 12, color: '#555' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   flex: { flex: 1 },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },

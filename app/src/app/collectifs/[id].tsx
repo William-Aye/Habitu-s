@@ -215,7 +215,7 @@ export default function CollectifScreen() {
         )
       ) : null}
 
-      {isResponsable ? <LinkToAssociation collectifId={c.id} /> : null}
+      {isResponsable ? <LinkToAssociation collectifId={c.id} onLinked={reload} /> : null}
 
       <Text accessibilityRole="header" style={styles.heading}>
         {t('collectif.activities')}

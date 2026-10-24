@@ -438,6 +438,7 @@ describe('public place check before publishing', () => {
     await publishFlow();
     expect(await screen.findByText(WARNING)).toBeTruthy();
     expect(mockCreate).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Publier').props.accessibilityState.disabled).toBe(true);
     await fireEvent.press(screen.getByLabelText(CONFIRM));
     await screen.findByText('Partagez-la avec vos amis');
     expect(mockCreate).toHaveBeenCalledTimes(1);

@@ -3,12 +3,13 @@ import { randomUUID } from 'expo-crypto';
 import * as Device from 'expo-device';
 import { supabase } from '../../lib/supabase';
 import { reencodeJpeg } from '../account/avatar';
+import { MAX_SCREENSHOT_BYTES, storageFailure } from '../safety/storageError';
 
 export type FeedbackType = 'idea' | 'problem' | 'other';
 export const MAX_FEEDBACK = 5000;
 const SCREENSHOT_WIDTH = 1280;
 
-export type FeedbackError = 'limit_reached' | 'captcha' | 'network' | 'unknown';
+export type FeedbackError = 'limit_reached' | 'captcha' | 'too_large' | 'network' | 'unknown';
 export type FeedbackResult = { ok: true } | { ok: false; error: FeedbackError };
 
 export interface FeedbackInput {
@@ -52,11 +53,12 @@ export async function sendFeedback(input: FeedbackInput): Promise<FeedbackResult
     let screenshotPath: string | null = null;
     if (input.screenshotUri) {
       const file = await reencodeJpeg(input.screenshotUri, input.screenshotWidth, SCREENSHOT_WIDTH);
+      if ((file.size ?? 0) > MAX_SCREENSHOT_BYTES) return { ok: false, error: 'too_large' };
       const path = `${userId}/${randomUUID()}.jpg`;
       const { error } = await supabase.storage
         .from('feedback-screenshots')
         .upload(path, await file.arrayBuffer(), { contentType: 'image/jpeg' });
-      if (error) return { ok: false, error: 'network' };
+      if (error) return { ok: false, error: storageFailure(error) };
       screenshotPath = path;
     }
     const { error } = await supabase.from('feedback').insert({

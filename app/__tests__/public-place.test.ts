@@ -40,6 +40,14 @@ it('is unknown on a network error, a bad status or an unreadable answer', async 
   expect(await hasPublicPlaceNearby(45.76, 4.83)).toBe('unknown');
 });
 
+it('is unknown (never false) on a 200 with an empty list and a runtime error remark', async () => {
+  mockFetch.mockResolvedValue({
+    ok: true,
+    json: async () => ({ elements: [], remark: 'runtime error: Query timed out in "query" at line 1' }),
+  });
+  expect(await hasPublicPlaceNearby(45.76, 4.83)).toBe('unknown');
+});
+
 it('gives up after 4 seconds and answers unknown', async () => {
   jest.useFakeTimers();
   mockFetch.mockImplementation(
