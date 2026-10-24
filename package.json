@@ -9,6 +9,8 @@
     "db:start": "supabase start",
     "db:reset": "supabase db reset",
     "db:test": "supabase test db",
+    "web:build": "node web/build.mjs",
+    "web:test": "npx --yes deno@2 test --allow-read=web/public web/src && node --test web/build.test.mjs",
     "db:types": "supabase gen types typescript --local > app/src/lib/database.types.ts"
   },
   "keywords": [],

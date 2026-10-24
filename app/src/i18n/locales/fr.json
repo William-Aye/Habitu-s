@@ -108,6 +108,7 @@
     "archivedNotice": "Cette activité est archivée : elle n’est plus visible des autres personnes.",
     "organisedBy": "Organisé par {{name}}",
     "hostedBy": "Animé par {{name}}",
+    "organisedByMember": "Organisé par un membre",
     "collectifLabel": "Collectif — sans statut juridique",
     "openCollectif": "Voir le collectif {{name}}",
     "openAssociation": "Voir la fiche de l'association {{name}}",
@@ -120,6 +121,8 @@
     "withdraw": "Retirer ma demande",
     "leave": "Quitter l'activité",
     "share": "Partager",
+    "mapLink": "Voir sur la carte",
+    "linkCopied": "Lien copié",
     "sharing": "Partage en cours",
     "sessions": "Prochaines séances",
     "noSessions": "Aucune séance prévue pour l'instant",
@@ -180,6 +183,18 @@
     },
     "reminderFailed": "Votre réponse n'a pas pu être enregistrée. Indiquez-la ci-dessous.",
     "discussion": "Discussion"
+  },
+  "web": {
+    "siteName": "Habitués",
+    "account": "Mon compte",
+    "download": "Télécharger l'application",
+    "unavailable": {
+      "title": "Disponible dans l'application",
+      "body": "Cette partie de Habitués n'est pas disponible sur le site. Installez l'application pour y accéder."
+    },
+    "notFound": "Cette page n'existe pas ou n'est plus disponible.",
+    "home": "Retour à l'accueil",
+    "signingIn": "Connexion en cours"
   },
   "common": {
     "comingSoon": "Bientôt disponible"
@@ -450,6 +465,8 @@
     "notFound": "Ce collectif n'existe plus",
     "mapLabel": "Carte de {{place}}",
     "organisers": "Organisateurs",
+    "organisersCount_one": "{{count}} organisateur",
+    "organisersCount_other": "{{count}} organisateurs",
     "role": {
       "responsable": "Responsable",
       "organiser": "Organisateur"

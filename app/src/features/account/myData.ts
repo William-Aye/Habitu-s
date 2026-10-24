@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { supabase } from '../../lib/supabase';
@@ -12,6 +13,7 @@ const EXPORT_FILE = /^habitues-mes-donnees-.*\.json$/;
 
 /** Removes leftover personal-data exports from the cache (the share sheet may still read a fresh one, so this runs later). */
 export function cleanupExportFiles(): void {
+  if (Platform.OS === 'web') return; // the browser build keeps nothing on disk
   try {
     for (const item of new Directory(Paths.cache).list()) {
       if (!EXPORT_FILE.test(item.name)) continue;
@@ -26,7 +28,29 @@ export function cleanupExportFiles(): void {
   }
 }
 
+/** Browser build: the export is handed to the visitor as a downloaded file. */
+async function exportMyDataWeb(): Promise<{ ok: true; path: string } | { ok: false }> {
+  try {
+    const { data, error } = await supabase.rpc('export_my_data');
+    if (error) return { ok: false };
+    const name = `habitues-mes-donnees-${new Date().toISOString().slice(0, 10)}.json`;
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    return { ok: true, path: name };
+  } catch {
+    return { ok: false };
+  }
+}
+
 export async function exportMyData(): Promise<{ ok: true; path: string } | { ok: false }> {
+  if (Platform.OS === 'web') return exportMyDataWeb();
   let file: File | null = null;
   let handedOut = false;
   cleanupExportFiles();

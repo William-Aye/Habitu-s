@@ -1,4 +1,4 @@
-import { PRIVACY_CONTACT } from './contact';
+import { PRIVACY_CONTACT } from './contact.ts';
 
 // Stored as a TypeScript string because Metro does not load .md files as source by default.
 // MARKERS: every sentence tagged "(once this feature is available)" describes a feature that
@@ -55,7 +55,7 @@ Deleting your account is immediate (see below).
 
 - Supabase (hosting, database and sign-in), in the European Union (Paris).
 - Google (Google sign-in and, where applicable, ads).
-- Cloudflare (protecting the service, the anti-bot check at sign-up and Turnstile for messages sent without an account).
+- Cloudflare (hosting the website with Cloudflare Pages, protecting the service, the anti-bot check at sign-up and Turnstile for messages sent without an account).
 - OpenStreetMap (Overpass service): when you publish an activity or move a session, the app sends a request to this service to check that a public place is nearby. The service sees your phone's network address (IP address). The request only contains the rounded coordinates of the place: no account data is sent.
 - Expo (notification relay), then Google Firebase Cloud Messaging (Android) and Apple Push Notification service (iPhone) to deliver them to your phone. Notifications are deliberately generic: they contain no activity name or first name, only a short text such as "Reminder: you have an activity tomorrow". The details only show inside the app, after you sign in.
 - GitHub (hosting the code of the app and the website: no user data).
@@ -63,16 +63,25 @@ Deleting your account is immediate (see below).
 
 When one of these services is located outside the European Union, the transfer is covered by the EU–US Data Privacy Framework or by standard contractual clauses.
 
+# Website
+
+The website includes the public pages (home, activities, associations, legal notices) and a web version of the app, under /app.
+
+- Hosting: the site is hosted by Cloudflare Pages. Cloudflare keeps technical logs (IP address, page requested, date) for security and for the service to work, for its default period. Our own code logs no IP address and we add no advertising tracker.
+- Your session: if you sign in on the website, your session is kept in your browser storage (localStorage). It is strictly necessary to keep you signed in, so no consent banner is shown. It is erased when you sign out. The public pages set no cookie.
+- Sign-up: on the sign-up page, a Cloudflare Turnstile script (challenges.cloudflare.com) runs to check that you are not a robot; Cloudflare receives technical information about your browser when it does. The same script is used by the "Une idée ? Un problème ?" form without an account. It is not loaded on any public page.
+- Public activity pages: each running activity has a public page, readable without an account and indexed by search engines. It shows the activity (title, description, category), the town or meeting place, the next session, the number of confirmed people and the organising association or collective. Members' names and photos never appear on them: the organiser's first name is only visible to signed-in people.
+
 # Moderation information
 
-When a report is handled, the person who sent it is told in the app. The person affected by a removal, a warning or a suspension receives the statement of reasons. Both get a discreet notification ("Information de modération") with no detail. You find them in Profile, "Informations de modération".
+When a report is handled, the person who sent it is told in the app. The person affected by a removal, a warning or a suspension receives the statement of reasons. Both get a discreet notification ("Information de modération") with no detail. You find them, in the app, in Profile, "Informations de modération".
 
 # Your rights and how to use them
 
-In the app, open Profile, then "My data":
+Sign in, then open Profile (in the app, the Profile tab; on the website, "My account"), then "My data":
 
 - Download my data: you receive a file with all the personal data we hold about you (including your email address, your account creation and last sign-in dates, and your sign-in methods), and nothing about others. The private messages you received are deleted with your account but are not part of your export: they belong to their sender (Art. 15(4) GDPR) (once this feature is available).
-- Correct: edit your first name, bio, photo and your town directly in Profile (you can also remove your town).
+- Correct: edit your first name, bio, photo and your town directly in Profile (you can also remove your town). On the website, you can edit your first name and bio.
 - Delete my account: deletion is immediate and permanent, after confirmation.
 
 Deleting your account also deletes the activities you organise, including their sessions, attendances and group messages. Reports and your "Une idée ? Un problème ?" suggestions stay, but are no longer linked to you.

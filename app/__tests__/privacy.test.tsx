@@ -137,3 +137,39 @@ it('describes the moderation, feedback, claims, Overpass and inactivity data in 
   expect(privacyFr).not.toContain("e-mail d'avertissement");
   expect(privacyEn).not.toContain('warning email');
 });
+
+it('has a "Site web" section in both languages (hosting, session, Turnstile, public pages)', () => {
+  const section = (text: string, title: string) => {
+    const i = text.indexOf(`# ${title}`);
+    expect(i).toBeGreaterThan(-1);
+    const rest = text.slice(i + title.length + 2);
+    const j = rest.indexOf('\n# ');
+    return j === -1 ? rest : rest.slice(0, j);
+  };
+  const fr = section(privacyFr, 'Site web');
+  for (const w of ['Cloudflare Pages', 'journaux techniques', 'stockage de votre navigateur', 'strictement nécessaire', 'aucune bannière', 'Cloudflare Turnstile', 'page d\'inscription', 'pages publiques', 'prochaine séance']) {
+    expect(fr).toContain(w);
+  }
+  const en = section(privacyEn, 'Website');
+  for (const w of ['Cloudflare Pages', 'technical logs', 'browser storage', 'strictly necessary', 'no consent banner', 'Cloudflare Turnstile', 'sign-up page', 'public pages', 'next session']) {
+    expect(en).toContain(w);
+  }
+});
+
+it('the rights section works on the website too', () => {
+  expect(privacyFr).not.toContain("Dans l'application, ouvrez Profil");
+  expect(privacyEn).not.toContain('In the app, open Profile');
+  expect(privacyFr).toContain('« Mon compte »');
+  expect(privacyEn).toContain('"My account"');
+});
+
+it('public activity pages: organising association or collectif, never members', () => {
+  expect(privacyFr).toContain("l'association ou le collectif organisateur");
+  expect(privacyFr).toContain("Les noms et les photos des membres n'y figurent jamais");
+  expect(privacyFr).toContain("prénom de l'organisateur n'est visible que par les personnes connectées");
+  expect(privacyEn).toContain('organising association or collective');
+  expect(privacyEn).toContain("Members' names and photos never appear on them");
+  expect(privacyEn).toContain("organiser's first name is only visible to signed-in people");
+  expect(privacyFr).not.toContain('PENDING');
+  expect(privacyEn).not.toContain('PENDING');
+});

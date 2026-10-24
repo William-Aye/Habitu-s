@@ -183,9 +183,10 @@ Created by the migrations; nothing to schedule by hand:
 
 ### Share links
 
-`EXPO_PUBLIC_WEB_BASE_URL` (in `app/.env`, see `app/.env.example`) is the future website address.
-Shared activities link to `EXPO_PUBLIC_WEB_BASE_URL/activites/<id>`; the website preview pages come
-later. Inside the app `friendapp://activites/<id>` already opens the activity.
+`EXPO_PUBLIC_WEB_BASE_URL` (in `app/.env`, see `app/.env.example`) is the public website address.
+Shared links are readable: `EXPO_PUBLIC_WEB_BASE_URL/activites/<slug>-<uuid>` (and `/associations/...`),
+built by `app/src/lib/links.ts`. Without it the app falls back to `friendapp://activites/<id>`.
+See "Public web pages" below.
 
 ### Finding new activities by meaning
 
@@ -228,6 +229,9 @@ Each activity has a text-only discussion for its organiser and members (Messages
 Reporting, blocking, moderation decisions, the word filter, feedback, association claims, retention
 and the admin area. Admin rights need a second factor (see below); everything else works for any
 signed-in person.
+
+Moderation and the web cache: a public page that moderation removes can stay visible for up to 5 minutes
+(the edge cache, `s-maxage=300`); this delay is accepted.
 
 ### Making the first admin
 
@@ -452,3 +456,91 @@ under an ACCESS EXCLUSIVE lock. Apply that migration outside import runs.
 
 The map uses the OpenFreeMap style (`https://tiles.openfreemap.org/styles/liberty`).
 Keep its attribution (OpenMapTiles, OpenStreetMap contributors) visible on every map.
+
+## Public web pages
+
+The website has two parts, both on Cloudflare Pages (free plan):
+
+- the public pages (`/`, `/activites/...`, `/associations/...`, sitemaps, legal pages), rendered by
+  the Pages Functions in `web/functions` (see `web/README.md`);
+- the interactive app (sign up, "Je serai là", "Mes données"), the Expo web export served under `/app/`.
+
+### 1. Create the Cloudflare Pages project
+
+1. Cloudflare dashboard, Workers & Pages, Create, Pages, connect the Git repository.
+2. Project settings:
+   - Root directory: `web`.
+   - Build command: `cd .. && npm ci && npm ci --prefix app && npm run web:build` (the repo root and `app/` each have a `package-lock.json`; `web:build` writes `web/dist`).
+   - Build output directory: `dist`. The Functions are read from `web/functions` (next to the root directory).
+3. Set the variables below under Settings, Environment variables (Production and Preview), including `NODE_VERSION=22` (pins the Node version of the Pages build).
+
+| Variable | Meaning |
+| --- | --- |
+| `SUPABASE_URL` | Supabase project URL. Read at build time and at runtime: the Function `web/functions/app/[[path]].ts` builds the CSP of `/app/*` from it. The build fails if `EXPO_PUBLIC_SUPABASE_URL` is set to another origin |
+| `SUPABASE_ANON_KEY` | anon key, read by the Worker |
+| `WEB_BASE_URL` | public address without trailing slash (canonical links, sitemaps). Until a domain is bought, the `*.pages.dev` address |
+| `PLAY_STORE_URL` | Play Store listing, used by the Worker pages |
+| `ANDROID_PACKAGE` | Android package (`fr.friendapp.app`), used for `/.well-known/assetlinks.json` |
+| `ANDROID_SHA256_CERT` | SHA-256 fingerprint of the app signing certificate (Play Console, App integrity). Without it `assetlinks.json` is skipped and Android App Links are not verified |
+| `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` | read by the app export |
+| `EXPO_PUBLIC_WEB_BASE_URL` | same value as `WEB_BASE_URL`; also adds the Android App Links intent filters (`app/app.config.js`) |
+| `EXPO_PUBLIC_PLAY_STORE_URL` | **required**: the "Disponible dans l'application" screens and the header link need it |
+| `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, `EXPO_PUBLIC_TURNSTILE_SITE_KEY` | Google sign-in and the sign-up CAPTCHA on the web |
+
+Android App Links: the same `EXPO_PUBLIC_WEB_BASE_URL` must be set when building the Android app
+(EAS), so the `https://<host>/activites/*` and `/associations/*` links open in the app. Check with
+`npx expo config --json` in `app/`.
+
+### 2. Domain and Cloudflare settings (spec 18.5)
+
+1. Buy a domain (or keep the free `*.pages.dev` address) and add it under the Pages project, Custom domains.
+   DNS is managed on Cloudflare.
+2. SSL/TLS: Always Use HTTPS on; enable DNSSEC and add the DS record at the registrar.
+3. Security: turn on the WAF managed rules and add a rate-limiting rule on `/app/*`. Do not use a challenge on the public pages: WhatsApp, Instagram and Google fetch them without a browser.
+4. Change `WEB_BASE_URL` and `EXPO_PUBLIC_WEB_BASE_URL` to the new domain and redeploy.
+
+### 3. Supabase Auth
+
+- Authentication, URL Configuration: set the Site URL to `<WEB_BASE_URL>` and add
+  `<WEB_BASE_URL>/app/auth/callback` to the Redirect URLs. Google sign-in redirects to the origin the page is
+  served from, so to sign in on Cloudflare preview deployments also add the preview address
+  (`https://*.<project>.pages.dev/app/auth/callback`). Locally, `http://127.0.0.1:8788/app/auth/callback` is in
+  `supabase/config.toml`.
+- Google sign-in on the web needs an OAuth client of type "Web application" whose authorised redirect URI
+  is the Supabase callback (`https://<project>.supabase.co/auth/v1/callback`); its client id goes in
+  `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`.
+
+### 4. Turnstile
+
+In the Cloudflare Turnstile widget, add the web hostname (the domain, or the `*.pages.dev` host) to the
+widget's hostnames, next to `challenges.cloudflare.com`.
+
+### 5. Search engines
+
+Submit `<WEB_BASE_URL>/sitemap.xml` in Google Search Console (add the domain property first).
+
+### 5b. After the first deploy
+
+- Link preview: paste an activity link (`<WEB_BASE_URL>/activites/<slug>-<id>`) in a WhatsApp chat with yourself and check that
+  the card shows the title, description and the Habitués image. If it does not, the WAF or a challenge rule is blocking the crawler.
+- Android App Links: open
+  `https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=<WEB_BASE_URL>&relation=delegate_permission/common.handle_all_urls`
+  and check that the answer lists your package (`fr.friendapp.app`) and the SHA-256 of the signing certificate.
+
+### 6. Before launch
+
+Fill in the placeholders in the "Mentions légales" (publisher name and contact, hosts) and "Conditions
+d'utilisation" pages (`web/src/legal.ts`).
+
+### Tests and local checks
+
+- `npm run web:test` runs the Deno tests (`deno test --allow-read=web/public web/src`, the flag is
+  needed to read `_headers` and `_routes.json`) and the Node build tests. Delete the `deno.lock` it leaves behind (git-ignored).
+- `CI=1 SUPABASE_URL=http://127.0.0.1:55321 EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:55321 npm run web:build` builds `web/dist`.
+- Local run of the whole site: put `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `WEB_BASE_URL=http://127.0.0.1:8788` in `web/.dev.vars`
+  (git-ignored), then `cd web && npx --yes wrangler@4 pages dev dist`.
+- The interactive app is a single-page app under `/app/`. `web/functions/app/[[path]].ts` serves the app shell for every
+  route that is not a file, so a new route under `app/src/app` needs nothing else. `web/public/_routes.json` keeps the static
+  files (`/app/_expo/*`, `/app/assets/*`, the favicon, `styles.css`, the preview image, `/.well-known/*`) out of the Function.
+- Slugs: `app/src/lib/links.ts` and `web/src/slug.ts` must give the same result; both are
+  tested against `web/src/slug_fixtures.json`.

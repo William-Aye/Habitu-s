@@ -11,3 +11,8 @@ __pycache__/
 .venv/
 *.pyc
 .claude/worktrees/
+
+web/.dev.vars
+web/dist/
+.wrangler/
+deno.lock

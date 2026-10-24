@@ -45,8 +45,9 @@ jest.mock('../src/features/activities/api', () => ({
 jest.mock('../src/features/notifications/registerPush', () => ({ askForPush: jest.fn(async () => {}) }));
 const mockGate = jest.fn();
 jest.mock('../src/features/account/AccountGate', () => ({ useRequireAccount: () => mockGate }));
+let mockUserId: string | null = 'me';
 jest.mock('../src/features/account/useSession', () => ({
-  useSession: () => ({ status: 'ready', userId: 'me', profile: { firstName: 'Moi' } }),
+  useSession: () => ({ status: mockUserId ? 'ready' : 'signed_out', userId: mockUserId, profile: mockUserId ? { firstName: 'Moi' } : null }),
 }));
 
 const mockGet = getActivity as jest.Mock;
@@ -85,6 +86,7 @@ beforeAll(async () => {
 });
 beforeEach(() => {
   jest.clearAllMocks();
+  mockUserId = 'me';
   mockGate.mockResolvedValue(false);
   (joinActivity as jest.Mock).mockResolvedValue({ ok: true, status: 'member' });
   (leaveActivity as jest.Mock).mockResolvedValue(ok);
@@ -307,7 +309,7 @@ describe('shareActivity', () => {
     const spy = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' } as never);
     process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://habitues.example/';
     await shareActivity('abc', 'Go du mardi');
-    expect(spy).toHaveBeenCalledWith({ message: 'Go du mardi sur Habitués : https://habitues.example/activites/abc' });
+    expect(spy).toHaveBeenCalledWith({ message: 'Go du mardi sur Habitués : https://habitues.example/activites/go-du-mardi-abc' });
   });
   it('falls back to the app link', async () => {
     const spy = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' } as never);
@@ -439,5 +441,33 @@ describe('discussion button', () => {
     await screen.unmount();
     await open(activity({ myStatus: 'pending' }));
     expect(screen.queryByRole('button', { name: 'Discussion' })).toBeNull();
+  });
+});
+
+describe('the organiser is named only to signed-in people', () => {
+  it('signed in: the first name shows', async () => {
+    await open(activity());
+    expect(screen.getByText('Organisé par Olivier')).toBeTruthy();
+  });
+
+  it('signed out: no first name even if the server sent one, a member is not named', async () => {
+    mockUserId = null;
+    await open(activity({ organiser: { id: 'org1', firstName: 'Olivier', photoUrl: 'https://x/o.jpg' } }));
+    expect(screen.queryByText(/Olivier/)).toBeNull();
+    expect(screen.getByText('Organisé par un membre')).toBeTruthy();
+  });
+
+  it('signed out and no first name from the server: same text', async () => {
+    mockUserId = null;
+    await open(activity({ organiser: { id: 'org1' } as never }));
+    expect(screen.getByText('Organisé par un membre')).toBeTruthy();
+  });
+
+  it('signed out: an organising association is still named', async () => {
+    mockUserId = null;
+    await open(activity({ organisedBy: { kind: 'association', id: 'a1', name: 'Les Joueurs' } }));
+    expect(screen.getByText('Organisé par Les Joueurs')).toBeTruthy();
+    expect(screen.queryByText('Organisé par un membre')).toBeNull();
+    expect(screen.queryByText(/Olivier/)).toBeNull();
   });
 });

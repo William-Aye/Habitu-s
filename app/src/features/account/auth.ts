@@ -1,9 +1,11 @@
+import { Platform } from 'react-native';
 import { unregisterThisDevice } from '../notifications/registerPush';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { supabase } from '../../lib/supabase';
 import { clearOutbox } from '../chat/outbox';
 import { setBannedSignal } from '../../lib/bannedSignal';
 import { isBannedError } from './banned';
+import { clearWebSession, startGoogleOAuth } from './googleWeb';
 
 export type AuthError =
   | 'captcha'
@@ -62,6 +64,15 @@ function configureGoogle() {
 export async function signInWithGoogle(): Promise<
   { ok: true; givenName?: string } | Fail
 > {
+  if (Platform.OS === 'web') {
+    // The browser leaves for Google and comes back to /app/auth/callback: nothing more happens here.
+    try {
+      const { error } = await startGoogleOAuth();
+      return error ? { ok: false, error: mapGeneralError(error) } : { ok: true };
+    } catch (error) {
+      return { ok: false, error: mapGeneralError(error) };
+    }
+  }
   try {
     configureGoogle();
     const res = await GoogleSignin.signIn();
@@ -166,4 +177,5 @@ export async function signOut(): Promise<void> {
   } catch {
     // Local session is cleared by the next launch check; nothing more to do here.
   }
+  if (Platform.OS === 'web') clearWebSession();
 }

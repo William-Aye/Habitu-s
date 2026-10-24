@@ -107,6 +107,7 @@
     "notFound": "This activity is no longer available",
     "archivedNotice": "This activity is archived: other people can no longer see it.",
     "organisedBy": "Organised by {{name}}",
+    "organisedByMember": "Organised by a member",
     "hostedBy": "Hosted by {{name}}",
     "collectifLabel": "Collective — not a legal entity",
     "openCollectif": "View the collective {{name}}",
@@ -120,6 +121,8 @@
     "withdraw": "Withdraw my request",
     "leave": "Leave the activity",
     "share": "Share",
+    "mapLink": "View on the map",
+    "linkCopied": "Link copied",
     "sharing": "Sharing",
     "sessions": "Upcoming sessions",
     "noSessions": "No session planned yet",
@@ -180,6 +183,18 @@
     },
     "reminderFailed": "Your answer could not be saved. Please give it below.",
     "discussion": "Discussion"
+  },
+  "web": {
+    "siteName": "Habitués",
+    "account": "My account",
+    "download": "Download the app",
+    "unavailable": {
+      "title": "Available in the app",
+      "body": "This part of Habitués is not available on the website. Install the app to use it."
+    },
+    "notFound": "This page does not exist or is no longer available.",
+    "home": "Back to home",
+    "signingIn": "Signing you in"
   },
   "common": {
     "comingSoon": "Coming soon"
@@ -450,6 +465,8 @@
     "notFound": "This collectif no longer exists",
     "mapLabel": "Map of {{place}}",
     "organisers": "Organisers",
+    "organisersCount_one": "{{count}} organiser",
+    "organisersCount_other": "{{count}} organisers",
     "role": {
       "responsable": "Person in charge",
       "organiser": "Organiser"

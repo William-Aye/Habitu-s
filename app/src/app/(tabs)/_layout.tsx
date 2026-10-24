@@ -1,4 +1,5 @@
 import { Tabs } from 'expo-router';
+import { Platform } from 'react-native';
 import { CalendarDays, MessageCircle, Search, User } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useUnreadCount } from '../../features/chat/useUnreadCount';
@@ -8,7 +9,12 @@ export default function TabsLayout() {
   const { count, refresh } = useUnreadCount();
   return (
     <Tabs
-      screenOptions={{ tabBarShowLabel: true, headerShown: false }}
+      screenOptions={{
+        tabBarShowLabel: true,
+        headerShown: false,
+        // The website has no tab bar: the slim header is its only navigation.
+        ...(Platform.OS === 'web' ? { tabBarStyle: { display: 'none' as const } } : {}),
+      }}
       screenListeners={{ focus: refresh }}
     >
       <Tabs.Screen

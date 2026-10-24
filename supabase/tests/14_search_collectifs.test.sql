@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(35);
+select plan(37);
 select tests.create_user('resp@sc.fr', 'Rose') as resp \gset
 select tests.create_user('org1@sc.fr', 'Oscar') as org1 \gset
 select tests.create_user('inv@sc.fr', 'Ines') as inv \gset
@@ -82,10 +82,16 @@ select is((select count(*)::int from jsonb_array_elements(public.search_explore(
 select is(public.get_collectif('00000000-0000-0000-0000-0000000000ff'), null, 'unknown collectif: null');
 select is((select jsonb_array_length(public.get_collectif('00000000-0000-0000-0000-00000000c0a1')->'organisers')), 2,
           'active organisers only (the invited one is left out)');
+select is((select array_agg(o->>'role' order by o->>'role') from jsonb_array_elements(public.get_collectif('00000000-0000-0000-0000-00000000c0a1')->'organisers') o),
+          array['organiser', 'responsable'], 'anon: organisers are roles only');
+select is((select count(*)::int from jsonb_array_elements(public.get_collectif('00000000-0000-0000-0000-00000000c0a1')->'organisers') o
+            where o ? 'first_name' or o ? 'photo_url'), 0, 'anon: no organiser first_name or photo_url');
+select tests.act_as(:'plain');
 select is((select array_agg(o->>'first_name' order by o->>'first_name') from jsonb_array_elements(public.get_collectif('00000000-0000-0000-0000-00000000c0a1')->'organisers') o),
-          array['Oscar', 'Rose'], 'first names');
+          array['Oscar', 'Rose'], 'signed in: first names');
 select is((select o from jsonb_array_elements(public.get_collectif('00000000-0000-0000-0000-00000000c0a1')->'organisers') o where o->>'first_name' = 'Rose'),
-          '{"first_name":"Rose","photo_url":"https://example.org/rose.jpg","role":"responsable"}'::jsonb, 'only first name, photo and role');
+          '{"first_name":"Rose","photo_url":"https://example.org/rose.jpg","role":"responsable"}'::jsonb, 'signed in: only first name, photo and role');
+select tests.act_as_anon();
 select is((select jsonb_array_length(public.get_collectif('00000000-0000-0000-0000-00000000c0a1')->'activities')), 2,
           'non-archived activities only');
 select tests.act_as(:'org1');
