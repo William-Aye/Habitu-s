@@ -155,7 +155,8 @@ export function renderActivityPage(a: Json, base: string, opts: RenderOpts = {})
   const sessions: Json[] = Array.isArray(a.next_sessions) ? a.next_sessions : [];
   const next = sessions.find((s) => s.status !== "cancelled") ?? null;
   const confirmed = next ? copy.confirmed(Number(next.confirmed_count ?? 0)) : "";
-  const org: string | null = a.organised_by?.name ?? a.organiser?.first_name ?? null;
+  // Public pages never name a member: only the organising association or collectif.
+  const org: string | null = a.organised_by?.name ?? null;
   const desc: string = a.description ?? "";
   const rec = recurrenceText(a);
   const place = a.place_label;
@@ -189,7 +190,7 @@ export function renderActivityPage(a: Json, base: string, opts: RenderOpts = {})
     }
     ld.eventSchedule = sched;
   }
-  if (org) ld.organizer = { "@type": a.organised_by ? "Organization" : "Person", name: org };
+  if (org) ld.organizer = { "@type": "Organization", name: org };
 
   const main = `<article class="activity">
 <h1>${escapeHtml(a.title)}</h1>
@@ -200,7 +201,7 @@ ${place ? `<li>${escapeHtml(place)}</li>` : ""}
 ${rec ? `<li>${escapeHtml(rec)}</li>` : ""}
 ${next ? `<li>${escapeHtml(copy.nextSession(formatParisDate(next.starts_at)))}</li>` : ""}
 ${next && confirmed ? `<li>${escapeHtml(confirmed)}</li>` : ""}
-${org ? `<li>${escapeHtml(copy.organisedBy(org))}</li>` : ""}
+<li>${escapeHtml(org ? copy.organisedBy(org) : copy.organisedByMember)}</li>
 </ul>
 ${actions({ webPath: `/app/activites/${a.id}`, intent: intentUrl(`activites/${a.id}`, playStore, pkg), playStore, map: mapUrl })}
 </article>`;

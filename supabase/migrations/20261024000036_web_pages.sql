@@ -110,7 +110,8 @@ $$;
 revoke all on function public.get_association(uuid) from public;
 grant execute on function public.get_association(uuid) to anon, authenticated;
 
--- get_activity: migration 33's, plus: organised_by does not name a removed association.
+-- get_activity: migration 33's, plus: organised_by does not name a removed association, and a signed-out
+-- reader gets the organiser's id only (no first name, no photo): members are never named to anonymous visitors.
 create or replace function public.get_activity(p_id uuid) returns jsonb
 language plpgsql stable security definer set search_path = public, extensions, pg_temp as $$
 declare
@@ -147,7 +148,8 @@ begin
                                                             'label_en', t.label_en) order by t.slug)
                           from public.activity_tags x join public.tags t on t.id = x.tag_id
                          where x.activity_id = a.id), '[]'::jsonb),
-      'organiser', (select jsonb_build_object('id', p.id, 'first_name', p.first_name, 'photo_url', p.photo_url)
+      'organiser', (select case when v_uid is null then jsonb_build_object('id', p.id)
+                           else jsonb_build_object('id', p.id, 'first_name', p.first_name, 'photo_url', p.photo_url) end
                       from public.profiles p where p.id = a.organiser_id),
       'organised_by', case
         when a.organised_by_association_id is not null then

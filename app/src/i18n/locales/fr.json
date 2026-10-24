@@ -108,6 +108,7 @@
     "archivedNotice": "Cette activité est archivée : elle n’est plus visible des autres personnes.",
     "organisedBy": "Organisé par {{name}}",
     "hostedBy": "Animé par {{name}}",
+    "organisedByMember": "Organisé par un membre",
     "collectifLabel": "Collectif — sans statut juridique",
     "openCollectif": "Voir le collectif {{name}}",
     "openAssociation": "Voir la fiche de l'association {{name}}",

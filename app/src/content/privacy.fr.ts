@@ -5,8 +5,6 @@ import { PRIVACY_CONTACT } from './contact.ts';
 // is not built yet. Remove the marker when it ships: post-session feedback (collection and its 6-month
 // deletion), phone verification for organisers, private messages (retention and their mention in the
 // export paragraph). Group chat, reports and moderation, feedback, claims and inactive-account deletion are live.
-// PENDING (owner ruling): whether the organiser's first name appears on the public activity pages.
-// Once decided, add it to the public-activity-pages bullet of the website section, in both languages.
 export const privacyFr = `Version à faire relire par une personne qualifiée avant la publication.
 
 # Politique de confidentialité
@@ -71,7 +69,7 @@ Le site web comprend les pages publiques (accueil, activités, associations, men
 - Hébergement : le site est hébergé par Cloudflare Pages. Cloudflare conserve des journaux techniques (adresse IP, page demandée, date) pour la sécurité et le bon fonctionnement du service, pendant sa durée par défaut. Notre propre code ne journalise aucune adresse IP et nous n'ajoutons aucun traceur publicitaire.
 - Votre session : si vous vous connectez sur le site, votre session est conservée dans le stockage de votre navigateur (localStorage). Elle est strictement nécessaire pour vous garder connecté : aucune bannière de consentement n'est affichée. Elle est effacée quand vous vous déconnectez. Les pages publiques ne déposent aucun cookie.
 - Inscription : sur la page d'inscription, un script de Cloudflare Turnstile (challenges.cloudflare.com) s'exécute pour vérifier que vous n'êtes pas un robot ; Cloudflare reçoit à cette occasion des informations techniques sur votre navigateur. Le même script sert au formulaire « Une idée ? Un problème ? » sans compte. Il n'est chargé sur aucune page publique.
-- Pages publiques des activités : chaque activité en cours a une page publique, lisible sans compte et référencée par les moteurs de recherche. Elle montre l'activité (titre, description, catégorie), la ville ou le lieu de rendez-vous, la prochaine séance et le nombre de personnes confirmées. Les noms et les photos des participants n'y figurent jamais.
+- Pages publiques des activités : chaque activité en cours a une page publique, lisible sans compte et référencée par les moteurs de recherche. Elle montre l'activité (titre, description, catégorie), la ville ou le lieu de rendez-vous, la prochaine séance, le nombre de personnes confirmées et l'association ou le collectif organisateur. Les noms et les photos des membres n'y figurent jamais : le prénom de l'organisateur n'est visible que par les personnes connectées.
 
 # Information de modération
 

@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(49);
+select plan(56);
 select tests.create_user('org@wp.fr', 'Orga') as org \gset
 select tests.create_user('ban@wp.fr', 'Banni') as ban \gset
 update profiles set age_confirmed = true;
@@ -96,6 +96,16 @@ select is(web_association_page(gen_random_uuid())->>'status', 'missing', 'associ
 select is((select jsonb_agg(e->>'id') from jsonb_array_elements(get_association('00000000-0000-0000-0000-0000000000a1')->'activities') e),
   '["00000000-0000-0000-0000-0000000000f1"]'::jsonb, 'get_association lists only visible activities (not archived, moderated or banned organiser)');
 
+-- ---- the organiser's first name and photo are for signed-in people only ----
+select ok(get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser' ? 'id', 'anon: get_activity keeps the organiser id');
+select ok(not (get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser' ? 'first_name'), 'anon: no organiser first_name');
+select ok(not (get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser' ? 'photo_url'), 'anon: no organiser photo_url');
+select ok(position('Orga' in web_activity_page('00000000-0000-0000-0000-0000000000f1')::text) = 0, 'anon: the web page function never carries the organiser first name');
+select tests.act_as(:'org');
+select is(get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser'->>'first_name', 'Orga', 'signed in: organiser first_name present');
+select ok(get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser' ? 'photo_url', 'signed in: organiser photo_url key present');
+select tests.act_as_anon();
+select is(get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser'->>'id', :'org', 'anon: the id is the organiser id');
 -- ---- access ----
 select tests.act_as_superuser();
 select ok(has_function_privilege('anon', 'public.web_sitemap_range(text,uuid,uuid)', 'execute')

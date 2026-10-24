@@ -46,7 +46,8 @@ Deno.test("activity page content", () => {
   assertStringIncludes(html, 'name="twitter:card" content="summary"');
   assertStringIncludes(html, "Prochaine séance : mardi 27 octobre à 19:00");
   assertStringIncludes(html, "3 confirmés");
-  assertStringIncludes(html, "Organisé par Camille");
+  assertStringIncludes(html, "Organisé par un membre");
+  assert(!html.includes("Camille"));
   assertStringIncludes(html, "Je serai là");
   assertStringIncludes(html, 'href="/app/activites/11111111-1111-4111-8111-111111111111"');
   assertStringIncludes(html, "Ouvrir dans l&#39;application");
@@ -64,7 +65,7 @@ Deno.test("meta description is the first 155 characters", () => {
   assertStringIncludes(html, `<meta name="description" content="${"x".repeat(155)}">`);
 });
 
-Deno.test("organiser name falls back to the association", () => {
+Deno.test("the organising association or collectif is named, a member never is", () => {
   const html = renderActivityPage(activityFixture({ organised_by: { kind: "association", id: "a", name: "Les Joueurs" } }), BASE);
   assertStringIncludes(html, "Organisé par Les Joueurs");
   assertStringIncludes(html, '"name":"Les Joueurs"');
@@ -148,4 +149,27 @@ Deno.test("confirmed count: 1 is singular, 0 is not shown", () => {
   assertStringIncludes(zero, "Prochaine séance");
   const missing = renderActivityPage(activityFixture({ next_sessions: [{ starts_at: "2026-11-02T18:00:00Z" }] }), "https://h.test");
   assertEquals(missing.includes("confirmé"), false);
+});
+
+Deno.test("the organiser's first name and photo are nowhere in the body or the JSON-LD", () => {
+  const first = "Zéphyrine-Qxv";
+  for (const organised_by of [null, { kind: "association", id: "a", name: "Les Joueurs" }, { kind: "collectif", id: "c", name: "Les Amis" }]) {
+    const html = renderActivityPage(
+      activityFixture({ organiser: { id: "u9", first_name: first, photo_url: "https://x/zephyr-qxv.jpg" }, organised_by }),
+      BASE,
+    );
+    assertEquals(html.includes(first), false);
+    assertEquals(html.includes("Zéphyrine"), false);
+    assertEquals(html.includes("zephyr-qxv"), false);
+    assertEquals(html.includes("u9"), false);
+  }
+});
+
+Deno.test("JSON-LD organizer: the organisation when there is one, omitted otherwise", () => {
+  const ld = (html: string) => JSON.parse(html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
+  const none = ld(renderActivityPage(activityFixture({ organised_by: null }), BASE));
+  assertEquals("organizer" in none, false);
+  assertStringIncludes(renderActivityPage(activityFixture({ organised_by: null }), BASE), "Organisé par un membre");
+  const asso = ld(renderActivityPage(activityFixture({ organised_by: { kind: "association", id: "a", name: "Les Joueurs" } }), BASE));
+  assertEquals(asso.organizer, { "@type": "Organization", name: "Les Joueurs" });
 });

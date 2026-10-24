@@ -286,3 +286,13 @@ Deno.test("HEAD / answers 200 cheaply, with the security headers and no body", a
   assertEquals(await r.text(), "");
   assertSecurity(r);
 });
+
+Deno.test("activity response: the organiser's first name is absent from the whole body", async () => {
+  const first = "Zéphyrine-Qxv";
+  const d = deps({ web_activity_page: () => ({ status: "ok", activity: activityFixture({ organiser: { id: "u9", first_name: first, photo_url: "https://x/zephyr-qxv.jpg" } }) }) });
+  const r = await handleActivity(req(CANON_A), env, d);
+  assertEquals(r.status, 200);
+  const body = await r.text();
+  assert(!body.includes("Zéphyrine") && !body.includes("zephyr-qxv"));
+  assertStringIncludes(body, "Organisé par un membre");
+});

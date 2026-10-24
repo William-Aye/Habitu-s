@@ -230,6 +230,9 @@ Reporting, blocking, moderation decisions, the word filter, feedback, associatio
 and the admin area. Admin rights need a second factor (see below); everything else works for any
 signed-in person.
 
+Moderation and the web cache: a public page that moderation removes can stay visible for up to 5 minutes
+(the edge cache, `s-maxage=300`); this delay is accepted.
+
 ### Making the first admin
 
 There is no sign-up path to the admin role. Promote an account in the SQL editor (the person must

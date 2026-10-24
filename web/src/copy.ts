@@ -13,6 +13,7 @@ export const copy = {
   nextSession: (date: string) => `Prochaine séance : ${date}`,
   /** Empty when nobody has confirmed yet: the page then shows no count. */
   confirmed: (n: number) => (n <= 0 ? "" : n === 1 ? "1 confirmé" : `${n} confirmés`),
+  organisedByMember: "Organisé par un membre",
   organisedBy: (name: string) => `Organisé par ${name}`,
   website: "Site web",
   activitiesHeading: "Activités",

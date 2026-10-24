@@ -6,8 +6,6 @@ import { PRIVACY_CONTACT } from './contact.ts';
 // deletion), phone verification for organisers, private messages (retention and their mention in the
 // export paragraph). Group chat, reports and moderation, feedback, claims and inactive-account deletion
 // are live (keep in sync with privacy.fr.ts).
-// PENDING (owner ruling): whether the organiser's first name appears on the public activity pages.
-// Once decided, add it to the public-activity-pages bullet of the website section, in both languages.
 export const privacyEn = `Version to be reviewed by a qualified person before publication.
 
 # Privacy policy
@@ -72,7 +70,7 @@ The website includes the public pages (home, activities, associations, legal not
 - Hosting: the site is hosted by Cloudflare Pages. Cloudflare keeps technical logs (IP address, page requested, date) for security and for the service to work, for its default period. Our own code logs no IP address and we add no advertising tracker.
 - Your session: if you sign in on the website, your session is kept in your browser storage (localStorage). It is strictly necessary to keep you signed in, so no consent banner is shown. It is erased when you sign out. The public pages set no cookie.
 - Sign-up: on the sign-up page, a Cloudflare Turnstile script (challenges.cloudflare.com) runs to check that you are not a robot; Cloudflare receives technical information about your browser when it does. The same script is used by the "Une idée ? Un problème ?" form without an account. It is not loaded on any public page.
-- Public activity pages: each running activity has a public page, readable without an account and indexed by search engines. It shows the activity (title, description, category), the town or meeting place, the next session and the number of confirmed people. Participants' names and photos never appear on it.
+- Public activity pages: each running activity has a public page, readable without an account and indexed by search engines. It shows the activity (title, description, category), the town or meeting place, the next session, the number of confirmed people and the organising association or collective. Members' names and photos never appear on them: the organiser's first name is only visible to signed-in people.
 
 # Moderation information
 

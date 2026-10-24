@@ -101,7 +101,7 @@ select is(public.get_activity('00000000-0000-0000-0000-0000000000f4') ? 'welcome
 select is(public.get_activity('00000000-0000-0000-0000-0000000000f4')->>'my_status', 'none', 'anon status none');
 select is(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'organised_by', '{"kind": "association", "id": "00000000-0000-0000-0000-0000000000a1", "name": "Club de go"}'::jsonb, 'organised by the association');
 select is((select array_agg(k order by k) from jsonb_object_keys(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'organiser') k),
-  array['first_name', 'id', 'photo_url'], 'organiser: public fields only (id for report and block)');
+  array['id'], 'anon: organiser id only (no first name or photo, see migration 36)');
 select is(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'organiser'->>'id', :'org', 'the organiser id is present');
 select is(jsonb_array_length(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'next_sessions'), 8, 'next 8 sessions');
 select tests.act_as(:'mem');

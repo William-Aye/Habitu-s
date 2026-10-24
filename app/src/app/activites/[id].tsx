@@ -99,7 +99,8 @@ export default function ActivityScreen() {
   const place = a.placeLabel;
   const category = a.category ? (lang === 'en' ? a.category.nameEn : a.category.nameFr) : null;
   const by = a.organisedBy;
-  const organiserName = a.organiser?.firstName ?? '';
+  // The organiser's first name and photo are for signed-in people only (the server also withholds them from anon).
+  const organiserName = me ? (a.organiser?.firstName ?? '') : '';
   const organiserId = a.organiser?.id;
 
   return (
@@ -131,7 +132,10 @@ export default function ActivityScreen() {
           </Pressable>
         </View>
       ) : null}
-      {a.organiser ? (
+      {a.organiser && !organiserName && !by ? (
+        <Text>{t('activity.organisedByMember')}</Text>
+      ) : null}
+      {a.organiser && organiserName ? (
         <View style={styles.person}>
           <PersonAvatar name={organiserName} photoUrl={a.organiser.photoUrl} size={44} />
           <Text>{t(by ? 'activity.hostedBy' : 'activity.organisedBy', { name: organiserName })}</Text>

@@ -162,3 +162,14 @@ it('the rights section works on the website too', () => {
   expect(privacyFr).toContain('« Mon compte »');
   expect(privacyEn).toContain('"My account"');
 });
+
+it('public activity pages: organising association or collectif, never members', () => {
+  expect(privacyFr).toContain("l'association ou le collectif organisateur");
+  expect(privacyFr).toContain("Les noms et les photos des membres n'y figurent jamais");
+  expect(privacyFr).toContain("prénom de l'organisateur n'est visible que par les personnes connectées");
+  expect(privacyEn).toContain('organising association or collective');
+  expect(privacyEn).toContain("Members' names and photos never appear on them");
+  expect(privacyEn).toContain("organiser's first name is only visible to signed-in people");
+  expect(privacyFr).not.toContain('PENDING');
+  expect(privacyEn).not.toContain('PENDING');
+});
