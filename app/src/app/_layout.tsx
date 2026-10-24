@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef, useState } from 'react';
 import { Stack, usePathname, useRouter } from 'expo-router';
-import { AppState, StyleSheet, useColorScheme, View } from 'react-native';
+import { AppState, Platform, StyleSheet, useColorScheme, View } from 'react-native';
 import { I18nextProvider } from 'react-i18next';
 import i18next from 'i18next';
 import { initI18n } from '../i18n';
@@ -13,6 +13,7 @@ import { InterestsMerger, mergeInterests } from '../features/interests/Interests
 import { LanguageSync } from '../features/account/LanguageSync';
 import { initOutbox } from '../features/chat/outbox';
 import { SuspendedNotice } from '../features/account/SuspendedNotice';
+import { WebHeader } from '../features/web/WebHeader';
 import { NotificationResponder } from '../features/notifications/NotificationResponder';
 
 /** Tells the server the signed-in user is active, at launch and whenever the app returns to the foreground. */
@@ -82,7 +83,8 @@ function OnboardingGate() {
   // If the flag read never resolves, the fallback wait treats the user as done.
   const known = done ?? (waited ? true : null);
   const settled = known !== null && (status !== 'loading' || error || waited);
-  const needsOnboarding = settled && !known && status === 'signed_out' && startedOnHome;
+  // The website serves visitors who arrive on a shared link: no first-launch screen there.
+  const needsOnboarding = Platform.OS !== 'web' && settled && !known && status === 'signed_out' && startedOnHome;
 
   useEffect(() => {
     if (needsOnboarding && !redirected.current) {
@@ -136,6 +138,7 @@ export default function RootLayout() {
           <InterestsMerger />
           <LanguageSync />
           <NotificationResponder />
+          {Platform.OS === 'web' ? <WebHeader /> : null}
           <OnboardingGate />
           <SuspendedNotice />
         </AccountGateProvider>

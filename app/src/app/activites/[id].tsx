@@ -28,6 +28,7 @@ export default function ActivityScreen() {
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   // Keeps the current page on screen while it is re-read, and on a failed re-read.
   const [version, setVersion] = useState(0);
@@ -201,12 +202,15 @@ export default function ActivityScreen() {
             accessibilityLabel={t('activity.share')}
             style={styles.outline}
             onPress={() => {
-              void shareActivity(a.id, a.title).catch(() => {});
+              void shareActivity(a.id, a.title)
+                .then((r) => setNotice(r === 'copied' ? t('activity.linkCopied') : null))
+                .catch(() => {});
             }}
           >
             <Share2 size={18} color="#1a56db" />
             <Text style={styles.outlineText}>{t('activity.share')}</Text>
           </Pressable>
+          {notice ? <Text accessibilityLiveRegion="polite">{notice}</Text> : null}
           {error ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
         </View>
       ) : null}

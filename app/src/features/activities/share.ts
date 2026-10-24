@@ -7,11 +7,12 @@ function activityUrl(id: string): string {
   return base ? `${base}/activites/${id}` : `friendapp://activites/${id}`;
 }
 
-export async function shareActivity(id: string, title: string): Promise<void> {
+export async function shareActivity(id: string, title: string): Promise<'shared' | 'copied'> {
   const message = t('activities.share.message', {
     titre: title,
     url: activityUrl(id),
     interpolation: { escapeValue: false },
   });
   await Share.share({ message });
+  return 'shared';
 }

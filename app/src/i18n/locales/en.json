@@ -120,6 +120,8 @@
     "withdraw": "Withdraw my request",
     "leave": "Leave the activity",
     "share": "Share",
+    "mapLink": "View on the map",
+    "linkCopied": "Link copied",
     "sharing": "Sharing",
     "sessions": "Upcoming sessions",
     "noSessions": "No session planned yet",
@@ -180,6 +182,17 @@
     },
     "reminderFailed": "Your answer could not be saved. Please give it below.",
     "discussion": "Discussion"
+  },
+  "web": {
+    "siteName": "Habitués",
+    "download": "Download the app",
+    "unavailable": {
+      "title": "Available in the app",
+      "body": "This part of Habitués is not available on the website. Install the app to use it."
+    },
+    "notFound": "This page does not exist or is no longer available.",
+    "home": "Back to home",
+    "signingIn": "Signing you in"
   },
   "common": {
     "comingSoon": "Coming soon"

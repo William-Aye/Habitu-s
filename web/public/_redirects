@@ -1,1 +1,34 @@
-/app/*  /app/index.html  200
+# Single-page app fallback for the interactive app. Explicit routes, not /app/*: a catch-all rewrite
+# would also shadow the exported JavaScript and assets under /app/_expo and /app/assets.
+/app/activites  /app/  200
+/app/associations  /app/  200
+/app/collectifs  /app/  200
+/app/discussions  /app/  200
+/app/admin  /app/  200
+/app/auth  /app/  200
+/app/blocked  /app/  200
+/app/feedback  /app/  200
+/app/interests  /app/  200
+/app/messages  /app/  200
+/app/moderation  /app/  200
+/app/my-activities  /app/  200
+/app/onboarding  /app/  200
+/app/privacy  /app/  200
+/app/profile  /app/  200
+/app/safety-tips  /app/  200
+/app/activites/*  /app/  200
+/app/associations/*  /app/  200
+/app/collectifs/*  /app/  200
+/app/discussions/*  /app/  200
+/app/admin/*  /app/  200
+/app/auth/*  /app/  200
+/app/blocked/*  /app/  200
+/app/feedback/*  /app/  200
+/app/interests/*  /app/  200
+/app/messages/*  /app/  200
+/app/moderation/*  /app/  200
+/app/my-activities/*  /app/  200
+/app/onboarding/*  /app/  200
+/app/privacy/*  /app/  200
+/app/profile/*  /app/  200
+/app/safety-tips/*  /app/  200
