@@ -622,7 +622,7 @@
     "reject": "Refuser",
     "note": "Note (facultatif)",
     "unknownPerson": "Inconnu",
-    "queueAria": "{{nom}}, {{count}} en attente",
+    "queueAria": "{{nom}}, {{nombre}} en attente",
     "queues": {
       "reports": "Signalements",
       "claims": "Revendications",
@@ -634,10 +634,16 @@
       "load": "Impossible de charger la liste.",
       "network": "Connexion impossible. Réessayez.",
       "unknown": "Une erreur est survenue. Réessayez.",
-      "invalid": "Décision refusée. Vérifiez les champs (motif de 10 caractères minimum).",
+      "invalid": "Décision invalide.",
       "not_found": "Cet élément n'existe plus.",
       "already_decided": "Cet élément a déjà été traité.",
-      "not_allowed": "Action non autorisée."
+      "not_allowed": "Action non autorisée.",
+      "refused": "Action refusée pour cet élément.",
+      "limit_reached": "Limite atteinte (500 mots).",
+      "invalid_statement": "Le motif doit faire entre 10 et 1000 caractères.",
+      "invalid_target": "Cible invalide pour cette fusion.",
+      "invalid_category": "Catégorie invalide : choisissez une catégorie parente et un nom anglais de 2 à 80 caractères.",
+      "invalid_word": "Mot invalide : 3 à 50 caractères."
     },
     "mfa": {
       "enrollTitle": "Activer la double authentification",
@@ -648,7 +654,9 @@
       "verifyIntro": "Saisissez le code affiché par votre application d'authentification.",
       "code": "Code à 6 chiffres",
       "verify": "Vérifier",
-      "wrong": "Code incorrect. Réessayez."
+      "wrong": "Code incorrect. Réessayez.",
+      "unavailable": "Vérification impossible. Réessayez.",
+      "leave": "Quitter"
     },
     "reports": {
       "empty": "Aucun signalement à traiter.",
@@ -718,6 +726,7 @@
       "addAction": "Ajouter",
       "empty": "Aucun mot interdit.",
       "remove": "Retirer le mot {{mot}}"
-    }
+    },
+    "done": "Décision enregistrée."
   }
 }

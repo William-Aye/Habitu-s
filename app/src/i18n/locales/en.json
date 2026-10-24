@@ -622,7 +622,7 @@
     "reject": "Reject",
     "note": "Note (optional)",
     "unknownPerson": "Unknown",
-    "queueAria": "{{nom}}, {{count}} pending",
+    "queueAria": "{{nom}}, {{nombre}} pending",
     "queues": {
       "reports": "Reports",
       "claims": "Claims",
@@ -634,10 +634,16 @@
       "load": "Could not load the list.",
       "network": "Cannot connect. Try again.",
       "unknown": "Something went wrong. Try again.",
-      "invalid": "Decision refused. Check the fields (statement of at least 10 characters).",
+      "invalid": "Invalid decision.",
       "not_found": "This item no longer exists.",
       "already_decided": "This item has already been handled.",
-      "not_allowed": "Action not allowed."
+      "not_allowed": "Action not allowed.",
+      "refused": "Action refused for this item.",
+      "limit_reached": "Limit reached (500 words).",
+      "invalid_statement": "The statement must be between 10 and 1000 characters.",
+      "invalid_target": "Invalid target for this merge.",
+      "invalid_category": "Invalid category: pick a parent category and an English name of 2 to 80 characters.",
+      "invalid_word": "Invalid word: 3 to 50 characters."
     },
     "mfa": {
       "enrollTitle": "Turn on two-factor authentication",
@@ -648,7 +654,9 @@
       "verifyIntro": "Enter the code shown by your authenticator app.",
       "code": "6-digit code",
       "verify": "Verify",
-      "wrong": "Wrong code. Try again."
+      "wrong": "Wrong code. Try again.",
+      "unavailable": "Could not check the code. Try again.",
+      "leave": "Leave"
     },
     "reports": {
       "empty": "No reports to handle.",
@@ -718,6 +726,7 @@
       "addAction": "Add",
       "empty": "No banned words.",
       "remove": "Remove the word {{mot}}"
-    }
+    },
+    "done": "Decision saved."
   }
 }

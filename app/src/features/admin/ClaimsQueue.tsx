@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Linking, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { claimDocumentUrl, decideClaim, listClaims, type AdminClaim, type AdminError } from './api';
-import { adminStyles as s, AdminButton, ErrorText, QueueState, useQueue } from './ui';
+import { adminStyles as s, AdminButton, DoneNotice, ErrorText, QueueState, useFailure, useQueue } from './ui';
 
 export function ClaimsQueue() {
   const { t } = useTranslation();
@@ -10,17 +10,18 @@ export function ClaimsQueue() {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [docBusy, setDocBusy] = useState(false);
   const [docError, setDocError] = useState<AdminError | null>(null);
+  const inflight = useRef(false);
+  const fail = useFailure(setDocError);
 
   const openDocument = async (id: string) => {
-    if (docBusy) return;
+    if (inflight.current) return;
+    inflight.current = true;
     setDocBusy(true);
     setDocError(null);
     const r = await claimDocumentUrl(id);
     setDocBusy(false);
-    if (!r.ok) {
-      if (r.error === 'not_allowed') return q.lock();
-      return setDocError(r.error);
-    }
+    inflight.current = false;
+    if (!r.ok) return fail(r.error);
     try {
       await Linking.openURL(r.url);
     } catch {
@@ -31,6 +32,7 @@ export function ClaimsQueue() {
   return (
     <>
       <ErrorText code={q.error ?? docError} />
+      <DoneNotice show={q.done} />
       <QueueState load={q.load} empty={t('admin.claims.empty')} onRetry={q.reload}>
         {(items) =>
           items.map((c) => {

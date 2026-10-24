@@ -8,7 +8,7 @@ import {
   type AdminCategoryRequest,
   type CategoryOption,
 } from './api';
-import { adminStyles as s, AdminButton, ErrorText, QueueState, useQueue } from './ui';
+import { adminStyles as s, AdminButton, DoneNotice, ErrorText, QueueState, useQueue } from './ui';
 
 function Choices({ label, options, value, onChange }: { label: string; options: CategoryOption[]; value: string | null; onChange: (id: string) => void }) {
   return (
@@ -117,6 +117,7 @@ export function CategoriesQueue() {
   return (
     <>
       <ErrorText code={q.error} />
+      <DoneNotice show={q.done} />
       <QueueState load={q.load} empty={t('admin.categories.empty')} onRetry={q.reload}>
         {(items) =>
           items.map((r) => (

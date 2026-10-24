@@ -1,6 +1,14 @@
 import { supabase } from '../../lib/supabase';
 
-export type AdminError = 'not_allowed' | 'invalid' | 'not_found' | 'already_decided' | 'network' | 'unknown';
+export type AdminError =
+  | 'not_allowed'
+  | 'refused'
+  | 'limit_reached'
+  | 'invalid_statement'
+  | 'invalid_target'
+  | 'invalid_category'
+  | 'invalid_word'
+  | 'invalid' | 'not_found' | 'already_decided' | 'network' | 'unknown';
 export type AdminResult<T extends object = Record<never, never>> = ({ ok: true } & T) | { ok: false; error: AdminError };
 
 export type ReportDecision = 'dismiss' | 'warn' | 'remove' | 'ban';
@@ -64,9 +72,18 @@ interface PgError {
 
 function mapError(error: PgError): AdminError {
   const message = error.message ?? '';
-  if (error.code === '42501') return message.includes('already_decided') ? 'already_decided' : 'not_allowed';
+  if (error.code === '42501') {
+    if (message.includes('already_decided')) return 'already_decided';
+    // Not told apart here: not_allowed means a missing second factor or a refusal, which the screen tells apart.
+    return message.includes('limit_reached') ? 'limit_reached' : 'not_allowed';
+  }
   if (error.code === 'P0002') return 'not_found';
-  if (error.code === '23514' || error.code === '22023') return 'invalid';
+  if (error.code === '23514' || error.code === '22023') {
+    for (const known of ['invalid_statement', 'invalid_target', 'invalid_category', 'invalid_word'] as const) {
+      if (message.includes(known)) return known;
+    }
+    return 'invalid';
+  }
   if (!error.code && /network|fetch/i.test(message)) return 'network';
   return 'unknown';
 }

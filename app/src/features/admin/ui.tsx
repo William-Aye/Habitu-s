@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -42,21 +42,44 @@ export function ErrorText({ code }: { code: AdminError | null }) {
 
 type Load<T> = { state: 'loading' } | { state: 'error' } | { state: 'ready'; items: T[] };
 
-/** Loads a queue and applies decisions one at a time. A refused call (not_allowed) sends the admin back to the code screen. */
+/**
+ * What to do with a failed admin call: not_allowed first checks the second factor (back to the code screen
+ * if it is missing), and is otherwise a refusal about the item.
+ */
+export function useFailure(setError: (e: AdminError | null) => void) {
+  const lock = useAdminLock();
+  return useCallback(
+    async (error: AdminError) => {
+      if (error !== 'not_allowed') return setError(error);
+      if (!(await lock())) setError('refused');
+    },
+    [lock, setError],
+  );
+}
+
+export function DoneNotice({ show }: { show: boolean }) {
+  const { t } = useTranslation();
+  return show ? <Text accessibilityLiveRegion="polite" style={styles.done}>{t('admin.done')}</Text> : null;
+}
+
+/** Loads a queue and applies decisions one at a time. */
 export function useQueue<T extends { id: string }>(loader: () => Promise<AdminResult<{ items: T[] }>>) {
   const lock = useAdminLock();
   const [load, setLoad] = useState<Load<T>>({ state: 'loading' });
   const [version, setVersion] = useState(0);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<AdminError | null>(null);
+  const [done, setDone] = useState(false);
+  const inflight = useRef(false);
+  const fail = useFailure(setError);
 
   useEffect(() => {
     let active = true;
-    void loader().then((r) => {
+    void loader().then(async (r) => {
       if (!active) return;
       if (r.ok) return setLoad({ state: 'ready', items: r.items });
-      if (r.error === 'not_allowed') return lock();
-      setLoad({ state: 'error' });
+      if (r.error === 'not_allowed' && (await lock())) return;
+      if (active) setLoad({ state: 'error' });
     });
     return () => {
       active = false;
@@ -71,35 +94,39 @@ export function useQueue<T extends { id: string }>(loader: () => Promise<AdminRe
   /** Runs one action on an item; true when it succeeded. `after` decides what becomes of the item (default: removed). */
   const act = useCallback(
     async (id: string, fn: () => Promise<AdminResult>, after?: (item: T) => T): Promise<boolean> => {
-      if (busyId) return false;
+      if (inflight.current) return false;
+      inflight.current = true;
       setBusyId(id);
       setError(null);
-      const r = await fn();
-      setBusyId(null);
-      if (r.ok) {
-        setLoad((cur) =>
-          cur.state !== 'ready'
-            ? cur
-            : {
-                state: 'ready',
-                items: after
-                  ? cur.items.map((x) => (x.id === id ? after(x) : x))
-                  : cur.items.filter((x) => x.id !== id),
-              },
-        );
-        return true;
-      }
-      if (r.error === 'not_allowed') lock();
-      else {
-        setError(r.error);
+      setDone(false);
+      try {
+        const r = await fn();
+        if (r.ok) {
+          setDone(true);
+          setLoad((cur) =>
+            cur.state !== 'ready'
+              ? cur
+              : {
+                  state: 'ready',
+                  items: after
+                    ? cur.items.map((x) => (x.id === id ? after(x) : x))
+                    : cur.items.filter((x) => x.id !== id),
+                },
+          );
+          return true;
+        }
+        await fail(r.error);
         if (r.error === 'already_decided' || r.error === 'not_found') reload();
+        return false;
+      } finally {
+        inflight.current = false;
+        setBusyId(null);
       }
-      return false;
     },
-    [busyId, lock, reload],
+    [fail, reload],
   );
 
-  return { load, busyId, error, setError, act, reload, lock };
+  return { load, busyId, error, setError, done, act, reload, fail };
 }
 
 export function QueueState<T>({
@@ -148,4 +175,5 @@ const styles = StyleSheet.create({
   center: { marginTop: 60, padding: 16, alignItems: 'center', gap: 12 },
   empty: { color: '#4b5563', marginTop: 24 },
   error: { color: '#b91c1c' },
+  done: { color: '#166534' },
 });

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { decideClub, listClubs, searchAssociations, type AdminClub, type AssociationHit } from './api';
-import { adminStyles as s, AdminButton, ErrorText, QueueState, useQueue } from './ui';
+import { adminStyles as s, AdminButton, DoneNotice, ErrorText, QueueState, useQueue } from './ui';
 
 function AssociationPicker({ excludeId, value, onChange }: { excludeId: string; value: AssociationHit | null; onChange: (a: AssociationHit | null) => void }) {
   const { t } = useTranslation();
@@ -10,9 +10,13 @@ function AssociationPicker({ excludeId, value, onChange }: { excludeId: string; 
   const [hits, setHits] = useState<AssociationHit[]>([]);
   useEffect(() => {
     let active = true;
-    void searchAssociations(text).then((r) => active && setHits(r.ok ? r.items.filter((a) => a.id !== excludeId) : []));
+    // Typing fast must not fire a query per key.
+    const timer = setTimeout(() => {
+      void searchAssociations(text).then((r) => active && setHits(r.ok ? r.items.filter((a) => a.id !== excludeId) : []));
+    }, 300);
     return () => {
       active = false;
+      clearTimeout(timer);
     };
   }, [text, excludeId]);
   return (
@@ -124,6 +128,7 @@ export function ClubsQueue() {
   return (
     <>
       <ErrorText code={q.error} />
+      <DoneNotice show={q.done} />
       <QueueState load={q.load} empty={t('admin.clubs.empty')} onRetry={q.reload}>
         {(items) =>
           items.map((c) => (

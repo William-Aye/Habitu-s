@@ -1,5 +1,5 @@
 import { Linking, Text } from 'react-native';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { initI18n } from '../src/i18n';
 import AdminLayout from '../src/app/admin/_layout';
 import AdminQueue from '../src/app/admin/[queue]';
@@ -10,6 +10,7 @@ jest.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'fr-FR
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
+const mockFocusCbs = new Set<() => void>();
 let mockParams: Record<string, string> = { queue: 'reports' };
 jest.mock('expo-router', () => {
   const { Text } = require('react-native');
@@ -18,6 +19,16 @@ jest.mock('expo-router', () => {
     useLocalSearchParams: () => mockParams,
     Redirect: ({ href }: { href: string }) => <Text>{`redirect:${href}`}</Text>,
     Stack: () => <Text>stack</Text>,
+    useFocusEffect: (cb: () => void | (() => void)) => {
+      require('react').useEffect(() => {
+        const clean = cb();
+        mockFocusCbs.add(cb);
+        return () => {
+          mockFocusCbs.delete(cb);
+          if (typeof clean === 'function') clean();
+        };
+      }, [cb]);
+    },
   };
 });
 let mockSession = { status: 'ready', userId: 'admin1', profile: { firstName: 'Ada' } };
@@ -46,6 +57,7 @@ const from = supabase.from as unknown as jest.Mock;
 const storageFrom = supabase.storage.from as unknown as jest.Mock;
 
 let role = 'admin';
+let assocRows: unknown[] = [];
 let rpcHandlers: Record<string, (args: any) => { data?: unknown; error?: any }> = {};
 
 /** Table reads: profiles (own role), categories, associations, banned_words. */
@@ -57,7 +69,7 @@ function table(name: string) {
       { id: 'root2', parent_id: null, name_fr: 'Culture' },
       { id: 'child1', parent_id: 'root1', name_fr: 'Yoga' },
     ],
-    associations: [],
+    associations: assocRows,
     banned_words: [],
   };
   const result = { data: rows[name], error: null };
@@ -76,6 +88,7 @@ beforeEach(() => {
   mockParams = { queue: 'reports' };
   mockSession = { status: 'ready', userId: 'admin1', profile: { firstName: 'Ada' } };
   role = 'admin';
+  assocRows = [];
   rpcHandlers = {};
   rpc.mockImplementation(async (name: string, args: any) => {
     const h = rpcHandlers[name];
@@ -94,7 +107,7 @@ async function openLayout() {
 
 describe('route guard', () => {
   it('sends a non-admin away without showing anything', async () => {
-    role = 'member';
+    role = 'user';
     await openLayout();
     expect(await screen.findByText('redirect:/')).toBeTruthy();
     expect(mfa.listFactors).not.toHaveBeenCalled();
@@ -129,7 +142,7 @@ describe('two-factor gate', () => {
   });
 
   it('keeps the screen and shows an error on a wrong code', async () => {
-    mfa.verify.mockResolvedValue({ data: null, error: { message: 'invalid' } });
+    mfa.verify.mockResolvedValue({ data: null, error: { code: 'mfa_verification_failed', message: 'invalid' } });
     await openLayout();
     await fireEvent.changeText(await screen.findByLabelText('Code à 6 chiffres'), '000000');
     await fireEvent.press(screen.getByRole('button', { name: 'Vérifier' }));
@@ -150,7 +163,7 @@ describe('two-factor gate', () => {
     expect(await screen.findByText('Activer la double authentification')).toBeTruthy();
     expect(screen.getByLabelText("Code QR à scanner avec votre application d'authentification")).toBeTruthy();
     expect(screen.getByText('JBSWY3DPEHPK3PXP')).toBeTruthy();
-    expect(mfa.enroll).toHaveBeenCalledWith({ factorType: 'totp' });
+    expect(mfa.enroll).toHaveBeenCalledWith({ factorType: 'totp', friendlyName: expect.stringMatching(/^admin-\d+$/) });
     await fireEvent.changeText(screen.getByLabelText('Code à 6 chiffres'), '654321');
     await fireEvent.press(screen.getByRole('button', { name: 'Vérifier' }));
     expect(await screen.findByText('stack')).toBeTruthy();
@@ -165,11 +178,11 @@ describe('two-factor gate', () => {
     expect(mfa.unenroll).toHaveBeenCalledWith({ factorId: 'old' });
   });
 
-  it('asks for the code again when the server refuses an admin call', async () => {
-    mfa.getAuthenticatorAssuranceLevel.mockResolvedValue({ data: { currentLevel: 'aal2' }, error: null });
+  it('asks for the code again when the server refuses at aal1', async () => {
+    mfa.getAuthenticatorAssuranceLevel
+      .mockResolvedValueOnce({ data: { currentLevel: 'aal2' }, error: null })
+      .mockResolvedValue({ data: { currentLevel: 'aal1' }, error: null });
     rpcHandlers.admin_reports = () => ({ data: null, error: { code: '42501', message: 'not_allowed' } });
-    mockParams = { queue: 'reports' };
-    // The layout would show the queue through the Stack; render the queue inside the gate directly.
     const { MfaGate } = require('../src/features/admin/MfaGate');
     await render(
       <MfaGate>
@@ -177,6 +190,41 @@ describe('two-factor gate', () => {
       </MfaGate>,
     );
     expect(await screen.findByLabelText('Code à 6 chiffres')).toBeTruthy();
+  });
+
+  it('shows a network-type message, not "wrong code", when verification cannot run', async () => {
+    mfa.challenge.mockRejectedValue(new Error('offline'));
+    await openLayout();
+    await fireEvent.changeText(await screen.findByLabelText('Code à 6 chiffres'), '123456');
+    await fireEvent.press(screen.getByRole('button', { name: 'Vérifier' }));
+    expect(await screen.findByText('Vérification impossible. Réessayez.')).toBeTruthy();
+    expect(screen.queryByText('Code incorrect. Réessayez.')).toBeNull();
+  });
+
+  it('never removes a verified factor', async () => {
+    await openLayout();
+    await screen.findByLabelText('Code à 6 chiffres');
+    expect(mfa.unenroll).not.toHaveBeenCalled();
+    expect(mfa.enroll).not.toHaveBeenCalled();
+  });
+
+  it('lets the admin leave', async () => {
+    const { router } = require('expo-router');
+    await openLayout();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Quitter' }));
+    expect(router.back).toHaveBeenCalled();
+  });
+
+  it('verifies only once when the button is pressed twice in the same tick', async () => {
+    await openLayout();
+    await fireEvent.changeText(await screen.findByLabelText('Code à 6 chiffres'), '123456');
+    const button = screen.getByRole('button', { name: 'Vérifier' });
+    await act(async () => {
+      void fireEvent.press(button);
+      void fireEvent.press(button);
+    });
+    await screen.findByText('stack');
+    expect(mfa.verify).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -251,6 +299,47 @@ describe('reports queue', () => {
         p_statement: 'Harcèlement répété et avéré',
       }),
     );
+  });
+
+  it('decides once when a button is pressed twice in the same tick', async () => {
+    rpcHandlers.admin_decide_report = () => ({ data: null, error: null });
+    await render(<AdminQueue />);
+    await screen.findByText('Un message gênant');
+    await fireEvent.changeText(screen.getAllByLabelText('Motif de la décision (obligatoire)')[0], 'Message de harcèlement avéré');
+    const button = screen.getAllByRole('button', { name: 'Avertir' })[0];
+    await act(async () => {
+      void fireEvent.press(button);
+      void fireEvent.press(button);
+    });
+    await waitFor(() => expect(screen.queryByText('Un message gênant')).toBeNull());
+    expect(rpc.mock.calls.filter((c) => c[0] === 'admin_decide_report')).toHaveLength(1);
+    expect(screen.getByText('Décision enregistrée.')).toBeTruthy();
+  });
+
+  it('shows an inline refusal and stays in the area when an admin is refused at aal2', async () => {
+    rpcHandlers.admin_decide_report = () => ({ data: null, error: { code: '42501', message: 'not_allowed' } });
+    mfa.getAuthenticatorAssuranceLevel.mockResolvedValue({ data: { currentLevel: 'aal2' }, error: null });
+    const { MfaGate } = require('../src/features/admin/MfaGate');
+    await render(
+      <MfaGate>
+        <AdminQueue />
+      </MfaGate>,
+    );
+    await screen.findByText('Un message gênant');
+    await fireEvent.changeText(screen.getAllByLabelText('Motif de la décision (obligatoire)')[0], 'Compte administrateur visé');
+    await fireEvent.press(screen.getAllByRole('button', { name: 'Avertir' })[0]);
+    expect(await screen.findByText('Action refusée pour cet élément.')).toBeTruthy();
+    expect(screen.queryByLabelText('Code à 6 chiffres')).toBeNull();
+    expect(screen.getByText('Un message gênant')).toBeTruthy();
+  });
+
+  it('shows a specific message for an invalid statement', async () => {
+    rpcHandlers.admin_decide_report = () => ({ data: null, error: { code: '23514', message: 'invalid_statement' } });
+    await render(<AdminQueue />);
+    await screen.findByText('Un message gênant');
+    await fireEvent.changeText(screen.getAllByLabelText('Motif de la décision (obligatoire)')[0], 'Message de harcèlement avéré');
+    await fireEvent.press(screen.getAllByRole('button', { name: 'Avertir' })[0]);
+    expect(await screen.findByText('Le motif doit faire entre 10 et 1000 caractères.')).toBeTruthy();
   });
 
   it('shows an error and keeps the item when the decision fails', async () => {
@@ -338,6 +427,82 @@ describe('categories queue', () => {
 });
 
 describe('clubs, feedback and home', () => {
+  it('merges a club into the association picked from the search', async () => {
+    mockParams = { queue: 'clubs' };
+    rpcHandlers.admin_community_clubs = () => ({
+      data: [{ id: 'k1', name: 'Les Boulistes', city: 'Nice', purpose: null, created_by_first_name: 'Jo', activity_count: 2 }],
+      error: null,
+    });
+    rpcHandlers.admin_decide_club = () => ({ data: null, error: null });
+    assocRows = [{ id: 'a9', name: 'Boule Niçoise', city: 'Nice' }];
+    await render(<AdminQueue />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Fusionner' }));
+    await fireEvent.changeText(screen.getByLabelText('Rechercher une association'), 'Boule');
+    await fireEvent.press(await screen.findByRole('radio', { name: 'Boule Niçoise, Nice' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Confirmer la fusion' }));
+    await waitFor(() =>
+      expect(rpc).toHaveBeenCalledWith('admin_decide_club', { p_id: 'k1', p_action: 'merge', p_into: 'a9', p_note: null }),
+    );
+  });
+
+  it('rejects a club with a note', async () => {
+    mockParams = { queue: 'clubs' };
+    rpcHandlers.admin_community_clubs = () => ({
+      data: [{ id: 'k1', name: 'Les Boulistes', city: 'Nice', purpose: null, created_by_first_name: 'Jo', activity_count: 0 }],
+      error: null,
+    });
+    rpcHandlers.admin_decide_club = () => ({ data: null, error: null });
+    await render(<AdminQueue />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Refuser' }));
+    await fireEvent.changeText(screen.getByLabelText('Motif du refus'), 'court');
+    expect(screen.getByRole('button', { name: 'Confirmer le refus' }).props.accessibilityState.disabled).toBe(true);
+    await fireEvent.changeText(screen.getByLabelText('Motif du refus'), 'Club sans activité réelle');
+    await fireEvent.press(screen.getByRole('button', { name: 'Confirmer le refus' }));
+    await waitFor(() =>
+      expect(rpc).toHaveBeenCalledWith('admin_decide_club', { p_id: 'k1', p_action: 'reject', p_into: null, p_note: 'Club sans activité réelle' }),
+    );
+  });
+
+  it('shows the limit message when the banned-word list is full', async () => {
+    rpcHandlers.admin_set_banned_word = () => ({ data: null, error: { code: '42501', message: 'limit_reached' } });
+    await render(<AdminHome />);
+    await fireEvent.changeText(await screen.findByLabelText('Ajouter un mot'), 'abcdef');
+    await fireEvent.press(screen.getByRole('button', { name: 'Ajouter' }));
+    expect(await screen.findByText('Limite atteinte (500 mots).')).toBeTruthy();
+  });
+
+  it('adds a banned word once when pressed twice in the same tick', async () => {
+    rpcHandlers.admin_set_banned_word = () => ({ data: null, error: null });
+    await render(<AdminHome />);
+    await fireEvent.changeText(await screen.findByLabelText('Ajouter un mot'), 'abcdef');
+    const button = screen.getByRole('button', { name: 'Ajouter' });
+    await act(async () => {
+      void fireEvent.press(button);
+      void fireEvent.press(button);
+    });
+    await screen.findByRole('button', { name: 'Retirer le mot abcdef' });
+    expect(rpc.mock.calls.filter((c) => c[0] === 'admin_set_banned_word')).toHaveLength(1);
+  });
+
+  it('refreshes the counts when the screen regains focus', async () => {
+    let open = 7;
+    rpcHandlers.admin_reports = () => ({ data: { open_count: open, items: [] }, error: null });
+    await render(<AdminHome />);
+    await screen.findByRole('button', { name: 'Signalements, 7 en attente' });
+    open = 3;
+    await act(async () => {
+      mockFocusCbs.forEach((cb) => cb());
+    });
+    expect(await screen.findByRole('button', { name: 'Signalements, 3 en attente' })).toBeTruthy();
+  });
+
+  it('shows 50+ when a list reached its cap', async () => {
+    const many = Array.from({ length: 50 }, (_, i) => ({ id: `c${i}`, association: { name: 'A' }, role: 'r' }));
+    rpcHandlers.admin_claims = () => ({ data: many, error: null });
+    await render(<AdminHome />);
+    expect(await screen.findByRole('button', { name: 'Revendications, 50+ en attente' })).toBeTruthy();
+  });
+
   it('approves a club', async () => {
     mockParams = { queue: 'clubs' };
     rpcHandlers.admin_community_clubs = () => ({

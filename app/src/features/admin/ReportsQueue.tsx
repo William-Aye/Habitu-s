@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { decideReport, listReports, type AdminReport, type ReportDecision } from './api';
-import { adminStyles as s, AdminButton, ErrorText, QueueState, useQueue } from './ui';
+import { adminStyles as s, AdminButton, DoneNotice, ErrorText, QueueState, useQueue } from './ui';
 
 const MIN = 10;
 const MAX = 1000;
@@ -88,6 +88,7 @@ export function ReportsQueue() {
   return (
     <>
       <ErrorText code={q.error} />
+      <DoneNotice show={q.done} />
       <QueueState load={q.load} empty={t('admin.reports.empty')} onRetry={q.reload}>
         {(items) =>
           items.map((r) => (

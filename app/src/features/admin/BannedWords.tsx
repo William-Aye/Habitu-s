@@ -1,9 +1,9 @@
 import { X } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { listBannedWords, setBannedWord, type AdminError } from './api';
-import { adminStyles as s, AdminButton, ErrorText } from './ui';
+import { adminStyles as s, AdminButton, ErrorText, useFailure } from './ui';
 import { useAdminLock } from './MfaGate';
 
 export function BannedWords() {
@@ -13,14 +13,16 @@ export function BannedWords() {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<AdminError | null>(null);
+  const inflight = useRef(false);
+  const fail = useFailure(setError);
 
   useEffect(() => {
     let active = true;
     void listBannedWords().then((r) => {
       if (!active) return;
       if (r.ok) return setWords(r.words);
-      if (r.error === 'not_allowed') return lock();
       setWords([]);
+      if (r.error === 'not_allowed') return void lock();
       setError(r.error);
     });
     return () => {
@@ -29,12 +31,14 @@ export function BannedWords() {
   }, [lock]);
 
   const change = async (word: string, add: boolean) => {
-    if (busy) return;
+    if (inflight.current) return;
+    inflight.current = true;
     setBusy(true);
     setError(null);
     const r = await setBannedWord(word, add);
+    inflight.current = false;
     setBusy(false);
-    if (!r.ok) return r.error === 'not_allowed' ? lock() : setError(r.error);
+    if (!r.ok) return fail(r.error);
     const folded = word.trim().toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
     setWords((cur) => {
       const list = (cur ?? []).filter((w) => w !== folded);

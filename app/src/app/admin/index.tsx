@@ -1,6 +1,6 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { ChevronRight } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { listCategoryRequests, listClaims, listClubs, listFeedback, listReports, type AdminResult } from '../../features/admin/api';
@@ -11,47 +11,53 @@ import { AdminScreen } from '../../features/admin/ui';
 const QUEUES = ['reports', 'claims', 'clubs', 'categories', 'feedback'] as const;
 type QueueName = (typeof QUEUES)[number];
 
-const counters: Record<QueueName, () => Promise<AdminResult<{ count: number }>>> = {
+/** The server pages these lists at 50: a full page means there may be more. */
+const LIST_CAP = 50;
+
+const counters: Record<QueueName, () => Promise<AdminResult<{ count: number; capped: boolean }>>> = {
   reports: async () => {
     const r = await listReports();
-    return r.ok ? { ok: true, count: r.openCount } : r;
+    return r.ok ? { ok: true, count: r.openCount, capped: false } : r;
   },
   claims: async () => {
     const r = await listClaims();
-    return r.ok ? { ok: true, count: r.items.length } : r;
+    return r.ok ? { ok: true, count: r.items.length, capped: r.items.length >= LIST_CAP } : r;
   },
   clubs: async () => {
     const r = await listClubs();
-    return r.ok ? { ok: true, count: r.items.length } : r;
+    return r.ok ? { ok: true, count: r.items.length, capped: r.items.length >= LIST_CAP } : r;
   },
   categories: async () => {
     const r = await listCategoryRequests();
-    return r.ok ? { ok: true, count: r.items.length } : r;
+    return r.ok ? { ok: true, count: r.items.length, capped: r.items.length >= LIST_CAP } : r;
   },
   feedback: async () => {
     const r = await listFeedback();
-    return r.ok ? { ok: true, count: r.items.length } : r;
+    return r.ok ? { ok: true, count: r.items.length, capped: r.items.length >= LIST_CAP } : r;
   },
 };
 
 export default function AdminHome() {
   const { t } = useTranslation();
   const lock = useAdminLock();
-  const [counts, setCounts] = useState<Partial<Record<QueueName, number>>>({});
+  const [counts, setCounts] = useState<Partial<Record<QueueName, string>>>({});
 
-  useEffect(() => {
-    let active = true;
-    for (const name of QUEUES) {
-      void counters[name]().then((r) => {
-        if (!active) return;
-        if (r.ok) setCounts((c) => ({ ...c, [name]: r.count }));
-        else if (r.error === 'not_allowed') lock();
-      });
-    }
-    return () => {
-      active = false;
-    };
-  }, [lock]);
+  // Counts are read again each time the screen regains focus, after working in a queue.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      for (const name of QUEUES) {
+        void counters[name]().then((r) => {
+          if (!active) return;
+          if (r.ok) setCounts((c) => ({ ...c, [name]: r.capped ? `${r.count}+` : String(r.count) }));
+          else if (r.error === 'not_allowed') void lock();
+        });
+      }
+      return () => {
+        active = false;
+      };
+    }, [lock]),
+  );
 
   return (
     <AdminScreen title={t('admin.title')}>
@@ -62,13 +68,13 @@ export default function AdminHome() {
           <Pressable
             key={name}
             accessibilityRole="button"
-            accessibilityLabel={count === undefined ? label : t('admin.queueAria', { nom: label, count })}
+            accessibilityLabel={count === undefined ? label : t('admin.queueAria', { nom: label, nombre: count })}
             style={styles.row}
             onPress={() => router.push({ pathname: '/admin/[queue]', params: { queue: name } })}
           >
             <Text style={styles.label}>{label}</Text>
             <View style={styles.right}>
-              <Text style={styles.count}>{count === undefined ? '' : String(count)}</Text>
+              <Text style={styles.count}>{count ?? ''}</Text>
               <ChevronRight size={20} color="#4b5563" />
             </View>
           </Pressable>

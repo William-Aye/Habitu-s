@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SvgXml } from 'react-native-svg';
@@ -6,9 +7,13 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { AdminButton } from './buttons';
 
-const AdminLockContext = createContext<() => void>(() => {});
+/** Resolves true when the admin was sent back to the code screen, false when the session is already at aal2. */
+const AdminLockContext = createContext<() => Promise<boolean>>(async () => false);
 
-/** Called when the server refuses an admin call: the admin goes back to the code screen. */
+/**
+ * Called when the server answers not_allowed. Only a missing second factor sends the admin back to the
+ * code screen; at aal2 the refusal is about the item (for instance an admin cannot be banned).
+ */
 export function useAdminLock() {
   return useContext(AdminLockContext);
 }
@@ -40,13 +45,21 @@ async function findPhase(): Promise<Phase> {
     if (aalError) return { name: 'error' };
     return aal?.currentLevel === 'aal2' ? { name: 'ok' } : { name: 'verify', factorId: verified.id };
   }
-  // A half-finished enrolment would block a new one with the same name.
+  // Only never-verified factors are removed: a half-finished enrolment must not block a new one.
   for (const f of data?.all ?? []) {
     if (f.factor_type === 'totp' && f.status === 'unverified') await supabase.auth.mfa.unenroll({ factorId: f.id });
   }
-  const { data: enrolled, error: enrolError } = await supabase.auth.mfa.enroll({ factorType: 'totp' });
+  const { data: enrolled, error: enrolError } = await supabase.auth.mfa.enroll({
+    factorType: 'totp',
+    friendlyName: `admin-${Date.now()}`,
+  });
   if (enrolError || !enrolled?.totp) return { name: 'error' };
   return { name: 'enroll', factorId: enrolled.id, qr: enrolled.totp.qr_code, secret: enrolled.totp.secret };
+}
+
+/** A wrong code is told apart from a failure to check it. */
+function isWrongCode(error: { code?: string; status?: number }): boolean {
+  return error.code === 'mfa_verification_failed' || error.status === 400 || error.status === 422;
 }
 
 export function MfaGate({ children }: { children: ReactNode }) {
@@ -55,54 +68,60 @@ export function MfaGate({ children }: { children: ReactNode }) {
   const [version, setVersion] = useState(0);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
-  const [wrong, setWrong] = useState(false);
-  const forced = useRef(false);
+  const [problem, setProblem] = useState<'wrong' | 'unavailable' | null>(null);
+  const inflight = useRef(false);
 
   useEffect(() => {
     let active = true;
     findPhase()
-      .then((p) => {
-        // After a refusal the server's word beats the local token: the code is asked again.
-        if (forced.current && p.name === 'ok') {
-          return supabase.auth.mfa.listFactors().then(({ data }) => {
-            const id = data?.totp?.[0]?.id;
-            if (active) setPhase(id ? { name: 'verify', factorId: id } : { name: 'error' });
-          });
-        }
-        if (active) setPhase(p);
-      })
+      .then((p) => active && setPhase(p))
       .catch(() => active && setPhase({ name: 'error' }));
     return () => {
       active = false;
     };
   }, [version]);
 
-  const lock = useCallback(() => {
-    forced.current = true;
+  const lock = useCallback(async () => {
+    try {
+      const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (data?.currentLevel === 'aal2') return false;
+    } catch {
+      // Unknown level: be strict and ask for the code.
+    }
     setCode('');
-    setWrong(false);
+    setProblem(null);
     setPhase({ name: 'loading' });
     setVersion((v) => v + 1);
+    return true;
   }, []);
 
   const submit = async (factorId: string) => {
-    if (busy) return;
+    if (inflight.current) return;
+    inflight.current = true;
     setBusy(true);
-    setWrong(false);
+    setProblem(null);
     try {
       const challenge = await supabase.auth.mfa.challenge({ factorId });
-      if (challenge.error || !challenge.data) throw new Error('challenge');
+      if (challenge.error || !challenge.data) {
+        setProblem('unavailable');
+        return;
+      }
       const verified = await supabase.auth.mfa.verify({ factorId, challengeId: challenge.data.id, code: code.trim() });
-      if (verified.error) throw new Error('verify');
-      forced.current = false;
+      if (verified.error) {
+        setProblem(isWrongCode(verified.error) ? 'wrong' : 'unavailable');
+        return;
+      }
       setCode('');
       setPhase({ name: 'ok' });
     } catch {
-      setWrong(true);
+      setProblem('unavailable');
     } finally {
+      inflight.current = false;
       setBusy(false);
     }
   };
+
+  const leave = () => (router.canGoBack() ? router.back() : router.replace('/'));
 
   if (phase.name === 'ok') return <AdminLockContext.Provider value={lock}>{children}</AdminLockContext.Provider>;
   if (phase.name === 'loading') {
@@ -119,6 +138,7 @@ export function MfaGate({ children }: { children: ReactNode }) {
             setVersion((v) => v + 1);
           }}
         />
+        <AdminButton label={t('admin.mfa.leave')} onPress={leave} />
       </View>
     );
   }
@@ -154,8 +174,10 @@ export function MfaGate({ children }: { children: ReactNode }) {
         maxLength={6}
         editable={!busy}
       />
-      {wrong ? (
-        <Text accessibilityLiveRegion="polite" style={styles.error}>{t('admin.mfa.wrong')}</Text>
+      {problem ? (
+        <Text accessibilityLiveRegion="polite" style={styles.error}>
+          {problem === 'wrong' ? t('admin.mfa.wrong') : t('admin.mfa.unavailable')}
+        </Text>
       ) : null}
       <AdminButton
         variant="primary"
@@ -164,6 +186,7 @@ export function MfaGate({ children }: { children: ReactNode }) {
         disabled={code.length !== 6}
         onPress={() => submit(phase.factorId)}
       />
+      <AdminButton label={t('admin.mfa.leave')} disabled={busy} onPress={leave} />
     </View>
   );
 }
