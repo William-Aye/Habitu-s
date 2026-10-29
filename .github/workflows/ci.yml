@@ -35,6 +35,9 @@ jobs:
       - name: Run pgTAP database tests
         run: npx supabase test db
 
+      - name: Auth is code-only (passwords unusable)
+        run: node scripts/auth-live.mjs
+
       - name: Security advisor (allowlist)
         run: |
           npx supabase db advisors --local --type security --level warn --output-format json > advisors.json
