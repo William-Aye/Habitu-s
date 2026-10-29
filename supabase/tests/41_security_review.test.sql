@@ -1,7 +1,7 @@
 -- Pre-launch security review (Task 4, database batch): one section per finding.
 begin;
 \ir helpers.inc
-select plan(31);
+select plan(38);
 select tests.create_user('org@sr.fr', 'Orla') as org \gset
 select tests.create_user('mem@sr.fr', 'Malo') as mem \gset
 select tests.create_user('out@sr.fr', 'Oscar') as out \gset
@@ -82,6 +82,42 @@ select throws_ok($$ select user_id from organiser_badges $$, '42501', null, 'DB-
 select is((select array_agg(k order by k) from jsonb_object_keys(get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser') k),
   array['first_name', 'id', 'photo_url'], 'DB-2: signed-in people still see the organiser');
 select is((select count(*)::int from collectif_members where collectif_id = '00000000-0000-0000-0000-00000000c0a1'), 1, 'DB-2: signed-in people still see a collectif''s organisers');
+select tests.act_as_superuser();
+
+-- ---- DB-3: session edits cannot flood attendees with pushes; session writes are limited ----------
+select id as s1 from sessions where activity_id = '00000000-0000-0000-0000-0000000000f1' and starts_at > now() order by starts_at limit 1 \gset
+insert into attendances (session_id, user_id, status) values (:'s1', :'mem', 'confirmed');
+select set_config('sr.s1', :'s1', false);
+select tests.act_as(:'org');
+select lives_ok(format($$ update sessions set place_label = 'Lieu 1' where id = %L $$, :'s1'), 'DB-3: the organiser moves a session');
+select tests.act_as_superuser();
+select is((select count(*)::int from notification_outbox where user_id = :'mem' and kind = 'session_moved'), 1, 'DB-3: the attendee is told once');
+select tests.act_as(:'org');
+do $$ begin for i in 2..30 loop update sessions set place_label = 'Lieu ' || i where id = current_setting('sr.s1')::uuid; end loop; end $$;
+update activities set place_label = 'Autre cafe' where id = '00000000-0000-0000-0000-0000000000f1';
+update activities set place_label = 'Encore un autre' where id = '00000000-0000-0000-0000-0000000000f1';
+select tests.act_as_superuser();
+select is((select count(*)::int from notification_outbox where user_id = :'mem' and kind = 'session_moved' and data ->> 'session_id' = :'s1'), 1,
+  'DB-3: thirty more edits of the same session within minutes send no more pushes');
+select tests.act_as(:'org');
+select throws_ok($$ insert into sessions (activity_id, starts_at)
+  select '00000000-0000-0000-0000-0000000000f1', now() + (g || ' hours')::interval from generate_series(1, 5000) g $$,
+  '42501', 'limit_reached', 'DB-3: a bulk insert of thousands of sessions is refused');
+select throws_ok($$ insert into sessions (activity_id, starts_at)
+  select '00000000-0000-0000-0000-0000000000f1', now() + (g || ' hours')::interval from generate_series(1, 31) g $$,
+  '42501', 'limit_reached', 'DB-3: at most 60 session writes an hour (30 already used)');
+select tests.act_as_superuser();
+delete from limit_log where user_id = :'org';
+select tests.act_as(:'org');
+select lives_ok($$ insert into sessions (activity_id, starts_at) values ('00000000-0000-0000-0000-0000000000f1', now() + interval '3 hours 30 minutes') $$,
+  'DB-3: the organiser still adds a session');
+select tests.act_as_superuser();
+insert into sessions (activity_id, starts_at)
+select '00000000-0000-0000-0000-0000000000f1', now() + interval '400 days' + (g || ' hours')::interval from generate_series(1, 100) g;
+delete from limit_log where user_id = :'org';
+select tests.act_as(:'org');
+select throws_ok($$ insert into sessions (activity_id, starts_at) values ('00000000-0000-0000-0000-0000000000f1', now() + interval '4 hours 30 minutes') $$,
+  '42501', 'limit_reached', 'DB-3: an activity holds at most 100 future sessions');
 select tests.act_as_superuser();
 
 select * from finish();
