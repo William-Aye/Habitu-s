@@ -1,7 +1,7 @@
 -- Pre-launch security review (Task 4, database batch): one section per finding.
 begin;
 \ir helpers.inc
-select plan(57);
+select plan(61);
 select tests.create_user('org@sr.fr', 'Orla') as org \gset
 select tests.create_user('mem@sr.fr', 'Malo') as mem \gset
 select tests.create_user('out@sr.fr', 'Oscar') as out \gset
@@ -164,6 +164,38 @@ select is((select claimed_by from associations where id = '00000000-0000-0000-00
 select is((select verified from associations where id = '00000000-0000-0000-0000-0000000000a9'), false, 'DB-4: and the club is no longer shown as verified');
 select tests.act_as(:'org');
 select lives_ok($$ update sessions set place_label = 'Ici' where id = current_setting('sr.s1')::uuid $$, 'DB-4: a non-banned organiser still edits sessions');
+select tests.act_as_superuser();
+
+-- ---- DB-5: deleting does not give back a creation --------------------------------------------------
+select tests.create_user('chu@sr.fr', 'Chloe') as chu \gset
+update profiles set age_confirmed = true, created_at = now() - interval '2 days' where id = :'chu';
+select tests.act_as(:'chu');
+do $$
+begin
+  for i in 1..3 loop
+    insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time)
+    values (('00000000-0000-0000-0000-0000000001' || lpad(i::text, 2, '0'))::uuid, auth.uid(), '00000000-0000-0000-0000-0000000000c1',
+            'Churn ' || i, 'Cafe', 'POINT(4.85 45.77)', 'weekly', current_date + 2, '19:00');
+    delete from activities where id = ('00000000-0000-0000-0000-0000000001' || lpad(i::text, 2, '0'))::uuid;
+  end loop;
+end $$;
+select is((select count(*)::int from activities where organiser_id = auth.uid()), 0, 'DB-5: three activities created and deleted');
+select throws_ok($$ insert into activities (organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time)
+  values (auth.uid(), '00000000-0000-0000-0000-0000000000c1', 'Churn 4', 'Cafe', 'POINT(4.85 45.77)', 'weekly', current_date + 2, '19:00') $$,
+  '42501', 'limit_reached', 'DB-5: the fourth activity of the day is refused even though none is left');
+do $$
+declare v uuid;
+begin
+  for i in 1..2 loop
+    insert into collectifs (name, description, town_label, town_point, created_by)
+    values ('Churn ' || i, 'x', 'Lyon', 'POINT(4.85 45.76)', auth.uid()) returning id into v;
+    delete from collectifs where id = v;
+  end loop;
+end $$;
+select is((select count(*)::int from collectifs where created_by = auth.uid()), 0, 'DB-5: two collectifs created and deleted');
+select throws_ok($$ insert into collectifs (name, description, town_label, town_point, created_by)
+  values ('Churn 3', 'x', 'Lyon', 'POINT(4.85 45.76)', auth.uid()) $$,
+  '42501', 'limit_reached', 'DB-5: the third collectif of the day is refused even though none is left');
 select tests.act_as_superuser();
 
 select * from finish();
