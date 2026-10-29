@@ -38,7 +38,7 @@ The local Supabase stack uses ports in the 553xx range instead of the 543xx defa
 ## Accounts
 
 Browsing, searching and choosing interests need no account. People sign in only when an
-action needs one: with Google (native Android sign-in) or with a 6-digit code sent by e-mail.
+action needs one: with Google (native Android sign-in) or with an 8-digit code sent by e-mail.
 Sign-up asks for a first name and an 18+ confirmation, nothing else.
 
 ### Environment variables
@@ -57,7 +57,11 @@ Sign-up asks for a first name and an 18+ confirmation, nothing else.
 2. Configure the OAuth consent screen: app name "Habitués", support e-mail set to yours.
 3. Create a **Web** OAuth client id. In Supabase, go to Authentication → Providers → Google and
    enter this client id and its secret. Turn on **Skip nonce check** (the native Android sign-in
-   sends a nonce Supabase cannot check; `supabase/config.toml` already sets it).
+   sends a nonce Supabase cannot check; `supabase/config.toml` already sets it). This is accepted
+   (review finding AUTH-6): `@react-native-google-signin/google-signin` 16.1.5 has no nonce option
+   (custom nonces exist only in its paid "Universal" edition). A stolen Google ID token could be replayed
+   until it expires (about an hour), but Google only issues one for the app's Web client id to an Android
+   app registered with the package name and SHA-1 of step 4. Revisit if the Credential Manager API is adopted.
 4. Create an **Android** OAuth client id with package name `fr.friendapp.app` and the SHA-1
    fingerprint of the signing key. For local builds, run `npx expo prebuild` in `app/`, then
    `cd android && ./gradlew signingReport` and copy the SHA-1 of the debug variant. Add the
@@ -81,15 +85,50 @@ Sign-up asks for a first name and an 18+ confirmation, nothing else.
 
 ### 3. Supabase Auth settings (dashboard)
 
-- Email OTP: length **6**, expiry **3600** seconds.
+`supabase/config.toml` only configures the local stack. The hosted project does not read it, so every
+setting below must be set by hand in the dashboard (Authentication) and checked again before launch.
+
+**Sign-in by e-mail code only (review findings AUTH-1, AUTH-2, AUTH-3).** The spec says "Passwords: none",
+but GoTrue has no switch that turns passwords off while the e-mail provider is on. Two things carry the
+rule instead:
+
+- Migration `20261029000048_auth_hardening.sql` adds a trigger on `auth.users` that empties
+  `encrypted_password` on every insert and update. A password can be sent to `/signup` or `PUT /user`, but
+  it is never stored, so `grant_type=password` can never succeed and a password registered in advance for
+  somebody else's address is gone before that person signs up. It is applied by `supabase db push`, like
+  any migration. `node scripts/auth-live.mjs` checks it against a running local stack.
+- **Confirm email: ON** (Sign In / Providers, Email). A password sign-up then gets no session, and
+  `/signup` answers the same for an address that already has an account (no existence leak).
+  **Secure password change: ON** as well.
+
+Then set:
+
+- **Email OTP length: 8**, **Email OTP expiry: 600** seconds (10 minutes). The code is a short secret that
+  `/verify` accepts from any IP and that wrong guesses do not invalidate, so a short life and 8 digits keep
+  a distributed guess hopeless. The app's code field is 8 digits.
 - Email templates, French, no link: BOTH the **Magic Link** template (existing users) and the
   **Confirm signup** template (new users) must contain `{{ .Token }}`. Use the text
   `Votre code Habitués : {{ .Token }}` and no link in either, otherwise new users receive a link
-  instead of a code.
-- Rate limits: Supabase's e-mail rate limit (Authentication → Rate Limits) is **per project per
-  hour**, not per address. Set it to what your SMTP provider allows. Per-address throttling is
-  `max_frequency` (**60 s** between two e-mails to the same address, already in `config.toml`).
-- Refresh-token rotation: **on**.
+  instead of a code. (`supabase/templates/code.html` does the same locally.)
+- **Rate limits** (Authentication, Rate Limits), below the defaults like `config.toml`: token verifications
+  **10** per 5 minutes per IP, sign-ups and sign-ins **15**, token refreshes **100**.
+  Supabase's e-mail rate limit is **per project per hour**, not per address. Set it to what your SMTP
+  provider allows. Per-address throttling is `max_frequency` (**60 s** between two e-mails to the same
+  address, already in `config.toml`).
+- **Allow new users to sign up: ON** (the e-mail code creates accounts). **Anonymous sign-ins: OFF**.
+  **Manual linking: OFF**. **Secure email change: ON** (`double_confirm_changes`). **Phone** provider
+  sign-up: OFF, and MFA by phone: OFF. Only the **Google** external provider is on.
+- **JWT expiry: 3600** seconds or less (it bounds how long a banned person's token keeps working, AUTH-4).
+  **Refresh-token rotation: ON**, **reuse interval: 10** seconds.
+- **CAPTCHA** (Attack Protection): Turnstile, with the secret key (see section 2). Review finding WEB-8:
+  the app sends the Turnstile token with every e-mail code request, but Supabase ignores it unless CAPTCHA
+  is switched on here. After deploying, call `POST <SUPABASE_URL>/auth/v1/otp` with the anon key and no
+  `captcha_token`, and expect a `captcha` error. Google sign-in and `/verify` are not covered by Turnstile
+  (Supabase only checks it on the e-mail code request and password grants). That is accepted (AUTH-7):
+  Google limits its own account creation, and `/verify` is bounded by the code rules above and the
+  per-IP verification limit.
+- **MFA TOTP**: enrolment and verification ON (see "Making the first admin").
+- **Redirect URLs**: exact addresses only, no wildcard (see "Web deployment", Supabase Auth).
 - Custom SMTP: strongly recommended before launch. Supabase's built-in e-mail sender allows only
   a few e-mails per hour. Choosing the provider is a launch step.
 
@@ -241,6 +280,15 @@ have signed up first):
 ```sql
 update public.profiles set role = 'admin' where id = '<user id>';
 ```
+
+Review finding AUTH-9 (accepted, with a procedure): the app only offers the authenticator enrolment inside
+Administration, so it can only happen after the promotion. Until the first factor is verified, anyone holding
+that person's session (a stolen e-mail code, a shared phone) could enrol their own authenticator. Keep the
+window to minutes: promote while the future admin is ready with their phone, have them enrol straight away,
+then check in the SQL editor that exactly one factor exists and that it is theirs
+(`select user_id, friendly_name, status, created_at from auth.mfa_factors where user_id = '<user id>';`).
+If anything unexpected shows, delete the factor and set `role = 'user'` again. Once a factor is verified,
+GoTrue refuses a second enrolment, or removing it, from a session that has not passed the second factor.
 
 Then open the app, Profil, Administration. Without a second factor the screen asks for
 enrolment ("Activer la double authentification"): scan the QR code in an authenticator app (TOTP)
@@ -503,8 +551,9 @@ Android App Links: the same `EXPO_PUBLIC_WEB_BASE_URL` must be set when building
 
 - Authentication, URL Configuration: set the Site URL to `<WEB_BASE_URL>` and add
   `<WEB_BASE_URL>/app/auth/callback` to the Redirect URLs. Google sign-in redirects to the origin the page is
-  served from, so to sign in on Cloudflare preview deployments also add the preview address
-  (`https://*.<project>.pages.dev/app/auth/callback`). Locally, `http://127.0.0.1:8788/app/auth/callback` is in
+  served from. Do not add a wildcard such as `https://*.<project>.pages.dev/...` (review finding AUTH-9): every
+  old branch preview would then receive production sign-in codes. To test sign-in on a Cloudflare preview, add
+  that one preview address exactly, and remove it afterwards. Locally, `http://127.0.0.1:8788/app/auth/callback` is in
   `supabase/config.toml`.
 - Google sign-in on the web needs an OAuth client of type "Web application" whose authorised redirect URI
   is the Supabase callback (`https://<project>.supabase.co/auth/v1/callback`); its client id goes in
