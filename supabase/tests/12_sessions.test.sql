@@ -7,7 +7,7 @@ select tests.create_user('mem2@ses.fr', 'Marc') as mem2 \gset
 select tests.create_user('pend@ses.fr', 'Paula') as pend \gset
 select tests.create_user('out@ses.fr', 'Hugo') as outsider \gset
 update profiles set age_confirmed = true, created_at = now() - interval '2 days';
-update profiles set photo_url = 'https://example.org/mia.jpg', home_area_label = 'Croix-Rousse' where id = :'mem';
+update profiles set photo_url = :'mem' || '/' || md5('mia') || '.jpg', home_area_label = 'Croix-Rousse' where id = :'mem';
 insert into categories (id, slug, name_fr, name_en, icon) values ('00000000-0000-0000-0000-0000000000c1', 'go', 'Jeu de go', 'Go', 'grid-3x3');
 insert into tags (id, slug, label_fr, label_en) values ('00000000-0000-0000-0000-0000000000b1', 'go', 'Go', 'Go');
 insert into associations (id, name, source, verified) values ('00000000-0000-0000-0000-0000000000a1', 'Club de go', 'community', false);

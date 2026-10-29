@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { useRequireAccount } from '../../features/account/AccountGate';
 import { MAX_FIRST_NAME, signOut } from '../../features/account/auth';
 import { pickAndUploadAvatar } from '../../features/account/avatar';
+import { avatarUrl } from '../../lib/avatarUrl';
 import { currentCommune } from '../../features/account/homeArea';
 import { deleteMessagesInLeftActivities, deleteMyAccount, exportMyData } from '../../features/account/myData';
 import { useAdminRole } from '../../features/admin/useIsAdmin';
@@ -453,9 +454,9 @@ function SignedInProfile({ userId, profile }: { userId: string; profile: Session
 
 {!isWeb() ? (
       <View style={styles.photoRow}>
-        {profile.photoUrl ? (
+        {avatarUrl(profile.photoUrl) ? (
           <Image
-            source={{ uri: profile.photoUrl }}
+            source={{ uri: avatarUrl(profile.photoUrl)! }}
             accessibilityLabel={t('profile.photoAlt')}
             style={styles.photo}
           />

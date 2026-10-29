@@ -1,7 +1,7 @@
 -- Pre-launch security review (Task 4, database batch): one section per finding.
 begin;
 \ir helpers.inc
-select plan(5);
+select plan(22);
 select tests.create_user('org@sr.fr', 'Orla') as org \gset
 select tests.create_user('mem@sr.fr', 'Malo') as mem \gset
 select tests.create_user('out@sr.fr', 'Oscar') as out \gset
@@ -22,6 +22,49 @@ select tests.act_as(:'mem');
 select is(get_activity('00000000-0000-0000-0000-0000000000f1')->>'welcome_first_name', 'Malo', 'DB-1: members still get the welcome person through get_activity');
 select tests.act_as(:'org');
 select lives_ok($$ update activities set welcome_member_id = null where id = '00000000-0000-0000-0000-0000000000f1' $$, 'DB-1: the organiser still sets the welcome person');
+select tests.act_as_superuser();
+
+-- ---- APP-1 / DB-6: photo_url only ever points at the person's own avatar object ---------------------
+select tests.act_as(:'mem');
+select throws_ok($$ update profiles set photo_url = 'https://attacker.example/p.gif?u=me' where id = auth.uid() $$, '23514', null,
+  'APP-1: photo_url refuses an outside URL');
+select throws_ok(format($$ update profiles set photo_url = %L where id = auth.uid() $$, :'org' || '/' || md5('x') || '.jpg'), '23514', null,
+  'APP-1: photo_url refuses another person''s avatar');
+select throws_ok($$ update profiles set photo_url = repeat('x', 2000000) where id = auth.uid() $$, '23514', null,
+  'APP-1: photo_url refuses a huge value');
+select throws_ok(format($$ update profiles set photo_url = %L where id = auth.uid() $$, :'mem' || '/avatar.jpg'), '23514', null,
+  'APP-1: photo_url refuses the old guessable name');
+select lives_ok(format($$ update profiles set photo_url = %L where id = auth.uid() $$, :'mem' || '/' || md5('first') || '.jpg'),
+  'APP-1: photo_url takes the person''s own random-named avatar');
+select lives_ok($$ update profiles set photo_url = null where id = auth.uid() $$, 'APP-1: photo_url can be cleared');
+
+-- ---- APP-2 / ruling H: avatar names are unguessable, one folder per person, a few files at most -----
+select throws_ok(format($q$insert into storage.objects (bucket_id, name, owner) values ('avatars', %L, auth.uid())$q$, :'mem' || '/avatar.jpg'),
+  '42501', null, 'APP-2: the guessable avatar.jpg name is refused');
+select throws_ok(format($q$insert into storage.objects (bucket_id, name, owner) values ('avatars', %L, auth.uid())$q$, :'mem' || '/payload.jpg'),
+  '42501', null, 'APP-2: any other free-form name is refused');
+select lives_ok(format($q$insert into storage.objects (bucket_id, name, owner) values ('avatars', %L, auth.uid())$q$, :'mem' || '/' || md5('first') || '.jpg'),
+  'APP-2: a random 32-hex name in the own folder is accepted');
+select throws_ok(format($q$insert into storage.objects (bucket_id, name, owner) values ('avatars', %L, auth.uid())$q$, :'org' || '/' || md5('y') || '.jpg'),
+  '42501', null, 'APP-2: another person''s folder is still refused');
+with u as (update storage.objects set name = name where bucket_id = 'avatars' and name = :'mem' || '/' || md5('first') || '.jpg' returning 1)
+select is((select count(*)::int from u), 0, 'APP-2: avatar files cannot be overwritten (no update policy)');
+select lives_ok(format($q$insert into storage.objects (bucket_id, name, owner) select 'avatars', %L || '/' || md5('n' || g) || '.jpg', auth.uid() from generate_series(1, 4) g$q$, :'mem'),
+  'APP-2: up to five avatar files at once');
+select throws_ok(format($q$insert into storage.objects (bucket_id, name, owner) values ('avatars', %L, auth.uid())$q$, :'mem' || '/' || md5('sixth') || '.jpg'),
+  '42501', null, 'APP-2: a sixth avatar file is refused');
+-- choosing a photo queues every other file of the folder for deletion
+update profiles set photo_url = :'mem' || '/' || md5('first') || '.jpg' where id = auth.uid();
+select tests.act_as_superuser();
+select is((select count(*)::int from storage_deletions where bucket = 'avatars' and path like :'mem' || '/%'), 4,
+  'APP-2: setting a photo queues the four other files');
+select is((select count(*)::int from storage_deletions where bucket = 'avatars' and path = :'mem' || '/' || md5('first') || '.jpg'), 0,
+  'APP-2: the chosen photo is not queued');
+select tests.act_as(:'mem');
+select lives_ok(format($q$insert into storage.objects (bucket_id, name, owner) select 'feedback-screenshots', %L || '/' || g || '.jpg', auth.uid() from generate_series(1, 10) g$q$, :'mem'),
+  'APP-2: ten screenshots a day');
+select throws_ok(format($q$insert into storage.objects (bucket_id, name, owner) values ('feedback-screenshots', %L, auth.uid())$q$, :'mem' || '/11.jpg'),
+  '42501', null, 'APP-2: the eleventh screenshot of the day is refused');
 select tests.act_as_superuser();
 
 select * from finish();
