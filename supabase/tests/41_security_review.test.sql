@@ -1,7 +1,7 @@
 -- Pre-launch security review (Task 4, database batch): one section per finding.
 begin;
 \ir helpers.inc
-select plan(61);
+select plan(67);
 select tests.create_user('org@sr.fr', 'Orla') as org \gset
 select tests.create_user('mem@sr.fr', 'Malo') as mem \gset
 select tests.create_user('out@sr.fr', 'Oscar') as out \gset
@@ -197,6 +197,19 @@ select throws_ok($$ insert into collectifs (name, description, town_label, town_
   values ('Churn 3', 'x', 'Lyon', 'POINT(4.85 45.76)', auth.uid()) $$,
   '42501', 'limit_reached', 'DB-5: the third collectif of the day is refused even though none is left');
 select tests.act_as_superuser();
+
+-- ---- DB-6 / AUTH-10: first names are short and go through the word filter ----------------------------
+insert into banned_words (word) values ('elephant');
+select tests.act_as(:'out');
+select throws_ok($$ update profiles set first_name = repeat('x', 100000) where id = auth.uid() $$, '23514', null, 'DB-6: a 100,000-character first name is refused');
+select throws_ok($$ update profiles set first_name = repeat('x', 41) where id = auth.uid() $$, '23514', null, 'DB-6: 41 characters are refused (the app allows 40)');
+select lives_ok($$ update profiles set first_name = repeat('x', 40) where id = auth.uid() $$, 'DB-6: 40 characters are fine');
+select throws_ok($$ update profiles set first_name = 'Elephant' where id = auth.uid() $$, '23514', 'content_refused', 'DB-6: a banned word in the first name is refused');
+select tests.act_as_superuser();
+select tests.create_user('long@sr.fr', repeat('y', 5000)) as longname \gset
+select is((select char_length(first_name) from profiles where id = :'longname'), 40, 'DB-6: a sign-up name is cut to 40 characters');
+select tests.create_user('word@sr.fr', 'Elephant') as wordname \gset
+select is((select first_name from profiles where id = :'wordname'), '', 'DB-6: a sign-up name with a banned word is left empty');
 
 select * from finish();
 rollback;
