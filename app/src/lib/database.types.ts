@@ -1187,6 +1187,9 @@ isOneToOne: true
 "session_matches_rule":
 { Args: { "a": Omit<Database["public"]['Tables']["activities"]['Row'], Database["public"]['Tables']["activities"]['ComputedFields']>,"p_starts_at": string }; Returns: boolean
                            },
+"session_moved_dedupe":
+{ Args: { "p_session": string,"p_user": string }; Returns: string
+                           },
 "set_chat_muted":
 { Args: { "p_activity": string,"p_muted": boolean }; Returns: undefined
                            },
@@ -1212,7 +1215,7 @@ isOneToOne: true
 { Args: { "p_id": string }; Returns: string
                            },
 "web_sitemap_range":
-{ Args: { "p_hi": string,"p_kind": string,"p_lo": string }; Returns: Json
+{ Args: { "p_bucket": number,"p_kind": string }; Returns: Json
                            }
           }
           Enums: {

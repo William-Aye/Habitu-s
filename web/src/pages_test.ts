@@ -2,7 +2,6 @@ import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import {
   ACTIVITY_BUCKETS,
   ASSOCIATION_BUCKETS,
-  bucketBounds,
   handleActivity,
   handleAssociation,
   handleHome,
@@ -186,19 +185,9 @@ Deno.test("javascript: website is dropped; cancelled first session is skipped", 
 });
 
 // ---- sitemaps ----
-Deno.test("bucket bounds: contiguous, first lo is zero, last hi is null", () => {
-  for (const [count, step] of [[ASSOCIATION_BUCKETS, 1], [ACTIVITY_BUCKETS, 16]] as const) {
-    assertEquals(count === 256 || count === 16, true);
-    assertEquals(bucketBounds(count, 0)!.lo, "00000000-0000-0000-0000-000000000000");
-    assertEquals(bucketBounds(count, count - 1)!.hi, null);
-    for (let n = 0; n < count - 1; n++) {
-      assertEquals(bucketBounds(count, n)!.hi, bucketBounds(count, n + 1)!.lo);
-      assert(bucketBounds(count, n)!.lo < bucketBounds(count, n)!.hi!);
-    }
-    assertEquals(bucketBounds(count, 1)!.lo, `${(step).toString(16).padStart(2, "0")}000000-0000-0000-0000-000000000000`);
-    assertEquals(bucketBounds(count, count), null);
-    assertEquals(bucketBounds(count, -1), null);
-  }
+Deno.test("bucket counts are the ones web_sitemap_range accepts (migration 43)", () => {
+  assertEquals(ACTIVITY_BUCKETS, 16);
+  assertEquals(ASSOCIATION_BUCKETS, 256);
 });
 
 Deno.test("sitemap index is static: no RPC, lists s-0..s-255 and a-0..a-15", async () => {
@@ -215,7 +204,7 @@ Deno.test("sitemap index is static: no RPC, lists s-0..s-255 and a-0..a-15", asy
   assertSecurity(r);
 });
 
-Deno.test("child sitemap: exactly one RPC with the bucket bounds, ok rows with lastmod", async () => {
+Deno.test("child sitemap: exactly one RPC with the bucket number (the database computes the bounds), ok rows with lastmod", async () => {
   const calls: { name: string; args: Record<string, unknown> }[] = [];
   const d = deps({
     web_sitemap_range: () => [
@@ -225,8 +214,7 @@ Deno.test("child sitemap: exactly one RPC with the bucket bounds, ok rows with l
   const r = await handleSitemap(req("/sitemaps/s-5.xml"), env, d, "s-5.xml");
   assertEquals(r.status, 200);
   assertEquals(calls.length, 1);
-  const b = bucketBounds(ASSOCIATION_BUCKETS, 5)!;
-  assertEquals(calls[0], { name: "web_sitemap_range", args: { p_kind: "associations", p_lo: b.lo, p_hi: b.hi } });
+  assertEquals(calls[0], { name: "web_sitemap_range", args: { p_kind: "associations", p_bucket: 5 } });
   const xml = await r.text();
   assertStringIncludes(xml, `<loc>https://habitues.test${CANON_S}</loc>`);
   assertStringIncludes(xml, "<lastmod>2026-10-01T10:00:00.000Z</lastmod>");
@@ -235,7 +223,7 @@ Deno.test("child sitemap: exactly one RPC with the bucket bounds, ok rows with l
   const d2 = deps({ web_sitemap_range: () => [{ id: ACT_ID, title: "Jeu de go", updated_at: "2026-10-01T10:00:00Z" }] }, calls2);
   const xa = await (await handleSitemap(req("/sitemaps/a-15.xml"), env, d2, "a-15.xml")).text();
   assertEquals(calls2.length, 1);
-  assertEquals(calls2[0].args, { p_kind: "activities", p_lo: bucketBounds(16, 15)!.lo, p_hi: null });
+  assertEquals(calls2[0].args, { p_kind: "activities", p_bucket: 15 });
   assertStringIncludes(xa, `https://habitues.test${CANON_A}`);
 });
 

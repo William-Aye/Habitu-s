@@ -26,7 +26,7 @@ export interface Deps {
   timeoutMs?: number;
 }
 
-/** Sitemap buckets: ids are random v4 uuids, so the first bits split them evenly. */
+/** Sitemap buckets: ids are random v4 uuids, so the first bits split them evenly. Must match web_sitemap_range. */
 export const ASSOCIATION_BUCKETS = 256; // first 8 bits (about 6k rows per file at 1.5M)
 export const ACTIVITY_BUCKETS = 16; // first 4 bits
 
@@ -184,16 +184,6 @@ const KINDS = {
 } as const;
 type Kind = keyof typeof KINDS;
 
-const ZERO_TAIL = "000000-0000-0000-0000-000000000000";
-
-/** The [lo, hi) uuid range of bucket n out of `count` (a power of two up to 256). hi is null for the last one. */
-export function bucketBounds(count: number, n: number): { lo: string; hi: string | null } | null {
-  if (!Number.isInteger(n) || n < 0 || n >= count) return null;
-  const step = 256 / count;
-  const hex = (v: number) => v.toString(16).padStart(2, "0") + ZERO_TAIL;
-  return { lo: hex(n * step), hi: n === count - 1 ? null : hex((n + 1) * step) };
-}
-
 const XML = "application/xml; charset=utf-8";
 const xmlEsc = escapeHtml;
 
@@ -216,11 +206,12 @@ export async function handleSitemap(req: Request, env: Env, deps: Deps, file: st
   const m = /^([as])-(0|[1-9][0-9]{0,2})\.xml$/.exec(file);
   if (!m) return gone(404);
   const k = KINDS[m[1] as Kind];
-  const b = bucketBounds(k.buckets, Number(m[2]));
-  if (!b) return gone(404);
+  const bucket = Number(m[2]);
+  if (bucket >= k.buckets) return gone(404);
   try {
+    // The database computes the bucket's id range itself and refuses any other bucket (WEB-2).
     const rows = (await withDeadline(deps, (rpc) =>
-      rpc("web_sitemap_range", { p_kind: k.kind, p_lo: b.lo, p_hi: b.hi }))) as Json[] | null;
+      rpc("web_sitemap_range", { p_kind: k.kind, p_bucket: bucket }))) as Json[] | null;
     const base = baseUrl(env, req);
     const urls = (Array.isArray(rows) ? rows : []).map((r) => {
       const last = r.updated_at ? new Date(r.updated_at).toISOString() : null;

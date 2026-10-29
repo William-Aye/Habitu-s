@@ -1,7 +1,7 @@
 -- Pre-launch security review (Task 4, database batch): one section per finding.
 begin;
 \ir helpers.inc
-select plan(44);
+select plan(50);
 select tests.create_user('org@sr.fr', 'Orla') as org \gset
 select tests.create_user('mem@sr.fr', 'Malo') as mem \gset
 select tests.create_user('out@sr.fr', 'Oscar') as out \gset
@@ -129,6 +129,20 @@ select lives_ok($$ select public.register_push_token('ExpoPushToken[' || g || 'b
   'FN-1: registering seven devices works');
 select is((select count(*)::int from push_tokens where user_id = auth.uid()), 5, 'FN-1: only the five most recent tokens are kept');
 select is((select count(*)::int from push_tokens where user_id = auth.uid() and token = 'ExpoPushToken[7bbbbbbbbbb]'), 1, 'FN-1: the newest token is among them');
+select tests.act_as_superuser();
+
+-- ---- WEB-2: a sitemap call covers one fixed bucket, never a range the caller picks -----------------
+insert into activities (id, organiser_id, category_id, title, place_label, place, recurrence_kind, start_date, start_time) values
+  ('1f000000-0000-4000-8000-000000000001', :'org', '00000000-0000-0000-0000-0000000000c1', 'Go bucket 1', 'Cafe', 'POINT(4.85 45.77)', 'weekly', current_date + 2, '19:00');
+select tests.act_as_anon();
+select is(to_regprocedure('public.web_sitemap_range(text,uuid,uuid)'), null, 'WEB-2: the open-range signature is gone');
+select is((select jsonb_agg(e->>'id') from jsonb_array_elements(public.web_sitemap_range('activities', 1)) e),
+  '["1f000000-0000-4000-8000-000000000001"]'::jsonb, 'WEB-2: activities bucket 1 is the ids starting with 1');
+select is((select count(*)::int from jsonb_array_elements(public.web_sitemap_range('activities', 0)) e where e->>'id' like '1f%'), 0,
+  'WEB-2: bucket 0 does not include them');
+select throws_ok($$ select public.web_sitemap_range('activities', 16) $$, '22023', null, 'WEB-2: activities have 16 buckets');
+select throws_ok($$ select public.web_sitemap_range('associations', 256) $$, '22023', null, 'WEB-2: associations have 256 buckets');
+select throws_ok($$ select public.web_sitemap_range('associations', null) $$, '22023', null, 'WEB-2: no bucket, no listing');
 select tests.act_as_superuser();
 
 select * from finish();
