@@ -1,0 +1,82 @@
+[
+  {
+    "name": "security_definer_view",
+    "match": "`public.organiser_badges`",
+    "reason": "Intentional: the view exposes only the public trust fields (sessions held, distinct participants, badge status) of organiser_stats and never feedback counts. It runs with owner rights so members only see those fields. Documented in migration 20261021000005."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.source_label`",
+    "reason": "TEMPORARY: fixed in Task 3 migration 37 (set search_path = public, pg_temp on search.source_label)."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.normalise_query`",
+    "reason": "TEMPORARY: fixed in Task 3 migration 37 (set search_path = public, pg_temp on search.normalise_query)."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`importer.departement`",
+    "reason": "TEMPORARY: fixed in Task 3 migration 37 (set search_path = public, pg_temp on importer.departement)."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.penalty`",
+    "reason": "TEMPORARY: fixed in Task 3 migration 37 (set search_path = public, pg_temp on search.penalty)."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.anonymise_query`",
+    "reason": "TEMPORARY: fixed in Task 3 migration 37 (set search_path = public, pg_temp on search.anonymise_query)."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.unaccent`",
+    "reason": "TEMPORARY: fixed in Task 3 migration 37 (set search_path = public, pg_temp on search.unaccent)."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.is_dormant`",
+    "reason": "TEMPORARY: fixed in Task 3 migration 37 (set search_path = public, pg_temp on search.is_dormant)."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.is_hidden`",
+    "reason": "TEMPORARY: fixed in Task 3 migration 37 (set search_path = public, pg_temp on search.is_hidden)."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`importer.in_scope`",
+    "reason": "TEMPORARY: fixed in Task 3 migration 37 (set search_path = public, pg_temp on importer.in_scope)."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.params`",
+    "reason": "TEMPORARY: fixed in Task 3 migration 37 (set search_path = public, pg_temp on search.params)."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.score`",
+    "reason": "TEMPORARY: fixed in Task 3 migration 37 (set search_path = public, pg_temp on search.score)."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`importer.same_point`",
+    "reason": "TEMPORARY: fixed in Task 3 migration 37 (set search_path = public, pg_temp on importer.same_point)."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.base_score`",
+    "reason": "TEMPORARY: fixed in Task 3 migration 37 (set search_path = public, pg_temp on search.base_score)."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.tokens`",
+    "reason": "TEMPORARY: fixed in Task 3 migration 37 (set search_path = public, pg_temp on search.tokens)."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.explore_rows`",
+    "reason": "TEMPORARY: fixed in Task 3 migration 37 (set search_path = public, pg_temp on search.explore_rows)."
+  }
+]

@@ -1,0 +1,12 @@
+[
+  {
+    "name": "security_definer_view",
+    "match": "public.organiser_badges",
+    "reason": "Owner-privileged on purpose."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "search.source_label",
+    "reason": "Test entry."
+  }
+]
