@@ -120,7 +120,7 @@ select throws_ok($$ insert into feedback (type, body) values ('idea', 'Ajouter l
 select throws_ok($$ select count(*) from feedback $$, '42501', null, 'anon cannot read feedback');
 select throws_ok(format($$ insert into feedback (user_id, type, body) values (%L, 'idea', 'x') $$, :'ana'), '42501', null, 'anon cannot set user_id');
 select is((select count(*) from ambiance_words where id::text like '00000000-0000-0000-0000-0000000000d%')::int, 4, 'anon reads ambiance words');
-select is((select count(*) from organiser_badges)::int, 2, 'anon reads organiser badges');
+select throws_ok($$ select count(*) from organiser_badges $$, '42501', null, 'anon cannot read organiser badges (migration 40)');
 select throws_ok($$ select public.has_confirmed_attendance('00000000-0000-0000-0000-0000000000e1') $$, '42501', null, 'anon cannot execute has_confirmed_attendance');
 select throws_ok($$ select public.session_has_member('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-000000000001') $$, '42501', null, 'anon cannot execute session_has_member');
 select throws_ok($$ select count(*) from organiser_stats $$, '42501', null, 'anon cannot read organiser_stats');

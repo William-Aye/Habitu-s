@@ -77,7 +77,7 @@ select throws_ok(format($f$ insert into collectif_members (collectif_id, user_id
 -- RLS reads
 select tests.act_as_anon();
 select is((select count(*)::int from collectifs), 2, 'anon reads collectifs');
-select is((select count(*)::int from collectif_members where collectif_id = '00000000-0000-0000-0000-00000000c0a1'), 1, 'anon sees only the active row, not invited ones');
+select throws_ok($$ select count(*) from collectif_members $$, '42501', null, 'anon cannot read collectif members (migration 40)');
 
 -- an invited (not yet accepted) organiser cannot attach a collectif
 select tests.act_as(:'org1');

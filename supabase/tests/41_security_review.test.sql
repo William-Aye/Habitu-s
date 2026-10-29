@@ -1,7 +1,7 @@
 -- Pre-launch security review (Task 4, database batch): one section per finding.
 begin;
 \ir helpers.inc
-select plan(22);
+select plan(31);
 select tests.create_user('org@sr.fr', 'Orla') as org \gset
 select tests.create_user('mem@sr.fr', 'Malo') as mem \gset
 select tests.create_user('out@sr.fr', 'Oscar') as out \gset
@@ -65,6 +65,23 @@ select lives_ok(format($q$insert into storage.objects (bucket_id, name, owner) s
   'APP-2: ten screenshots a day');
 select throws_ok(format($q$insert into storage.objects (bucket_id, name, owner) values ('feedback-screenshots', %L, auth.uid())$q$, :'mem' || '/11.jpg'),
   '42501', null, 'APP-2: the eleventh screenshot of the day is refused');
+select tests.act_as_superuser();
+
+-- ---- DB-2: no person id reaches anon (organisers included) -----------------------------------------
+insert into collectifs (id, name, description, town_label, town_point, created_by) values
+  ('00000000-0000-0000-0000-00000000c0a1', 'Les joueurs', 'Go entre amis', 'Lyon', 'POINT(4.85 45.76)', :'org');
+select tests.act_as_anon();
+select is(get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser', '{}'::jsonb, 'DB-2: anon gets no organiser id from get_activity');
+select throws_ok($$ select organiser_id from activities $$, '42501', null, 'DB-2: anon cannot read activities.organiser_id');
+select throws_ok($$ select user_id from collectif_members $$, '42501', null, 'DB-2: anon cannot list collectif organisers');
+select throws_ok($$ select created_by from collectifs $$, '42501', null, 'DB-2: anon cannot read collectifs.created_by');
+select is((select name from collectifs where id = '00000000-0000-0000-0000-00000000c0a1'), 'Les joueurs', 'DB-2: anon still reads the collectif''s public columns');
+select throws_ok($$ select user_id from organiser_badges $$, '42501', null, 'DB-2: anon cannot list organisers through organiser_badges');
+select tests.act_as(:'out');
+select throws_ok($$ select user_id from organiser_badges $$, '42501', null, 'DB-2: nor can a signed-in user (badges are not in Release 1)');
+select is((select array_agg(k order by k) from jsonb_object_keys(get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser') k),
+  array['first_name', 'id', 'photo_url'], 'DB-2: signed-in people still see the organiser');
+select is((select count(*)::int from collectif_members where collectif_id = '00000000-0000-0000-0000-00000000c0a1'), 1, 'DB-2: signed-in people still see a collectif''s organisers');
 select tests.act_as_superuser();
 
 select * from finish();

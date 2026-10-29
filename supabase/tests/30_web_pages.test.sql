@@ -97,7 +97,7 @@ select is((select jsonb_agg(e->>'id') from jsonb_array_elements(get_association(
   '["00000000-0000-0000-0000-0000000000f1"]'::jsonb, 'get_association lists only visible activities (not archived, moderated or banned organiser)');
 
 -- ---- the organiser's first name and photo are for signed-in people only ----
-select ok(get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser' ? 'id', 'anon: get_activity keeps the organiser id');
+select ok(not (get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser' ? 'id'), 'anon: no organiser id either (migration 40)');
 select ok(not (get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser' ? 'first_name'), 'anon: no organiser first_name');
 select ok(not (get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser' ? 'photo_url'), 'anon: no organiser photo_url');
 select ok(position('Orga' in web_activity_page('00000000-0000-0000-0000-0000000000f1')::text) = 0, 'anon: the web page function never carries the organiser first name');
@@ -105,7 +105,7 @@ select tests.act_as(:'org');
 select is(get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser'->>'first_name', 'Orga', 'signed in: organiser first_name present');
 select ok(get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser' ? 'photo_url', 'signed in: organiser photo_url key present');
 select tests.act_as_anon();
-select is(get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser'->>'id', :'org', 'anon: the id is the organiser id');
+select is(get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser', '{}'::jsonb, 'anon: the organiser object is empty');
 -- ---- access ----
 select tests.act_as_superuser();
 select ok(has_function_privilege('anon', 'public.web_sitemap_range(text,uuid,uuid)', 'execute')
