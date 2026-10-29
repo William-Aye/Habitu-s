@@ -1,7 +1,7 @@
 -- Pre-launch security review (Task 4, database batch): one section per finding.
 begin;
 \ir helpers.inc
-select plan(67);
+select plan(71);
 select tests.create_user('org@sr.fr', 'Orla') as org \gset
 select tests.create_user('mem@sr.fr', 'Malo') as mem \gset
 select tests.create_user('out@sr.fr', 'Oscar') as out \gset
@@ -210,6 +210,21 @@ select tests.create_user('long@sr.fr', repeat('y', 5000)) as longname \gset
 select is((select char_length(first_name) from profiles where id = :'longname'), 40, 'DB-6: a sign-up name is cut to 40 characters');
 select tests.create_user('word@sr.fr', 'Elephant') as wordname \gset
 select is((select first_name from profiles where id = :'wordname'), '', 'DB-6: a sign-up name with a banned word is left empty');
+
+-- ---- DB-7: no-shows only for sessions that have taken place, and only from "confirmed" ----------------
+insert into sessions (id, activity_id, starts_at) values ('00000000-0000-0000-0000-0000000000e7', '00000000-0000-0000-0000-0000000000f1', now() - interval '2 days');
+insert into activity_members (activity_id, user_id, status) values ('00000000-0000-0000-0000-0000000000f1', :'out', 'member');
+insert into attendances (session_id, user_id, status) values ('00000000-0000-0000-0000-0000000000e7', :'mem', 'confirmed'),
+  ('00000000-0000-0000-0000-0000000000e7', :'out', 'cancelled');
+select tests.act_as(:'org');
+with u as (update attendances set status = 'no_show' where session_id = current_setting('sr.s1')::uuid and user_id = :'mem' returning 1)
+select is((select count(*)::int from u), 0, 'DB-7: a future session''s attendee cannot be marked as a no-show');
+with u as (update attendances set status = 'no_show' where session_id = '00000000-0000-0000-0000-0000000000e7' and user_id = :'out' returning 1)
+select is((select count(*)::int from u), 0, 'DB-7: someone who cancelled cannot be marked as a no-show');
+with u as (update attendances set status = 'no_show' where session_id = '00000000-0000-0000-0000-0000000000e7' and user_id = :'mem' returning 1)
+select is((select count(*)::int from u), 1, 'DB-7: a confirmed attendee of a past session can be marked as a no-show');
+select tests.act_as_superuser();
+select is((select status from attendances where session_id = :'s1' and user_id = :'mem'), 'confirmed', 'DB-7: the future attendance is untouched');
 
 select * from finish();
 rollback;

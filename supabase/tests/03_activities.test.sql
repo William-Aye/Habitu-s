@@ -138,15 +138,21 @@ insert into attendances (session_id, user_id, status) values ('00000000-0000-000
 select tests.act_as(:'org');
 select throws_ok(format($$ insert into attendances (session_id, user_id, status) values ('00000000-0000-0000-0000-0000000000e1', %L, 'no_show') $$, :'other'),
   '42501', null, 'organiser cannot insert attendance');
-select throws_ok(format($$ update attendances set status = 'no_show' where user_id = %L $$, :'stranger'),
-  '42501', null, 'organiser cannot mark non-member no_show');
-select throws_ok(format($$ update attendances set status = 'confirmed' where user_id = %L $$, :'newbie'),
-  '42501', null, 'organiser cannot set member to confirmed');
+-- Since migration 47 the organiser's policy only reaches confirmed rows of started sessions, so these
+-- updates of a future session touch no row at all (they used to fail the WITH CHECK).
+with u as (update attendances set status = 'no_show' where user_id = :'stranger' returning 1)
+select is((select count(*)::int from u), 0, 'organiser cannot mark non-member no_show');
+with u as (update attendances set status = 'confirmed' where user_id = :'newbie' returning 1)
+select is((select count(*)::int from u), 0, 'organiser cannot set member to confirmed');
 select throws_ok(format($$ update activity_members set user_id = %L where user_id = %L and activity_id = '00000000-0000-0000-0000-0000000000f2' $$, :'other', :'stranger'),
   '42501', null, 'organiser cannot re-point membership user_id');
 select throws_ok($$ update activity_members set activity_id = '00000000-0000-0000-0000-0000000000f1' where activity_id = '00000000-0000-0000-0000-0000000000f2' $$,
   '42501', null, 'organiser cannot re-point membership activity_id');
-select lives_ok(format($$ update attendances set status = 'no_show' where session_id = '00000000-0000-0000-0000-0000000000e1' and user_id = %L $$, :'newbie'), 'organiser marks member no_show');
+with u as (update attendances set status = 'no_show' where session_id = '00000000-0000-0000-0000-0000000000e1' and user_id = :'newbie' returning 1)
+select is((select count(*)::int from u), 0, 'organiser cannot mark a no-show before the session (migration 47)');
+-- the visibility checks below need a no_show row on the far session: written by the system
+select tests.act_as_superuser();
+update attendances set status = 'no_show' where session_id = '00000000-0000-0000-0000-0000000000e1' and user_id = :'newbie';
 select is((select status from attendances where session_id = '00000000-0000-0000-0000-0000000000e1' and user_id = :'newbie'), 'no_show', 'no_show applied');
 
 -- attendance time rules, visibility, key immutability
@@ -187,7 +193,7 @@ update attendances set status = 'cancelled' where session_id = '00000000-0000-00
 select is((select status from attendances where session_id = '00000000-0000-0000-0000-0000000000e2' and user_id = auth.uid()), 'confirmed',
   'cannot rewrite attendance of a past session');
 select tests.act_as(:'org');
-select throws_ok(format($$ update attendances set user_id = %L where session_id = '00000000-0000-0000-0000-0000000000e1' and user_id = %L $$, :'other', :'newbie'),
+select throws_ok(format($$ update attendances set user_id = %L where session_id = '00000000-0000-0000-0000-0000000000e2' and user_id = %L $$, :'other', :'newbie'),
   '42501', null, 'organiser cannot re-point attendance to another user');
 
 -- sessions: organiser status limits, started sessions, cancelled_at
