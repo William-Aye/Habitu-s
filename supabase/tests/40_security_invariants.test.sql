@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(19);
+select plan(21);
 
 -- ---- the invariant queries, kept as views so the same text is checked and proven -------------------
 create temp view inv_no_rls as
@@ -44,6 +44,11 @@ select is(has_function_privilege('public', 'public.is_banned(uuid)', 'execute'),
 select is(has_function_privilege('anon', 'private.is_banned(uuid)', 'execute'), false, 'anon cannot run private.is_banned');
 select is(has_function_privilege('public', 'private.is_banned(uuid)', 'execute'), false, 'PUBLIC cannot run private.is_banned');
 select is(has_schema_privilege('anon', 'private', 'usage'), false, 'anon has no usage on the private schema');
+-- FN-6: pg_net's grants to anon and authenticated belong to supabase_admin, so a migration (run as
+-- postgres) cannot revoke them; they stay unreachable because net, vault and cron are never exposed
+-- through the API (scripts/exposed-schemas.test.mjs checks config.toml). Vault and cron are closed:
+select is(has_schema_privilege('anon', 'vault', 'usage') or has_schema_privilege('authenticated', 'vault', 'usage'), false, 'no API role has usage on the vault schema');
+select is(has_schema_privilege('anon', 'cron', 'usage') or has_schema_privilege('authenticated', 'cron', 'usage'), false, 'no API role has usage on the cron schema');
 
 -- ---- the checks catch real cases ---------------------------------------------------------------
 create table public.zz_no_rls (id int);
