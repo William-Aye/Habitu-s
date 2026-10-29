@@ -206,7 +206,7 @@
     "validate": "Valider",
     "codeSent": "Entrez le code reçu à {{email}}",
     "emailLabel": "Adresse e-mail",
-    "codeLabel": "Code à 6 chiffres",
+    "codeLabel": "Code à 8 chiffres",
     "firstName": "Votre prénom",
     "age": "J'ai 18 ans ou plus",
     "privacy": "Politique de confidentialité",

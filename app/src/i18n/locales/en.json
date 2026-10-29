@@ -206,7 +206,7 @@
     "validate": "Confirm",
     "codeSent": "Enter the code sent to {{email}}",
     "emailLabel": "Email address",
-    "codeLabel": "6-digit code",
+    "codeLabel": "8-digit code",
     "firstName": "Your first name",
     "age": "I am 18 or older",
     "privacy": "Privacy policy",

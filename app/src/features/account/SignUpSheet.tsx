@@ -263,9 +263,9 @@ export function SignUpSheet({
                 <TextInput
                   style={styles.input}
                   value={code}
-                  onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 6))}
+                  onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 8))}
                   keyboardType="number-pad"
-                  maxLength={6}
+                  maxLength={8}
                   autoComplete="one-time-code"
                   textContentType="oneTimeCode"
                   editable
@@ -275,7 +275,7 @@ export function SignUpSheet({
                 <Button
                   label={t('account.validate')}
                   onPress={onVerify}
-                  disabled={busy || code.length !== 6 || syncFailed}
+                  disabled={busy || code.length !== 8 || syncFailed}
                 />
                 <Pressable
                   accessibilityRole="button"
