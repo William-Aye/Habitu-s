@@ -16,3 +16,4 @@ web/.dev.vars
 web/dist/
 .wrangler/
 deno.lock
+advisors.json
