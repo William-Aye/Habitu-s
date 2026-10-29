@@ -1,5 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
-import { createHandler, type ExpoTicket, type OutboxRow } from './handler.ts';
+import { createHandler, ExpoRequestError, type ExpoTicket, type OutboxRow } from './handler.ts';
 
 const EXPO_URL = 'https://exp.host/--/api/v2/push/send';
 
@@ -47,8 +47,10 @@ Deno.serve(createHandler({
       body: JSON.stringify(messages),
       signal: AbortSignal.timeout(30_000),
     });
-    if (!res.ok) throw new Error(`Expo responded ${res.status}`);
+    if (!res.ok) throw new ExpoRequestError(res.status, `Expo responded ${res.status}`);
     const body = await res.json();
+    // A request-level error (e.g. PUSH_TOO_MANY_EXPERIENCE_IDS) comes as `errors` without `data`.
+    if (!Array.isArray(body.data)) throw new ExpoRequestError(400, `Expo refused the batch: ${body.errors?.[0]?.code ?? 'unknown'}`);
     return body.data as ExpoTicket[];
   },
 }));

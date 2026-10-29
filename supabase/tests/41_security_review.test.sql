@@ -1,7 +1,7 @@
 -- Pre-launch security review (Task 4, database batch): one section per finding.
 begin;
 \ir helpers.inc
-select plan(38);
+select plan(44);
 select tests.create_user('org@sr.fr', 'Orla') as org \gset
 select tests.create_user('mem@sr.fr', 'Malo') as mem \gset
 select tests.create_user('out@sr.fr', 'Oscar') as out \gset
@@ -118,6 +118,17 @@ delete from limit_log where user_id = :'org';
 select tests.act_as(:'org');
 select throws_ok($$ insert into sessions (activity_id, starts_at) values ('00000000-0000-0000-0000-0000000000f1', now() + interval '4 hours 30 minutes') $$,
   '42501', 'limit_reached', 'DB-3: an activity holds at most 100 future sessions');
+select tests.act_as_superuser();
+
+-- ---- FN-1 / DB-8: push tokens are Expo tokens, five per person at most ---------------------------
+select tests.act_as(:'out');
+select throws_ok($$ select public.register_push_token('garbage-not-expo-1', 'android') $$, '22023', null, 'FN-1: a junk token is refused');
+select throws_ok($$ select public.register_push_token('ExponentPushToken[aaaaaaaaaa] trailing', 'android') $$, '22023', null, 'FN-1: a token with extra text is refused');
+select throws_ok($$ select public.register_push_token('ExponentPushToken[aaaaaaaaaa]', 'web') $$, '22023', null, 'FN-1: an unknown platform is refused');
+select lives_ok($$ select public.register_push_token('ExpoPushToken[' || g || 'bbbbbbbbbb]', 'android') from generate_series(1, 7) g $$,
+  'FN-1: registering seven devices works');
+select is((select count(*)::int from push_tokens where user_id = auth.uid()), 5, 'FN-1: only the five most recent tokens are kept');
+select is((select count(*)::int from push_tokens where user_id = auth.uid() and token = 'ExpoPushToken[7bbbbbbbbbb]'), 1, 'FN-1: the newest token is among them');
 select tests.act_as_superuser();
 
 select * from finish();
