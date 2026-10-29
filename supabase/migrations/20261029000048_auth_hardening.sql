@@ -23,3 +23,25 @@ revoke all on function private.auth_no_passwords() from public, anon, authentica
 
 create trigger auth_users_no_passwords before insert or update of encrypted_password on auth.users
   for each row execute function private.auth_no_passwords();
+
+-- ---------------------------------------------------------------------------------------------
+-- Avatar cap (carried from the batch 4a review): migration 39 counted every object in the person's
+-- avatars folder, including files already queued in storage_deletions that storage-cleanup has not
+-- removed yet. With the function not deployed, queued files never leave and the person is locked out
+-- of changing their photo for good. Objects queued for deletion (same bucket and path) no longer count.
+-- The policies keep calling the same function, which only changes here.
+create or replace function private.my_storage_objects(p_bucket text, p_since timestamptz) returns int
+language sql stable security definer set search_path = public, pg_temp as $$
+  select count(*)::int from storage.objects o
+   where o.bucket_id = p_bucket
+     and (storage.foldername(o.name))[1] = auth.uid()::text
+     and o.created_at >= p_since
+     and not exists (select 1 from public.storage_deletions d where d.bucket = o.bucket_id and d.path = o.name);
+$$;
+
+-- ---------------------------------------------------------------------------------------------
+-- Embeddings (carried from the batch 4a review): collectifs already hides its embedding columns from
+-- anon. The activities vector and its fingerprint are only used by the nightly job and the search
+-- functions (security definer), so signed-out visitors lose the column grant too. Nothing in web/src
+-- or the app's signed-out screens reads these columns (grep: no match outside database.types).
+revoke select (embedding, embedding_hash) on public.activities from anon;
