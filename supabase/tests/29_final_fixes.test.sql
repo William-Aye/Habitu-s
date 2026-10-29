@@ -28,7 +28,7 @@ insert into blocks (blocker_id, blocked_id) values (:'bad', :'gud');
 -- ---- I2: banned people cannot write -------------------------------------------------------
 select has_function('public', 'refuse_banned_writer', 'the shared trigger function exists');
 select is(has_function_privilege('authenticated', 'public.refuse_banned_writer()', 'execute'), false, 'API roles cannot call the trigger function');
-select is((select count(*) from pg_trigger where tgname = 'refuse_banned_writer' and not tgisinternal)::int, 12, 'the trigger is on twelve tables');
+select is((select count(*) from pg_trigger where tgname = 'refuse_banned_writer' and not tgisinternal)::int, 22, 'the trigger is on twelve tables, plus ten more since migration 44');
 update profiles set banned_at = now() where id = :'bad';
 
 select tests.act_as(:'bad');

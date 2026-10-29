@@ -1,7 +1,7 @@
 -- Pre-launch security review (Task 4, database batch): one section per finding.
 begin;
 \ir helpers.inc
-select plan(50);
+select plan(57);
 select tests.create_user('org@sr.fr', 'Orla') as org \gset
 select tests.create_user('mem@sr.fr', 'Malo') as mem \gset
 select tests.create_user('out@sr.fr', 'Oscar') as out \gset
@@ -143,6 +143,27 @@ select is((select count(*)::int from jsonb_array_elements(public.web_sitemap_ran
 select throws_ok($$ select public.web_sitemap_range('activities', 16) $$, '22023', null, 'WEB-2: activities have 16 buckets');
 select throws_ok($$ select public.web_sitemap_range('associations', 256) $$, '22023', null, 'WEB-2: associations have 256 buckets');
 select throws_ok($$ select public.web_sitemap_range('associations', null) $$, '22023', null, 'WEB-2: no bucket, no listing');
+select tests.act_as_superuser();
+
+-- ---- DB-4 / AUTH-4: a banned person's still-valid token can no longer edit anything ----------------
+select tests.create_user('ban@sr.fr', 'Bruno') as ban \gset
+insert into associations (id, name, purpose, source, confidence, claimed_by, verified) values
+  ('00000000-0000-0000-0000-0000000000a9', 'Club de Bruno', 'Go', 'rna', 60, :'ban', true);
+update profiles set banned_at = now() where id = :'ban';
+select tests.act_as(:'ban');
+select throws_ok($$ update profiles set bio = 'still here after ban' where id = auth.uid() $$, '42501', null, 'DB-4: a banned person cannot edit their profile');
+select throws_ok($$ update associations set purpose = 'spam http://spam' where id = '00000000-0000-0000-0000-0000000000a9' $$, '42501', null,
+  'DB-4: a banned claimant cannot edit the club page');
+select throws_ok($$ insert into saved_searches (user_id, query, center, radius_km) values (auth.uid(), 'go', 'POINT(4.8 45.7)', 5) $$, '42501', null, 'DB-4: nor insert into the tables that had no guard');
+select tests.act_as(:'out');
+select lives_ok($$ update profiles set bio = 'not banned' where id = auth.uid() $$, 'DB-4: people who are not banned still edit their profile');
+select tests.act_as_superuser();
+update profiles set banned_at = null where id = :'ban';
+select public.ban_user(:'ban', 'test');
+select is((select claimed_by from associations where id = '00000000-0000-0000-0000-0000000000a9'), null, 'DB-4: a ban releases the person''s claims');
+select is((select verified from associations where id = '00000000-0000-0000-0000-0000000000a9'), false, 'DB-4: and the club is no longer shown as verified');
+select tests.act_as(:'org');
+select lives_ok($$ update sessions set place_label = 'Ici' where id = current_setting('sr.s1')::uuid $$, 'DB-4: a non-banned organiser still edits sessions');
 select tests.act_as_superuser();
 
 select * from finish();
