@@ -707,6 +707,7 @@
     },
     "reports": {
       "empty": "No reports to handle.",
+      "more": "Show more",
       "noPreview": "Content unavailable",
       "sourceAuto": "Automatic",
       "sourceUser": "Reported by {{prenom}}",

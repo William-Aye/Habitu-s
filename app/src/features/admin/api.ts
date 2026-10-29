@@ -105,11 +105,20 @@ const none = () => ({});
 const rpc = (name: string, args: Record<string, unknown> = {}) => (supabase.rpc as any)(name, args);
 const arr = (d: unknown): any[] => (Array.isArray(d) ? d : []);
 
-export function listReports() {
+export const REPORTS_PAGE = 50;
+
+/** One page of the open reports, newest first; `before` is the last row of the previous page. */
+export function listReports(before?: { createdAt: string; id: string } | null) {
   return call(
-    () => rpc('admin_reports', { p_status: 'open', p_limit: 50 }),
+    () =>
+      rpc('admin_reports', {
+        p_status: 'open',
+        p_limit: REPORTS_PAGE,
+        ...(before ? { p_before_at: before.createdAt, p_before_id: before.id } : {}),
+      }),
     (d: any) => ({
       openCount: (d?.open_count ?? 0) as number,
+      hasMore: arr(d?.items).length >= REPORTS_PAGE,
       items: arr(d?.items).map(
         (r): AdminReport => ({
           id: r.id,

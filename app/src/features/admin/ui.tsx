@@ -126,7 +126,16 @@ export function useQueue<T extends { id: string }>(loader: () => Promise<AdminRe
     [fail, reload],
   );
 
-  return { load, busyId, error, setError, done, act, reload, fail };
+  /** Adds a further page of items at the end (rows already shown are skipped). */
+  const append = useCallback((more: T[]) => {
+    setLoad((cur) =>
+      cur.state !== 'ready'
+        ? cur
+        : { state: 'ready', items: [...cur.items, ...more.filter((m) => !cur.items.some((x) => x.id === m.id))] },
+    );
+  }, []);
+
+  return { load, busyId, error, setError, done, act, reload, fail, append };
 }
 
 export function QueueState<T>({

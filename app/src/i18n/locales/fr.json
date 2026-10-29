@@ -707,6 +707,7 @@
     },
     "reports": {
       "empty": "Aucun signalement à traiter.",
+      "more": "Voir plus",
       "noPreview": "Contenu indisponible",
       "sourceAuto": "Automatique",
       "sourceUser": "Signalé par {{prenom}}",
