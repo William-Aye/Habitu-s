@@ -143,7 +143,7 @@ export function entityCacheOpts(prefix: string, env: Env, req: Request): EdgeOpt
       headers.delete(CANONICAL_HEADER);
       if (reqPath !== canonical) {
         headers.set("Location", baseUrl(env, req) + canonical);
-        headers.delete("Content-Type");
+        for (const h of ["Content-Type", "Content-Length", "Content-Encoding", "ETag"]) headers.delete(h);
         return new Response(null, { status: 301, headers });
       }
       return new Response(res.body, { status: res.status, headers });

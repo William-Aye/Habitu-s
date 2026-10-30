@@ -62,6 +62,12 @@ function createClientLimiter(now: () => Date) {
       const mac = await crypto.subtle.sign('HMAC', await hmacKey(), new TextEncoder().encode(ip));
       const id = Array.from(new Uint8Array(mac), (b) => b.toString(16).padStart(2, '0')).join('');
       const t = now().getTime();
+      // Every entry is re-inserted on each call, so the Map is ordered by last use: sweep expired clients
+      // (newest hit older than the window) from the front, whether or not they ever come back.
+      for (const [k, v] of hits) {
+        if (t - v[v.length - 1] < HOUR_MS) break;
+        hits.delete(k);
+      }
       const recent = (hits.get(id) ?? []).filter((x) => t - x < HOUR_MS);
       hits.delete(id); // re-insert last, so the Map stays ordered oldest first
       if (recent.length >= CLIENT_HOURLY_CAP) {
@@ -73,6 +79,8 @@ function createClientLimiter(now: () => Date) {
       while (hits.size > MAX_CLIENTS) hits.delete(hits.keys().next().value as string);
       return true;
     },
+    /** Clients currently remembered (for tests). */
+    size: () => hits.size,
   };
 }
 
@@ -115,11 +123,11 @@ function optionalText(v: unknown, max: number): string | null | undefined {
 /** The app's Turnstile widget must be rendered with action 'feedback'. */
 export const TURNSTILE_ACTION = 'feedback';
 
-export function createHandler(deps: Deps): (req: Request) => Promise<Response> {
+export function createHandler(deps: Deps): ((req: Request) => Promise<Response>) & { trackedClients(): number } {
   const limiter = createClientLimiter(() => deps.now());
   const origins = (deps.allowedOrigins ?? []).map((o) => o.trim().replace(/\/+$/, '')).filter(Boolean);
   const hostnames = (deps.turnstileHostnames ?? []).map((h) => h.trim().toLowerCase()).filter(Boolean);
-  return async (req) => {
+  const handle = async (req: Request): Promise<Response> => {
     // CORS (FN-7): the web build calls this function from the site's origin, and only from there.
     const origin = req.headers.get('origin');
     const allowed = origin !== null && origins.includes(origin);
@@ -182,7 +190,8 @@ export function createHandler(deps: Deps): (req: Request) => Promise<Response> {
     const ip = req.headers.get('cf-connecting-ip')?.trim()
       || req.headers.get('x-forwarded-for')?.split(',')[0].trim() || '';
     // Per client, before the Turnstile call: the address is hashed in memory only (FN-2).
-    if (ip && !(await limiter.allow(ip))) return reply({ error: 'rate_limited' }, 429);
+    // Requests with no address header share one bucket instead of skipping the limit.
+    if (!(await limiter.allow(ip || 'unknown'))) return reply({ error: 'rate_limited' }, 429);
     const form = new URLSearchParams({ secret: deps.turnstileSecret, response: token });
     if (ip) form.set('remoteip', ip);
 
@@ -216,4 +225,5 @@ export function createHandler(deps: Deps): (req: Request) => Promise<Response> {
     }
     return reply({ ok: true });
   };
+  return Object.assign(handle, { trackedClients: () => limiter.size() });
 }

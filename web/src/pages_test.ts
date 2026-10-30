@@ -331,6 +331,7 @@ Deno.test("WEB-1: slug, case, trailing slash and query variants cost one RPC in 
     assertEquals(r.status, 301, p);
     assertEquals(r.headers.get("Location"), `https://habitues.test${CANON_A}`, p);
     assertEquals(r.headers.has("X-Canonical-Path"), false);
+    for (const h of ["Content-Type", "Content-Length", "Content-Encoding", "ETag"]) assertEquals(r.headers.has(h), false, h);
     assertSecurity(r);
   }
   const again = await viaEdge(CANON_A + "?z=1", c, d);
@@ -381,4 +382,15 @@ Deno.test("WEB-7: robots.txt on a host other than WEB_BASE_URL disallows everyth
   assertStringIncludes(prod, "Allow: /");
   const unset = await handleRobots(new Request("https://x.pages.dev/robots.txt"), { SUPABASE_URL: "u", SUPABASE_ANON_KEY: "k" }).text();
   assertStringIncludes(unset, "Allow: /");
+});
+
+Deno.test("WEB-1: turning a cached 200 into a 301 drops the body headers", () => {
+  const { resolve } = entityCacheOpts("/activites/", env, req(`/activites/x-${ACT_ID}`));
+  const cached = new Response("<html>page</html>", {
+    headers: { "X-Canonical-Path": CANON_A, "Content-Type": "text/html", "Content-Length": "17", "Content-Encoding": "gzip", ETag: '"abc"', "Cache-Control": "public, max-age=60" },
+  });
+  const r = resolve!(cached);
+  assertEquals(r.status, 301);
+  for (const h of ["Content-Type", "Content-Length", "Content-Encoding", "ETag", "X-Canonical-Path"]) assertEquals(r.headers.has(h), false, h);
+  assertEquals(r.headers.get("Location"), `https://habitues.test${CANON_A}`);
 });
