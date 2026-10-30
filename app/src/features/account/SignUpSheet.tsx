@@ -3,6 +3,7 @@ import { Check, Mail, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -25,6 +26,7 @@ import {
 } from './auth';
 import { resolveHomeArea } from './homeArea';
 import { PRIVACY_CONTACT } from '../../content/contact';
+import { webBaseUrl } from '../../lib/links';
 import { Turnstile } from './Turnstile';
 import { useSession } from './useSession';
 import type { GateReason } from './AccountGate';
@@ -200,6 +202,10 @@ export function SignUpSheet({
     router.push('/privacy' as Href);
   }
 
+  function openTerms() {
+    Linking.openURL(`${webBaseUrl()}/conditions`).catch(() => {});
+  }
+
   const profileValid = firstName.trim().length > 0 && firstName.trim().length <= MAX_FIRST_NAME && ageOk;
   const captchaPending = token === null && !captchaFailed;
   const captchaBlocked = captchaFailed || error === 'captcha'; // retry is the only action
@@ -365,6 +371,19 @@ export function SignUpSheet({
               <Button label={t('account.retry')} onPress={retryCaptcha} secondary />
             ) : null}
 
+            {step === 'choose' ? (
+              <>
+                <Text style={styles.legalNotice}>{t('account.legalNotice')}</Text>
+                <Pressable
+                  accessibilityRole="link"
+                  accessibilityLabel={t('account.terms')}
+                  style={styles.linkButton}
+                  onPress={openTerms}
+                >
+                  <Text style={styles.linkText}>{t('account.terms')}</Text>
+                </Pressable>
+              </>
+            ) : null}
             <Pressable
               accessibilityRole="link"
               accessibilityLabel={t('account.privacy')}
@@ -459,6 +478,7 @@ const styles = StyleSheet.create({
   linkButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   linkText: { color: '#1a56db', fontSize: 15, fontWeight: '600' },
   error: { color: '#a00', fontSize: 14 },
+  legalNotice: { fontSize: 13, color: '#555', textAlign: 'center' },
   checkRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12 },
   box: {
     width: 24,

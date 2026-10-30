@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { Pressable, Text } from 'react-native';
+import { Linking, Pressable, Text } from 'react-native';
 import { AccountGateProvider, useRequireAccount } from '../src/features/account/AccountGate';
 import * as auth from '../src/features/account/auth';
 import { initI18n } from '../src/i18n';
@@ -108,6 +108,21 @@ it('shows the reason sentence and the sign-up title', async () => {
   expect(screen.getByText('Créez un compte pour être prévenu')).toBeTruthy();
   expect(screen.getByText('Continuer avec Google')).toBeTruthy();
   expect(screen.getByText('Politique de confidentialité')).toBeTruthy();
+});
+
+it('shows the legal notice with links to the terms and the privacy policy', async () => {
+  const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+  const push = (jest.requireMock('expo-router') as { router: { push: jest.Mock } }).router.push;
+  await open();
+  expect(
+    await screen.findByText(
+      "En continuant, vous acceptez les conditions d'utilisation et la politique de confidentialité.",
+    ),
+  ).toBeTruthy();
+  await fireEvent.press(screen.getByLabelText("Conditions d'utilisation"));
+  expect(openURL).toHaveBeenCalledWith(expect.stringMatching(/\/conditions$/));
+  await fireEvent.press(screen.getByLabelText('Politique de confidentialité'));
+  expect(push).toHaveBeenCalledWith('/privacy');
 });
 
 it('rejects an invalid email without sending anything', async () => {

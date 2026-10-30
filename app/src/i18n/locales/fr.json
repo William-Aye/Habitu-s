@@ -209,6 +209,8 @@
     "codeLabel": "Code à 8 chiffres",
     "firstName": "Votre prénom",
     "age": "J'ai 18 ans ou plus",
+    "legalNotice": "En continuant, vous acceptez les conditions d'utilisation et la politique de confidentialité.",
+    "terms": "Conditions d'utilisation",
     "privacy": "Politique de confidentialité",
     "close": "Fermer",
     "retry": "Réessayer",
