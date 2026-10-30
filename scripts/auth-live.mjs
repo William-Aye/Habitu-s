@@ -59,7 +59,8 @@ assert.equal(code.length, 8, 'AUTH-3: the email code has 8 digits');
 const ver = await post('/auth/v1/verify', { type: 'email', email: mail2, token: code });
 assert.equal(ver.status, 200, 'the code signs the person in');
 const set = await fetch(`${API}/auth/v1/user`, { method: 'PUT', headers: { ...anon, authorization: `Bearer ${ver.body.access_token}` }, body: JSON.stringify({ password: pw }) });
-void set; // whether GoTrue answers 200 or refuses does not matter: the hash is dropped.
+// GoTrue answers 200 (and the trigger drops the hash) or refuses the change (400/422); anything else is a surprise.
+assert.ok([200, 400, 422].includes(set.status), `PUT /user answered an unexpected status: ${set.status}`);
 const login2 = await post('/auth/v1/token?grant_type=password', { email: mail2, password: pw });
 assert.equal(login2.status, 400, 'AUTH-1: a password set from a live session cannot be used to sign in');
 
