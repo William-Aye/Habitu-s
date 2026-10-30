@@ -1,3 +1,4 @@
+import { bearerMatches } from '../_shared/bearer.ts';
 export const BATCH_SIZE = 100;
 export const MAX_ATTEMPTS = 5;
 export const RETRY_STEP_MS = 5 * 60 * 1000;
@@ -69,7 +70,7 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e)).sli
 export function createHandler(deps: Deps): (req: Request) => Promise<Response> {
   return async (req) => {
     if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
-    if (!deps.serviceKey || req.headers.get('authorization') !== `Bearer ${deps.serviceKey}`) {
+    if (!(await bearerMatches(req.headers.get('authorization'), deps.serviceKey))) {
       return json({ error: 'unauthorized' }, 401);
     }
 
