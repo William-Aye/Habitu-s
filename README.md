@@ -115,6 +115,10 @@ Then set:
   Supabase's e-mail rate limit is **per project per hour**, not per address. Set it to what your SMTP
   provider allows. Per-address throttling is `max_frequency` (**60 s** between two e-mails to the same
   address, already in `config.toml`).
+  Watch out at launch: these limits count per IP address, and many people on one mobile carrier share a
+  single public address (carrier-grade NAT). A busy carrier IP can hit 10 verifications or 15 sign-ins in
+  5 minutes and see 429 errors. Watch the Auth logs for 429 responses in the first weeks and raise the two
+  numbers if real users are blocked.
 - **Allow new users to sign up: ON** (the e-mail code creates accounts). **Anonymous sign-ins: OFF**.
   **Manual linking: OFF**. **Secure email change: ON** (`double_confirm_changes`). **Phone** provider
   sign-up: OFF, and MFA by phone: OFF. Only the **Google** external provider is on.
