@@ -161,7 +161,7 @@ jobs:
           node-version: 22
 
       - name: Edge Function tests (Deno)
-        run: npx --yes deno@2 test supabase/functions
+        run: npx --yes deno@2.9.6 test supabase/functions
 
   audit:
     name: Audit
@@ -190,7 +190,7 @@ jobs:
         working-directory: importer
         run: |
           uv export --no-dev --no-hashes --frozen --no-emit-project > "$RUNNER_TEMP/requirements.txt"
-          uvx pip-audit -r "$RUNNER_TEMP/requirements.txt" --no-deps --disable-pip
+          uvx pip-audit@2.10.1 -r "$RUNNER_TEMP/requirements.txt" --no-deps --disable-pip
 
   scripts:
     name: Scripts
