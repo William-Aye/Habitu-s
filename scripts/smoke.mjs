@@ -44,9 +44,10 @@ export async function runChecks(env, fetchImpl = globalThis.fetch) {
   results.push(
     await check("https", () => {
       if (!web) return "SMOKE_WEB_BASE_URL is not set";
-      if (web.startsWith("https://")) return null;
-      if (allowHttp && isLocalHttp(web)) return null;
-      return "base URL is not HTTPS";
+      const okUrl = (u) => u.startsWith("https://") || (allowHttp && isLocalHttp(u));
+      if (!okUrl(web)) return "base URL is not HTTPS";
+      if (sb && !okUrl(sb)) return "Supabase URL is not HTTPS";
+      return null;
     }),
   );
   if (!web) return results;
@@ -100,23 +101,46 @@ export async function runChecks(env, fetchImpl = globalThis.fetch) {
       const json = await res.json();
       const found =
         Array.isArray(json) &&
-        json.some((s) => s?.target?.namespace === "android_app" && s.target.package_name === pkg);
-      return found ? null : `package ${pkg} not listed`;
+        json.some(
+          (s) =>
+            s?.target?.namespace === "android_app" &&
+            s.target.package_name === pkg &&
+            Array.isArray(s.relation) &&
+            s.relation.includes("delegate_permission/common.handle_all_urls") &&
+            Array.isArray(s.target.sha256_cert_fingerprints) &&
+            s.target.sha256_cert_fingerprints.length > 0,
+        );
+      return found ? null : `package ${pkg} with fingerprint and handle_all_urls not listed`;
     }),
   );
 
   if (!sb || !anon) {
-    for (const name of ["anon-profiles", "anon-admin", "auth-password"]) {
+    for (const name of ["supabase-reachable", "anon-profiles", "anon-admin"]) {
       results.push({ name, ok: false, reason: "SMOKE_SUPABASE_URL or SMOKE_SUPABASE_ANON_KEY is not set" });
     }
     return results;
   }
   const auth = { apikey: anon, Authorization: `Bearer ${anon}` };
+  // Requests carrying the anon key never follow redirects, so the key cannot be forwarded to another host.
+  const sbFetch = (path, init = {}) =>
+    withTimeout(fetchImpl, sb + path, { ...init, redirect: "manual", headers: { ...auth, ...init.headers } });
+  const redirected = (res) => (res.status >= 300 && res.status < 400 ? `redirect (${res.status}) from Supabase` : null);
+
+  // Positive control: a wrong SMOKE_SUPABASE_URL must fail loudly, not look like a "denied" answer.
+  results.push(
+    await check("supabase-reachable", async () => {
+      const res = await sbFetch("/auth/v1/health");
+      return redirected(res) ?? (res.status === 200 ? null : `auth health answered ${res.status}, expected 200`);
+    }),
+  );
 
   results.push(
     await check("anon-profiles", async () => {
-      const res = await withTimeout(fetchImpl, `${sb}/rest/v1/profiles?select=id&limit=1`, { headers: auth });
-      if (!res.ok) return null; // an error (401/403) is the expected, safe answer
+      const res = await sbFetch("/rest/v1/profiles?select=id&limit=1");
+      const r = redirected(res);
+      if (r) return r;
+      if (res.status === 401 || res.status === 403) return null;
+      if (res.status !== 200) return `profiles answered ${res.status}, expected 401, 403 or an empty list`;
       const rows = await res.json().catch(() => null);
       return Array.isArray(rows) && rows.length === 0 ? null : "anonymous read of profiles returned rows";
     }),
@@ -124,26 +148,20 @@ export async function runChecks(env, fetchImpl = globalThis.fetch) {
 
   results.push(
     await check("anon-admin", async () => {
-      const res = await withTimeout(fetchImpl, `${sb}/rest/v1/rpc/admin_reports`, {
+      const res = await sbFetch("/rest/v1/rpc/admin_reports", {
         method: "POST",
-        headers: { ...auth, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ p_status: "open", p_before_at: null, p_before_id: null, p_limit: 1 }),
       });
-      return res.ok ? `anonymous call to admin_reports answered ${res.status}` : null;
+      const r = redirected(res);
+      if (r) return r;
+      return res.status === 401 || res.status === 403 ? null : `admin_reports answered ${res.status}, expected 401 or 403`;
     }),
   );
 
-  results.push(
-    await check("auth-password", async () => {
-      const email = `smoke-${Math.random().toString(36).slice(2)}@example.invalid`;
-      const res = await withTimeout(fetchImpl, `${sb}/auth/v1/token?grant_type=password`, {
-        method: "POST",
-        headers: { apikey: anon, "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password: "smoke-check-not-a-real-password" }),
-      });
-      return res.status === 400 ? null : `password sign-in answered ${res.status}, expected 400`;
-    }),
-  );
+  // No password sign-in check on purpose: the password provider stays enabled while hashes are blanked, so
+  // "400" cannot tell "disabled" from "wrong credentials". That guarantee is covered by pgTAP test 42 and
+  // scripts/auth-live.mjs.
 
   return results;
 }

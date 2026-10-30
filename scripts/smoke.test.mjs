@@ -16,6 +16,10 @@ const SEC = {
   "X-Frame-Options": "DENY",
   "Referrer-Policy": "strict-origin-when-cross-origin",
 };
+const GOOD_LINK = {
+  relation: ["delegate_permission/common.handle_all_urls"],
+  target: { namespace: "android_app", package_name: "fr.habitues.app", sha256_cert_fingerprints: ["AA:BB"] },
+};
 const UNKNOWN = "GET /activites/smoke-00000000-0000-4000-8000-000000000000";
 
 // A correct site; `over` maps "METHOD path" (prefixed "sb:" for Supabase) to a replacement handler.
@@ -30,12 +34,12 @@ function fakeFetch(over = {}) {
       if (u.pathname.startsWith("/activites/"))
         return new Response('<meta name="robots" content="noindex">', { status: 404, headers: SEC });
       if (u.pathname === "/.well-known/assetlinks.json")
-        return Response.json([{ target: { namespace: "android_app", package_name: "fr.habitues.app" } }]);
+        return Response.json([GOOD_LINK]);
       return new Response("<html></html>", { headers: SEC });
     }
+    if (u.pathname === "/auth/v1/health") return Response.json({ ok: true });
     if (u.pathname === "/rest/v1/profiles") return Response.json([]);
     if (u.pathname === "/rest/v1/rpc/admin_reports") return Response.json({ code: "42501" }, { status: 403 });
-    if (u.pathname === "/auth/v1/token") return Response.json({ code: "validation_failed" }, { status: 400 });
     return new Response("", { status: 404 });
   };
 }
@@ -45,7 +49,7 @@ const failing = async (env, over) => (await runChecks(env, fakeFetch(over))).fil
 test("a correct site passes every check", async () => {
   const res = await runChecks(ENV, fakeFetch());
   assert.deepEqual(res.filter((r) => !r.ok), []);
-  assert.ok(res.length >= 9);
+  assert.ok(res.length >= 10);
 });
 
 test("no CSP on / fails headers:/", async () => {
@@ -98,9 +102,72 @@ test("anon admin_reports succeeding fails anon-admin", async () => {
   assert.deepEqual(f, ["anon-admin"]);
 });
 
-test("password sign-in answering 200 fails auth-password", async () => {
-  const f = await failing(ENV, { "POST sb:/auth/v1/token": () => Response.json({}) });
-  assert.deepEqual(f, ["auth-password"]);
+test("anon admin_reports answering 404 or 500 fails anon-admin", async () => {
+  for (const status of [404, 500]) {
+    const f = await failing(ENV, { "POST sb:/rest/v1/rpc/admin_reports": () => Response.json({ code: "PGRST202" }, { status }) });
+    assert.deepEqual(f, ["anon-admin"]);
+  }
+});
+
+test("anon profiles answering 401 passes, 404 or 500 fails", async () => {
+  assert.deepEqual(await failing(ENV, { "GET sb:/rest/v1/profiles": () => new Response("", { status: 401 }) }), []);
+  for (const status of [404, 500]) {
+    const f = await failing(ENV, { "GET sb:/rest/v1/profiles": () => new Response("", { status }) });
+    assert.deepEqual(f, ["anon-profiles"]);
+  }
+});
+
+test("a wrong Supabase URL fails supabase-reachable", async () => {
+  const f = await failing(ENV, { "GET sb:/auth/v1/health": () => new Response("", { status: 404 }) });
+  assert.deepEqual(f, ["supabase-reachable"]);
+});
+
+test("a Supabase redirect fails and the key is not forwarded", async () => {
+  const seen = [];
+  const inner = fakeFetch();
+  const res = await runChecks(ENV, async (url, init = {}) => {
+    if (new URL(url).origin === SB) {
+      seen.push(init.redirect);
+      if (new URL(url).pathname === "/rest/v1/profiles")
+        return new Response("", { status: 302, headers: { Location: "https://evil.example/" } });
+    }
+    return inner(url, init);
+  });
+  assert.deepEqual(res.filter((r) => !r.ok).map((r) => r.name), ["anon-profiles"]);
+  assert.ok(seen.length > 0 && seen.every((r) => r === "manual"));
+});
+
+test("a non-HTTPS Supabase URL fails https", async () => {
+  const f = await failing({ ...ENV, SMOKE_SUPABASE_URL: "http://abc.supabase.example" });
+  assert.ok(f.includes("https"));
+});
+
+test("assetlinks without fingerprints or relation fails", async () => {
+  for (const link of [
+    { ...GOOD_LINK, target: { ...GOOD_LINK.target, sha256_cert_fingerprints: [] } },
+    { ...GOOD_LINK, relation: [] },
+  ]) {
+    const f = await failing(ENV, { "GET /.well-known/assetlinks.json": () => Response.json([link]) });
+    assert.deepEqual(f, ["assetlinks"]);
+  }
+});
+
+test("a thrown fetch error fails with a reason", async () => {
+  const res = await runChecks(ENV, async () => {
+    throw new DOMException("timed out", "TimeoutError");
+  });
+  const bad = res.filter((r) => !r.ok);
+  assert.ok(bad.length >= 8 && bad.every((r) => r.reason));
+});
+
+test("an empty-body sitemap fails", async () => {
+  const f = await failing(ENV, { "GET /sitemap.xml": () => new Response("", { headers: SEC }) });
+  assert.deepEqual(f, ["sitemap"]);
+});
+
+test("missing Supabase variables fail the three Supabase checks", async () => {
+  const f = await failing({ SMOKE_WEB_BASE_URL: WEB });
+  assert.deepEqual(f, ["supabase-reachable", "anon-profiles", "anon-admin"]);
 });
 
 test("a non-HTTPS base URL fails https", async () => {

@@ -612,7 +612,7 @@ Submit `<WEB_BASE_URL>/sitemap.xml` in Google Search Console (add the domain pro
   `SMOKE_SUPABASE_ANON_KEY` set in your shell. It prints one line per check (`ok` or `FAIL <reason>`) and exits 1 if any fails.
   It checks HTTPS, the security headers, no cookies, the sitemap, 404 + noindex for unknown ids, `assetlinks.json`
   (package from `SMOKE_ANDROID_PACKAGE`, default `fr.habitues.app`), that anonymous users cannot read `profiles` or call
-  `admin_reports`, and that password sign-in is refused. For a local run only, set `SMOKE_ALLOW_HTTP=1` to accept
+  `admin_reports` (only 401/403 count as denied; 404 or 5xx fails), and that the Supabase URL answers (auth health). Password sign-in is not checked here: it is covered by pgTAP test 42 and `scripts/auth-live.mjs`. For a local run only, set `SMOKE_ALLOW_HTTP=1` to accept
   `http://127.0.0.1` / `localhost` for the HTTPS check. The anon key is sent only to `SMOKE_SUPABASE_URL` and never printed.
 
 ### 6. Before launch
