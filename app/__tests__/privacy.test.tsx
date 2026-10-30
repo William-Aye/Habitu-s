@@ -46,10 +46,12 @@ it('renders the French policy', async () => {
   expect(screen.getByText('Ce que nous collectons')).toBeTruthy();
 });
 
-it('marks every not-yet-built feature in both languages', () => {
+it('leaves out every feature that is not in Release 1, in both languages', () => {
   const body = (s: string) => s.split('\n').filter((l) => !l.startsWith('//')).join('\n');
-  expect(body(privacyFr).split('(dès que cette fonctionnalité sera disponible)')).toHaveLength(6);
-  expect(body(privacyEn).split('(once this feature is available)')).toHaveLength(6);
+  expect(body(privacyFr)).not.toContain('(dès que cette fonctionnalité sera disponible)');
+  expect(body(privacyEn)).not.toContain('(once this feature is available)');
+  expect(body(privacyFr)).not.toMatch(/numéro de téléphone|Messages privés :|Réponses aux avis après séance/);
+  expect(body(privacyEn)).not.toMatch(/phone number|Private messages:|Feedback answers after sessions/);
 });
 
 it('names the push processors, the lock screen exposure and the 30-day retention of notifications', () => {

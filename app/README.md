@@ -1,6 +1,6 @@
-# Friend App (mobile)
+# Habitués (mobile)
 
-Expo / React Native Android app for the Friend App. It talks to the Supabase project defined in `../supabase`.
+Expo / React Native Android app for Habitués. It talks to the Supabase project defined in `../supabase`.
 
 ## Setup
 

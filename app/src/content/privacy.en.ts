@@ -1,11 +1,12 @@
 import { PRIVACY_CONTACT } from './contact.ts';
 
 // Stored as a TypeScript string because Metro does not load .md files as source by default.
-// MARKERS: every sentence tagged "(once this feature is available)" describes a feature that
-// is not built yet. Remove the marker when it ships: post-session feedback (collection and its 6-month
-// deletion), phone verification for organisers, private messages (retention and their mention in the
-// export paragraph). Group chat, reports and moderation, feedback, claims and inactive-account deletion
-// are live (keep in sync with privacy.fr.ts).
+// MARKERS: a sentence for a feature that is not built yet is left out of this text. When the feature
+// ships, add the sentence back (tagged "(once this feature is available)" while it is in review), then
+// remove the marker: post-session feedback (collection and its 6-month deletion), phone verification
+// for organisers, private messages (retention and their mention in the export paragraph). Group chat,
+// reports and moderation, feedback, claims and inactive-account deletion are live (keep in sync with
+// privacy.fr.ts).
 export const privacyEn = `Version to be reviewed by a qualified person before publication.
 
 # Privacy policy
@@ -18,8 +19,7 @@ Habitués helps you meet people around regular activities. This page explains, i
 - A confirmation that you are 18 or older. We do not ask for your date of birth.
 - Your home area, reduced to the centre of your town (about 1 km precision). Your GPS position is rounded to about 1 km on your phone before any use; it is only used to search for activities around you and to find your town (the public service geo.api.gouv.fr receives this rounded position). It is never stored on our servers.
 - Optional: a profile photo and a short bio. Hidden information in the photo (including where it was taken) is removed before upload.
-- Your interests, the activities you join, your attendance, your group messages and your feedback after sessions (once this feature is available).
-- Your phone number, only if you organise activities, to verify your identity. It is held by our sign-in service and never appears in the app (once this feature is available).
+- Your interests, the activities you join, your attendance and your group messages.
 - The date of your last visit, updated at most once an hour.
 - If you write to us through "Une idée ? Un problème ?": your message, its type, the app version and the type of device, and an optional screenshot (signed-in people only). You can write without an account: the submission is then protected by Cloudflare Turnstile, an invisible anti-bot check.
 - If you report content or a person: the reason and the details you write. If you claim an association: your role, the association's email address or a supporting document (statutes, receipt or signed letter).
@@ -38,8 +38,6 @@ We use no third-party advertising trackers. Usage statistics are totals, not lin
 # How long we keep your data
 
 - Group messages: 12 months, then deleted automatically.
-- Private messages: 12 months, then deleted automatically (once this feature is available).
-- Feedback answers after sessions: aggregated into statistics, then the raw answers are deleted after 6 months (once this feature is available).
 - Reports and moderation decisions: 3 years after the decision, then deleted. The report's details and the statement of reasons are kept with it as evidence. When a message is reported, a copy is kept with the report, for the same period.
 - Admin audit log (the actions taken by the moderation team): 3 years.
 - Ideas and problems you send (text, app version, type of device) and their screenshot: 2 years.
@@ -80,7 +78,7 @@ When a report is handled, the person who sent it is told in the app. The person 
 
 Sign in, then open Profile (in the app, the Profile tab; on the website, "My account"), then "My data":
 
-- Download my data: you receive a file with all the personal data we hold about you (including your email address, your account creation and last sign-in dates, and your sign-in methods), and nothing about others. The private messages you received are deleted with your account but are not part of your export: they belong to their sender (Art. 15(4) GDPR) (once this feature is available).
+- Download my data: you receive a file with all the personal data we hold about you (including your email address, your account creation and last sign-in dates, and your sign-in methods), and nothing about others. The private messages you received are deleted with your account but are not part of your export: they belong to their sender (Art. 15(4) GDPR).
 - Correct: edit your first name, bio, photo and your town directly in Profile (you can also remove your town). On the website, you can edit your first name and bio.
 - Delete my account: deletion is immediate and permanent, after confirmation.
 

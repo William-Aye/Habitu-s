@@ -1,10 +1,11 @@
 import { PRIVACY_CONTACT } from './contact.ts';
 
 // Stored as a TypeScript string because Metro does not load .md files as source by default.
-// MARKERS: every sentence tagged "(dès que cette fonctionnalité sera disponible)" describes a feature that
-// is not built yet. Remove the marker when it ships: post-session feedback (collection and its 6-month
-// deletion), phone verification for organisers, private messages (retention and their mention in the
-// export paragraph). Group chat, reports and moderation, feedback, claims and inactive-account deletion are live.
+// MARKERS: a sentence for a feature that is not built yet is left out of this text. When the feature
+// ships, add the sentence back with its marker "(dès que cette fonctionnalité sera disponible)" while it
+// is in review, then remove the marker: post-session feedback (collection and its 6-month deletion),
+// phone verification for organisers, private messages (retention and their mention in the export
+// paragraph). Group chat, reports and moderation, feedback, claims and inactive-account deletion are live.
 export const privacyFr = `Version à faire relire par une personne qualifiée avant la publication.
 
 # Politique de confidentialité
@@ -17,8 +18,7 @@ Habitués vous aide à rencontrer des gens autour d'activités régulières. Cet
 - Une confirmation que vous avez 18 ans ou plus. Nous ne demandons pas votre date de naissance.
 - Votre zone d'habitation, ramenée au centre de votre commune (environ 1 km de précision). Votre position GPS est arrondie à environ 1 km sur votre téléphone avant tout usage ; elle sert uniquement à chercher des activités autour de vous et à trouver votre commune (le service public geo.api.gouv.fr reçoit cette position arrondie). Elle n'est jamais enregistrée sur nos serveurs.
 - Facultatif : une photo de profil et une courte présentation. Les informations cachées de la photo (dont le lieu de prise de vue) sont supprimées avant l'envoi.
-- Vos centres d'intérêt, les activités que vous rejoignez, vos présences, vos messages de groupe et vos avis après séance (dès que cette fonctionnalité sera disponible).
-- Votre numéro de téléphone, seulement si vous organisez des activités, pour vérifier votre identité. Il est conservé par notre service de connexion et n'apparaît jamais dans l'application (dès que cette fonctionnalité sera disponible).
+- Vos centres d'intérêt, les activités que vous rejoignez, vos présences et vos messages de groupe.
 - La date de votre dernière visite, mise à jour au plus une fois par heure.
 - Si vous nous écrivez via « Une idée ? Un problème ? » : votre message, son type, la version de l'application et le type d'appareil, et une capture d'écran facultative (réservée aux personnes connectées). Vous pouvez écrire sans compte : l'envoi est alors protégé par Cloudflare Turnstile, une vérification anti-robot invisible.
 - Si vous signalez un contenu ou une personne : le motif et les précisions que vous écrivez. Si vous revendiquez une association : votre rôle, l'adresse e-mail de l'association ou un justificatif (statuts, récépissé ou lettre signée).
@@ -37,8 +37,6 @@ Nous n'utilisons aucun traceur publicitaire tiers. Les statistiques de fréquent
 # Combien de temps nous gardons vos données
 
 - Messages de groupe : 12 mois, puis supprimés automatiquement.
-- Messages privés : 12 mois, puis supprimés automatiquement (dès que cette fonctionnalité sera disponible).
-- Réponses aux avis après séance : regroupées en statistiques, puis les réponses brutes sont supprimées après 6 mois (dès que cette fonctionnalité sera disponible).
 - Signalements et décisions de modération : 3 ans après la décision, puis supprimés. Les précisions du signalement et le motif de la décision sont conservés avec lui comme preuve. Lorsqu'un message est signalé, une copie est conservée avec le signalement, pendant la même durée.
 - Journal d'administration (les actions faites par l'équipe de modération) : 3 ans.
 - Idées et problèmes envoyés (texte, version de l'application, type d'appareil) et leur capture d'écran : 2 ans.
@@ -79,7 +77,7 @@ Quand un signalement est traité, la personne qui l'a envoyé en est informée d
 
 Connectez-vous, puis ouvrez Profil (dans l'application, l'onglet Profil ; sur le site, « Mon compte »), puis « Mes données » :
 
-- Télécharger mes données : vous recevez un fichier avec toutes les données personnelles que nous avons sur vous (dont votre adresse e-mail, vos dates de création de compte et de dernière connexion, et vos moyens de connexion), et rien sur les autres. Les messages privés que vous avez reçus sont supprimés avec votre compte, mais ne figurent pas dans votre export : ils appartiennent à leur expéditeur (art. 15, § 4 du RGPD) (dès que cette fonctionnalité sera disponible).
+- Télécharger mes données : vous recevez un fichier avec toutes les données personnelles que nous avons sur vous (dont votre adresse e-mail, vos dates de création de compte et de dernière connexion, et vos moyens de connexion), et rien sur les autres. Les messages privés que vous avez reçus sont supprimés avec votre compte, mais ne figurent pas dans votre export : ils appartiennent à leur expéditeur (art. 15, § 4 du RGPD).
 - Corriger : modifiez votre prénom, votre présentation, votre photo et votre ville directement dans Profil (vous pouvez aussi retirer votre ville). Sur le site, vous pouvez modifier votre prénom et votre présentation.
 - Supprimer mon compte : la suppression est immédiate et définitive, après confirmation.
 

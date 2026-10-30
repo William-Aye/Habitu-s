@@ -1,4 +1,4 @@
-# Friend App
+# Habitués
 
 Une application francaise pour se faire des amis grace a des activites recurrentes (Expo Android + Supabase).
 
@@ -62,7 +62,7 @@ Sign-up asks for a first name and an 18+ confirmation, nothing else.
    (custom nonces exist only in its paid "Universal" edition). A stolen Google ID token could be replayed
    until it expires (about an hour), but Google only issues one for the app's Web client id to an Android
    app registered with the package name and SHA-1 of step 4. Revisit if the Credential Manager API is adopted.
-4. Create an **Android** OAuth client id with package name `fr.friendapp.app` and the SHA-1
+4. Create an **Android** OAuth client id with package name `fr.habitues.app` and the SHA-1
    fingerprint of the signing key. For local builds, run `npx expo prebuild` in `app/`, then
    `cd android && ./gradlew signingReport` and copy the SHA-1 of the debug variant. Add the
    Google Play signing SHA-1 as well before release.
@@ -152,8 +152,10 @@ Then set:
 ### 5. Before publication
 
 - Privacy policy (`app/src/content/privacy.fr.ts` and `privacy.en.ts`):
-  - Remove the "(dès que cette fonctionnalité sera disponible)" marker from a sentence only when the
-    feature it describes is built. Those sentences describe features that do not exist yet.
+  - Sentences for features that are not built are left out of the text. When a feature ships (phone
+    verification for organisers, private messages, post-session feedback), add its sentence back in both
+    languages, tagged "(dès que cette fonctionnalité sera disponible)" / "(once this feature is available)"
+    until it is live.
   - Replace the placeholder `confidentialite@<domaine>` with the real contact address.
   - Have a qualified person check the text before it is published.
 
@@ -165,7 +167,7 @@ below is free (Firebase and Expo's push service need no card).
 ### Firebase and `google-services.json` (Android push)
 
 1. Create a Firebase project (console.firebase.google.com) and add an Android app with the package
-   name `fr.friendapp.app`.
+   name `fr.habitues.app`.
 2. Download `google-services.json` from the Firebase console into `app/google-services.json`
    before any Android build. The file is **gitignored on purpose**: the repository is public, so it
    is never committed.
@@ -228,7 +230,7 @@ Created by the migrations; nothing to schedule by hand:
 
 `EXPO_PUBLIC_WEB_BASE_URL` (in `app/.env`, see `app/.env.example`) is the public website address.
 Shared links are readable: `EXPO_PUBLIC_WEB_BASE_URL/activites/<slug>-<uuid>` (and `/associations/...`),
-built by `app/src/lib/links.ts`. Without it the app falls back to `friendapp://activites/<id>`.
+built by `app/src/lib/links.ts`. Without it the app falls back to `habitues://activites/<id>`.
 See "Public web pages" below.
 
 ### Finding new activities by meaning
@@ -540,7 +542,7 @@ The website has two parts, both on Cloudflare Pages (free plan):
 | `SUPABASE_ANON_KEY` | anon key, read by the Worker |
 | `WEB_BASE_URL` | public address without trailing slash (canonical links, sitemaps). Until a domain is bought, the `*.pages.dev` address |
 | `PLAY_STORE_URL` | Play Store listing, used by the Worker pages |
-| `ANDROID_PACKAGE` | Android package (`fr.friendapp.app`), used for `/.well-known/assetlinks.json` |
+| `ANDROID_PACKAGE` | Android package (`fr.habitues.app`), used for `/.well-known/assetlinks.json` |
 | `ANDROID_SHA256_CERT` | SHA-256 fingerprint of the app signing certificate (Play Console, App integrity). Without it `assetlinks.json` is skipped and Android App Links are not verified |
 | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` | read by the app export |
 | `EXPO_PUBLIC_WEB_BASE_URL` | same value as `WEB_BASE_URL`; also adds the Android App Links intent filters (`app/app.config.js`) |
@@ -605,7 +607,7 @@ Submit `<WEB_BASE_URL>/sitemap.xml` in Google Search Console (add the domain pro
   the card shows the title, description and the Habitués image. If it does not, the WAF or a challenge rule is blocking the crawler.
 - Android App Links: open
   `https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=<WEB_BASE_URL>&relation=delegate_permission/common.handle_all_urls`
-  and check that the answer lists your package (`fr.friendapp.app`) and the SHA-256 of the signing certificate.
+  and check that the answer lists your package (`fr.habitues.app`) and the SHA-256 of the signing certificate.
 
 ### 6. Before launch
 
@@ -624,3 +626,24 @@ d'utilisation" pages (`web/src/legal.ts`).
   files (`/app/_expo/*`, `/app/assets/*`, the favicon, `styles.css`, the preview image, `/.well-known/*`) out of the Function.
 - Slugs: `app/src/lib/links.ts` and `web/src/slug.ts` must give the same result; both are
   tested against `web/src/slug_fixtures.json`.
+
+## Release build
+
+The Android app is Habitués, package `fr.habitues.app`, scheme `habitues`, first store version `1.0.0`
+(`versionCode` 1; later codes are incremented by EAS). Build profiles are in `app/eas.json`.
+
+1. From `app/`, build the store bundle (an Android App Bundle, `.aab`):
+   `npx eas-cli build -p android --profile production`.
+   For an installable test file (`.apk`, shared by link only), use `--profile preview`.
+2. Set the build variables in EAS (Project settings, Environment variables, environment `production`).
+   These are the same names as in `app/.env.example`; none of them is a secret except the file below:
+   - `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` (the production project; the anon key is public by design);
+   - `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, `EXPO_PUBLIC_TURNSTILE_SITE_KEY`;
+   - `EXPO_PUBLIC_WEB_BASE_URL` (turns on Android App Links) and `EXPO_PUBLIC_PLAY_STORE_URL`;
+   - `GOOGLE_SERVICES_JSON` (type file, visibility secret; see "Firebase and `google-services.json`").
+3. Blocked permissions: `app.json` blocks the Android permissions the app does not use (microphone, advertising ID,
+   camera, calendar, external storage, overlay, fine location). Check the built bundle before upload, for example
+   with `apkanalyzer manifest permissions`, and smoke-test location, add-to-calendar and the photo and document pickers.
+4. App Links: in Play Console, open Test and release, then App integrity (App signing). Copy the SHA-256 of the
+   "App signing key certificate" and put it in `ANDROID_SHA256_CERT` for the website (see "Public web pages"). Add the
+   Google sign-in SHA-1 of the same key to the Android OAuth client (see "Accounts").
