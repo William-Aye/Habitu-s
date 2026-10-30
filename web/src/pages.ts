@@ -273,6 +273,14 @@ export async function handleSitemap(req: Request, env: Env, deps: Deps, file: st
 // ---- static ----
 
 export function handleRobots(req: Request, env: Env): Response {
+  // A host other than the production one (a Pages preview, the *.pages.dev alias) must not be indexed (WEB-7).
+  let other = false;
+  try {
+    other = !!env.WEB_BASE_URL && new URL(env.WEB_BASE_URL).host !== new URL(req.url).host;
+  } catch { /* unparsable WEB_BASE_URL: treat as production */ }
+  if (other) {
+    return respond("User-agent: *\nDisallow: /\n", 200, "text/plain; charset=utf-8", { "Cache-Control": CACHE_LONG });
+  }
   const body = `User-agent: *\nAllow: /\nDisallow: /app/\n\nSitemap: ${baseUrl(env, req)}/sitemap.xml\n`;
   return respond(body, 200, "text/plain; charset=utf-8", { "Cache-Control": CACHE_LONG });
 }

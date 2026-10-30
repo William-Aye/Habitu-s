@@ -558,6 +558,13 @@ Android App Links: the same `EXPO_PUBLIC_WEB_BASE_URL` must be set when building
    being served if the daily quota is ever exhausted. The Cache API does nothing on `*.pages.dev` hosts, so every
    request there reaches the database: put the site on a custom domain before launch.
 4. Change `WEB_BASE_URL` and `EXPO_PUBLIC_WEB_BASE_URL` to the new domain and redeploy.
+5. Pages project, Settings, Access policy: turn on Cloudflare Access for preview deployments (review finding WEB-7), so
+   old preview hosts (`<hash>.<project>.pages.dev`, `<branch>.<project>.pages.dev`) are not public. As a second
+   layer, `robots.txt` answers `Disallow: /` on any host other than the one in `WEB_BASE_URL`; this only works
+   once `WEB_BASE_URL` is set for the Preview environment too.
+6. Takedowns (review finding WEB-6, accepted): a page removed by moderation can still be served from the edge cache
+   for up to 5 minutes and from a browser for 1 minute. Nothing purges it. If an urgent takedown is needed, purge the
+   URL in Cloudflare, Caching, Configuration, Purge Cache, Custom purge.
 
 ### 3. Supabase Auth
 

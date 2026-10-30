@@ -373,3 +373,12 @@ Deno.test("WEB-1: paths that name no id never reach the cache or the database", 
   assertEquals(calls.length, 0);
   assertEquals(store.size, 0);
 });
+
+Deno.test("WEB-7: robots.txt on a host other than WEB_BASE_URL disallows everything", async () => {
+  const other = await handleRobots(new Request("https://abc123.project.pages.dev/robots.txt"), env).text();
+  assertEquals(other, "User-agent: *\nDisallow: /\n");
+  const prod = await handleRobots(new Request("https://habitues.test/robots.txt"), env).text();
+  assertStringIncludes(prod, "Allow: /");
+  const unset = await handleRobots(new Request("https://x.pages.dev/robots.txt"), { SUPABASE_URL: "u", SUPABASE_ANON_KEY: "k" }).text();
+  assertStringIncludes(unset, "Allow: /");
+});
