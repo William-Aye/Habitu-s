@@ -56,14 +56,27 @@ it('leaves out every feature that is not in Release 1, in both languages', () =>
 
 it('names the push processors, the lock screen exposure and the 30-day retention of notifications', () => {
   for (const [text, words] of [
-    [privacyFr, ['Expo', 'Firebase Cloud Messaging', 'Apple Push Notification service', "ne contiennent aucun nom d'activité ni prénom", '30 jours sur nos serveurs']],
-    [privacyEn, ['Expo', 'Firebase Cloud Messaging', 'Apple Push Notification service', 'contain no activity name or first name', '30 days on our servers']],
+    [privacyFr, ['Expo', 'Firebase Cloud Messaging', "ne contiennent aucun nom d'activité ni prénom", '30 jours sur nos serveurs']],
+    [privacyEn, ['Expo', 'Firebase Cloud Messaging', 'contain no activity name or first name', '30 days on our servers']],
   ] as const) {
     for (const w of words) expect(text).toContain(w);
   }
   expect(privacyFr).not.toContain('écran verrouillé');
   expect(privacyEn).not.toContain('lock screen');
   expect(privacyFr).not.toContain("Expo (envoi des notifications) (dès que");
+});
+
+it('matches the code on claims, feedback IP, logs, no ads and no iOS', () => {
+  expect(privacyFr).toContain('supprimée au bout de 1 an');
+  expect(privacyEn).toContain('deleted after 1 year');
+  expect(privacyFr).toContain('envoyée à Cloudflare Turnstile');
+  expect(privacyEn).toContain('sent to Cloudflare Turnstile');
+  expect(privacyFr).toContain("celle de Supabase est d'au plus 90 jours");
+  expect(privacyEn).toContain("Supabase's is at most 90 days");
+  expect(privacyFr).not.toMatch(/Apple|iPhone|publicités personnalisées|annonceurs\./i);
+  expect(privacyEn).not.toMatch(/Apple|iPhone|personalised ads, if/i);
+  expect(privacyFr).toContain("n'affiche aucune publicité");
+  expect(privacyEn).toContain('shows no ads');
 });
 
 it('describes the GPS position as rounded, used to search and find the commune, never stored', () => {

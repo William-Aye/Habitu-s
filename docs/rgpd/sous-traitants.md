@@ -8,7 +8,7 @@ Un sous-traitant est une entreprise qui traite des données personnelles pour no
 
 Transferts hors Union européenne : les cinq fournisseurs sont des sociétés américaines ou ont une société mère américaine. Le transfert est encadré par le cadre de protection des données UE–États-Unis (Data Privacy Framework) lorsque le fournisseur y est certifié, et sinon, ou en plus, par les clauses contractuelles types de la Commission européenne, qui sont intégrées à leur accord de traitement. Vérifier la certification du fournisseur sur dataprivacyframework.gov au moment de l'acceptation.
 
-Publicité : AdMob (Google) n'est pas utilisé dans la première version, donc aucun accord n'est nécessaire pour lui. Il sera à ajouter avec la publicité.
+Publicité : la première version n'affiche aucune publicité, donc aucun service publicitaire n'est utilisé. Il faudra mettre à jour cette page avant d'en ajouter un.
 
 ## Supabase
 

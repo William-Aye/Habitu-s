@@ -17,7 +17,7 @@ Ce registre est la liste des traitements de données personnelles faits par Habi
 - Pas de mot de passe. Connexion par code à 8 chiffres reçu par e-mail (valable 10 minutes) ou par Google. Un déclencheur de la base vide tout mot de passe qui serait enregistré.
 - Position : jamais précise. La zone d'habitation est ramenée au centre de la commune. La position GPS est arrondie à environ 1 km sur le téléphone, sert à chercher des activités et n'est jamais enregistrée sur nos serveurs.
 - Les centres d'intérêt et les activités suivies peuvent révéler des informations sensibles (article 9 : religion, santé, orientation, opinions). Ils ne sont jamais publics, seules les personnes d'une même activité voient l'appartenance, et ils ne sont jamais donnés à des annonceurs. La base légale de ce volet est traitée dans l'AIPD.
-- Pas de traceur publicitaire tiers. Pas de publicité dans la version 1.
+- Pas de traceur publicitaire tiers. La version 1 n'affiche aucune publicité.
 - Hébergement des données : Supabase, Union européenne (Paris). Chiffrement au repos et en transit.
 - Suppression de compte immédiate par la personne, en cascade (Profil, « Mes données »).
 - Une tâche nocturne (pg_cron) applique les durées de conservation ci-dessous. Les durées ci-dessous sont celles des migrations `20261024000032_retention.sql` et `20261023000027_chat.sql`.
@@ -105,7 +105,7 @@ Ce registre est la liste des traitements de données personnelles faits par Habi
 - Destinataires : l'équipe technique.
 - Sous-traitants : Cloudflare (Pages, DNS, Turnstile) ; Supabase.
 - Transferts hors UE : Cloudflare (États-Unis), encadré comme ci-dessus.
-- Conservation : durée par défaut de l'hébergeur, au plus 90 jours ; session effacée à la déconnexion.
+- Conservation : durée par défaut des hébergeurs, et non une durée que nous fixons (au plus 90 jours chez Supabase) ; session effacée à la déconnexion.
 - Mesures de sécurité : en-têtes de sécurité (HSTS, CSP, interdiction d'être affiché dans un cadre, politique de référent stricte) ; règles WAF et protection contre les robots chez Cloudflare ; DNSSEC ; pas de traceur.
 
 ## 7. Notifications

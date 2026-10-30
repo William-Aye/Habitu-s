@@ -34,10 +34,10 @@ Application Android, site web et version web de l'application (Cloudflare Pages)
 | Sujet | Réponse |
 |---|---|
 | Finalités | Déterminées, explicites, listées dans le registre. Aucune réutilisation commerciale. |
-| Bases légales | Exécution du contrat pour le service ; intérêt légitime pour la sécurité et la modération ; consentement seulement pour de futures publicités personnalisées (inactives). Pour les centres d'intérêt à caractère sensible : la personne les choisit elle-même et ils ne servent qu'au service (voir ci-dessous). |
+| Bases légales | Exécution du contrat pour le service ; intérêt légitime pour la sécurité et la modération . Pour les centres d'intérêt à caractère sensible : la personne les choisit elle-même et ils ne servent qu'au service (voir ci-dessous). |
 | Minimisation | Prénom seul, pas de date de naissance, position arrondie et non enregistrée, zone d'habitation ramenée au centre de la commune. Fichier d'export limité aux données de la personne. |
 | Exactitude | La personne corrige son profil elle-même. |
-| Conservation | Durées courtes et automatiques (voir le registre) : 12 mois pour les messages, 3 ans pour les signalements, 2 ans pour les idées et problèmes, 30 jours pour les notifications, 90 jours au plus pour les journaux techniques. |
+| Conservation | Durées courtes et automatiques (voir le registre) : 12 mois pour les messages, 3 ans pour les signalements, 2 ans pour les idées et problèmes, 30 jours pour les notifications, journaux techniques selon la durée par défaut des hébergeurs (au plus 90 jours chez Supabase). |
 
 Remarque sur les données sensibles : les centres d'intérêt et les activités suivies ne sont jamais publics. Seules les personnes d'une même activité voient l'appartenance. Ils ne sont jamais donnés à des annonceurs ni utilisés pour la publicité. La personne les saisit volontairement. Aucune catégorie particulière de données n'est demandée directement.
 
