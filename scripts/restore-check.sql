@@ -1,14 +1,14 @@
 -- Restore check: one line per fact, sorted, so two databases can be compared with diff.
 -- Run with: psql -X -A -t -f scripts/restore-check.sql (see scripts/restore-check.sh).
 
--- Exact row count per public table.
-select 'rows public.' || c.relname || ' ' ||
+-- Exact row count per table in the app schemas.
+select 'rows ' || n.nspname || '.' || c.relname || ' ' ||
        (xpath('/row/c/text()',
               query_to_xml(format('select count(*) as c from %I.%I', n.nspname, c.relname), false, true, '')))[1]::text
 from pg_class c
 join pg_namespace n on n.oid = c.relnamespace
-where n.nspname = 'public' and c.relkind in ('r', 'p')
-order by c.relname;
+where n.nspname in ('public', 'importer', 'private', 'search') and c.relkind in ('r', 'p')
+order by n.nspname, c.relname;
 
 -- Number of public tables with row level security on.
 select 'rls_tables ' || count(*)

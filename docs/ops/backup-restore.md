@@ -30,7 +30,7 @@ If you only want to try a restore, use section 3 instead: it never touches the l
 
 The script `scripts/restore-check.sh` copies a database (roles, schema and data) into an empty scratch database on your own machine, and then checks the copy against the original:
 
-- the exact number of rows in every `public` table;
+- the exact number of rows in every table of the app schemas (`public`, `importer`, `private`, `search`);
 - the number of tables with row level security;
 - the installed extensions;
 - the number of categories.
@@ -41,7 +41,7 @@ It exits with 0 only when everything matches. If anything differs it exits with 
 
 - Docker Desktop, with local Supabase running (`npx supabase start`). The first run downloads a Postgres image and can take several minutes.
 - Node.js (for `npx supabase`), and a bash shell (Git Bash on Windows).
-- `psql`, the PostgreSQL client. If it is not installed the script uses the one inside the local Supabase database container, which works for the local scratch database. GitHub's Ubuntu runners already have `psql`.
+- `psql`, the PostgreSQL client. For a hosted source it is required on your machine. Without it the script falls back to the client inside the local Supabase database container, but only when both databases are on this machine; otherwise it stops with a clear message. GitHub's Ubuntu runners already have `psql`.
 
 ### Run it against the hosted project
 
@@ -73,7 +73,7 @@ It exits with 0 only when everything matches. If anything differs it exits with 
 ### Good to know
 
 - The script refuses to restore into a database whose name does not start with `restore`, into a database that already has tables, and into the source itself. It cannot damage the live project.
-- A scratch database is not a Supabase project. The script adds the few Supabase objects the app refers to (`auth.users`, `auth.uid()` and similar, `storage.foldername`, the realtime publication). Accounts (`auth` data) and stored files are therefore not part of this check; the row counts cover everything in `public`, `importer`, `private` and `search`.
+- A scratch database is not a Supabase project. The script adds the few Supabase objects the app refers to (`auth.users`, `auth.uid()` and similar, `storage.foldername`, the realtime publication). Accounts (`auth` data) and stored files are therefore not part of this check; the row counts cover everything in `public`, `importer`, `private` and `search`. The check compares row counts only (no content checksums), and foreign keys to `auth.users` are not validated in the scratch copy, because it holds no accounts.
 - The roles file is dumped but not applied by default: roles belong to the whole server, not to the scratch database. Set `RESTORE_ROLES=1` to apply it; only "already exists" errors are then tolerated.
 - Scheduled jobs (`cron.job`) are shown for information only. A dump does not contain them (migrations create them), and pg_cron can only live in the `postgres` database, so the scratch database has none. After a real dashboard restore, check them as in section 2.
 - Every table is compared with an exact row count, so a copy taken while people use the app can differ by a few rows. Run it at a quiet hour, or run it again.

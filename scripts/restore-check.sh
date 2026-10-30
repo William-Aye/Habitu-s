@@ -59,16 +59,21 @@ fi
 container_url() {
   case "$1" in
     *@127.0.0.1:*/*|*@localhost:*/*|*@\[::1\]:*/*) printf '%s' "$1" | sed -E 's#@(127\.0\.0\.1|localhost|\[::1\]):[0-9]+/#@127.0.0.1:5432/#' ;;
-    *) die "psql is not installed and this database is not on this machine; install the PostgreSQL client" ;;
+    *) echo "restore-check: no host psql and this database is not on this machine; install the PostgreSQL client" >&2; return 2 ;;
   esac
 }
+
+is_local() { case "$1" in *@127.0.0.1:*/*|*@localhost:*/*|*@\[::1\]:*/*) return 0 ;; *) return 1 ;; esac; }
+if [ "$psql_mode" = docker ]; then
+  is_local "$src" && is_local "$dst" || die "no host psql found, and a database is not on this machine: hosted runs need the PostgreSQL client (psql) installed"
+fi
 
 psql_run() { # psql_run <url> <psql args...>; SQL comes on stdin
   local url="$1"; shift
   if [ "$psql_mode" = host ]; then
     psql "$url" -X "$@"
   else
-    local cu; cu="$(container_url "$url")"
+    local cu; cu="$(container_url "$url")" || return 2
     RC_PGURL="$cu" MSYS_NO_PATHCONV=1 docker exec -i -e RC_PGURL "$container" sh -c 'exec psql "$RC_PGURL" -X "$@"' sh "$@"
   fi
 }
@@ -87,13 +92,14 @@ restore_sql() {
   fi
 }
 
+[ "$(where "$src")" != "$(where "$dst")" ] || die "source and target are the same database"
+
 if [ "$compare_only" -eq 0 ]; then
   # A restore replaces what is in the target, so insist it really is a scratch database.
   case "$(dbname "$dst")" in
     restore*) ;;
     *) die "the target database name must start with 'restore' (it is a scratch database)" ;;
   esac
-  [ "$(where "$src")" != "$(where "$dst")" ] || die "source and target are the same database"
   n="$(printf "select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r','p')" \
         | psql_run "$dst" -A -t -q -v ON_ERROR_STOP=1 -f - 2>&1 | mask)" || die "cannot connect to the target: $n"
   [ "$n" = "0" ] || die "the target database is not empty (public has $n tables); create a fresh scratch database"
@@ -101,12 +107,17 @@ if [ "$compare_only" -eq 0 ]; then
   echo "restore-check: dumping roles, schema and data from the source"
   dump() { # dump <name> <flags...>
     local name="$1"; shift
-    npx supabase db dump --db-url "$src" "$@" -f "$tmp/$name.sql" 2>&1 | mask | grep -iE 'error|failed' >&2 || true
-    [ -s "$tmp/$name.sql" ] || die "the $name dump is empty or failed"
+    if ! npx supabase db dump --db-url "$src" "$@" -f "$tmp/$name.sql" > "$tmp/$name.log" 2>&1; then
+      mask < "$tmp/$name.log" >&2
+      die "the $name dump failed"
+    fi
+    [ -s "$tmp/$name.sql" ] || die "the $name dump is empty"
   }
   dump roles --role-only
   dump schema
   dump data --data-only --use-copy --schema public,importer,private,search
+  grep -q 'PostgreSQL database dump complete' "$tmp/data.sql" || die "the data dump is truncated (no end marker)"
+  grep -q '^CREATE TABLE' "$tmp/schema.sql" || die "the schema dump has no tables; it looks truncated"
 
   echo "restore-check: restoring into the scratch database"
   # A scratch database is not a Supabase project: add the few managed objects the app schema refers to
@@ -131,9 +142,10 @@ SQL
 
   if [ "${RESTORE_ROLES:-0}" = "1" ]; then
     # Roles are cluster-wide. Only "already exists" is tolerated; anything else fails.
-    out="$(psql_run "$dst" -q -f - < "$tmp/roles.sql" 2>&1 | mask || true)"
-    bad="$(printf '%s\n' "$out" | grep 'ERROR' | grep -v 'already exists' || true)"
-    [ -z "$bad" ] || die "roles restore failed: $bad"
+    rc=0
+    psql_run "$dst" -q -f - < "$tmp/roles.sql" > "$tmp/roles.log" 2>&1 || rc=$?
+    bad="$(grep -iE 'error|fatal' "$tmp/roles.log" | grep -v 'already exists' | mask || true)"
+    if [ "$rc" -ne 0 ] || [ -n "$bad" ]; then die "roles restore failed (status $rc): $bad"; fi
   else
     echo "restore-check: roles file dumped but not applied (cluster-wide; set RESTORE_ROLES=1 to apply it)"
   fi
@@ -154,6 +166,9 @@ run_check "$dst" > "$tmp/target.out" 2> "$tmp/target.err" || { mask < "$tmp/targ
 strict() { grep -v -E '^(cron |ext pg_cron$)' "$1" | tr -d '\r'; }
 strict "$tmp/source.out" > "$tmp/source.strict"
 strict "$tmp/target.out" > "$tmp/target.strict"
+
+grep -q '^rows ' "$tmp/source.strict" && grep -q '^categories_count ' "$tmp/source.strict" \
+  || die "the source check printed no table counts; refusing to report a match"
 
 if diff -u --label source --label target "$tmp/source.strict" "$tmp/target.strict" > "$tmp/diff.out"; then
   tables="$(grep -c '^rows ' "$tmp/source.strict" || true)"

@@ -16,6 +16,13 @@ const source = `${base}/postgres`;
 const target = `${base}/restore_test`;
 const container = process.env.RESTORE_PSQL_CONTAINER;
 
+// Never echo a connection string or its password.
+function leakFree(out) {
+  for (const needle of [source, target, 'postgres:postgres', '@127.0.0.1:55322']) {
+    assert.ok(!out.includes(needle), 'output must not contain the connection string');
+  }
+}
+
 function bash(args, env = {}) {
   const r = spawnSync('bash', [script, ...args], {
     cwd: root,
@@ -53,8 +60,7 @@ test('restore into a scratch database matches; a truncated table is caught', { s
   assert.equal(ok.code, 0, ok.out);
   assert.match(ok.out, /restore-check: OK/);
 
-  // Never echo the connection strings.
-  assert.ok(!ok.out.includes('postgres:postgres@'), 'output must not contain the connection string');
+  leakFree(ok.out);
 
   // Break the copy: empty one table, then only compare.
   const cut = admin('truncate table public.categories cascade', 'restore_test');
@@ -63,11 +69,18 @@ test('restore into a scratch database matches; a truncated table is caught', { s
   assert.equal(bad.code, 1, bad.out);
   assert.match(bad.out, /public\.categories/);
   assert.match(bad.out, /MISMATCH/);
-  assert.ok(!bad.out.includes('postgres:postgres@'));
+  leakFree(bad.out);
 });
 
 test('refuses a target that is not a scratch database', { skip }, () => {
-  const r = bash([], { RESTORE_TARGET_DB_URL: source });
+  const r = bash([], { RESTORE_TARGET_DB_URL: `${base}/other_db` });
   assert.equal(r.code, 2, r.out);
   assert.match(r.out, /scratch/);
+});
+
+test('a bogus source fails with exit 2 and leaks nothing', { skip }, () => {
+  const r = bash(['--compare-only'], { RESTORE_SOURCE_DB_URL: `${base}/restore_nope`, RESTORE_TARGET_DB_URL: `${base}/restore_other` });
+  assert.equal(r.code, 2, r.out);
+  leakFree(r.out);
+  assert.ok(!r.out.includes(`${base}/restore_nope`));
 });
