@@ -84,7 +84,7 @@ Mesures en place :
 - Site : en-têtes de sécurité (HSTS, CSP, aucun cadre), contrôle de l'échappement du HTML ; analyse du code et des dépendances en continu (CodeQL, `npm audit`, Dependabot, analyse des secrets) ; relecture de sécurité avant lancement (`docs/security/2026-11-review.md`).
 - Chiffrement au repos et en transit chez Supabase ; clé de service jamais dans l'application ni dans le dépôt.
 
-Risque résiduel : un membre d'une même activité voit le prénom, la photo et la présentation des autres membres (c'est le but du service) ; un compte Google ou une boîte e-mail piratés donnent accès au compte. Acceptable : données peu sensibles, aucune adresse ni position précise.
+Risque résiduel : un membre d'une même activité voit le prénom et la photo des autres membres (c'est le but du service) ; un compte Google ou une boîte e-mail piratés donnent accès au compte. Acceptable : données peu sensibles, aucune adresse ni position précise.
 
 ### 3.2 Modification non désirée des données
 

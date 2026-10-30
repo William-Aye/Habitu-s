@@ -45,7 +45,7 @@ Des centaines de milliers d'associations, repérées à partir de données publi
 3. LA SÉCURITÉ D'ABORD
 
 - Réservé aux personnes de 18 ans et plus.
-- Les autres membres voient votre prénom, et votre photo et votre présentation si vous en ajoutez. Jamais votre nom de famille, votre e-mail, votre date de naissance ni une adresse exacte.
+- Les autres membres voient votre prénom, et votre photo si vous en ajoutez une. Jamais votre nom de famille, votre e-mail, votre date de naissance ni une adresse exacte.
 - Votre position n'est jamais précise : elle est arrondie, utilisée pour chercher autour de vous, et jamais enregistrée sur nos serveurs.
 - Les lieux de rendez-vous sont publics.
 - Vous pouvez bloquer une personne, signaler un message ou une activité, et nos modérateurs répondent avec un motif écrit.

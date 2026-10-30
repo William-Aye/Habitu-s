@@ -24,12 +24,12 @@ Ce registre est la liste des traitements de données personnelles faits par Habi
 
 ## 1. Comptes et profils
 
-- Finalité : créer et gérer le compte, connecter la personne, afficher un prénom et une présentation aux membres des mêmes activités.
+- Finalité : créer et gérer le compte, connecter la personne, afficher un prénom et une photo aux membres des mêmes activités.
 - Base légale : exécution du contrat (conditions d'utilisation).
 - Personnes concernées : utilisatrices et utilisateurs de 18 ans ou plus.
 - Données : prénom, adresse e-mail ou compte Google (identifiant fourni par Google), confirmation « 18 ans ou plus », langue, zone d'habitation (centre de commune), photo de profil et présentation (facultatives), date de dernière visite (mise à jour au plus une fois par heure), date de création. L'e-mail est détenu par Supabase Auth, pas copié dans les tables de l'application.
 - Photos : stockées sous un nom d'objet aléatoire ; `profiles.photo_url` contient ce nom d'objet, pas une adresse. Les métadonnées (EXIF, dont le lieu de prise de vue) sont retirées sur le téléphone avant l'envoi ; le serveur impose le type et la taille.
-- Destinataires : l'équipe d'administration (accès restreint, double authentification obligatoire) ; les autres membres voient le prénom, la photo et la présentation uniquement dans une même activité ; le prénom et la photo d'un organisateur d'activité ou de collectif sont en outre visibles de toute personne connectée (pas du public non connecté).
+- Destinataires : l'équipe d'administration (accès restreint, double authentification obligatoire) ; les autres membres d'une même activité voient le prénom et la photo (liste des membres, séances, messages du groupe) ; la personne responsable d'un collectif voit le prénom et la photo des membres des activités de ce collectif ; la présentation n'est montrée qu'à la personne elle-même ; le prénom et la photo d'un organisateur d'activité ou de collectif sont en outre visibles de toute personne connectée (pas du public non connecté).
 - Sous-traitants : Supabase ; Cloudflare (Turnstile à l'inscription). Google, pour la connexion avec Google, agit pour son propre compte (responsable de traitement de votre compte Google) et n'est pas notre sous-traitant.
 - Transferts hors UE : Cloudflare (États-Unis) et Google (États-Unis, pour son propre compte), encadrés par le cadre de protection des données UE–États-Unis ou des clauses contractuelles types (voir `sous-traitants.md`).
 - Conservation : tant que le compte existe. Suppression immédiate à la demande. Compte inactif depuis 3 ans : avertissement à 35 mois (notification et message dans l'application), suppression 30 jours après si la personne n'est pas revenue. Les administrateurs ne sont jamais supprimés automatiquement. Un compte suspendu n'est pas averti ; il est supprimé après 36 mois et 30 jours d'inactivité.
