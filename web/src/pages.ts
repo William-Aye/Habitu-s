@@ -11,6 +11,7 @@ import {
 import type { RenderOpts } from "./html.ts";
 import { activityPath, associationPath, parseSlugId } from "./slug.ts";
 import { makeRpc } from "./supabase.ts";
+import type { EdgeOpts } from "./edge.ts";
 
 export interface Env {
   SUPABASE_URL: string;
@@ -100,16 +101,54 @@ async function withDeadline<T>(deps: Deps, fn: (rpc: Rpc) => Promise<T>): Promis
   }
 }
 
-function segmentAfter(req: Request, prefix: string): string | null {
-  const p = new URL(req.url).pathname;
+/** Longest path segment that can be a real page: a 60-character slug, a dash and a uuid (36), with margin. */
+const MAX_SEGMENT = 128;
+
+function segmentAfter(url: URL, prefix: string): string | null {
+  const p = url.pathname;
   if (!p.startsWith(prefix)) return null;
   const rest = p.slice(prefix.length).replace(/\/+$/, "");
-  if (rest === "" || rest.includes("/")) return null;
+  if (rest === "" || rest.includes("/") || rest.length > MAX_SEGMENT) return null;
   try {
     return decodeURIComponent(rest);
   } catch {
     return null;
   }
+}
+
+/** The lower-case uuid a page path names, or null. Everything else (extra segments, long junk) costs no RPC. */
+function entityId(url: URL, prefix: string): string | null {
+  const seg = segmentAfter(url, prefix);
+  return seg === null ? null : parseSlugId(seg).id;
+}
+
+const CANONICAL_HEADER = "X-Canonical-Path";
+
+/**
+ * Edge cache options for an entity route (WEB-1): one cache entry per id, whatever the slug, the case of the
+ * uuid, a trailing slash or a query string; paths that name no id never reach the cache or the database.
+ * The cached page carries its canonical path; every response is turned into a 301 when the request differs.
+ */
+export function entityCacheOpts(prefix: string, env: Env, req: Request): EdgeOpts {
+  const reqPath = new URL(req.url).pathname;
+  return {
+    key: (url) => {
+      const id = entityId(url, prefix);
+      return id ? `${url.origin}${prefix}${id}` : null;
+    },
+    resolve: (res) => {
+      const canonical = res.headers.get(CANONICAL_HEADER);
+      if (canonical === null) return res;
+      const headers = new Headers(res.headers);
+      headers.delete(CANONICAL_HEADER);
+      if (reqPath !== canonical) {
+        headers.set("Location", baseUrl(env, req) + canonical);
+        headers.delete("Content-Type");
+        return new Response(null, { status: 301, headers });
+      }
+      return new Response(res.body, { status: res.status, headers });
+    },
+  };
 }
 
 // deno-lint-ignore no-explicit-any
@@ -127,10 +166,9 @@ async function handleEntity(
     path: (x: Json) => string;
     render: (x: Json, base: string, opts: RenderOpts) => string;
   },
+  tag: boolean,
 ): Promise<Response> {
-  const seg = segmentAfter(req, cfg.prefix);
-  if (seg === null) return gone(404);
-  const { id } = parseSlugId(seg);
+  const id = entityId(new URL(req.url), cfg.prefix);
   if (!id) return gone(404);
   try {
     const page = (await withDeadline(deps, (rpc) => rpc(cfg.rpcName, { p_id: id }))) as Json;
@@ -140,6 +178,12 @@ async function handleEntity(
       if (!x || typeof x !== "object") return gone(404);
       const canonical = cfg.path(x);
       const base = baseUrl(env, req);
+      if (tag) {
+        // For the edge cache (WEB-1): the page is stored once per id and the redirect is decided on every request.
+        const r = html(cfg.render(x, base, renderOpts(env)));
+        r.headers.set(CANONICAL_HEADER, canonical);
+        return r;
+      }
       if (new URL(req.url).pathname !== canonical) return redirect(base + canonical);
       return html(cfg.render(x, base, renderOpts(env)));
     }
@@ -150,7 +194,7 @@ async function handleEntity(
   }
 }
 
-export function handleActivity(req: Request, env: Env, deps: Deps): Promise<Response> {
+export function handleActivity(req: Request, env: Env, deps: Deps, tag = false): Promise<Response> {
   return handleEntity(req, env, deps, {
     route: "activity",
     prefix: "/activites/",
@@ -158,10 +202,10 @@ export function handleActivity(req: Request, env: Env, deps: Deps): Promise<Resp
     field: "activity",
     path: (a) => activityPath(a.id, a.title ?? ""),
     render: renderActivityPage,
-  });
+  }, tag);
 }
 
-export function handleAssociation(req: Request, env: Env, deps: Deps): Promise<Response> {
+export function handleAssociation(req: Request, env: Env, deps: Deps, tag = false): Promise<Response> {
   return handleEntity(req, env, deps, {
     route: "association",
     prefix: "/associations/",
@@ -169,7 +213,7 @@ export function handleAssociation(req: Request, env: Env, deps: Deps): Promise<R
     field: "association",
     path: (x) => associationPath(x.id, x.name ?? "", x.city),
     render: renderAssociationPage,
-  });
+  }, tag);
 }
 
 // ---- sitemaps ----

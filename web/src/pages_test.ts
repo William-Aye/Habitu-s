@@ -2,6 +2,7 @@ import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import {
   ACTIVITY_BUCKETS,
   ASSOCIATION_BUCKETS,
+  entityCacheOpts,
   handleActivity,
   handleAssociation,
   handleHome,
@@ -283,4 +284,92 @@ Deno.test("activity response: the organiser's first name is absent from the whol
   const body = await r.text();
   assert(!body.includes("Zéphyrine") && !body.includes("zephyr-qxv"));
   assertStringIncludes(body, "Organisé par un membre");
+});
+
+// ---- WEB-1: path variants share one cache entry; junk paths cost no RPC ----
+
+import { withEdgeCache } from "./edge.ts";
+import type { CacheLike } from "./edge.ts";
+
+function memCache() {
+  const store = new Map<string, Response>();
+  const c: CacheLike = {
+    match: (r) => Promise.resolve(store.get(r.url)?.clone()),
+    put: (r, res) => (store.set(r.url, res), Promise.resolve()),
+  };
+  return { c, store };
+}
+async function viaEdge(path: string, c: CacheLike, d: Deps) {
+  const pending: Promise<unknown>[] = [];
+  const request = req(path);
+  const r = await withEdgeCache(
+    request,
+    { waitUntil: (p) => void pending.push(p) },
+    300,
+    () => handleActivity(request, env, d, true),
+    c,
+    entityCacheOpts("/activites/", env, request),
+  );
+  await Promise.all(pending);
+  return r;
+}
+
+Deno.test("WEB-1: slug, case, trailing slash and query variants cost one RPC in total", async () => {
+  const calls: { name: string; args: Record<string, unknown> }[] = [];
+  const d = deps({ web_activity_page: () => ({ status: "ok", activity: activityFixture() }) }, calls);
+  const { c, store } = memCache();
+  const first = await viaEdge(CANON_A, c, d);
+  assertEquals(first.status, 200);
+  assertEquals(first.headers.has("X-Canonical-Path"), false);
+  const variants = [
+    `/activites/${ACT_ID}`,
+    `/activites/mauvais-${ACT_ID.toUpperCase()}`,
+    `/activites/x${calls.length}-${ACT_ID}/`,
+  ];
+  for (const p of variants) {
+    const r = await viaEdge(p, c, d);
+    assertEquals(r.status, 301, p);
+    assertEquals(r.headers.get("Location"), `https://habitues.test${CANON_A}`, p);
+    assertEquals(r.headers.has("X-Canonical-Path"), false);
+    assertSecurity(r);
+  }
+  const again = await viaEdge(CANON_A + "?z=1", c, d);
+  assertEquals(again.status, 200);
+  assertEquals(calls.length, 1);
+  assertEquals(store.size, 1);
+});
+
+Deno.test("WEB-1: a wrong-slug request first fills the cache and is redirected; the canonical one then hits", async () => {
+  const calls: unknown[] = [];
+  const d = deps({ web_activity_page: () => ({ status: "ok", activity: activityFixture() }) }, calls as never);
+  const { c } = memCache();
+  assertEquals((await viaEdge(`/activites/junk-${ACT_ID}`, c, d)).status, 301);
+  assertEquals((await viaEdge(CANON_A, c, d)).status, 200);
+  assertEquals(calls.length, 1);
+});
+
+Deno.test("WEB-1: a missing page is cached by id, whatever the slug", async () => {
+  const calls: unknown[] = [];
+  const d = deps({ web_activity_page: () => ({ status: "missing", activity: null }) }, calls as never);
+  const { c } = memCache();
+  for (const p of [`/activites/a-${ACT_ID}`, `/activites/b-${ACT_ID}`, `/activites/${ACT_ID}/`]) {
+    assertEquals((await viaEdge(p, c, d)).status, 404);
+  }
+  assertEquals(calls.length, 1);
+});
+
+Deno.test("WEB-1: paths that name no id never reach the cache or the database", async () => {
+  const calls: unknown[] = [];
+  const d = deps({ web_activity_page: () => ({ status: "ok", activity: activityFixture() }) }, calls as never);
+  const { c, store } = memCache();
+  const junk = [
+    "/activites/",
+    "/activites/not-a-uuid",
+    `/activites/${ACT_ID}/extra`,
+    `/activites/${"a".repeat(200)}-${ACT_ID}`,
+    `/activites/%E0%A4%A-${ACT_ID}`,
+  ];
+  for (const p of junk) assertEquals((await viaEdge(p, c, d)).status, 404, p);
+  assertEquals(calls.length, 0);
+  assertEquals(store.size, 0);
 });

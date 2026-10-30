@@ -544,7 +544,19 @@ Android App Links: the same `EXPO_PUBLIC_WEB_BASE_URL` must be set when building
 1. Buy a domain (or keep the free `*.pages.dev` address) and add it under the Pages project, Custom domains.
    DNS is managed on Cloudflare.
 2. SSL/TLS: Always Use HTTPS on; enable DNSSEC and add the DS record at the registrar.
-3. Security: turn on the WAF managed rules and add a rate-limiting rule on `/app/*`. Do not use a challenge on the public pages: WhatsApp, Instagram and Google fetch them without a browser.
+3. Security: turn on the WAF managed rules and add the rate-limiting rule below. Do not use a challenge on the public pages: WhatsApp, Instagram and Google fetch them without a browser.
+
+   Rate-limiting rule (review finding WEB-1). Every request to the site, cached or not, is one Pages Functions
+   invocation (100,000 a day on the free plan), and a request for a made-up id costs one database call. In
+   Security, Security rules, Rate limiting rules, create:
+   - Expression: `(http.request.uri.path wildcard "/activites/*") or (http.request.uri.path wildcard "/associations/*") or (http.request.uri.path wildcard "/sitemaps/*") or (http.request.uri.path wildcard "/app/*")`
+   - Characteristic: IP. Limit: 60 requests per 10 seconds (the free plan allows one period, so use the longest it offers).
+   - Action: Block for 10 minutes (not a challenge, for the reason above; crawlers stay far below this rate).
+   The code already limits what a junk path can do: the edge cache is keyed on the page id (slug, case, trailing
+   slash and query string do not change the key), and a path with no valid id is answered with no cache lookup and
+   no database call. Also set the Pages project's Functions failure mode to "Fail open" so the static files keep
+   being served if the daily quota is ever exhausted. The Cache API does nothing on `*.pages.dev` hosts, so every
+   request there reaches the database: put the site on a custom domain before launch.
 4. Change `WEB_BASE_URL` and `EXPO_PUBLIC_WEB_BASE_URL` to the new domain and redeploy.
 
 ### 3. Supabase Auth
