@@ -14,7 +14,8 @@ Ce document contient tous les textes à copier dans la Play Console, rubrique «
 - Site web : `<WEB_BASE_URL>`
 - Politique de confidentialité : `<WEB_BASE_URL>/confidentialite`
 - Conditions d'utilisation (à citer dans la description si besoin) : `<WEB_BASE_URL>/conditions`
-- Suppression de compte, adresse demandée par Google : `<WEB_BASE_URL>/app/profile` (version web de l'onglet Profil, section « Mes données », bouton « Supprimer mon compte »). Il faut être connecté pour l'utiliser ; la politique de confidentialité et l'adresse de contact donnent l'autre voie. Dans l'application : Profil, « Mes données », « Supprimer mon compte ».
+- Suppression de compte, adresse demandée par Google : `<WEB_BASE_URL>/app/profile` (version web de l'onglet Profil, section « Mes données », bouton « Supprimer mon compte »). Il faut être connecté pour l'utiliser (une personne déconnectée voit la page Profil avec un bouton « Se connecter », et revient au Profil après la connexion) ; la politique de confidentialité et l'adresse de contact donnent l'autre voie. Dans l'application : Profil, « Mes données », « Supprimer mon compte ».
+- Texte du champ « Supprimer les données » de la Play Console (à coller) : « Pour supprimer votre compte et vos données, ouvrez l'application Habitués, puis Profil, « Mes données », « Supprimer mon compte », et confirmez. La suppression est immédiate et définitive : votre profil, vos activités, vos présences, vos messages de groupe et vos jetons de notification sont effacés. Vous pouvez faire la même chose sur le site, à l'adresse indiquée, après vous être connecté. Les signalements et vos messages « Une idée ? Un problème ? » sont conservés mais ne sont plus rattachés à vous. Une question : écrivez à l'adresse de contact de la fiche. »
 - Âge : 18 ans et plus (voir `content-rating.md`).
 
 `<WEB_BASE_URL>` est l'adresse publique du site, sans barre oblique finale (la même valeur que la variable `WEB_BASE_URL` de Cloudflare Pages).
@@ -39,7 +40,7 @@ Un club de go le mardi, une marche le dimanche, un cours de dessin un soir sur d
 
 2. L'ANNUAIRE DES ASSOCIATIONS DE TOUTE LA FRANCE
 
-Plus d'un million d'associations, repérées à partir de données publiques ouvertes, sont déjà dans l'annuaire : sport, culture, jeux, nature, entraide. Cherchez par thème, par ville ou par distance, avec une recherche qui comprend le sens de vos mots. Une association peut revendiquer sa fiche et y publier ses séances. Si votre club préféré n'y est pas encore, demandez à être prévenu quand il arrive.
+Des centaines de milliers d'associations, repérées à partir de données publiques ouvertes, sont déjà dans l'annuaire : sport, culture, jeux, nature, entraide. Cherchez par thème, par ville ou par distance, avec une recherche qui comprend le sens de vos mots. Une association peut revendiquer sa fiche et y publier ses séances. Si votre club préféré n'y est pas encore, demandez à être prévenu quand il arrive.
 
 3. LA SÉCURITÉ D'ABORD
 

@@ -20,7 +20,7 @@ Dans la Play Console, rubrique « Contenu de l'application », « Classification
 | Les utilisateurs peuvent-ils se rencontrer en personne ? | Oui | C'est le but : des activités régulières dans des lieux publics. Réservé aux personnes de 18 ans et plus (case à cocher à l'inscription). |
 | Le contenu généré par les utilisateurs est-il modéré ? | Oui | Mots interdits, détection de spam, signalement d'un message, d'une activité ou d'une personne, blocage, file de modération avec décision motivée, suspension de compte (`docs/rgpd/registre-des-traitements.md`, section 4). |
 | L'application partage-t-elle la position de l'utilisateur avec d'autres ? | Non | La position GPS sert à chercher autour de soi et n'est jamais montrée aux autres membres ni enregistrée. |
-| L'application partage-t-elle des informations personnelles identifiables avec des tiers ? | Non | Voir `data-safety.md`. |
+| L'application partage-t-elle des informations personnelles identifiables avec des tiers ? | Oui, la position approximative (arrondie à environ 1 km) | Envoyée à geo.api.gouv.fr et à OpenStreetMap Overpass (qui voit aussi l'adresse IP), sans identifiant de compte. Voir `data-safety.md`. |
 | Fonctions numériques achetables (loot boxes, etc.) | Non | Aucune. |
 | Contenu destiné à des enfants | Non | L'application est réservée aux 18 ans et plus. |
 

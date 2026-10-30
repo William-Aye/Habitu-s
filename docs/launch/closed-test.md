@@ -42,7 +42,7 @@ Pour vous inscrire :
 3. Touchez « Devenir testeur », puis « Télécharger sur Google Play ».
 4. Merci de ne pas vous désinscrire avant la fin des 14 jours : Google exige que 12 personnes restent inscrites sans interruption.
 
-Votre prénom est la seule information demandée à l'inscription dans l'application, et vous pouvez supprimer votre compte à tout moment (Profil, « Mes données »). Rien n'est publié à votre nom.
+Votre prénom est la seule information personnelle visible par les autres, et vous pouvez supprimer votre compte à tout moment (Profil, « Mes données »). Rien n'est publié à votre nom.
 
 Merci beaucoup !
 [PRÉNOM]
