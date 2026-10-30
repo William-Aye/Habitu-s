@@ -151,6 +151,9 @@ Then set:
 
 ### 5. Before publication
 
+The full ordered owner checklist (hosted settings, legal steps, Play Console, build, closed test, rollback) is in
+[`docs/launch/checklist.md`](docs/launch/checklist.md).
+
 - Privacy policy (`app/src/content/privacy.fr.ts` and `privacy.en.ts`):
   - Sentences for features that are not built are left out of the text. When a feature ships (phone
     verification for organisers, private messages with the export clause on received messages, post-session feedback), add its sentence back in both
@@ -393,6 +396,9 @@ automatic report. The same change from SQL, as an admin session only:
 
 ### Before launch
 
+The full ordered owner checklist (hosted settings, legal steps, Play Console, build, closed test, rollback) is in
+[`docs/launch/checklist.md`](docs/launch/checklist.md).
+
 - Replace the placeholder `PRIVACY_CONTACT` in `app/src/content/contact.ts`
   (`confidentialite@<domaine>`) with a real mailbox. It is the address for privacy requests and for
   contesting a moderation decision (shown to suspended people too).
@@ -617,6 +623,9 @@ Submit `<WEB_BASE_URL>/sitemap.xml` in Google Search Console (add the domain pro
 
 ### 6. Before launch
 
+The full ordered owner checklist (hosted settings, legal steps, Play Console, build, closed test, rollback) is in
+[`docs/launch/checklist.md`](docs/launch/checklist.md).
+
 Fill in the placeholders in the "Mentions légales" (publisher name and contact, hosts) and "Conditions
 d'utilisation" pages (`web/src/legal.ts`).
 
@@ -634,6 +643,9 @@ d'utilisation" pages (`web/src/legal.ts`).
   tested against `web/src/slug_fixtures.json`.
 
 ## Release build
+
+The full ordered owner checklist (hosted settings, legal steps, Play Console, build, closed test, rollback) is in
+[`docs/launch/checklist.md`](docs/launch/checklist.md).
 
 The Android app is Habitués, package `fr.habitues.app`, scheme `habitues`, first store version `1.0.0`
 (`versionCode` 1; later codes are incremented by EAS). Build profiles are in `app/eas.json`.
