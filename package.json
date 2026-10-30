@@ -12,6 +12,7 @@
     "web:build": "node web/build.mjs",
     "web:test": "npx --yes deno@2.9.6 test --allow-read=web/public web/src && node --test web/build.test.mjs",
     "db:types": "supabase gen types typescript --local > app/src/lib/database.types.ts",
+    "smoke": "node scripts/smoke.mjs",
     "scripts:test": "node --test \"scripts/*.test.mjs\"",
     "ci:advisors": "supabase db advisors --local --type security --level warn --output-format json > advisors.json && node scripts/check-advisors.mjs advisors.json supabase/advisors-allowlist.json"
   },

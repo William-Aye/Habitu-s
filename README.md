@@ -608,6 +608,12 @@ Submit `<WEB_BASE_URL>/sitemap.xml` in Google Search Console (add the domain pro
 - Android App Links: open
   `https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=<WEB_BASE_URL>&relation=delegate_permission/common.handle_all_urls`
   and check that the answer lists your package (`fr.habitues.app`) and the SHA-256 of the signing certificate.
+- Smoke check: run `npm run smoke` with `SMOKE_WEB_BASE_URL` (the site), `SMOKE_SUPABASE_URL` and
+  `SMOKE_SUPABASE_ANON_KEY` set in your shell. It prints one line per check (`ok` or `FAIL <reason>`) and exits 1 if any fails.
+  It checks HTTPS, the security headers, no cookies, the sitemap, 404 + noindex for unknown ids, `assetlinks.json`
+  (package from `SMOKE_ANDROID_PACKAGE`, default `fr.habitues.app`), that anonymous users cannot read `profiles` or call
+  `admin_reports`, and that password sign-in is refused. For a local run only, set `SMOKE_ALLOW_HTTP=1` to accept
+  `http://127.0.0.1` / `localhost` for the HTTPS check. The anon key is sent only to `SMOKE_SUPABASE_URL` and never printed.
 
 ### 6. Before launch
 
