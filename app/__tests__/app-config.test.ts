@@ -36,3 +36,11 @@ describe('web shell (Expo public/index.html template)', () => {
     expect(html).toContain('<div id="root"></div>');
   });
 });
+
+describe('Android backup (APP-6)', () => {
+  it('turns allowBackup off so local interests and location stay out of cloud backups', () => {
+    const appJson = JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname, '../app.json'), 'utf8'));
+    expect(appJson.expo.android.allowBackup).toBe(false);
+    expect(makeConfig({ config: appJson.expo }).android.allowBackup).toBe(false);
+  });
+});
