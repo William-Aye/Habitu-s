@@ -145,3 +145,28 @@ Deno.test("web/public/favicon.ico is a valid 16x16 icon", async () => {
   assertEquals(b[4], 1); // one image
   assertEquals([b[6], b[7]], [16, 16]);
 });
+
+Deno.test("WEB-3: the 405 carries the security headers", async () => {
+  const r = await handleApp(get("/app/x", "POST"), env(assets()));
+  assertEquals(r.status, 405);
+  assertEquals(r.headers.get("Allow"), "GET, HEAD");
+  assertEquals(r.headers.get("X-Content-Type-Options"), "nosniff");
+  assertEquals(r.headers.get("X-Frame-Options"), "DENY");
+  assertStringIncludes(r.headers.get("Strict-Transport-Security") ?? "", "max-age=");
+  assertStringIncludes(r.headers.get("Content-Security-Policy") ?? "", "frame-ancestors 'none'");
+});
+
+Deno.test("WEB-4: assets and missing assets answered by the Function carry the security headers", async () => {
+  const a = assets({ "/app/some/file.txt": { body: "txt", headers: { "Content-Type": "text/plain", "Cache-Control": "max-age=5" } } });
+  for (const [p, status] of [["/app/some/file.txt", 200], ["/app/nope.js", 404]] as const) {
+    const r = await handleApp(get(p), env(a));
+    assertEquals(r.status, status, p);
+    assertEquals(r.headers.get("X-Content-Type-Options"), "nosniff", p);
+    assertEquals(r.headers.get("X-Frame-Options"), "DENY", p);
+    assertStringIncludes(r.headers.get("Strict-Transport-Security") ?? "", "max-age=", p);
+    assertStringIncludes(r.headers.get("Content-Security-Policy") ?? "", "default-src", p);
+  }
+  const ok = await handleApp(get("/app/some/file.txt"), env(a));
+  assertEquals(ok.headers.get("Content-Type"), "text/plain");
+  assertEquals(ok.headers.get("Cache-Control"), "max-age=5");
+});
