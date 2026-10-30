@@ -20,7 +20,7 @@ Ce registre est la liste des traitements de données personnelles faits par Habi
 - Pas de traceur publicitaire tiers. La version 1 n'affiche aucune publicité.
 - Hébergement des données : Supabase, Union européenne (Paris). Chiffrement au repos et en transit.
 - Suppression de compte immédiate par la personne, en cascade (Profil, « Mes données »).
-- Une tâche nocturne (pg_cron) applique les durées de conservation ci-dessous. Les durées ci-dessous sont celles des migrations `20261024000032_retention.sql` et `20261023000027_chat.sql`.
+- Une tâche nocturne (pg_cron) applique les durées de conservation ci-dessous. Les durées ci-dessous sont celles des migrations `20261024000032_retention.sql`, `20261029000050_retention_claim_emails.sql`, `20261023000027_chat.sql`, `20261023000012_notifications.sql` (notifications) et `20261023000025_blocks_and_invitation_scope.sql` (journal d'invitations).
 
 ## 1. Comptes et profils
 
@@ -30,8 +30,8 @@ Ce registre est la liste des traitements de données personnelles faits par Habi
 - Données : prénom, adresse e-mail ou compte Google (identifiant fourni par Google), confirmation « 18 ans ou plus », langue, zone d'habitation (centre de commune), photo de profil et présentation (facultatives), date de dernière visite (mise à jour au plus une fois par heure), date de création. L'e-mail est détenu par Supabase Auth, pas copié dans les tables de l'application.
 - Photos : stockées sous un nom d'objet aléatoire ; `profiles.photo_url` contient ce nom d'objet, pas une adresse. Les métadonnées (EXIF, dont le lieu de prise de vue) sont retirées sur le téléphone avant l'envoi ; le serveur impose le type et la taille.
 - Destinataires : l'équipe d'administration (accès restreint, double authentification obligatoire) ; les autres membres voient le prénom, la photo et la présentation uniquement dans une même activité.
-- Sous-traitants : Supabase ; Google (connexion avec Google) ; Cloudflare (Turnstile à l'inscription).
-- Transferts hors UE : Google et Cloudflare (États-Unis), encadrés par le cadre de protection des données UE–États-Unis ou des clauses contractuelles types (voir `sous-traitants.md`).
+- Sous-traitants : Supabase ; Cloudflare (Turnstile à l'inscription). Google, pour la connexion avec Google, agit pour son propre compte (responsable de traitement de votre compte Google) et n'est pas notre sous-traitant.
+- Transferts hors UE : Cloudflare (États-Unis) et Google (États-Unis, pour son propre compte), encadrés par le cadre de protection des données UE–États-Unis ou des clauses contractuelles types (voir `sous-traitants.md`).
 - Conservation : tant que le compte existe. Suppression immédiate à la demande. Compte inactif depuis 3 ans : avertissement à 35 mois (notification et message dans l'application), suppression 30 jours après si la personne n'est pas revenue. Les administrateurs ne sont jamais supprimés automatiquement. Un compte suspendu n'est pas averti ; il est supprimé après 36 mois et 30 jours d'inactivité.
 - Mesures de sécurité : sécurité au niveau des lignes sur toutes les tables, testée ; session conservée dans le stockage sécurisé du téléphone (Android Keystore) ; la sauvegarde automatique Android est désactivée (`allowBackup` à faux) ; photos sous noms aléatoires, bucket avec limite de type et de taille ; limites d'écriture par personne.
 
@@ -71,7 +71,7 @@ Ce registre est la liste des traitements de données personnelles faits par Habi
   - revendications d'association : rôle, e-mail de l'association ou justificatif (statuts, récépissé, lettre signée) dans un espace privé ;
   - formulaire « Une idée ? Un problème ? » : message, type, version de l'application, type d'appareil, capture d'écran facultative (personnes connectées) ;
   - blocages entre personnes ;
-  - pour l'envoi sans compte : l'adresse IP est envoyée à Cloudflare Turnstile pour la vérification anti-robot, et une empreinte à clé (HMAC) de cette adresse est gardée en mémoire de la fonction au plus une heure pour limiter le débit. Aucune adresse IP n'est enregistrée dans la base ni dans un journal de notre code.
+  - pour l'envoi sans compte : l'adresse IP est envoyée à Cloudflare Turnstile pour la vérification anti-robot, et une empreinte à clé (HMAC) de cette adresse est gardée en mémoire de la fonction environ une heure pour limiter le débit. Aucune adresse IP n'est enregistrée dans la base ni dans un journal de notre code.
 - Destinataires : équipe d'administration (double authentification). La personne qui signale et la personne concernée reçoivent l'information de modération qui les concerne.
 - Sous-traitants : Supabase ; Cloudflare (Turnstile).
 - Transferts hors UE : Cloudflare (États-Unis), encadré comme ci-dessus.
@@ -81,7 +81,7 @@ Ce registre est la liste des traitements de données personnelles faits par Habi
   - idées et problèmes envoyés et leur capture d'écran : 2 ans ;
   - revendications en attente : supprimées au bout d'un an avec leur justificatif ; revendications décidées : la ligne reste tant que l'association reste vérifiée, le justificatif et l'e-mail de contact sont supprimés un an après la décision ;
   - fichiers sans rattachement (formulaires abandonnés) : supprimés après 7 jours ;
-  - journaux de limitation de débit : 1 jour ; journal d'invitations : 2 jours.
+  - journaux de limitation de débit : 1 jour ; journal d'invitations : entrées de plus de 2 jours supprimées à l'invitation suivante (`20261023000025_blocks_and_invitation_scope.sql`).
 - Mesures de sécurité : accès administrateur réservé à une session à double authentification (aal2) ; chaque action d'administration est journalisée ; espaces privés pour justificatifs et captures ; types et tailles de fichiers imposés par le serveur ; limites par personne et plafond global sur l'envoi sans compte.
 
 ## 5. Import de l'annuaire public d'associations

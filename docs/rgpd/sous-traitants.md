@@ -30,8 +30,8 @@ Publicité : la première version n'affiche aucune publicité, donc aucun servic
 ## Google
 
 - Rôle : deux services distincts.
-  - Connexion avec Google : Google fournit une identité à la demande de la personne ; Google agit pour son propre compte pour son compte Google, et nous recevons l'identifiant, l'e-mail et le prénom.
-  - Firebase Cloud Messaging : acheminement des notifications vers les téléphones Android, pour notre compte (sous-traitant).
+  - Connexion avec Google : Google n'est pas notre sous-traitant ici. Il agit pour son propre compte (responsable de traitement de votre compte Google) ; nous recevons seulement l'identifiant, l'e-mail et le prénom, que nous traitons ensuite comme nos autres données de compte.
+  - Firebase Cloud Messaging : acheminement des notifications vers les téléphones Android, pour notre compte. Google est ici notre sous-traitant, et c'est le seul rôle qui demande un accord de traitement.
 - Données : pour la connexion, l'identifiant Google, l'e-mail et le prénom ; pour les notifications, le jeton de l'appareil et le texte (générique, sans nom d'activité ni prénom).
 - Région : mondiale ; Google LLC est américaine.
 - Base du transfert : cadre de protection des données UE–États-Unis (Google est certifié) et clauses contractuelles types dans les conditions de traitement de Google.

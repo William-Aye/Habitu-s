@@ -31,6 +31,31 @@ describe('app.config.js Android App Links', () => {
   });
 });
 
+describe('app.config.js production profile', () => {
+  const OLD = { p: process.env.EAS_BUILD_PROFILE, u: process.env.EXPO_PUBLIC_WEB_BASE_URL };
+  const restore = (k: string, v: string | undefined) => {
+    if (v === undefined) delete process.env[k];
+    else process.env[k] = v;
+  };
+  afterEach(() => {
+    restore('EAS_BUILD_PROFILE', OLD.p);
+    restore('EXPO_PUBLIC_WEB_BASE_URL', OLD.u);
+  });
+  it('fails the production build when the website address is missing', () => {
+    process.env.EAS_BUILD_PROFILE = 'production';
+    delete process.env.EXPO_PUBLIC_WEB_BASE_URL;
+    expect(() => makeConfig({ config: base })).toThrow(/EXPO_PUBLIC_WEB_BASE_URL/);
+  });
+  it('accepts the production build with the address, and other profiles without it', () => {
+    process.env.EAS_BUILD_PROFILE = 'production';
+    process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://habitues.example';
+    expect(() => makeConfig({ config: base })).not.toThrow();
+    process.env.EAS_BUILD_PROFILE = 'preview';
+    delete process.env.EXPO_PUBLIC_WEB_BASE_URL;
+    expect(() => makeConfig({ config: base })).not.toThrow();
+  });
+});
+
 describe('web shell (Expo public/index.html template)', () => {
   const html = require('node:fs').readFileSync(require('node:path').join(__dirname, '../public/index.html'), 'utf8');
   it('is French and titled Habitués', () => {

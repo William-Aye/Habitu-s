@@ -645,7 +645,7 @@ The Android app is Habitués, package `fr.habitues.app`, scheme `habitues`, firs
    These are the same names as in `app/.env.example`; none of them is a secret except the file below:
    - `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` (the production project; the anon key is public by design);
    - `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, `EXPO_PUBLIC_TURNSTILE_SITE_KEY`;
-   - `EXPO_PUBLIC_WEB_BASE_URL` (turns on Android App Links) and `EXPO_PUBLIC_PLAY_STORE_URL`;
+   - `EXPO_PUBLIC_WEB_BASE_URL` (turns on Android App Links and is the address of the terms-of-use link in the sign-up sheet; the `production` profile fails to build without it) and `EXPO_PUBLIC_PLAY_STORE_URL`;
    - `GOOGLE_SERVICES_JSON` (type file, visibility secret; see "Firebase and `google-services.json`").
 3. Blocked permissions: `app.json` blocks the Android permissions the app does not use (microphone, advertising ID,
    camera, calendar, external storage, overlay, fine location). Check the built bundle before upload, for example

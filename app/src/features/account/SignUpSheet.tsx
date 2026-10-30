@@ -202,8 +202,11 @@ export function SignUpSheet({
     router.push('/privacy' as Href);
   }
 
+  // On a phone, a relative address cannot open: without the website address the terms are plain text.
+  const termsBase = webBaseUrl();
+  const termsLinkable = Platform.OS === 'web' || termsBase !== '';
   function openTerms() {
-    Linking.openURL(`${webBaseUrl()}/conditions`).catch(() => {});
+    Linking.openURL(`${termsBase}/conditions`).catch(() => {});
   }
 
   const profileValid = firstName.trim().length > 0 && firstName.trim().length <= MAX_FIRST_NAME && ageOk;
@@ -374,14 +377,16 @@ export function SignUpSheet({
             {step === 'choose' ? (
               <>
                 <Text style={styles.legalNotice}>{t('account.legalNotice')}</Text>
-                <Pressable
-                  accessibilityRole="link"
-                  accessibilityLabel={t('account.terms')}
-                  style={styles.linkButton}
-                  onPress={openTerms}
-                >
-                  <Text style={styles.linkText}>{t('account.terms')}</Text>
-                </Pressable>
+                {termsLinkable ? (
+                  <Pressable
+                    accessibilityRole="link"
+                    accessibilityLabel={t('account.terms')}
+                    style={styles.linkButton}
+                    onPress={openTerms}
+                  >
+                    <Text style={styles.linkText}>{t('account.terms')}</Text>
+                  </Pressable>
+                ) : null}
               </>
             ) : null}
             <Pressable

@@ -21,7 +21,7 @@ Habitués helps you meet people around regular activities. This page explains, i
 - Optional: a profile photo and a short bio. Hidden information in the photo (including where it was taken) is removed before upload.
 - Your interests, the activities you join, your attendance and your group messages.
 - The date of your last visit, updated at most once an hour.
-- If you write to us through "Une idée ? Un problème ?": your message, its type, the app version and the type of device, and an optional screenshot (signed-in people only). You can write without an account: the submission is then protected by Cloudflare Turnstile, an invisible anti-bot check. In that case your IP address is sent to Cloudflare Turnstile for this check, and a keyed hash of the address stays in our function's memory for at most one hour to limit the number of submissions; the IP address itself is never stored.
+- If you write to us through "Une idée ? Un problème ?": your message, its type, the app version and the type of device, and an optional screenshot (signed-in people only). You can write without an account: the submission is then protected by Cloudflare Turnstile, an invisible anti-bot check. In that case your IP address is sent to Cloudflare Turnstile for this check, and a keyed hash of the address stays in our function's memory for about one hour to limit the number of submissions; the IP address itself is never stored.
 - If you report content or a person: the reason and the details you write. If you claim an association: your role, the association's email address or a supporting document (statutes, receipt or signed letter).
 - If you turn notifications on: your phone's identifier to send them, and the text of the notifications (session reminders, new members, invitations). You can refuse or turn them off in your phone's settings.
 
@@ -42,7 +42,7 @@ This version of the app shows no ads and we use no third-party advertising track
 - Ideas and problems you send (text, app version, type of device) and their screenshot: 2 years.
 - Association claims: a request left unanswered is deleted after 1 year, with its supporting document. A handled request is kept while the association stays verified; the supporting document and the contact email address are deleted 1 year after the decision.
 - Accounts inactive for 3 years: a notification (and a notice in the app) warns you 30 days before deletion; opening the app keeps the account. This warning only reaches people who turned notifications on.
-- Accounts suspended for breaking the rules: the data is hidden from other people and kept as evidence for the period set for reports. To learn the statement of reasons or contest the decision, write to ${PRIVACY_CONTACT}.
+- Accounts suspended for breaking the rules: the data is hidden from other people. The account is deleted after 36 months and 30 days without activity, with no prior warning. Reports and the message copies attached to them are kept as evidence for 3 years after the decision. To learn the statement of reasons or contest the decision, write to ${PRIVACY_CONTACT}.
 - Notifications: 30 days on our servers after they are sent, then deleted.
 - Technical logs (including IP addresses): kept by our hosts under their default retention (Supabase's is at most 90 days). This is not a period we set ourselves.
 

@@ -70,7 +70,7 @@ Pour contester une décision, écrivez à ${PRIVACY_CONTACT} en rappelant votre 
 
 - Vous pouvez supprimer votre compte à tout moment, dans Profil, « Mes données ». La suppression est immédiate et définitive, après confirmation. Elle supprime aussi les activités que vous organisez, avec leurs séances, leurs présences et les messages de leur groupe.
 - Nous pouvons suspendre ou supprimer un compte qui ne respecte pas ces conditions, après avoir examiné la situation. En cas de risque grave pour d'autres personnes, la suspension peut être immédiate. Vous êtes informé du motif.
-- Un compte inactif depuis 3 ans est supprimé. Une notification (et un message dans l'application) vous prévient 30 jours avant ; ouvrir l'application garde le compte.
+- Un compte inactif depuis 3 ans est supprimé. Une notification (et un message dans l'application) vous prévient 30 jours avant, si vous avez activé les notifications ; ouvrir l'application garde le compte. Un compte suspendu ne reçoit pas cet avertissement et est supprimé après 36 mois et 30 jours sans activité.
 - Certaines données liées à un signalement ou à une décision de modération sont conservées comme preuve pendant la durée indiquée dans la politique de confidentialité, même après la suppression d'un compte.
 
 # Responsabilité
@@ -89,7 +89,7 @@ Pour toute question sur vos données : ${PRIVACY_CONTACT}. Vous pouvez aussi sai
 
 # Modification des conditions
 
-Nous pouvons modifier ces conditions, par exemple quand une fonction est ajoutée. Une modification importante vous est signalée avant qu'elle s'applique. Si vous continuez à utiliser le service après la date indiquée, vous acceptez la nouvelle version ; sinon, vous pouvez supprimer votre compte. La date de dernière mise à jour est en haut de cette page.
+Nous pouvons modifier ces conditions, par exemple quand une fonction est ajoutée. La nouvelle version est publiée sur cette page avec sa date de mise à jour. Si vous continuez à utiliser le service après cette date, vous acceptez la nouvelle version ; sinon, vous pouvez supprimer votre compte. La date de dernière mise à jour est en haut de cette page.
 
 # Droit applicable
 
