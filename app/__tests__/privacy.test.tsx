@@ -82,11 +82,9 @@ it('lists geo.api.gouv.fr among the processors in both languages', () => {
   }
 });
 
-it('explains that received private messages are not part of the export (art. 15(4) GDPR)', () => {
-  expect(privacyFr).toContain('messages privés que vous avez reçus');
-  expect(privacyFr).toContain('art. 15, § 4');
-  expect(privacyEn).toContain('private messages you received');
-  expect(privacyEn).toContain('Art. 15(4)');
+it('does not mention received private messages in the export paragraph (not in Release 1)', () => {
+  expect(privacyFr).not.toContain('messages privés que vous avez reçus');
+  expect(privacyEn).not.toContain('private messages you received');
 });
 
 it('names the suggestion form instead of the ambiguous reviews, and mentions the town correction', () => {

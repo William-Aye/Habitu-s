@@ -4,7 +4,7 @@ import { PRIVACY_CONTACT } from './contact.ts';
 // MARKERS: a sentence for a feature that is not built yet is left out of this text. When the feature
 // ships, add the sentence back (tagged "(once this feature is available)" while it is in review), then
 // remove the marker: post-session feedback (collection and its 6-month deletion), phone verification
-// for organisers, private messages (retention and their mention in the export paragraph). Group chat,
+// for organisers, private messages (retention and the received-messages clause of the export paragraph). Group chat,
 // reports and moderation, feedback, claims and inactive-account deletion are live (keep in sync with
 // privacy.fr.ts).
 export const privacyEn = `Version to be reviewed by a qualified person before publication.
@@ -78,7 +78,7 @@ When a report is handled, the person who sent it is told in the app. The person 
 
 Sign in, then open Profile (in the app, the Profile tab; on the website, "My account"), then "My data":
 
-- Download my data: you receive a file with all the personal data we hold about you (including your email address, your account creation and last sign-in dates, and your sign-in methods), and nothing about others. The private messages you received are deleted with your account but are not part of your export: they belong to their sender (Art. 15(4) GDPR).
+- Download my data: you receive a file with all the personal data we hold about you (including your email address, your account creation and last sign-in dates, and your sign-in methods), and nothing about others.
 - Correct: edit your first name, bio, photo and your town directly in Profile (you can also remove your town). On the website, you can edit your first name and bio.
 - Delete my account: deletion is immediate and permanent, after confirmation.
 

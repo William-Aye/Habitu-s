@@ -4,7 +4,7 @@ import { PRIVACY_CONTACT } from './contact.ts';
 // MARKERS: a sentence for a feature that is not built yet is left out of this text. When the feature
 // ships, add the sentence back with its marker "(dès que cette fonctionnalité sera disponible)" while it
 // is in review, then remove the marker: post-session feedback (collection and its 6-month deletion),
-// phone verification for organisers, private messages (retention and their mention in the export
+// phone verification for organisers, private messages (retention and the received-messages clause of the export
 // paragraph). Group chat, reports and moderation, feedback, claims and inactive-account deletion are live.
 export const privacyFr = `Version à faire relire par une personne qualifiée avant la publication.
 
@@ -77,7 +77,7 @@ Quand un signalement est traité, la personne qui l'a envoyé en est informée d
 
 Connectez-vous, puis ouvrez Profil (dans l'application, l'onglet Profil ; sur le site, « Mon compte »), puis « Mes données » :
 
-- Télécharger mes données : vous recevez un fichier avec toutes les données personnelles que nous avons sur vous (dont votre adresse e-mail, vos dates de création de compte et de dernière connexion, et vos moyens de connexion), et rien sur les autres. Les messages privés que vous avez reçus sont supprimés avec votre compte, mais ne figurent pas dans votre export : ils appartiennent à leur expéditeur (art. 15, § 4 du RGPD).
+- Télécharger mes données : vous recevez un fichier avec toutes les données personnelles que nous avons sur vous (dont votre adresse e-mail, vos dates de création de compte et de dernière connexion, et vos moyens de connexion), et rien sur les autres.
 - Corriger : modifiez votre prénom, votre présentation, votre photo et votre ville directement dans Profil (vous pouvez aussi retirer votre ville). Sur le site, vous pouvez modifier votre prénom et votre présentation.
 - Supprimer mon compte : la suppression est immédiate et définitive, après confirmation.
 

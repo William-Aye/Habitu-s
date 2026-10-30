@@ -153,7 +153,7 @@ Then set:
 
 - Privacy policy (`app/src/content/privacy.fr.ts` and `privacy.en.ts`):
   - Sentences for features that are not built are left out of the text. When a feature ships (phone
-    verification for organisers, private messages, post-session feedback), add its sentence back in both
+    verification for organisers, private messages with the export clause on received messages, post-session feedback), add its sentence back in both
     languages, tagged "(dès que cette fonctionnalité sera disponible)" / "(once this feature is available)"
     until it is live.
   - Replace the placeholder `confidentialite@<domaine>` with the real contact address.
