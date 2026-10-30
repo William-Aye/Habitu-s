@@ -47,6 +47,14 @@ test("assetlinks.json is generated from env vars", () => {
   assert.deepEqual(j[0].target.sha256_cert_fingerprints, ["AA:BB"]);
 });
 
+test("assetlinks.json defaults the package to fr.habitues.app", () => {
+  const s = setup();
+  const r = run(s, { ...base, ANDROID_SHA256_CERT: "AA:BB" });
+  assert.equal(r.status, 0, r.stderr);
+  const j = JSON.parse(fs.readFileSync(path.join(s.out, ".well-known", "assetlinks.json"), "utf8"));
+  assert.equal(j[0].target.package_name, "fr.habitues.app");
+});
+
 test("assetlinks.json is skipped with a warning when env is missing", () => {
   const s = setup();
   const r = run(s, base);

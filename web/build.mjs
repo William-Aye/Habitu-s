@@ -50,7 +50,7 @@ fs.cpSync(pub, out, { recursive: true, filter: (src) => !src.endsWith(".template
 
 // 3. Templates.
 const fill = (s, vars) => s.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => (k in vars ? vars[k] : m));
-const pkg = process.env.ANDROID_PACKAGE, cert = process.env.ANDROID_SHA256_CERT;
+const pkg = process.env.ANDROID_PACKAGE || "fr.habitues.app", cert = process.env.ANDROID_SHA256_CERT;
 if (pkg && cert) {
   const tpl = fs.readFileSync(path.join(pub, ".well-known", "assetlinks.json.template"), "utf8");
   const json = JSON.parse(fill(tpl, { ANDROID_PACKAGE: pkg, ANDROID_SHA256_CERT: "__CERT__" }));
@@ -58,7 +58,7 @@ if (pkg && cert) {
   fs.mkdirSync(path.join(out, ".well-known"), { recursive: true });
   fs.writeFileSync(path.join(out, ".well-known", "assetlinks.json"), JSON.stringify(json, null, 2) + "\n");
 } else {
-  console.warn("warning: ANDROID_PACKAGE / ANDROID_SHA256_CERT not set: assetlinks.json skipped");
+  console.warn("warning: ANDROID_SHA256_CERT not set: assetlinks.json skipped");
 }
 
 // 4. No secret in the output.

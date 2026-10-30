@@ -5,6 +5,7 @@
   },
   "build": {
     "production": {
+      "environment": "production",
       "autoIncrement": true,
       "distribution": "store",
       "android": {
@@ -12,6 +13,7 @@
       }
     },
     "preview": {
+      "environment": "preview",
       "distribution": "internal",
       "android": {
         "buildType": "apk"

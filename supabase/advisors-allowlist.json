@@ -1,10 +1,5 @@
 [
   {
-    "name": "security_definer_view",
-    "match": "`public.organiser_badges`",
-    "reason": "Intentional: the view exposes only the public trust fields (sessions held, distinct participants, badge status) of organiser_stats and never feedback counts. It runs with owner rights so members only see those fields. Documented in migration 20261021000005."
-  },
-  {
     "name": "function_search_path_mutable",
     "match": "`search.source_label`",
     "reason": "Intentional: an immutable or stable SQL helper that is inlined into search_explore so the planner sees the caller values. A SET search_path clause would block inlining (pgTAP 07_search asserts explore_rows has no SET). The body schema-qualifies every name outside pg_catalog (migration 20261022000007). Invoker rights, no elevated privilege."
