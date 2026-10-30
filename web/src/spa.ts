@@ -6,6 +6,12 @@ export interface SpaEnv {
   ASSETS: { fetch: (input: Request | URL | string) => Promise<Response> };
 }
 
+// Public APIs the app calls from the browser: commune lookup (geo.api.gouv.fr) and nearby public places (Overpass).
+const APP_APIS = ["https://geo.api.gouv.fr", "https://overpass-api.de"];
+
+/** The app shell may ask for the browser position ("près de moi"); public pages and assets may not. */
+export const APP_PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=(self)";
+
 /** CSP of /app/*, built from the Supabase URL (ws or wss follows its scheme). */
 export function appCsp(supabaseUrl: string | undefined): string {
   let origin = "";
@@ -17,7 +23,7 @@ export function appCsp(supabaseUrl: string | undefined): string {
       ws = `${u.protocol === "https:" ? "wss" : "ws"}://${u.host}`;
     }
   } catch { /* no backend source */ }
-  const connect = ["'self'", origin, ws].filter(Boolean).join(" ");
+  const connect = ["'self'", origin, ws, ...APP_APIS].filter(Boolean).join(" ");
   const img = ["'self'", "data:", "blob:", origin].filter(Boolean).join(" ");
   return [
     "default-src 'self'",
@@ -58,6 +64,7 @@ export async function handleApp(request: Request, env: SpaEnv): Promise<Response
   const headers = new Headers(shell.headers);
   for (const [k, v] of Object.entries(SECURITY_HEADERS)) headers.set(k, v);
   headers.set("Content-Security-Policy", appCsp(env.SUPABASE_URL));
+  headers.set("Permissions-Policy", APP_PERMISSIONS_POLICY);
   headers.set("X-Robots-Tag", "noindex");
   headers.set("Cache-Control", "no-cache");
   return new Response(request.method === "HEAD" ? null : shell.body, { status: shell.status, headers });
