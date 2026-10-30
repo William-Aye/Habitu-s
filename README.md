@@ -314,6 +314,14 @@ npx supabase functions deploy storage-cleanup
   `npx supabase secrets set TURNSTILE_SECRET=<secret>`. Without it the function refuses every
   anonymous send. The Turnstile widget in the app must be rendered with the action `feedback`; a
   token minted for another action is rejected. Signed-in senders do not need Turnstile.
+  Two more function secrets (all optional locally, set them in production):
+  `npx supabase secrets set ALLOWED_ORIGINS=https://<site>` (the web build's origin; comma-separated for several;
+  without it the web build's signed-out feedback is blocked by the browser, the app is not affected) and
+  `TURNSTILE_HOSTNAMES=<site host>,challenges.cloudflare.com` (the hosts a token may have been solved on: the
+  site for the web build, Cloudflare's own page for the app's WebView; without it the host is not checked).
+  Limits: 10 attempts per client and hour (counted on a keyed hash of the address that lives only in the
+  function's memory for one hour; the address itself is never stored), 200 accepted per hour for everyone together,
+  bodies over 16 KB refused. The per-client count is per function instance, so it is a brake rather than an exact limit.
 - **`storage-cleanup`** (deletes files queued in `storage_deletions`). The pg_cron job
   `storage-cleanup` calls it every 10 minutes through pg_net, using two Vault secrets (the first is
   shared with `send-push`, see above):
