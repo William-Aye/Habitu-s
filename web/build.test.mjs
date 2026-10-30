@@ -88,3 +88,18 @@ test("build accepts matching origins (trailing slash and path ignored)", () => {
 test("build writes into web/dist by default", () => {
   assert.match(fs.readFileSync(build, "utf8"), /path\.join\(here, "dist"\)/);
 });
+
+const jwt = (payload) => {
+  const b = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
+  return `${b({ alg: "HS256", typ: "JWT" })}.${b(payload)}.c2lnbmF0dXJlLXNpZ25hdHVyZQ`;
+};
+
+test("WEB-5: a legacy service_role JWT or a private key fails the build; an anon JWT passes", () => {
+  for (const bad of [jwt({ iss: "supabase", role: "service_role" }), jwt({ role: "supabase_admin" }), "-----BEGIN RSA PRIVATE KEY----- abc"]) {
+    const r = run(setup({ "index.html": "x", "a.js": `var k="${bad}"` }), base);
+    assert.notEqual(r.status, 0, bad);
+    assert.match(r.stderr, /secret/i);
+  }
+  const ok = run(setup({ "index.html": "x", "a.js": `var k="${jwt({ iss: "supabase", role: "anon" })}"` }), base);
+  assert.equal(ok.status, 0, ok.stderr);
+});

@@ -64,12 +64,27 @@ if (pkg && cert) {
 // 4. No secret in the output.
 // A bare "sb_secret_" prefix check exists inside supabase-js itself, so only a key-shaped value counts.
 const SECRET = /service[_-]?role[_-]?key|sb_secret_[A-Za-z0-9_-]{16,}/i;
+// A legacy service-role key is a JWT whose payload says role=service_role, and a private key has a PEM header (WEB-5).
+const PRIVATE_KEY = /-----BEGIN [A-Z ]*PRIVATE KEY-----/;
+const JWT = /eyJ[A-Za-z0-9_-]{5,}\.(eyJ[A-Za-z0-9_-]{5,})\.[A-Za-z0-9_-]*/g;
+const privilegedJwt = (text) => {
+  for (const m of text.matchAll(JWT)) {
+    try {
+      const role = JSON.parse(Buffer.from(m[1], "base64url").toString("utf8")).role;
+      if (role !== undefined && role !== "anon") return true;
+    } catch { /* not a JWT */ }
+  }
+  return false;
+};
 const hits = [];
 (function walk(dir) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name);
     if (e.isDirectory()) walk(p);
-    else if (SECRET.test(fs.readFileSync(p, "latin1"))) hits.push(path.relative(out, p));
+    else {
+      const text = fs.readFileSync(p, "latin1");
+      if (SECRET.test(text) || PRIVATE_KEY.test(text) || privilegedJwt(text)) hits.push(path.relative(out, p));
+    }
   }
 })(out);
 if (hits.length) fail(`secret-like string found in: ${hits.join(", ")}`);
