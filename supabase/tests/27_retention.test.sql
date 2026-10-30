@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(86);
+select plan(89);
 select tests.create_user('adm@rt.fr', 'Admin') as adm \gset
 select tests.create_user('ina@rt.fr', 'Ines') as ina \gset
 select tests.create_user('old@rt.fr', 'Olga') as old \gset
@@ -133,7 +133,17 @@ insert into feedback (user_id, type, body, screenshot_path, created_at) values
 insert into association_claims (id, association_id, claimant_id, proof_method, role_in_association, document_path, contact_email, status, created_at, decided_at) values
   ('00000000-0000-0000-0000-00000000c007', '00000000-0000-0000-0000-0000000000d2', :'act', 'domain_email', 'Tresorier', null, 'mail-only@club.fr', 'approved', now() - interval '2 years', now() - interval '1 year 1 day'),
   ('00000000-0000-0000-0000-00000000c008', '00000000-0000-0000-0000-0000000000d3', :'act', 'domain_email', 'Tresorier', null, 'young@club.fr', 'approved', now() - interval '2 years', now() - interval '1 year' + interval '1 day');
+-- avatars: the current photo is kept, an unreferenced file older than 7 days is swept, a fresh one stays
+update profiles set photo_url = :'act' || '/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpg' where id = :'act';
+insert into storage.objects (bucket_id, name, created_at) values
+  ('avatars', :'act' || '/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpg', now() - interval '30 days'),
+  ('avatars', :'act' || '/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.jpg', now() - interval '8 days'),
+  ('avatars', :'act' || '/cccccccccccccccccccccccccccccccc.jpg', now() - interval '6 days');
 create temp table r3 as select public.run_retention() as r;
+select is((select count(*)::int from storage_deletions where bucket = 'avatars' and path = :'act' || '/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.jpg'), 1, 'an unreferenced avatar older than 7 days is queued');
+select is((select count(*)::int from storage_deletions where bucket = 'avatars' and path = :'act' || '/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpg'), 0, 'the current photo is kept even when old');
+select is((select count(*)::int from storage_deletions where bucket = 'avatars' and path = :'act' || '/cccccccccccccccccccccccccccccccc.jpg'), 0, 'a fresh unsaved avatar is kept');
+
 select is((select contact_email from association_claims where id = '00000000-0000-0000-0000-00000000c007'), null, 'an e-mail-only claim decided over a year ago loses its contact email');
 select is((select contact_email from association_claims where id = '00000000-0000-0000-0000-00000000c008'), 'young@club.fr', 'an e-mail-only claim decided less than a year ago keeps it');
 select is((select document_path from association_claims where id = '00000000-0000-0000-0000-00000000c006'), null, 'a decided claim without decided_at ages from created_at and loses its document');
@@ -144,7 +154,7 @@ select is((select count(*)::int from storage_deletions where path = :'act' || '/
 select is((select count(*)::int from storage_deletions where path = :'act' || '/orphan-young.pdf'), 0, 'an unreferenced file younger than 7 days is kept');
 select is((select count(*)::int from storage_deletions where path = :'rec' || '/young-rejected.pdf'), 0, 'a referenced claim document is kept');
 select is((select count(*)::int from storage_deletions where path = :'act' || '/00000000-0000-0000-0000-0000000000ef.png'), 0, 'a referenced screenshot is kept');
-select is((select r->>'orphan_uploads' from r3), '2', 'orphan count reported');
+select is((select r->>'orphan_uploads' from r3), '3', 'orphan count reported');
 
 -- limit_log: 1 day
 insert into limit_log (user_id, kind, at) values
