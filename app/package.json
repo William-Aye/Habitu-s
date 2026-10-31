@@ -70,6 +70,7 @@
   "private": true,
   "jest": {
     "preset": "jest-expo",
+    "testTimeout": 30000,
     "setupFiles": [
       "<rootDir>/jest.setup.js"
     ],
