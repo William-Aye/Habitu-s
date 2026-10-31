@@ -13,8 +13,8 @@ Open the repository, then Settings, then "Advanced Security" (called "Code secur
 3. Dependabot security updates: Enable.
 4. Dependabot version updates: nothing to click. `.github/dependabot.yml` turns them on.
 5. Private vulnerability reporting: Enable. This is what makes "Report a vulnerability" in `SECURITY.md` work.
-6. Secret scanning: Enable.
-7. Push protection (under Secret scanning): Enable. It blocks a push that contains a secret.
+6. Secret Protection: Enable. This is GitHub's newer name for secret scanning; there is no separate "Secret scanning" switch any more.
+7. Push protection (just below Secret Protection, in the same section): Enable. It blocks a push that contains a secret. It is a separate switch, so check it is on.
 8. Code scanning, CodeQL analysis: choose Set up, then Advanced. Do not use the Default setup. The repository already has `.github/workflows/codeql.yml`; do not add a second workflow. Once the workflow has run, results appear under the Security tab, Code scanning.
 
 ## 2. Actions permissions
