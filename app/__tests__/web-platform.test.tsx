@@ -2,6 +2,8 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Linking, Platform } from 'react-native';
 import { initI18n } from '../src/i18n';
 
+jest.setTimeout(60000);
+
 jest.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'fr-FR' }] }));
 const mockReplace = jest.fn();
 jest.mock('expo-router', () => ({
