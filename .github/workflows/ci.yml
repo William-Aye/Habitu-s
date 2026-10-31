@@ -8,6 +8,9 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   database:
     name: Database (pgTAP)
@@ -31,6 +34,14 @@ jobs:
 
       - name: Run pgTAP database tests
         run: npx supabase test db
+
+      - name: Auth is code-only (passwords unusable)
+        run: node scripts/auth-live.mjs
+
+      - name: Security advisor (allowlist)
+        run: |
+          npx supabase db advisors --local --type security --level warn --output-format json > advisors.json
+          node scripts/check-advisors.mjs advisors.json supabase/advisors-allowlist.json
 
   app:
     name: App (Jest, lint, typecheck)
@@ -109,3 +120,87 @@ jobs:
         env:
           RANKING_REPORT: '1'
         run: cd importer && uv sync && uv run pytest -m ranking -s
+
+  web:
+    name: Web
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: http://127.0.0.1:55321
+      EXPO_PUBLIC_SUPABASE_URL: http://127.0.0.1:55321
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ci-dummy-anon-key
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            app/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm ci --prefix app
+
+      - name: Test
+        run: npm run web:test
+
+      - name: Build
+        run: npm run web:build
+
+  functions:
+    name: Functions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Edge Function tests (Deno)
+        run: npx --yes deno@2.9.6 test supabase/functions
+
+  audit:
+    name: Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: npm audit (root)
+        run: |
+          npm audit --omit=dev --json > "$RUNNER_TEMP/audit-root.json" || true
+          node scripts/check-npm-audit.mjs "$RUNNER_TEMP/audit-root.json" audit-allowlist.json
+
+      - name: npm audit (app)
+        working-directory: app
+        run: |
+          npm audit --omit=dev --json > "$RUNNER_TEMP/audit-app.json" || true
+          node ../scripts/check-npm-audit.mjs "$RUNNER_TEMP/audit-app.json" ../audit-allowlist.json
+
+      - name: pip-audit (importer)
+        working-directory: importer
+        run: |
+          uv export --no-dev --no-hashes --frozen --no-emit-project > "$RUNNER_TEMP/requirements.txt"
+          uvx pip-audit@2.10.1 -r "$RUNNER_TEMP/requirements.txt" --no-deps --disable-pip
+
+  scripts:
+    name: Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Script tests
+        run: npm run scripts:test

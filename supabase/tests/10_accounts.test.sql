@@ -131,9 +131,9 @@ select ok(exists (select 1 from storage.buckets where id = 'avatars' and public
   and file_size_limit = 1048576 and allowed_mime_types = '{image/jpeg}'), 'avatars bucket configured');
 select tests.act_as(:'ana');
 select lives_ok(format($q$insert into storage.objects (bucket_id, name, owner) values ('avatars', %L, %L)$q$,
-  :'ana' || '/x.jpg', :'ana'), 'Ana can upload into her folder');
+  :'ana' || '/' || md5('x') || '.jpg', :'ana'), 'Ana can upload into her folder');
 select throws_ok(format($q$insert into storage.objects (bucket_id, name, owner) values ('avatars', %L, %L)$q$,
-  :'ben' || '/x.jpg', :'ana'), '42501', null, 'Ana cannot upload into Ben''s folder');
+  :'ben' || '/' || md5('x') || '.jpg', :'ana'), '42501', null, 'Ana cannot upload into Ben''s folder');
 select tests.act_as_superuser();
 insert into storage.objects (bucket_id, name, owner) values ('avatars', :'ana' || '/own.jpg', :'ana');
 select tests.act_as(:'ana');
@@ -151,12 +151,12 @@ select tests.act_as_superuser();
 select is((select count(*) from storage.objects where bucket_id = 'avatars' and name = :'ana' || '/own.jpg'), 1::bigint,
   'Ana''s file survives');
 
--- positive control: Ana can update and delete her own avatar
+-- positive control: Ana can delete her own avatar; no one overwrites one (each upload is a new name, migration 39)
 select tests.act_as_superuser();
 insert into storage.objects (bucket_id, name, owner) values ('avatars', :'ana' || '/pc.jpg', :'ana');
 select tests.act_as(:'ana');
 with u as (update storage.objects set name = name where bucket_id = 'avatars' and name = :'ana' || '/pc.jpg' returning 1)
-select is((select count(*) from u), 1::bigint, 'Ana can update her own file');
+select is((select count(*) from u), 0::bigint, 'Ana cannot overwrite her own file either');
 with d as (delete from storage.objects where bucket_id = 'avatars' and name = :'ana' || '/pc.jpg' returning 1)
 select is((select count(*) from d), 1::bigint, 'Ana can delete her own file');
 select tests.act_as_superuser();

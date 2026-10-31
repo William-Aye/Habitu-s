@@ -94,3 +94,35 @@ Deno.test("the stored copy keeps the original Cache-Control (max-age) and sets s
     assertEquals(store.get(req.url)!.headers.get("Cache-Control"), want, orig);
   }
 });
+
+Deno.test("WEB-1: a key function maps path variants to one entry; null bypasses the cache", async () => {
+  const { c, store } = fakeCache();
+  const x = ctx();
+  let n = 0;
+  const h = () => (n++, Promise.resolve(new Response("body")));
+  const key = (u: URL) => (u.pathname.startsWith("/a/") ? "https://h.test/a/ID" : null);
+  await withEdgeCache(new Request("https://h.test/a/one-ID"), x, 300, h, c, { key });
+  await x.flush();
+  const r = await withEdgeCache(new Request("https://h.test/a/OTHER-ID/?q=1"), x, 300, h, c, { key });
+  assertEquals(await r.text(), "body");
+  assertEquals(n, 1);
+  assertEquals([...store.keys()], ["https://h.test/a/ID"]);
+  await withEdgeCache(new Request("https://h.test/zzz"), x, 300, h, c, { key });
+  await withEdgeCache(new Request("https://h.test/zzz"), x, 300, h, c, { key });
+  await x.flush();
+  assertEquals(n, 3);
+  assertEquals(store.size, 1);
+});
+
+Deno.test("WEB-1: resolve runs on hits and misses, after the stored copy is made", async () => {
+  const { c, store } = fakeCache();
+  const x = ctx();
+  const resolve = (r: Response) => new Response(r.body, { status: 299, headers: r.headers });
+  const h = () => Promise.resolve(new Response("body", { headers: { "X-Tag": "t" } }));
+  const miss = await withEdgeCache(req, x, 300, h, c, { resolve });
+  await x.flush();
+  assertEquals(miss.status, 299);
+  assertEquals(store.get(req.url)!.status, 200);
+  const hit = await withEdgeCache(req, x, 300, h, c, { resolve });
+  assertEquals(hit.status, 299);
+});

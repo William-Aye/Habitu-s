@@ -1,6 +1,21 @@
+import { bearerMatches } from '../_shared/bearer.ts';
 export const BATCH_SIZE = 100;
 export const MAX_ATTEMPTS = 5;
 export const RETRY_STEP_MS = 5 * 60 * 1000;
+
+/** The shape of an Expo push token; anything else is dropped without being sent (FN-1). */
+export const EXPO_TOKEN = /^Expo(nent)?PushToken\[[A-Za-z0-9_-]{10,100}\]$/;
+
+/** Expo answered the whole request with an HTTP error (thrown by expoSend). */
+export class ExpoRequestError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+  }
+}
+
+/** A 4xx (other than rate limiting) is about the content of the batch, so a smaller batch can pass. */
+const isBatchRejection = (e: unknown) =>
+  e instanceof ExpoRequestError && e.status >= 400 && e.status < 500 && e.status !== 429;
 
 export interface OutboxRow {
   id: number;
@@ -55,7 +70,7 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e)).sli
 export function createHandler(deps: Deps): (req: Request) => Promise<Response> {
   return async (req) => {
     if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
-    if (!deps.serviceKey || req.headers.get('authorization') !== `Bearer ${deps.serviceKey}`) {
+    if (!(await bearerMatches(req.headers.get('authorization'), deps.serviceKey))) {
       return json({ error: 'unauthorized' }, 401);
     }
 
@@ -67,12 +82,16 @@ export function createHandler(deps: Deps): (req: Request) => Promise<Response> {
       return json({ error: 'fetch_failed' }, 500);
     }
 
-    // Flatten to one message per token, remembering which row it belongs to.
+    // Flatten to one message per well-formed token, remembering which row it belongs to. Malformed
+    // tokens are dropped: they can only fail, and could fail a whole batch with them.
     const messages: { rowIdx: number; msg: ExpoMessage }[] = [];
     const noToken: number[] = [];
+    const dead: string[] = [];
+    const valid = rows.map((r) => r.tokens.filter((t) => EXPO_TOKEN.test(t)));
     rows.forEach((r, rowIdx) => {
-      if (r.tokens.length === 0) noToken.push(r.id);
-      for (const to of r.tokens) {
+      for (const t of r.tokens) if (!EXPO_TOKEN.test(t)) dead.push(t);
+      if (valid[rowIdx].length === 0) noToken.push(r.id);
+      for (const to of valid[rowIdx]) {
         messages.push({
           rowIdx,
           msg: {
@@ -86,23 +105,30 @@ export function createHandler(deps: Deps): (req: Request) => Promise<Response> {
       }
     });
 
-    // One ticket per message; a failed request gives every message of its batch an error ticket.
+    // One ticket per message. A batch Expo rejects as a whole (4xx: a bad message, or tokens of
+    // several Expo projects) is split in two and retried, so one bad message cannot fail the others.
+    // Any other failure gives every message of the batch an error ticket.
+    const send = async (batch: ExpoMessage[]): Promise<ExpoTicket[]> => {
+      try {
+        const res = await deps.expoSend(batch);
+        if (!Array.isArray(res) || res.length !== batch.length) throw new Error('unexpected Expo response');
+        return res;
+      } catch (e) {
+        if (batch.length > 1 && isBatchRejection(e)) {
+          const mid = Math.ceil(batch.length / 2);
+          return [...(await send(batch.slice(0, mid))), ...(await send(batch.slice(mid)))];
+        }
+        console.error('expo send failed', errText(e));
+        const message = errText(e);
+        return batch.map(() => ({ status: 'error' as const, message }));
+      }
+    };
     const tickets: ExpoTicket[] = [];
     for (let i = 0; i < messages.length; i += BATCH_SIZE) {
-      const batch = messages.slice(i, i + BATCH_SIZE);
-      try {
-        const res = await deps.expoSend(batch.map((m) => m.msg));
-        if (!Array.isArray(res) || res.length !== batch.length) throw new Error('unexpected Expo response');
-        tickets.push(...res);
-      } catch (e) {
-        console.error('expo send failed', e);
-        const message = errText(e);
-        for (let k = 0; k < batch.length; k++) tickets.push({ status: 'error', message });
-      }
+      tickets.push(...(await send(messages.slice(i, i + BATCH_SIZE).map((m) => m.msg))));
     }
 
     const toSend = [...noToken];
-    const dead: string[] = [];
     const perRow = rows.map(() => ({ ok: 0, dead: 0, other: [] as string[] }));
     messages.forEach((m, i) => {
       const t = tickets[i];
@@ -118,7 +144,7 @@ export function createHandler(deps: Deps): (req: Request) => Promise<Response> {
     let retried = 0;
     for (const [idx, r] of rows.entries()) {
       const s = perRow[idx];
-      if (r.tokens.length === 0) continue;
+      if (valid[idx].length === 0) continue;
       // Delivered somewhere, or every token is dead: nothing more to do for this row.
       if (s.ok > 0 || s.other.length === 0) {
         toSend.push(r.id);

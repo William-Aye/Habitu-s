@@ -1,0 +1,41 @@
+{
+  "results": [
+    {
+      "name": "security_definer_view",
+      "title": "Security Definer View",
+      "level": "ERROR",
+      "facing": "EXTERNAL",
+      "categories": [
+        "SECURITY"
+      ],
+      "description": "Detects views defined with the SECURITY DEFINER property. These views enforce Postgres permissions and row level security policies (RLS) of the view creator, rather than that of the querying user",
+      "detail": "View `public.organiser_badges` is defined with the SECURITY DEFINER property",
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0010_security_definer_view",
+      "metadata": {
+        "name": "organiser_badges",
+        "type": "view",
+        "schema": "public"
+      },
+      "cacheKey": "security_definer_view_public_organiser_badges"
+    },
+    {
+      "name": "function_search_path_mutable",
+      "title": "Function Search Path Mutable",
+      "level": "WARN",
+      "facing": "EXTERNAL",
+      "categories": [
+        "SECURITY"
+      ],
+      "description": "Detects functions where the search_path parameter is not set.",
+      "detail": "Function `search.source_label` has a role mutable search_path",
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable",
+      "metadata": {
+        "name": "source_label",
+        "type": "function",
+        "schema": "search"
+      },
+      "cacheKey": "function_search_path_mutable_search_source_label_e3e1175c0c9e2c4bbd2392518326d345"
+    }
+  ],
+  "message": "db advisors"
+}

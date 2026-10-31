@@ -1,4 +1,4 @@
-# Friend App
+# Habitués
 
 Une application francaise pour se faire des amis grace a des activites recurrentes (Expo Android + Supabase).
 
@@ -38,7 +38,7 @@ The local Supabase stack uses ports in the 553xx range instead of the 543xx defa
 ## Accounts
 
 Browsing, searching and choosing interests need no account. People sign in only when an
-action needs one: with Google (native Android sign-in) or with a 6-digit code sent by e-mail.
+action needs one: with Google (native Android sign-in) or with an 8-digit code sent by e-mail.
 Sign-up asks for a first name and an 18+ confirmation, nothing else.
 
 ### Environment variables
@@ -57,8 +57,12 @@ Sign-up asks for a first name and an 18+ confirmation, nothing else.
 2. Configure the OAuth consent screen: app name "Habitués", support e-mail set to yours.
 3. Create a **Web** OAuth client id. In Supabase, go to Authentication → Providers → Google and
    enter this client id and its secret. Turn on **Skip nonce check** (the native Android sign-in
-   sends a nonce Supabase cannot check; `supabase/config.toml` already sets it).
-4. Create an **Android** OAuth client id with package name `fr.friendapp.app` and the SHA-1
+   sends a nonce Supabase cannot check; `supabase/config.toml` already sets it). This is accepted
+   (review finding AUTH-6): `@react-native-google-signin/google-signin` 16.1.5 has no nonce option
+   (custom nonces exist only in its paid "Universal" edition). A stolen Google ID token could be replayed
+   until it expires (about an hour), but Google only issues one for the app's Web client id to an Android
+   app registered with the package name and SHA-1 of step 4. Revisit if the Credential Manager API is adopted.
+4. Create an **Android** OAuth client id with package name `fr.habitues.app` and the SHA-1
    fingerprint of the signing key. For local builds, run `npx expo prebuild` in `app/`, then
    `cd android && ./gradlew signingReport` and copy the SHA-1 of the debug variant. Add the
    Google Play signing SHA-1 as well before release.
@@ -81,15 +85,54 @@ Sign-up asks for a first name and an 18+ confirmation, nothing else.
 
 ### 3. Supabase Auth settings (dashboard)
 
-- Email OTP: length **6**, expiry **3600** seconds.
+`supabase/config.toml` only configures the local stack. The hosted project does not read it, so every
+setting below must be set by hand in the dashboard (Authentication) and checked again before launch.
+
+**Sign-in by e-mail code only (review findings AUTH-1, AUTH-2, AUTH-3).** The spec says "Passwords: none",
+but GoTrue has no switch that turns passwords off while the e-mail provider is on. Two things carry the
+rule instead:
+
+- Migration `20261029000048_auth_hardening.sql` adds a trigger on `auth.users` that empties
+  `encrypted_password` on every insert and update. A password can be sent to `/signup` or `PUT /user`, but
+  it is never stored, so `grant_type=password` can never succeed and a password registered in advance for
+  somebody else's address is gone before that person signs up. It is applied by `supabase db push`, like
+  any migration. `node scripts/auth-live.mjs` checks it against a running local stack.
+- **Confirm email: ON** (Sign In / Providers, Email). A password sign-up then gets no session, and
+  `/signup` answers the same for an address that already has an account (no existence leak).
+  **Secure password change: ON** as well.
+
+Then set:
+
+- **Email OTP length: 8**, **Email OTP expiry: 600** seconds (10 minutes). The code is a short secret that
+  `/verify` accepts from any IP and that wrong guesses do not invalidate, so a short life and 8 digits keep
+  a distributed guess hopeless. The app's code field is 8 digits.
 - Email templates, French, no link: BOTH the **Magic Link** template (existing users) and the
   **Confirm signup** template (new users) must contain `{{ .Token }}`. Use the text
   `Votre code Habitués : {{ .Token }}` and no link in either, otherwise new users receive a link
-  instead of a code.
-- Rate limits: Supabase's e-mail rate limit (Authentication → Rate Limits) is **per project per
-  hour**, not per address. Set it to what your SMTP provider allows. Per-address throttling is
-  `max_frequency` (**60 s** between two e-mails to the same address, already in `config.toml`).
-- Refresh-token rotation: **on**.
+  instead of a code. (`supabase/templates/code.html` does the same locally.)
+- **Rate limits** (Authentication, Rate Limits), below the defaults like `config.toml`: token verifications
+  **10** per 5 minutes per IP, sign-ups and sign-ins **15**, token refreshes **100**.
+  Supabase's e-mail rate limit is **per project per hour**, not per address. Set it to what your SMTP
+  provider allows. Per-address throttling is `max_frequency` (**60 s** between two e-mails to the same
+  address, already in `config.toml`).
+  Watch out at launch: these limits count per IP address, and many people on one mobile carrier share a
+  single public address (carrier-grade NAT). A busy carrier IP can hit 10 verifications or 15 sign-ins in
+  5 minutes and see 429 errors. Watch the Auth logs for 429 responses in the first weeks and raise the two
+  numbers if real users are blocked.
+- **Allow new users to sign up: ON** (the e-mail code creates accounts). **Anonymous sign-ins: OFF**.
+  **Manual linking: OFF**. **Secure email change: ON** (`double_confirm_changes`). **Phone** provider
+  sign-up: OFF, and MFA by phone: OFF. Only the **Google** external provider is on.
+- **JWT expiry: 3600** seconds or less (it bounds how long a banned person's token keeps working, AUTH-4).
+  **Refresh-token rotation: ON**, **reuse interval: 10** seconds.
+- **CAPTCHA** (Attack Protection): Turnstile, with the secret key (see section 2). Review finding WEB-8:
+  the app sends the Turnstile token with every e-mail code request, but Supabase ignores it unless CAPTCHA
+  is switched on here. After deploying, call `POST <SUPABASE_URL>/auth/v1/otp` with the anon key and no
+  `captcha_token`, and expect a `captcha` error. Google sign-in and `/verify` are not covered by Turnstile
+  (Supabase only checks it on the e-mail code request and password grants). That is accepted (AUTH-7):
+  Google limits its own account creation, and `/verify` is bounded by the code rules above and the
+  per-IP verification limit.
+- **MFA TOTP**: enrolment and verification ON (see "Making the first admin").
+- **Redirect URLs**: exact addresses only, no wildcard (see "Web deployment", Supabase Auth).
 - Custom SMTP: strongly recommended before launch. Supabase's built-in e-mail sender allows only
   a few e-mails per hour. Choosing the provider is a launch step.
 
@@ -108,9 +151,14 @@ Sign-up asks for a first name and an 18+ confirmation, nothing else.
 
 ### 5. Before publication
 
+The full ordered owner checklist (hosted settings, legal steps, Play Console, build, closed test, rollback) is in
+[`docs/launch/checklist.md`](docs/launch/checklist.md).
+
 - Privacy policy (`app/src/content/privacy.fr.ts` and `privacy.en.ts`):
-  - Remove the "(dès que cette fonctionnalité sera disponible)" marker from a sentence only when the
-    feature it describes is built. Those sentences describe features that do not exist yet.
+  - Sentences for features that are not built are left out of the text. When a feature ships (phone
+    verification for organisers, private messages with the export clause on received messages, post-session feedback), add its sentence back in both
+    languages, tagged "(dès que cette fonctionnalité sera disponible)" / "(once this feature is available)"
+    until it is live.
   - Replace the placeholder `confidentialite@<domaine>` with the real contact address.
   - Have a qualified person check the text before it is published.
 
@@ -122,7 +170,7 @@ below is free (Firebase and Expo's push service need no card).
 ### Firebase and `google-services.json` (Android push)
 
 1. Create a Firebase project (console.firebase.google.com) and add an Android app with the package
-   name `fr.friendapp.app`.
+   name `fr.habitues.app`.
 2. Download `google-services.json` from the Firebase console into `app/google-services.json`
    before any Android build. The file is **gitignored on purpose**: the repository is public, so it
    is never committed.
@@ -185,7 +233,7 @@ Created by the migrations; nothing to schedule by hand:
 
 `EXPO_PUBLIC_WEB_BASE_URL` (in `app/.env`, see `app/.env.example`) is the public website address.
 Shared links are readable: `EXPO_PUBLIC_WEB_BASE_URL/activites/<slug>-<uuid>` (and `/associations/...`),
-built by `app/src/lib/links.ts`. Without it the app falls back to `friendapp://activites/<id>`.
+built by `app/src/lib/links.ts`. Without it the app falls back to `habitues://activites/<id>`.
 See "Public web pages" below.
 
 ### Finding new activities by meaning
@@ -242,6 +290,15 @@ have signed up first):
 update public.profiles set role = 'admin' where id = '<user id>';
 ```
 
+Review finding AUTH-9 (accepted, with a procedure): the app only offers the authenticator enrolment inside
+Administration, so it can only happen after the promotion. Until the first factor is verified, anyone holding
+that person's session (a stolen e-mail code, a shared phone) could enrol their own authenticator. Keep the
+window to minutes: promote while the future admin is ready with their phone, have them enrol straight away,
+then check in the SQL editor that exactly one factor exists and that it is theirs
+(`select user_id, friendly_name, status, created_at from auth.mfa_factors where user_id = '<user id>';`).
+If anything unexpected shows, delete the factor and set `role = 'user'` again. Once a factor is verified,
+GoTrue refuses a second enrolment, or removing it, from a session that has not passed the second factor.
+
 Then open the app, Profil, Administration. Without a second factor the screen asks for
 enrolment ("Activer la double authentification"): scan the QR code in an authenticator app (TOTP)
 and enter the 6-digit code. Until a code has been entered in the current session `is_admin()` is
@@ -266,6 +323,14 @@ npx supabase functions deploy storage-cleanup
   `npx supabase secrets set TURNSTILE_SECRET=<secret>`. Without it the function refuses every
   anonymous send. The Turnstile widget in the app must be rendered with the action `feedback`; a
   token minted for another action is rejected. Signed-in senders do not need Turnstile.
+  Two more function secrets (all optional locally, set them in production):
+  `npx supabase secrets set ALLOWED_ORIGINS=https://<site>` (the web build's origin; comma-separated for several;
+  without it the web build's signed-out feedback is blocked by the browser, the app is not affected) and
+  `TURNSTILE_HOSTNAMES=<site host>,challenges.cloudflare.com` (the hosts a token may have been solved on: the
+  site for the web build, Cloudflare's own page for the app's WebView; without it the host is not checked).
+  Limits: 10 attempts per client and hour (counted on a keyed hash of the address that lives only in the
+  function's memory for one hour; the address itself is never stored), 200 accepted per hour for everyone together,
+  bodies over 16 KB refused. The per-client count is per function instance, so it is a brake rather than an exact limit.
 - **`storage-cleanup`** (deletes files queued in `storage_deletions`). The pg_cron job
   `storage-cleanup` calls it every 10 minutes through pg_net, using two Vault secrets (the first is
   shared with `send-push`, see above):
@@ -330,6 +395,9 @@ automatic report. The same change from SQL, as an admin session only:
 `select public.admin_set_banned_word('<mot>', true);` (use `false` to remove).
 
 ### Before launch
+
+The full ordered owner checklist (hosted settings, legal steps, Play Console, build, closed test, rollback) is in
+[`docs/launch/checklist.md`](docs/launch/checklist.md).
 
 - Replace the placeholder `PRIVACY_CONTACT` in `app/src/content/contact.ts`
   (`confidentialite@<domaine>`) with a real mailbox. It is the address for privacy requests and for
@@ -480,7 +548,7 @@ The website has two parts, both on Cloudflare Pages (free plan):
 | `SUPABASE_ANON_KEY` | anon key, read by the Worker |
 | `WEB_BASE_URL` | public address without trailing slash (canonical links, sitemaps). Until a domain is bought, the `*.pages.dev` address |
 | `PLAY_STORE_URL` | Play Store listing, used by the Worker pages |
-| `ANDROID_PACKAGE` | Android package (`fr.friendapp.app`), used for `/.well-known/assetlinks.json` |
+| `ANDROID_PACKAGE` | Android package (`fr.habitues.app`), used for `/.well-known/assetlinks.json` |
 | `ANDROID_SHA256_CERT` | SHA-256 fingerprint of the app signing certificate (Play Console, App integrity). Without it `assetlinks.json` is skipped and Android App Links are not verified |
 | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` | read by the app export |
 | `EXPO_PUBLIC_WEB_BASE_URL` | same value as `WEB_BASE_URL`; also adds the Android App Links intent filters (`app/app.config.js`) |
@@ -496,15 +564,35 @@ Android App Links: the same `EXPO_PUBLIC_WEB_BASE_URL` must be set when building
 1. Buy a domain (or keep the free `*.pages.dev` address) and add it under the Pages project, Custom domains.
    DNS is managed on Cloudflare.
 2. SSL/TLS: Always Use HTTPS on; enable DNSSEC and add the DS record at the registrar.
-3. Security: turn on the WAF managed rules and add a rate-limiting rule on `/app/*`. Do not use a challenge on the public pages: WhatsApp, Instagram and Google fetch them without a browser.
+3. Security: turn on the WAF managed rules and add the rate-limiting rule below. Do not use a challenge on the public pages: WhatsApp, Instagram and Google fetch them without a browser.
+
+   Rate-limiting rule (review finding WEB-1). Every request to the site, cached or not, is one Pages Functions
+   invocation (100,000 a day on the free plan), and a request for a made-up id costs one database call. In
+   Security, Security rules, Rate limiting rules, create:
+   - Expression: `(http.request.uri.path wildcard "/activites/*") or (http.request.uri.path wildcard "/associations/*") or (http.request.uri.path wildcard "/sitemaps/*") or (http.request.uri.path wildcard "/app/*")`
+   - Characteristic: IP. Limit: 60 requests per 10 seconds (the free plan allows one period, so use the longest it offers).
+   - Action: Block for 10 minutes (not a challenge, for the reason above; crawlers stay far below this rate).
+   The code already limits what a junk path can do: the edge cache is keyed on the page id (slug, case, trailing
+   slash and query string do not change the key), and a path with no valid id is answered with no cache lookup and
+   no database call. Also set the Pages project's Functions failure mode to "Fail open" so the static files keep
+   being served if the daily quota is ever exhausted. The Cache API does nothing on `*.pages.dev` hosts, so every
+   request there reaches the database: put the site on a custom domain before launch.
 4. Change `WEB_BASE_URL` and `EXPO_PUBLIC_WEB_BASE_URL` to the new domain and redeploy.
+5. Pages project, Settings, Access policy: turn on Cloudflare Access for preview deployments (review finding WEB-7), so
+   old preview hosts (`<hash>.<project>.pages.dev`, `<branch>.<project>.pages.dev`) are not public. As a second
+   layer, `robots.txt` answers `Disallow: /` on any host other than the one in `WEB_BASE_URL`; this only works
+   once `WEB_BASE_URL` is set for the Preview environment too.
+6. Takedowns (review finding WEB-6, accepted): a page removed by moderation can still be served from the edge cache
+   for up to 5 minutes and from a browser for 1 minute. Nothing purges it. If an urgent takedown is needed, purge the
+   URL in Cloudflare, Caching, Configuration, Purge Cache, Custom purge.
 
 ### 3. Supabase Auth
 
 - Authentication, URL Configuration: set the Site URL to `<WEB_BASE_URL>` and add
   `<WEB_BASE_URL>/app/auth/callback` to the Redirect URLs. Google sign-in redirects to the origin the page is
-  served from, so to sign in on Cloudflare preview deployments also add the preview address
-  (`https://*.<project>.pages.dev/app/auth/callback`). Locally, `http://127.0.0.1:8788/app/auth/callback` is in
+  served from. Do not add a wildcard such as `https://*.<project>.pages.dev/...` (review finding AUTH-9): every
+  old branch preview would then receive production sign-in codes. To test sign-in on a Cloudflare preview, add
+  that one preview address exactly, and remove it afterwards. Locally, `http://127.0.0.1:8788/app/auth/callback` is in
   `supabase/config.toml`.
 - Google sign-in on the web needs an OAuth client of type "Web application" whose authorised redirect URI
   is the Supabase callback (`https://<project>.supabase.co/auth/v1/callback`); its client id goes in
@@ -525,9 +613,18 @@ Submit `<WEB_BASE_URL>/sitemap.xml` in Google Search Console (add the domain pro
   the card shows the title, description and the Habitués image. If it does not, the WAF or a challenge rule is blocking the crawler.
 - Android App Links: open
   `https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=<WEB_BASE_URL>&relation=delegate_permission/common.handle_all_urls`
-  and check that the answer lists your package (`fr.friendapp.app`) and the SHA-256 of the signing certificate.
+  and check that the answer lists your package (`fr.habitues.app`) and the SHA-256 of the signing certificate.
+- Smoke check: run `npm run smoke` with `SMOKE_WEB_BASE_URL` (the site), `SMOKE_SUPABASE_URL` and
+  `SMOKE_SUPABASE_ANON_KEY` set in your shell. It prints one line per check (`ok` or `FAIL <reason>`) and exits 1 if any fails.
+  It checks HTTPS, the security headers, no cookies, the sitemap, 404 + noindex for unknown ids, `assetlinks.json`
+  (package from `SMOKE_ANDROID_PACKAGE`, default `fr.habitues.app`), that anonymous users cannot read `profiles` or call
+  `admin_reports` (only 401/403 count as denied; 404 or 5xx fails), and that the Supabase URL answers (auth health). Password sign-in is not checked here: it is covered by pgTAP test 42 and `scripts/auth-live.mjs`. For a local run only, set `SMOKE_ALLOW_HTTP=1` to accept
+  `http://127.0.0.1` / `localhost` for the HTTPS check. The anon key is sent only to `SMOKE_SUPABASE_URL` and never printed.
 
 ### 6. Before launch
+
+The full ordered owner checklist (hosted settings, legal steps, Play Console, build, closed test, rollback) is in
+[`docs/launch/checklist.md`](docs/launch/checklist.md).
 
 Fill in the placeholders in the "Mentions légales" (publisher name and contact, hosts) and "Conditions
 d'utilisation" pages (`web/src/legal.ts`).
@@ -544,3 +641,27 @@ d'utilisation" pages (`web/src/legal.ts`).
   files (`/app/_expo/*`, `/app/assets/*`, the favicon, `styles.css`, the preview image, `/.well-known/*`) out of the Function.
 - Slugs: `app/src/lib/links.ts` and `web/src/slug.ts` must give the same result; both are
   tested against `web/src/slug_fixtures.json`.
+
+## Release build
+
+The full ordered owner checklist (hosted settings, legal steps, Play Console, build, closed test, rollback) is in
+[`docs/launch/checklist.md`](docs/launch/checklist.md).
+
+The Android app is Habitués, package `fr.habitues.app`, scheme `habitues`, first store version `1.0.0`
+(`versionCode` 1; later codes are incremented by EAS). Build profiles are in `app/eas.json`.
+
+1. From `app/`, build the store bundle (an Android App Bundle, `.aab`):
+   `npx eas-cli build -p android --profile production`.
+   For an installable test file (`.apk`, shared by link only), use `--profile preview`.
+2. Set the build variables in EAS (Project settings, Environment variables, environment `production`).
+   These are the same names as in `app/.env.example`; none of them is a secret except the file below:
+   - `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` (the production project; the anon key is public by design);
+   - `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, `EXPO_PUBLIC_TURNSTILE_SITE_KEY`;
+   - `EXPO_PUBLIC_WEB_BASE_URL` (turns on Android App Links and is the address of the terms-of-use link in the sign-up sheet; the `production` profile fails to build without it) and `EXPO_PUBLIC_PLAY_STORE_URL`;
+   - `GOOGLE_SERVICES_JSON` (type file, visibility secret; see "Firebase and `google-services.json`").
+3. Blocked permissions: `app.json` blocks the Android permissions the app does not use (microphone, advertising ID,
+   camera, calendar, external storage, overlay, fine location). Check the built bundle before upload, for example
+   with `apkanalyzer manifest permissions`, and smoke-test location, add-to-calendar and the photo and document pickers.
+4. App Links: in Play Console, open Test and release, then App integrity (App signing). Copy the SHA-256 of the
+   "App signing key certificate" and put it in `ANDROID_SHA256_CERT` for the website (see "Public web pages"). Add the
+   Google sign-in SHA-1 of the same key to the Android OAuth client (see "Accounts").

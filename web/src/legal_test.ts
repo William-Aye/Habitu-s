@@ -19,12 +19,33 @@ Deno.test("mentions légales: placeholders and hosts", async () => {
   assertEquals(t.includes("<script"), false);
 });
 
-Deno.test("conditions: placeholder text", async () => {
+Deno.test("conditions: the terms of use, complete and without placeholder", async () => {
   const r = legalResponse("terms");
   assertEquals(r.status, 200);
   const t = await r.text();
   assertStringIncludes(t, "<title>Conditions d&#39;utilisation · Habitués</title>");
-  assertStringIncludes(t, "[À COMPLÉTER AVANT LANCEMENT]");
+  assertStringIncludes(t, "<h1>Conditions d&#39;utilisation</h1>");
+  for (const h of [
+    "Objet",
+    "Accès au service",
+    "Règles de conduite",
+    "Contenus des utilisateurs",
+    "Signalement et modération",
+    "Suspension et suppression du compte",
+    "Responsabilité",
+    "Données personnelles",
+    "Modification des conditions",
+    "Droit applicable",
+  ]) {
+    assertStringIncludes(t, `<h2>${h}</h2>`);
+  }
+  assertStringIncludes(t, "18 ans ou plus");
+  assertStringIncludes(t, "lieu public");
+  assertStringIncludes(t, "exposé des motifs");
+  assertStringIncludes(t, "confidentialite@&lt;domaine&gt;"); // the contest address
+  assertEquals(/à compléter/i.test(t), false);
+  assertEquals(t.includes("${"), false);
+  assertEquals(t.includes("<script"), false);
 });
 
 Deno.test("confidentialité: renders the privacy text", async () => {

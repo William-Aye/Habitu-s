@@ -7,7 +7,7 @@ select tests.create_user('mem2@ses.fr', 'Marc') as mem2 \gset
 select tests.create_user('pend@ses.fr', 'Paula') as pend \gset
 select tests.create_user('out@ses.fr', 'Hugo') as outsider \gset
 update profiles set age_confirmed = true, created_at = now() - interval '2 days';
-update profiles set photo_url = 'https://example.org/mia.jpg', home_area_label = 'Croix-Rousse' where id = :'mem';
+update profiles set photo_url = :'mem' || '/' || md5('mia') || '.jpg', home_area_label = 'Croix-Rousse' where id = :'mem';
 insert into categories (id, slug, name_fr, name_en, icon) values ('00000000-0000-0000-0000-0000000000c1', 'go', 'Jeu de go', 'Go', 'grid-3x3');
 insert into tags (id, slug, label_fr, label_en) values ('00000000-0000-0000-0000-0000000000b1', 'go', 'Go', 'Go');
 insert into associations (id, name, source, verified) values ('00000000-0000-0000-0000-0000000000a1', 'Club de go', 'community', false);
@@ -100,9 +100,9 @@ select is(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'next_ses
 select is(public.get_activity('00000000-0000-0000-0000-0000000000f4') ? 'welcome_first_name', false, 'anon sees no welcome first name');
 select is(public.get_activity('00000000-0000-0000-0000-0000000000f4')->>'my_status', 'none', 'anon status none');
 select is(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'organised_by', '{"kind": "association", "id": "00000000-0000-0000-0000-0000000000a1", "name": "Club de go"}'::jsonb, 'organised by the association');
-select is((select array_agg(k order by k) from jsonb_object_keys(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'organiser') k),
-  array['id'], 'anon: organiser id only (no first name or photo, see migration 36)');
-select is(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'organiser'->>'id', :'org', 'the organiser id is present');
+select is(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'organiser', '{}'::jsonb,
+  'anon: an organiser exists but nothing identifies them (migration 40)');
+select is(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'organiser' ? 'id', false, 'anon: no organiser id');
 select is(jsonb_array_length(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'next_sessions'), 8, 'next 8 sessions');
 select tests.act_as(:'mem');
 select is(jsonb_array_length(public.get_activity('00000000-0000-0000-0000-0000000000f4')->'next_sessions'->0->'attendees'), 2, 'member sees the 2 attendees');

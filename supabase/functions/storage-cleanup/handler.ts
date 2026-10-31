@@ -1,3 +1,4 @@
+import { bearerMatches } from '../_shared/bearer.ts';
 export const BATCH_SIZE = 100;
 export const FETCH_LIMIT = 1000;
 
@@ -25,7 +26,7 @@ function json(body: unknown, status = 200): Response {
 export function createHandler(deps: Deps): (req: Request) => Promise<Response> {
   return async (req) => {
     if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
-    if (!deps.serviceKey || req.headers.get('authorization') !== `Bearer ${deps.serviceKey}`) {
+    if (!(await bearerMatches(req.headers.get('authorization'), deps.serviceKey))) {
       return json({ error: 'unauthorized' }, 401);
     }
 

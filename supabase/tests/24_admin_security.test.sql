@@ -1,6 +1,6 @@
 begin;
 \ir helpers.inc
-select plan(46);
+select plan(47);
 select tests.create_user('adm@as.fr', 'Admin') as adm \gset
 select tests.create_user('usr@as.fr', 'Ugo') as usr \gset
 select tests.create_user('bad@as.fr', 'Bad') as bad \gset
@@ -110,8 +110,10 @@ select tests.act_as_superuser();
 insert into admin_audit_log (admin_id, action) select :'adm', 'bulk' from generate_series(1, 210);
 select tests.act_as_admin(:'adm');
 select is(jsonb_array_length(public.admin_audit_page(null, null, 500)->'items'), 200, 'limit 500 clamps to 200');
+select tests.act_as_superuser();
+select is(public.is_banned(:'bad'), true, 'is_banned true (for security definer code)');
 select tests.act_as_aal1(:'usr');
-select is(public.is_banned(:'bad'), true, 'is_banned true');
+select throws_ok(format($q$ select is_banned(%L) $q$, :'bad'), '42501', null, 'authenticated cannot is_banned (migration 37)');
 select tests.act_as_anon();
 select throws_ok(format($q$ select is_banned(%L) $q$, :'bad'), '42501', null, 'anon cannot is_banned');
 select * from finish();

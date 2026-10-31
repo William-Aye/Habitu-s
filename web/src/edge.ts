@@ -12,19 +12,34 @@ const CACHEABLE = new Set([200, 301, 404, 410]);
 // deno-lint-ignore no-explicit-any
 const defaultCache = (): CacheLike | undefined => (globalThis as any).caches?.default;
 
+export interface EdgeOpts {
+  /**
+   * Cache key for this URL (WEB-1): the canonical form, so path variants share one entry.
+   * Return null for a URL that must never touch the cache (it is answered without a lookup).
+   * Default: the path without the query string.
+   */
+  key?: (url: URL) => string | null;
+  /** Applied to every response leaving the helper, hit or miss, after the copy is stored. */
+  resolve?: (res: Response) => Response;
+}
+
 export async function withEdgeCache(
   request: Request,
   ctx: Ctx,
   ttlSeconds: number,
   handler: () => Promise<Response>,
   cache: CacheLike | undefined = defaultCache(),
+  opts: EdgeOpts = {},
 ): Promise<Response> {
-  if (!cache || request.method !== "GET") return handler();
+  const resolve = opts.resolve ?? ((r: Response) => r);
+  if (!cache || request.method !== "GET") return resolve(await handler());
   const url = new URL(request.url);
   url.search = "";
-  const key = new Request(url.toString(), { method: "GET" });
+  const keyUrl = opts.key ? opts.key(url) : url.toString();
+  if (keyUrl === null) return resolve(await handler());
+  const key = new Request(keyUrl, { method: "GET" });
   const hit = await cache.match(key);
-  if (hit) return hit;
+  if (hit) return resolve(hit);
   const res = await handler();
   if (CACHEABLE.has(res.status)) {
     const ttl = res.status === 404 || res.status === 410 ? Math.min(60, ttlSeconds) : ttlSeconds;
@@ -36,5 +51,5 @@ export async function withEdgeCache(
     copy.headers.set("Cache-Control", [...kept, `s-maxage=${ttl}`].join(", "));
     ctx.waitUntil(cache.put(key, copy));
   }
-  return res;
+  return resolve(res);
 }

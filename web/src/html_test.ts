@@ -107,11 +107,11 @@ Deno.test("open-in-app is an Android intent link with the Play Store fallback", 
   const store = "https://play.google.com/store/apps/details?id=fr.x";
   const html = renderActivityPage(activityFixture(), BASE, { playStore: store, androidPackage: "fr.test.app" });
   const href = html.match(/href="(intent:[^"]+)"/)![1].replaceAll("&amp;", "&");
-  assertStringIncludes(href, "intent://activites/11111111-1111-4111-8111-111111111111#Intent;scheme=friendapp;package=fr.test.app;");
+  assertStringIncludes(href, "intent://activites/11111111-1111-4111-8111-111111111111#Intent;scheme=habitues;package=fr.test.app;");
   assertStringIncludes(href, "S.browser_fallback_url=" + encodeURIComponent(store));
   assert(href.endsWith(";end"));
   const def = renderActivityPage(activityFixture(), BASE);
-  assertStringIncludes(def, "package=fr.friendapp.app;");
+  assertStringIncludes(def, "package=fr.habitues.app;");
 });
 
 Deno.test("label and map pin both come from the activity, whatever the session says", () => {

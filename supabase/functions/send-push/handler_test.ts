@@ -1,5 +1,8 @@
 import { assertEquals } from 'jsr:@std/assert@1.0.13';
-import { createHandler, type Deps, type OutboxRow } from './handler.ts';
+import { createHandler, ExpoRequestError, type Deps, type OutboxRow } from './handler.ts';
+
+/** A well-formed Expo push token built from a short label. */
+const tk = (s: string) => `ExponentPushToken[${s.padEnd(10, 'x')}]`;
 
 function row(id: number, tokens: string[], attempts = 0, kind = 'new_member'): OutboxRow {
   return { id, user_id: `u${id}`, kind, title: `t${id}`, body: `b${id}`, data: { n: id }, attempts, tokens };
@@ -44,12 +47,12 @@ const post = (auth: string | null = 'Bearer secret') =>
 const ok = (n: number) => Promise.resolve(Array.from({ length: n }, () => ({ status: 'ok' as const })));
 
 Deno.test('sends due rows and marks them sent', async () => {
-  const { handler, log } = setup([row(1, ['T1', 'T2']), row(2, ['T3'], 0, 'session_reminder')], (m) => ok(m.length));
+  const { handler, log } = setup([row(1, [tk('T1'), tk('T2')]), row(2, [tk('T3')], 0, 'session_reminder')], (m) => ok(m.length));
   const res = await handler(post());
   assertEquals(res.status, 200);
   assertEquals(log.sent, [1, 2]);
   assertEquals(log.expo.length, 1);
-  assertEquals(log.expo[0].map((m) => m.to), ['T1', 'T2', 'T3']);
+  assertEquals(log.expo[0].map((m) => m.to), [tk('T1'), tk('T2'), tk('T3')]);
   assertEquals(log.expo[0][2].categoryId, 'session_reminder');
   assertEquals(log.expo[0][0].categoryId, undefined);
 });
@@ -62,7 +65,7 @@ Deno.test('rows without any token are marked sent and not sent to Expo', async (
 });
 
 Deno.test('sends in batches of 100', async () => {
-  const tokens = Array.from({ length: 250 }, (_, i) => `T${i}`);
+  const tokens = Array.from({ length: 250 }, (_, i) => tk(`T${i}`));
   const { handler, log } = setup([row(1, tokens)], (m) => ok(m.length));
   await handler(post());
   assertEquals(log.expo.map((b) => b.length), [100, 100, 50]);
@@ -70,24 +73,24 @@ Deno.test('sends in batches of 100', async () => {
 });
 
 Deno.test('DeviceNotRegistered deletes the token; the row is sent when another token worked', async () => {
-  const { handler, log } = setup([row(1, ['GOOD', 'DEAD'])], () =>
+  const { handler, log } = setup([row(1, [tk('GOOD'), tk('DEAD')])], () =>
     Promise.resolve([{ status: 'ok' as const }, { status: 'error' as const, details: { error: 'DeviceNotRegistered' } }]));
   await handler(post());
-  assertEquals(log.dropped, ['DEAD']);
+  assertEquals(log.dropped, [tk('DEAD')]);
   assertEquals(log.sent, [1]);
   assertEquals(log.retries, []);
 });
 
 Deno.test('a row whose only token is dead is sent (nothing left to deliver)', async () => {
-  const { handler, log } = setup([row(1, ['DEAD'])], () =>
+  const { handler, log } = setup([row(1, [tk('DEAD')])], () =>
     Promise.resolve([{ status: 'error' as const, details: { error: 'DeviceNotRegistered' } }]));
   await handler(post());
-  assertEquals(log.dropped, ['DEAD']);
+  assertEquals(log.dropped, [tk('DEAD')]);
   assertEquals(log.sent, [1]);
 });
 
 Deno.test('other errors retry with 5 minutes x attempts', async () => {
-  const { handler, log } = setup([row(1, ['T1'], 2)], () =>
+  const { handler, log } = setup([row(1, [tk('T1')], 2)], () =>
     Promise.resolve([{ status: 'error' as const, message: 'MessageRateExceeded', details: { error: 'MessageRateExceeded' } }]));
   await handler(post());
   assertEquals(log.sent, []);
@@ -98,7 +101,7 @@ Deno.test('other errors retry with 5 minutes x attempts', async () => {
 });
 
 Deno.test('after 5 attempts the row fails for good', async () => {
-  const { handler, log } = setup([row(1, ['T1'], 4)], () =>
+  const { handler, log } = setup([row(1, [tk('T1')], 4)], () =>
     Promise.resolve([{ status: 'error' as const, message: 'boom' }]));
   await handler(post());
   assertEquals(log.retries[0].attempts, 5);
@@ -107,7 +110,7 @@ Deno.test('after 5 attempts the row fails for good', async () => {
 });
 
 Deno.test('an Expo failure never throws: rows are retried', async () => {
-  const { handler, log } = setup([row(1, ['T1']), row(2, ['T2'])], () => Promise.reject(new Error('Expo 500')));
+  const { handler, log } = setup([row(1, [tk('T1')]), row(2, [tk('T2')])], () => Promise.reject(new Error('Expo 500')));
   const res = await handler(post());
   assertEquals(res.status, 200);
   assertEquals(log.sent, []);
@@ -160,7 +163,7 @@ Deno.test('the error text is passed to markRetry', async () => {
   const handler = createHandler({
     serviceKey: 'secret',
     now: () => new Date(),
-    fetchOutbox: () => Promise.resolve([row(1, ['T1'])]),
+    fetchOutbox: () => Promise.resolve([row(1, [tk('T1')])]),
     markSent: () => Promise.resolve(),
     markRetry: (_id, err) => {
       errs.push(err);
@@ -171,4 +174,36 @@ Deno.test('the error text is passed to markRetry', async () => {
   });
   await handler(post());
   assertEquals(errs, ['MessageRateExceeded']);
+});
+
+Deno.test('FN-1: malformed tokens are dropped and never sent to Expo', async () => {
+  const { handler, log } = setup([row(1, ['garbage-not-expo', tk('T1')]), row(2, ['x'.repeat(50)])], (m) => ok(m.length));
+  await handler(post());
+  assertEquals(log.expo.flat().map((m) => m.to), [tk('T1')]);
+  assertEquals(log.dropped.sort(), ['garbage-not-expo', 'x'.repeat(50)].sort());
+  assertEquals(log.sent.sort(), [1, 2]);
+});
+
+Deno.test('FN-1: a batch Expo rejects as a whole is split, so one bad message does not fail the others', async () => {
+  const bad = tk('BAD');
+  const tokens = Array.from({ length: 40 }, (_, i) => tk(`T${i}`));
+  const rows = tokens.map((t, i) => row(i + 1, [t]));
+  rows.push(row(99, [bad]));
+  const { handler, log } = setup(rows, (m) =>
+    m.some((x) => x.to === bad)
+      ? Promise.reject(new ExpoRequestError(400, 'PUSH_TOO_MANY_EXPERIENCE_IDS'))
+      : ok(m.length));
+  const res = await handler(post());
+  assertEquals(res.status, 200);
+  assertEquals(log.sent.sort((a, b) => a - b), rows.slice(0, 40).map((r) => r.id));
+  assertEquals(log.retries.map((r) => r.id), [99]);
+  // bisection, not one request per message
+  assertEquals(log.expo.length < 20, true);
+});
+
+Deno.test('FN-1: a server-side Expo failure is not split (no request storm while Expo is down)', async () => {
+  const { handler, log } = setup([row(1, [tk('T1')]), row(2, [tk('T2')])], () => Promise.reject(new ExpoRequestError(503, 'down')));
+  await handler(post());
+  assertEquals(log.expo.length, 1);
+  assertEquals(log.retries.map((r) => r.id), [1, 2]);
 });

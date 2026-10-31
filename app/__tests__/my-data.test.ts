@@ -303,15 +303,16 @@ describe('touchLastSeen', () => {
 
 describe('pickAndUploadAvatar', () => {
   let upload: jest.Mock;
+  let remove: jest.Mock;
+  let update: jest.Mock;
   let eq: jest.Mock;
   beforeEach(() => {
     upload = jest.fn(async () => ({ error: null }));
-    storageFrom.mockReturnValue({
-      upload,
-      getPublicUrl: () => ({ data: { publicUrl: 'https://x/avatars/u1/avatar.jpg' } }),
-    });
+    remove = jest.fn(async () => ({ data: [], error: null }));
+    storageFrom.mockReturnValue({ upload, remove });
     eq = jest.fn(async () => ({ error: null }));
-    from.mockReturnValue({ update: jest.fn(() => ({ eq })) });
+    update = jest.fn(() => ({ eq }));
+    from.mockReturnValue({ update });
     Picker.launchImageLibraryAsync.mockResolvedValue({
       canceled: false,
       assets: [{ uri: 'file:///pick.jpg', width: 1600 }],
@@ -325,20 +326,32 @@ describe('pickAndUploadAvatar', () => {
     expect(upload).not.toHaveBeenCalled();
   });
 
-  it('resizes to 800 px JPEG, uploads with upsert and saves the versioned URL', async () => {
+  it('resizes to 800 px JPEG, uploads under a new random name (no upsert) and saves that name', async () => {
     const res = await pickAndUploadAvatar('u1');
     expect(Manipulator.manipulateAsync).toHaveBeenCalledWith(
       'file:///pick.jpg',
       [{ resize: { width: 800 } }],
       { compress: 0.7, format: 'jpeg' },
     );
-    expect(upload).toHaveBeenCalledWith('u1/avatar.jpg', expect.anything(), {
-      contentType: 'image/jpeg',
-      upsert: true,
-    });
-    expect(res.ok).toBe(true);
-    if (res.ok) expect(res.url).toMatch(/^https:\/\/x\/avatars\/u1\/avatar\.jpg\?v=\d+$/);
+    const [path, , opts] = upload.mock.calls[0];
+    expect(path).toMatch(/^u1\/[0-9a-f]{32}\.jpg$/);
+    expect(opts).toEqual({ contentType: 'image/jpeg', upsert: false });
+    expect(res).toEqual({ ok: true, url: path });
+    expect(update).toHaveBeenCalledWith({ photo_url: path });
     expect(eq).toHaveBeenCalledWith('id', 'u1');
+  });
+
+  it('never reuses a name: two uploads get two different unguessable names', async () => {
+    await pickAndUploadAvatar('u1');
+    await pickAndUploadAvatar('u1');
+    expect(upload.mock.calls[0][0]).not.toEqual(upload.mock.calls[1][0]);
+    expect(upload.mock.calls[0][0]).not.toContain('avatar.jpg');
+  });
+
+  it('removes the uploaded file when the profile cannot be saved', async () => {
+    eq.mockResolvedValue({ error: { message: 'x' } });
+    expect(await pickAndUploadAvatar('u1')).toEqual({ ok: false, error: 'network' });
+    expect(remove).toHaveBeenCalledWith([upload.mock.calls[0][0]]);
   });
 
   it('does not resize an image that is not wider than 800 px', async () => {

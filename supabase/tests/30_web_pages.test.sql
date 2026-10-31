@@ -26,25 +26,25 @@ update activities set organised_by_association_id = '00000000-0000-0000-0000-000
 select tests.act_as_anon();
 
 -- ---- sitemap ranges ----
-select is((select jsonb_array_length(web_sitemap_range('activities', '00000000-0000-0000-0000-000000000000', null))), 2, 'activities: whole range, visible rows only (no archived, moderated or banned organiser)');
-select is((select jsonb_agg(e->>'id' order by e->>'id') from jsonb_array_elements(web_sitemap_range('activities', '00000000-0000-0000-0000-000000000000', null)) e),
+select is((select jsonb_array_length(web_sitemap_range('activities', 0))), 2, 'activities: whole range, visible rows only (no archived, moderated or banned organiser)');
+select is((select jsonb_agg(e->>'id' order by e->>'id') from jsonb_array_elements(web_sitemap_range('activities', 0)) e),
   '["00000000-0000-0000-0000-0000000000f1", "00000000-0000-0000-0000-0000000000f5"]'::jsonb, 'activities: the right two ids');
-select is((web_sitemap_range('activities', '00000000-0000-0000-0000-000000000000', null)->0->>'title'), 'Go normal', 'activities: title');
-select ok((web_sitemap_range('activities', '00000000-0000-0000-0000-000000000000', null)->0->>'updated_at') is not null, 'activities: updated_at present');
-select is(jsonb_array_length(web_sitemap_range('activities', '00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-0000000000f5')), 1, 'activities: lo is inclusive, hi is exclusive');
-select is(web_sitemap_range('activities', '00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-0000000000f5')->0->>'id', '00000000-0000-0000-0000-0000000000f1', 'activities: lo id is in range');
-select is(jsonb_array_length(web_sitemap_range('activities', '00000000-0000-0000-0000-0000000000f2', null)), 1, 'activities: ids below lo are excluded');
-select is(jsonb_array_length(web_sitemap_range('activities', '00000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-0000000000f5')), 0, 'activities: empty range gives []');
-select is(jsonb_array_length(web_sitemap_range('activities', null, null)), 2, 'activities: null lo means from the start');
-select is((select jsonb_agg(e->>'id' order by e->>'id') from jsonb_array_elements(web_sitemap_range('associations', '00000000-0000-0000-0000-000000000000', null)) e),
+select is((web_sitemap_range('activities', 0)->0->>'title'), 'Go normal', 'activities: title');
+select ok((web_sitemap_range('activities', 0)->0->>'updated_at') is not null, 'activities: updated_at present');
+select is(jsonb_array_length(web_sitemap_range('activities', 1)), 0, 'activities: the next bucket holds none of the 00 ids');
+select is(web_sitemap_range('activities', 0)->0->>'id', '00000000-0000-0000-0000-0000000000f1', 'activities: ordered by id');
+select is(jsonb_array_length(web_sitemap_range('activities', 15)), 0, 'activities: the last bucket (15) answers');
+select throws_ok($$ select web_sitemap_range('activities', -1) $$, '22023', 'invalid bucket', 'activities: a negative bucket raises 22023');
+select is(jsonb_array_length(web_sitemap_range('activities', 0)), 2, 'activities: null lo means from the start');
+select is((select jsonb_agg(e->>'id' order by e->>'id') from jsonb_array_elements(web_sitemap_range('associations', 0)) e),
   '["00000000-0000-0000-0000-0000000000a1", "00000000-0000-0000-0000-0000000000a5"]'::jsonb, 'associations: visible rows only (no hidden, dormant or removed)');
-select is(web_sitemap_range('associations', '00000000-0000-0000-0000-000000000000', null)->0->>'city', 'Lyon', 'associations: city');
-select is(web_sitemap_range('associations', '00000000-0000-0000-0000-000000000000', null)->0->>'name', 'Club normal', 'associations: name');
-select ok((web_sitemap_range('associations', '00000000-0000-0000-0000-000000000000', null)->0->>'updated_at') is not null, 'associations: updated_at present');
-select is(jsonb_array_length(web_sitemap_range('associations', '00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000a5')), 1, 'associations: hi is exclusive');
-select is(jsonb_array_length(web_sitemap_range('associations', '00000000-0000-0000-0000-0000000000a2', null)), 1, 'associations: ids below lo are excluded');
-select throws_ok($$ select web_sitemap_range('profiles', null, null) $$, '22023', 'invalid kind', 'a bad kind raises 22023');
-select is(pg_get_functiondef('public.web_sitemap_range(text,uuid,uuid)'::regprocedure) like '%limit 50000%', true, 'the 50000 cap is in the function');
+select is(web_sitemap_range('associations', 0)->0->>'city', 'Lyon', 'associations: city');
+select is(web_sitemap_range('associations', 0)->0->>'name', 'Club normal', 'associations: name');
+select ok((web_sitemap_range('associations', 0)->0->>'updated_at') is not null, 'associations: updated_at present');
+select is(jsonb_array_length(web_sitemap_range('associations', 1)), 0, 'associations: bucket 1 (ids 01...) holds none of them');
+select is(jsonb_array_length(web_sitemap_range('associations', 255)), 0, 'associations: the last bucket (255) answers');
+select throws_ok($$ select web_sitemap_range('profiles', 0) $$, '22023', 'invalid kind', 'a bad kind raises 22023');
+select is(pg_get_functiondef('public.web_sitemap_range(text,int)'::regprocedure) like '%limit 10000%', true, 'the 10000 cap is in the function (one bucket per call, migration 43)');
 select is(to_regprocedure('public.web_sitemap_activities(uuid,int)') is null and to_regprocedure('public.web_sitemap_associations(uuid,int)') is null, true, 'the old paged functions are gone');
 
 -- ---- not yet published, removed association ----
@@ -54,7 +54,7 @@ insert into activities (id, organiser_id, category_id, title, place_label, place
   ('00000000-0000-0000-0000-0000000000f7', :'org', '00000000-0000-0000-0000-0000000000c1', 'Go club retire', 'Cafe', 'POINT(4.85 45.77)', 'weekly', current_date + 10, '19:00', now() - interval '1 day');
 update activities set organised_by_association_id = '00000000-0000-0000-0000-0000000000a4' where id = '00000000-0000-0000-0000-0000000000f7';
 select tests.act_as_anon();
-select is((select jsonb_agg(e->>'id' order by e->>'id') from jsonb_array_elements(web_sitemap_range('activities', null, null)) e),
+select is((select jsonb_agg(e->>'id' order by e->>'id') from jsonb_array_elements(web_sitemap_range('activities', 0)) e),
   '["00000000-0000-0000-0000-0000000000f1", "00000000-0000-0000-0000-0000000000f5", "00000000-0000-0000-0000-0000000000f7"]'::jsonb,
   'activities sitemap: a future published_at is left out, a past one is listed (same filter as explore)');
 select is(web_activity_status('00000000-0000-0000-0000-0000000000f6'), 'missing', 'activity status: not yet published is missing');
@@ -97,7 +97,7 @@ select is((select jsonb_agg(e->>'id') from jsonb_array_elements(get_association(
   '["00000000-0000-0000-0000-0000000000f1"]'::jsonb, 'get_association lists only visible activities (not archived, moderated or banned organiser)');
 
 -- ---- the organiser's first name and photo are for signed-in people only ----
-select ok(get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser' ? 'id', 'anon: get_activity keeps the organiser id');
+select ok(not (get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser' ? 'id'), 'anon: no organiser id either (migration 40)');
 select ok(not (get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser' ? 'first_name'), 'anon: no organiser first_name');
 select ok(not (get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser' ? 'photo_url'), 'anon: no organiser photo_url');
 select ok(position('Orga' in web_activity_page('00000000-0000-0000-0000-0000000000f1')::text) = 0, 'anon: the web page function never carries the organiser first name');
@@ -105,10 +105,10 @@ select tests.act_as(:'org');
 select is(get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser'->>'first_name', 'Orga', 'signed in: organiser first_name present');
 select ok(get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser' ? 'photo_url', 'signed in: organiser photo_url key present');
 select tests.act_as_anon();
-select is(get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser'->>'id', :'org', 'anon: the id is the organiser id');
+select is(get_activity('00000000-0000-0000-0000-0000000000f1')->'organiser', '{}'::jsonb, 'anon: the organiser object is empty');
 -- ---- access ----
 select tests.act_as_superuser();
-select ok(has_function_privilege('anon', 'public.web_sitemap_range(text,uuid,uuid)', 'execute')
+select ok(has_function_privilege('anon', 'public.web_sitemap_range(text,int)', 'execute')
   and has_function_privilege('anon', 'public.web_association_status(uuid)', 'execute')
   and has_function_privilege('anon', 'public.web_activity_status(uuid)', 'execute')
   and has_function_privilege('anon', 'public.web_activity_page(uuid)', 'execute')

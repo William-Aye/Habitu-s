@@ -1,0 +1,77 @@
+[
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.source_label`",
+    "reason": "Intentional: an immutable or stable SQL helper that is inlined into search_explore so the planner sees the caller values. A SET search_path clause would block inlining (pgTAP 07_search asserts explore_rows has no SET). The body schema-qualifies every name outside pg_catalog (migration 20261022000007). Invoker rights, no elevated privilege."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.normalise_query`",
+    "reason": "Intentional: an immutable or stable SQL helper that is inlined into search_explore so the planner sees the caller values. A SET search_path clause would block inlining (pgTAP 07_search asserts explore_rows has no SET). The body schema-qualifies every name outside pg_catalog (migration 20261022000007). Invoker rights, no elevated privilege."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`importer.departement`",
+    "reason": "Intentional: an immutable SQL helper that is inlined into the importer query (about 1.5M rows per run). A SET search_path clause would block inlining. The body schema-qualifies every name outside pg_catalog (migration 20261022000006)."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.penalty`",
+    "reason": "Intentional: an immutable or stable SQL helper that is inlined into search_explore so the planner sees the caller values. A SET search_path clause would block inlining (pgTAP 07_search asserts explore_rows has no SET). The body schema-qualifies every name outside pg_catalog (migration 20261022000007). Invoker rights, no elevated privilege."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.anonymise_query`",
+    "reason": "Intentional: an immutable or stable SQL helper that is inlined into search_explore so the planner sees the caller values. A SET search_path clause would block inlining (pgTAP 07_search asserts explore_rows has no SET). The body schema-qualifies every name outside pg_catalog (migration 20261022000007). Invoker rights, no elevated privilege."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.unaccent`",
+    "reason": "Intentional: an immutable or stable SQL helper that is inlined into search_explore so the planner sees the caller values. A SET search_path clause would block inlining (pgTAP 07_search asserts explore_rows has no SET). The body schema-qualifies every name outside pg_catalog (migration 20261022000007). Invoker rights, no elevated privilege."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.is_dormant`",
+    "reason": "Intentional: an immutable or stable SQL helper that is inlined into search_explore so the planner sees the caller values. A SET search_path clause would block inlining (pgTAP 07_search asserts explore_rows has no SET). The body schema-qualifies every name outside pg_catalog (migration 20261022000007). Invoker rights, no elevated privilege."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.is_hidden`",
+    "reason": "Intentional: an immutable or stable SQL helper that is inlined into search_explore so the planner sees the caller values. A SET search_path clause would block inlining (pgTAP 07_search asserts explore_rows has no SET). The body schema-qualifies every name outside pg_catalog (migration 20261022000007). Invoker rights, no elevated privilege."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`importer.in_scope`",
+    "reason": "Intentional: an immutable SQL helper that is inlined into the importer query (about 1.5M rows per run). A SET search_path clause would block inlining. The body schema-qualifies every name outside pg_catalog (migration 20261022000006)."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.params`",
+    "reason": "Intentional: an immutable or stable SQL helper that is inlined into search_explore so the planner sees the caller values. A SET search_path clause would block inlining (pgTAP 07_search asserts explore_rows has no SET). The body schema-qualifies every name outside pg_catalog (migration 20261022000007). Invoker rights, no elevated privilege."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.score`",
+    "reason": "Intentional: an immutable or stable SQL helper that is inlined into search_explore so the planner sees the caller values. A SET search_path clause would block inlining (pgTAP 07_search asserts explore_rows has no SET). The body schema-qualifies every name outside pg_catalog (migration 20261022000007). Invoker rights, no elevated privilege."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`importer.same_point`",
+    "reason": "Intentional: an immutable SQL helper that is inlined into the importer query (about 1.5M rows per run). A SET search_path clause would block inlining. The body schema-qualifies every name outside pg_catalog (migration 20261022000006)."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.base_score`",
+    "reason": "Intentional: an immutable or stable SQL helper that is inlined into search_explore so the planner sees the caller values. A SET search_path clause would block inlining (pgTAP 07_search asserts explore_rows has no SET). The body schema-qualifies every name outside pg_catalog (migration 20261022000007). Invoker rights, no elevated privilege."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.tokens`",
+    "reason": "Intentional: an immutable or stable SQL helper that is inlined into search_explore so the planner sees the caller values. A SET search_path clause would block inlining (pgTAP 07_search asserts explore_rows has no SET). The body schema-qualifies every name outside pg_catalog (migration 20261022000007). Invoker rights, no elevated privilege."
+  },
+  {
+    "name": "function_search_path_mutable",
+    "match": "`search.explore_rows`",
+    "reason": "Intentional: an immutable or stable SQL helper that is inlined into search_explore so the planner sees the caller values. A SET search_path clause would block inlining (pgTAP 07_search asserts explore_rows has no SET). The body schema-qualifies every name outside pg_catalog (migration 20261022000007). Invoker rights, no elevated privilege."
+  }
+]

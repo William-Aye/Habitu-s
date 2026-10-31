@@ -2,7 +2,7 @@ import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import {
   ACTIVITY_BUCKETS,
   ASSOCIATION_BUCKETS,
-  bucketBounds,
+  entityCacheOpts,
   handleActivity,
   handleAssociation,
   handleHome,
@@ -186,19 +186,9 @@ Deno.test("javascript: website is dropped; cancelled first session is skipped", 
 });
 
 // ---- sitemaps ----
-Deno.test("bucket bounds: contiguous, first lo is zero, last hi is null", () => {
-  for (const [count, step] of [[ASSOCIATION_BUCKETS, 1], [ACTIVITY_BUCKETS, 16]] as const) {
-    assertEquals(count === 256 || count === 16, true);
-    assertEquals(bucketBounds(count, 0)!.lo, "00000000-0000-0000-0000-000000000000");
-    assertEquals(bucketBounds(count, count - 1)!.hi, null);
-    for (let n = 0; n < count - 1; n++) {
-      assertEquals(bucketBounds(count, n)!.hi, bucketBounds(count, n + 1)!.lo);
-      assert(bucketBounds(count, n)!.lo < bucketBounds(count, n)!.hi!);
-    }
-    assertEquals(bucketBounds(count, 1)!.lo, `${(step).toString(16).padStart(2, "0")}000000-0000-0000-0000-000000000000`);
-    assertEquals(bucketBounds(count, count), null);
-    assertEquals(bucketBounds(count, -1), null);
-  }
+Deno.test("bucket counts are the ones web_sitemap_range accepts (migration 43)", () => {
+  assertEquals(ACTIVITY_BUCKETS, 16);
+  assertEquals(ASSOCIATION_BUCKETS, 256);
 });
 
 Deno.test("sitemap index is static: no RPC, lists s-0..s-255 and a-0..a-15", async () => {
@@ -215,7 +205,7 @@ Deno.test("sitemap index is static: no RPC, lists s-0..s-255 and a-0..a-15", asy
   assertSecurity(r);
 });
 
-Deno.test("child sitemap: exactly one RPC with the bucket bounds, ok rows with lastmod", async () => {
+Deno.test("child sitemap: exactly one RPC with the bucket number (the database computes the bounds), ok rows with lastmod", async () => {
   const calls: { name: string; args: Record<string, unknown> }[] = [];
   const d = deps({
     web_sitemap_range: () => [
@@ -225,8 +215,7 @@ Deno.test("child sitemap: exactly one RPC with the bucket bounds, ok rows with l
   const r = await handleSitemap(req("/sitemaps/s-5.xml"), env, d, "s-5.xml");
   assertEquals(r.status, 200);
   assertEquals(calls.length, 1);
-  const b = bucketBounds(ASSOCIATION_BUCKETS, 5)!;
-  assertEquals(calls[0], { name: "web_sitemap_range", args: { p_kind: "associations", p_lo: b.lo, p_hi: b.hi } });
+  assertEquals(calls[0], { name: "web_sitemap_range", args: { p_kind: "associations", p_bucket: 5 } });
   const xml = await r.text();
   assertStringIncludes(xml, `<loc>https://habitues.test${CANON_S}</loc>`);
   assertStringIncludes(xml, "<lastmod>2026-10-01T10:00:00.000Z</lastmod>");
@@ -235,7 +224,7 @@ Deno.test("child sitemap: exactly one RPC with the bucket bounds, ok rows with l
   const d2 = deps({ web_sitemap_range: () => [{ id: ACT_ID, title: "Jeu de go", updated_at: "2026-10-01T10:00:00Z" }] }, calls2);
   const xa = await (await handleSitemap(req("/sitemaps/a-15.xml"), env, d2, "a-15.xml")).text();
   assertEquals(calls2.length, 1);
-  assertEquals(calls2[0].args, { p_kind: "activities", p_lo: bucketBounds(16, 15)!.lo, p_hi: null });
+  assertEquals(calls2[0].args, { p_kind: "activities", p_bucket: 15 });
   assertStringIncludes(xa, `https://habitues.test${CANON_A}`);
 });
 
@@ -295,4 +284,113 @@ Deno.test("activity response: the organiser's first name is absent from the whol
   const body = await r.text();
   assert(!body.includes("Zéphyrine") && !body.includes("zephyr-qxv"));
   assertStringIncludes(body, "Organisé par un membre");
+});
+
+// ---- WEB-1: path variants share one cache entry; junk paths cost no RPC ----
+
+import { withEdgeCache } from "./edge.ts";
+import type { CacheLike } from "./edge.ts";
+
+function memCache() {
+  const store = new Map<string, Response>();
+  const c: CacheLike = {
+    match: (r) => Promise.resolve(store.get(r.url)?.clone()),
+    put: (r, res) => (store.set(r.url, res), Promise.resolve()),
+  };
+  return { c, store };
+}
+async function viaEdge(path: string, c: CacheLike, d: Deps) {
+  const pending: Promise<unknown>[] = [];
+  const request = req(path);
+  const r = await withEdgeCache(
+    request,
+    { waitUntil: (p) => void pending.push(p) },
+    300,
+    () => handleActivity(request, env, d, true),
+    c,
+    entityCacheOpts("/activites/", env, request),
+  );
+  await Promise.all(pending);
+  return r;
+}
+
+Deno.test("WEB-1: slug, case, trailing slash and query variants cost one RPC in total", async () => {
+  const calls: { name: string; args: Record<string, unknown> }[] = [];
+  const d = deps({ web_activity_page: () => ({ status: "ok", activity: activityFixture() }) }, calls);
+  const { c, store } = memCache();
+  const first = await viaEdge(CANON_A, c, d);
+  assertEquals(first.status, 200);
+  assertEquals(first.headers.has("X-Canonical-Path"), false);
+  const variants = [
+    `/activites/${ACT_ID}`,
+    `/activites/mauvais-${ACT_ID.toUpperCase()}`,
+    `/activites/x${calls.length}-${ACT_ID}/`,
+  ];
+  for (const p of variants) {
+    const r = await viaEdge(p, c, d);
+    assertEquals(r.status, 301, p);
+    assertEquals(r.headers.get("Location"), `https://habitues.test${CANON_A}`, p);
+    assertEquals(r.headers.has("X-Canonical-Path"), false);
+    for (const h of ["Content-Type", "Content-Length", "Content-Encoding", "ETag"]) assertEquals(r.headers.has(h), false, h);
+    assertSecurity(r);
+  }
+  const again = await viaEdge(CANON_A + "?z=1", c, d);
+  assertEquals(again.status, 200);
+  assertEquals(calls.length, 1);
+  assertEquals(store.size, 1);
+});
+
+Deno.test("WEB-1: a wrong-slug request first fills the cache and is redirected; the canonical one then hits", async () => {
+  const calls: unknown[] = [];
+  const d = deps({ web_activity_page: () => ({ status: "ok", activity: activityFixture() }) }, calls as never);
+  const { c } = memCache();
+  assertEquals((await viaEdge(`/activites/junk-${ACT_ID}`, c, d)).status, 301);
+  assertEquals((await viaEdge(CANON_A, c, d)).status, 200);
+  assertEquals(calls.length, 1);
+});
+
+Deno.test("WEB-1: a missing page is cached by id, whatever the slug", async () => {
+  const calls: unknown[] = [];
+  const d = deps({ web_activity_page: () => ({ status: "missing", activity: null }) }, calls as never);
+  const { c } = memCache();
+  for (const p of [`/activites/a-${ACT_ID}`, `/activites/b-${ACT_ID}`, `/activites/${ACT_ID}/`]) {
+    assertEquals((await viaEdge(p, c, d)).status, 404);
+  }
+  assertEquals(calls.length, 1);
+});
+
+Deno.test("WEB-1: paths that name no id never reach the cache or the database", async () => {
+  const calls: unknown[] = [];
+  const d = deps({ web_activity_page: () => ({ status: "ok", activity: activityFixture() }) }, calls as never);
+  const { c, store } = memCache();
+  const junk = [
+    "/activites/",
+    "/activites/not-a-uuid",
+    `/activites/${ACT_ID}/extra`,
+    `/activites/${"a".repeat(200)}-${ACT_ID}`,
+    `/activites/%E0%A4%A-${ACT_ID}`,
+  ];
+  for (const p of junk) assertEquals((await viaEdge(p, c, d)).status, 404, p);
+  assertEquals(calls.length, 0);
+  assertEquals(store.size, 0);
+});
+
+Deno.test("WEB-7: robots.txt on a host other than WEB_BASE_URL disallows everything", async () => {
+  const other = await handleRobots(new Request("https://abc123.project.pages.dev/robots.txt"), env).text();
+  assertEquals(other, "User-agent: *\nDisallow: /\n");
+  const prod = await handleRobots(new Request("https://habitues.test/robots.txt"), env).text();
+  assertStringIncludes(prod, "Allow: /");
+  const unset = await handleRobots(new Request("https://x.pages.dev/robots.txt"), { SUPABASE_URL: "u", SUPABASE_ANON_KEY: "k" }).text();
+  assertStringIncludes(unset, "Allow: /");
+});
+
+Deno.test("WEB-1: turning a cached 200 into a 301 drops the body headers", () => {
+  const { resolve } = entityCacheOpts("/activites/", env, req(`/activites/x-${ACT_ID}`));
+  const cached = new Response("<html>page</html>", {
+    headers: { "X-Canonical-Path": CANON_A, "Content-Type": "text/html", "Content-Length": "17", "Content-Encoding": "gzip", ETag: '"abc"', "Cache-Control": "public, max-age=60" },
+  });
+  const r = resolve!(cached);
+  assertEquals(r.status, 301);
+  for (const h of ["Content-Type", "Content-Length", "Content-Encoding", "ETag", "X-Canonical-Path"]) assertEquals(r.headers.has(h), false, h);
+  assertEquals(r.headers.get("Location"), `https://habitues.test${CANON_A}`);
 });

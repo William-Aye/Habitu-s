@@ -1,10 +1,11 @@
 import { PRIVACY_CONTACT } from './contact.ts';
 
 // Stored as a TypeScript string because Metro does not load .md files as source by default.
-// MARKERS: every sentence tagged "(dès que cette fonctionnalité sera disponible)" describes a feature that
-// is not built yet. Remove the marker when it ships: post-session feedback (collection and its 6-month
-// deletion), phone verification for organisers, private messages (retention and their mention in the
-// export paragraph). Group chat, reports and moderation, feedback, claims and inactive-account deletion are live.
+// MARKERS: a sentence for a feature that is not built yet is left out of this text. When the feature
+// ships, add the sentence back with its marker "(dès que cette fonctionnalité sera disponible)" while it
+// is in review, then remove the marker: post-session feedback (collection and its 6-month deletion),
+// phone verification for organisers, private messages (retention and the received-messages clause of the export
+// paragraph). Group chat, reports and moderation, feedback, claims and inactive-account deletion are live.
 export const privacyFr = `Version à faire relire par une personne qualifiée avant la publication.
 
 # Politique de confidentialité
@@ -17,10 +18,9 @@ Habitués vous aide à rencontrer des gens autour d'activités régulières. Cet
 - Une confirmation que vous avez 18 ans ou plus. Nous ne demandons pas votre date de naissance.
 - Votre zone d'habitation, ramenée au centre de votre commune (environ 1 km de précision). Votre position GPS est arrondie à environ 1 km sur votre téléphone avant tout usage ; elle sert uniquement à chercher des activités autour de vous et à trouver votre commune (le service public geo.api.gouv.fr reçoit cette position arrondie). Elle n'est jamais enregistrée sur nos serveurs.
 - Facultatif : une photo de profil et une courte présentation. Les informations cachées de la photo (dont le lieu de prise de vue) sont supprimées avant l'envoi.
-- Vos centres d'intérêt, les activités que vous rejoignez, vos présences, vos messages de groupe et vos avis après séance (dès que cette fonctionnalité sera disponible).
-- Votre numéro de téléphone, seulement si vous organisez des activités, pour vérifier votre identité. Il est conservé par notre service de connexion et n'apparaît jamais dans l'application (dès que cette fonctionnalité sera disponible).
+- Vos centres d'intérêt, les activités que vous rejoignez, vos présences et vos messages de groupe.
 - La date de votre dernière visite, mise à jour au plus une fois par heure.
-- Si vous nous écrivez via « Une idée ? Un problème ? » : votre message, son type, la version de l'application et le type d'appareil, et une capture d'écran facultative (réservée aux personnes connectées). Vous pouvez écrire sans compte : l'envoi est alors protégé par Cloudflare Turnstile, une vérification anti-robot invisible.
+- Si vous nous écrivez via « Une idée ? Un problème ? » : votre message, son type, la version de l'application et le type d'appareil, et une capture d'écran facultative (réservée aux personnes connectées). Vous pouvez écrire sans compte : l'envoi est alors protégé par Cloudflare Turnstile, une vérification anti-robot invisible. Dans ce cas, votre adresse IP est envoyée à Cloudflare Turnstile pour cette vérification, et une empreinte à clé de cette adresse reste dans la mémoire de notre fonction environ une heure pour limiter le nombre d'envois ; l'adresse IP elle-même n'est jamais enregistrée.
 - Si vous signalez un contenu ou une personne : le motif et les précisions que vous écrivez. Si vous revendiquez une association : votre rôle, l'adresse e-mail de l'association ou un justificatif (statuts, récépissé ou lettre signée).
 - Si vous activez les notifications : l'identifiant de votre téléphone pour les envoyer, et le texte des notifications (rappels de séance, nouveaux membres, invitations). Vous pouvez les refuser ou les désactiver dans les réglages de votre téléphone.
 
@@ -29,34 +29,31 @@ Vos centres d'intérêt et les activités que vous suivez peuvent révéler des 
 # Pourquoi, et sur quelle base légale
 
 - Faire fonctionner le service (compte, activités, groupes, messages) : exécution du contrat.
-- Publicités personnalisées, si elles existent un jour : votre consentement, que vous pouvez retirer à tout moment.
 - Sécurité et modération (signalements, lutte contre les abus) : intérêt légitime.
 
-Nous n'utilisons aucun traceur publicitaire tiers. Les statistiques de fréquentation sont des totaux, sans lien avec une personne.
+Cette version de l'application n'affiche aucune publicité et nous n'utilisons aucun traceur publicitaire tiers. Les statistiques de fréquentation sont des totaux, sans lien avec une personne.
 
 # Combien de temps nous gardons vos données
 
 - Messages de groupe : 12 mois, puis supprimés automatiquement.
-- Messages privés : 12 mois, puis supprimés automatiquement (dès que cette fonctionnalité sera disponible).
-- Réponses aux avis après séance : regroupées en statistiques, puis les réponses brutes sont supprimées après 6 mois (dès que cette fonctionnalité sera disponible).
 - Signalements et décisions de modération : 3 ans après la décision, puis supprimés. Les précisions du signalement et le motif de la décision sont conservés avec lui comme preuve. Lorsqu'un message est signalé, une copie est conservée avec le signalement, pendant la même durée.
 - Journal d'administration (les actions faites par l'équipe de modération) : 3 ans.
 - Idées et problèmes envoyés (texte, version de l'application, type d'appareil) et leur capture d'écran : 2 ans.
-- Revendications d'association : conservées tant que l'association reste vérifiée. Le justificatif joint est supprimé au plus 1 an après la décision.
+- Revendications d'association : une demande restée sans réponse est supprimée au bout de 1 an, avec son justificatif. Une demande traitée est conservée tant que l'association reste vérifiée ; le justificatif joint et l'adresse e-mail de contact sont supprimés 1 an après la décision.
 - Comptes inactifs depuis 3 ans : une notification (et un message dans l'application) vous prévient 30 jours avant la suppression ; ouvrir l'application garde le compte. Cet avertissement n'atteint que les personnes qui ont activé les notifications.
-- Comptes suspendus pour non-respect des règles : les données sont masquées aux autres personnes et conservées comme preuve pendant la durée prévue pour les signalements. Pour connaître le motif de la décision ou la contester, écrivez à ${PRIVACY_CONTACT}.
+- Comptes suspendus pour non-respect des règles : les données sont masquées aux autres personnes. Le compte est supprimé après 36 mois et 30 jours sans activité, sans avertissement préalable. Les signalements et les copies de messages qui s'y rattachent sont conservés comme preuve 3 ans après la décision. Pour connaître le motif de la décision ou la contester, écrivez à ${PRIVACY_CONTACT}.
 - Notifications : 30 jours sur nos serveurs après leur envoi, puis supprimées.
-- Journaux techniques (dont adresses IP) : durée par défaut de notre hébergeur, au plus 90 jours.
+- Journaux techniques (dont adresses IP) : conservés par nos hébergeurs selon leur durée par défaut (celle de Supabase est d'au plus 90 jours). Ce n'est pas une durée que nous fixons nous-mêmes.
 
 La suppression de votre compte est immédiate (voir plus bas).
 
 # Qui traite vos données
 
 - Supabase (hébergement, base de données et connexion), dans l'Union européenne (Paris).
-- Google (connexion avec Google et, le cas échéant, publicités).
+- Google (connexion avec Google).
 - Cloudflare (hébergement du site web avec Cloudflare Pages, protection du service, vérification anti-robot à l'inscription et Turnstile pour les messages envoyés sans compte).
 - OpenStreetMap (service Overpass) : quand vous publiez une activité ou déplacez une séance, l'application envoie une requête à ce service pour vérifier qu'un lieu public se trouve à proximité. Ce service voit l'adresse réseau de votre téléphone (adresse IP). La requête ne contient que les coordonnées arrondies du lieu : aucune donnée de votre compte n'est envoyée.
-- Expo (relais d'envoi des notifications), puis Google Firebase Cloud Messaging (Android) et Apple Push Notification service (iPhone) pour les acheminer jusqu'à votre téléphone. Les notifications sont volontairement génériques : elles ne contiennent aucun nom d'activité ni prénom, seulement un texte court du type « Rappel : vous avez une activité demain ». Les détails ne s'affichent que dans l'application, après connexion.
+- Expo (relais d'envoi des notifications), puis Google Firebase Cloud Messaging (Android) pour les acheminer jusqu'à votre téléphone. Les notifications sont volontairement génériques : elles ne contiennent aucun nom d'activité ni prénom, seulement un texte court du type « Rappel : vous avez une activité demain ». Les détails ne s'affichent que dans l'application, après connexion.
 - GitHub (hébergement du code de l'application et du site : aucune donnée d'utilisateur).
 - geo.api.gouv.fr (service public français, data.gouv) : reçoit la position arrondie à environ 1 km pour trouver votre commune, et les noms de villes que vous tapez dans la recherche.
 
@@ -66,7 +63,7 @@ Quand un de ces services est situé hors de l'Union européenne, le transfert es
 
 Le site web comprend les pages publiques (accueil, activités, associations, mentions légales) et une version web de l'application, sous /app.
 
-- Hébergement : le site est hébergé par Cloudflare Pages. Cloudflare conserve des journaux techniques (adresse IP, page demandée, date) pour la sécurité et le bon fonctionnement du service, pendant sa durée par défaut. Notre propre code ne journalise aucune adresse IP et nous n'ajoutons aucun traceur publicitaire.
+- Hébergement : le site est hébergé par Cloudflare Pages. Cloudflare conserve des journaux techniques (adresse IP, page demandée, date) pour la sécurité et le bon fonctionnement du service, pendant sa durée par défaut. Notre propre code n'enregistre aucune adresse IP (voir plus haut le cas du formulaire sans compte) et nous n'ajoutons aucun traceur publicitaire.
 - Votre session : si vous vous connectez sur le site, votre session est conservée dans le stockage de votre navigateur (localStorage). Elle est strictement nécessaire pour vous garder connecté : aucune bannière de consentement n'est affichée. Elle est effacée quand vous vous déconnectez. Les pages publiques ne déposent aucun cookie.
 - Inscription : sur la page d'inscription, un script de Cloudflare Turnstile (challenges.cloudflare.com) s'exécute pour vérifier que vous n'êtes pas un robot ; Cloudflare reçoit à cette occasion des informations techniques sur votre navigateur. Le même script sert au formulaire « Une idée ? Un problème ? » sans compte. Il n'est chargé sur aucune page publique.
 - Pages publiques des activités : chaque activité en cours a une page publique, lisible sans compte et référencée par les moteurs de recherche. Elle montre l'activité (titre, description, catégorie), la ville ou le lieu de rendez-vous, la prochaine séance, le nombre de personnes confirmées et l'association ou le collectif organisateur. Les noms et les photos des membres n'y figurent jamais : le prénom de l'organisateur n'est visible que par les personnes connectées.
@@ -79,7 +76,7 @@ Quand un signalement est traité, la personne qui l'a envoyé en est informée d
 
 Connectez-vous, puis ouvrez Profil (dans l'application, l'onglet Profil ; sur le site, « Mon compte »), puis « Mes données » :
 
-- Télécharger mes données : vous recevez un fichier avec toutes les données personnelles que nous avons sur vous (dont votre adresse e-mail, vos dates de création de compte et de dernière connexion, et vos moyens de connexion), et rien sur les autres. Les messages privés que vous avez reçus sont supprimés avec votre compte, mais ne figurent pas dans votre export : ils appartiennent à leur expéditeur (art. 15, § 4 du RGPD) (dès que cette fonctionnalité sera disponible).
+- Télécharger mes données : vous recevez un fichier avec toutes les données personnelles que nous avons sur vous (dont votre adresse e-mail, vos dates de création de compte et de dernière connexion, et vos moyens de connexion), et rien sur les autres.
 - Corriger : modifiez votre prénom, votre présentation, votre photo et votre ville directement dans Profil (vous pouvez aussi retirer votre ville). Sur le site, vous pouvez modifier votre prénom et votre présentation.
 - Supprimer mon compte : la suppression est immédiate et définitive, après confirmation.
 

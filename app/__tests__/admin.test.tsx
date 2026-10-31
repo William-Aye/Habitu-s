@@ -258,6 +258,36 @@ describe('reports queue', () => {
     expect(screen.getByText('Automatique')).toBeTruthy();
   });
 
+  it('loads the next page with the cursor behind a Voir plus button', async () => {
+    const full = Array.from({ length: 50 }, (_, i) => ({
+      ...REPORT,
+      id: `p1-${i}`,
+      created_at: `2026-10-24T10:${String(59 - i).padStart(2, '0')}:00Z`,
+      preview: `Premier ${i}`,
+    }));
+    const calls: any[] = [];
+    rpcHandlers.admin_reports = (args) => {
+      calls.push(args);
+      return args.p_before_at
+        ? { data: { open_count: 51, items: [{ ...REPORT, id: 'p2-0', preview: 'Page deux' }] }, error: null }
+        : { data: { open_count: 51, items: full }, error: null };
+    };
+    await render(<AdminQueue />);
+    await screen.findByText('Premier 0');
+    expect(calls[0].p_before_at).toBeUndefined();
+    await fireEvent.press(screen.getByRole('button', { name: 'Voir plus' }));
+    expect(await screen.findByText('Page deux')).toBeTruthy();
+    expect(calls[1]).toMatchObject({ p_before_at: full[49].created_at, p_before_id: 'p1-49', p_limit: 50 });
+    expect(screen.getByText('Premier 0')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Voir plus' })).toBeNull();
+  });
+
+  it('shows no Voir plus button when the first page is short', async () => {
+    await render(<AdminQueue />);
+    await screen.findByText('Un message gênant');
+    expect(screen.queryByRole('button', { name: 'Voir plus' })).toBeNull();
+  });
+
   it('keeps decisions disabled until the statement is long enough', async () => {
     await render(<AdminQueue />);
     await screen.findByText('Un message gênant');

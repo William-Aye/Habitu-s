@@ -21,7 +21,7 @@ export function webBaseUrl(): string {
 }
 
 function build(kind: 'activites' | 'associations', id: string, slug: string, base: string): string {
-  if (!base) return `friendapp://${kind}/${id}`;
+  if (!base) return `habitues://${kind}/${id}`;
   return `${base}/${kind}/${slug ? `${slug}-` : ''}${id}`;
 }
 

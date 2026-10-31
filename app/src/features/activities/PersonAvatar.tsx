@@ -1,14 +1,16 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { avatarUrl } from '../../lib/avatarUrl';
 
-/** A round photo, or the first letter of the first name when there is none. */
+/** A round photo, or the first letter of the first name when there is none. `photoUrl` is photo_url (an avatar object name). */
 export function PersonAvatar({ name, photoUrl, size = 36 }: { name: string; photoUrl: string | null; size?: number }) {
   const { t } = useTranslation();
   const box = { width: size, height: size, borderRadius: size / 2 };
-  if (photoUrl) {
+  const uri = avatarUrl(photoUrl);
+  if (uri) {
     return (
       <Image
-        source={{ uri: photoUrl }}
+        source={{ uri }}
         accessibilityLabel={t('activity.photoOf', { name })}
         style={[styles.photo, box]}
       />

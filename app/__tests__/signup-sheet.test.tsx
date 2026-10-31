@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { Pressable, Text } from 'react-native';
+import { Linking, Pressable, Text } from 'react-native';
 import { AccountGateProvider, useRequireAccount } from '../src/features/account/AccountGate';
 import * as auth from '../src/features/account/auth';
 import { initI18n } from '../src/i18n';
@@ -110,6 +110,48 @@ it('shows the reason sentence and the sign-up title', async () => {
   expect(screen.getByText('Politique de confidentialité')).toBeTruthy();
 });
 
+it('shows the legal notice with links to the terms and the privacy policy', async () => {
+  process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://habitues.example';
+  const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+  const push = (jest.requireMock('expo-router') as { router: { push: jest.Mock } }).router.push;
+  await open();
+  expect(
+    await screen.findByText(
+      "En continuant, vous acceptez les conditions d'utilisation et la politique de confidentialité.",
+    ),
+  ).toBeTruthy();
+  await fireEvent.press(screen.getByLabelText("Conditions d'utilisation"));
+  expect(openURL).toHaveBeenCalledWith('https://habitues.example/conditions');
+  await fireEvent.press(screen.getByLabelText('Politique de confidentialité'));
+  expect(push).toHaveBeenCalledWith('/privacy');
+});
+
+describe('terms link on a phone', () => {
+  const OLD = process.env.EXPO_PUBLIC_WEB_BASE_URL;
+  afterEach(() => {
+    if (OLD === undefined) delete process.env.EXPO_PUBLIC_WEB_BASE_URL;
+    else process.env.EXPO_PUBLIC_WEB_BASE_URL = OLD;
+  });
+  it('opens the website address when it is configured', async () => {
+    process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://habitues.example/';
+    const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+    await open();
+    await fireEvent.press(await screen.findByLabelText("Conditions d'utilisation"));
+    expect(openURL).toHaveBeenCalledWith('https://habitues.example/conditions');
+  });
+  it('shows no dead link when the website address is missing', async () => {
+    delete process.env.EXPO_PUBLIC_WEB_BASE_URL;
+    await open();
+    expect(
+      await screen.findByText(
+        "En continuant, vous acceptez les conditions d'utilisation et la politique de confidentialité.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByLabelText("Conditions d'utilisation")).toBeNull();
+    expect(screen.getByLabelText('Politique de confidentialité')).toBeTruthy();
+  });
+});
+
 it('rejects an invalid email without sending anything', async () => {
   await open();
   await typeEmail('pas-un-email');
@@ -141,10 +183,10 @@ it.each([
 ] as const)('shows %s and keeps the code field editable', async (error, message) => {
   await toCodeStep();
   mocked.verifyEmailCode.mockResolvedValue({ ok: false, error });
-  await fireEvent.changeText(screen.getByLabelText('Code à 6 chiffres'), '123456');
+  await fireEvent.changeText(screen.getByLabelText('Code à 8 chiffres'), '12345678');
   await fireEvent.press(screen.getByText('Valider'));
   expect(await screen.findByText(message)).toBeTruthy();
-  expect(screen.getByLabelText('Code à 6 chiffres').props.editable).not.toBe(false);
+  expect(screen.getByLabelText('Code à 8 chiffres').props.editable).not.toBe(false);
 });
 
 it('offers a retry after a captcha failure', async () => {
@@ -162,7 +204,7 @@ it('after a verified code with an unsettled session, shows a network message and
   await toCodeStep();
   mocked.verifyEmailCode.mockResolvedValue({ ok: true });
   store.value.refresh.mockResolvedValueOnce('loading');
-  await fireEvent.changeText(screen.getByLabelText('Code à 6 chiffres'), '123456');
+  await fireEvent.changeText(screen.getByLabelText('Code à 8 chiffres'), '12345678');
   await fireEvent.press(screen.getByText('Valider'));
   expect(await screen.findByText('Pas de connexion. Vérifiez votre réseau et réessayez.')).toBeTruthy();
   store.value.refresh.mockImplementation(async () => {
@@ -178,7 +220,7 @@ it('keeps Valider disabled while the sync retry is pending, and a new email rese
   await toCodeStep();
   mocked.verifyEmailCode.mockResolvedValue({ ok: true });
   store.value.refresh.mockResolvedValueOnce('loading');
-  await fireEvent.changeText(screen.getByLabelText('Code à 6 chiffres'), '123456');
+  await fireEvent.changeText(screen.getByLabelText('Code à 8 chiffres'), '12345678');
   await fireEvent.press(screen.getByText('Valider'));
   expect(await screen.findByText('Réessayer')).toBeTruthy();
   expect(isDisabled(screen.getByRole('button', { name: 'Valider' }))).toBe(true);
@@ -293,4 +335,17 @@ describe('requireAccount', () => {
     );
     expect(onSignedUp).toHaveBeenCalledWith('u1');
   });
+});
+
+it('AUTH-3: the code field takes eight digits, drops other characters, and Valider needs all eight', async () => {
+  await toCodeStep();
+  const field = screen.getByLabelText('Code à 8 chiffres');
+  await fireEvent.changeText(field, '12ab34567890');
+  expect(screen.getByLabelText('Code à 8 chiffres').props.value).toBe('12345678');
+  await fireEvent.changeText(field, '1234567');
+  expect(screen.getByRole('button', { name: 'Valider' }).props.accessibilityState?.disabled ?? screen.getByRole('button', { name: 'Valider' }).props.disabled).toBeTruthy();
+  await fireEvent.changeText(field, '12345678');
+  mocked.verifyEmailCode.mockResolvedValue({ ok: false, error: 'invalid_code' });
+  await fireEvent.press(screen.getByText('Valider'));
+  expect(mocked.verifyEmailCode).toHaveBeenCalledWith('ana@exemple.fr', '12345678');
 });

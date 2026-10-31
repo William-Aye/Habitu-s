@@ -608,7 +608,7 @@ Deletions run as a nightly scheduled job (pg_cron). Account deletion by the user
 **App**
 - The sign-in session is stored in the phone's **secure storage** (Android Keystore via `expo-secure-store`, with an encrypted wrapper for the larger Supabase session), not in plain app storage.
 - No secrets in the app; only the public API key, which grants nothing beyond what row-level security allows.
-- Uploads checked server-side: file type, size, EXIF removal.
+- Uploads: file type and size are enforced server-side (bucket limits). EXIF removal and re-encoding of images happen on the device before upload (review finding APP-5, accepted: server-side image processing is not affordable on the free tier, and a user who bypasses the app can only expose their own metadata).
 
 **Code and supply chain (GitHub)**
 - Dependabot security updates, secret scanning and push protection, and code scanning (CodeQL) enabled on the repository.

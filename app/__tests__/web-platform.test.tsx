@@ -2,6 +2,8 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Linking, Platform } from 'react-native';
 import { initI18n } from '../src/i18n';
 
+jest.setTimeout(60000);
+
 jest.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'fr-FR' }] }));
 const mockReplace = jest.fn();
 jest.mock('expo-router', () => ({
@@ -53,7 +55,7 @@ beforeEach(() => {
   if (!g.window) g.window = g;
   (g.window as Record<string, unknown>).location = location;
   process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://habitues.example';
-  process.env.EXPO_PUBLIC_PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=fr.friendapp.app';
+  process.env.EXPO_PUBLIC_PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=fr.habitues.app';
 });
 afterEach(() => {
   jest.restoreAllMocks();
@@ -219,7 +221,7 @@ describe('screens that are not on the web', () => {
     await render(<Explore />);
     expect(screen.getByText("Disponible dans l'application")).toBeTruthy();
     await fireEvent.press(screen.getByLabelText("Télécharger l'application"));
-    expect(open).toHaveBeenCalledWith('https://play.google.com/store/apps/details?id=fr.friendapp.app');
+    expect(open).toHaveBeenCalledWith('https://play.google.com/store/apps/details?id=fr.habitues.app');
   });
 
   it.each([

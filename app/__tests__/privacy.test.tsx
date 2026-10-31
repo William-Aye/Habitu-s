@@ -46,22 +46,37 @@ it('renders the French policy', async () => {
   expect(screen.getByText('Ce que nous collectons')).toBeTruthy();
 });
 
-it('marks every not-yet-built feature in both languages', () => {
+it('leaves out every feature that is not in Release 1, in both languages', () => {
   const body = (s: string) => s.split('\n').filter((l) => !l.startsWith('//')).join('\n');
-  expect(body(privacyFr).split('(dès que cette fonctionnalité sera disponible)')).toHaveLength(6);
-  expect(body(privacyEn).split('(once this feature is available)')).toHaveLength(6);
+  expect(body(privacyFr)).not.toContain('(dès que cette fonctionnalité sera disponible)');
+  expect(body(privacyEn)).not.toContain('(once this feature is available)');
+  expect(body(privacyFr)).not.toMatch(/numéro de téléphone|Messages privés :|Réponses aux avis après séance/);
+  expect(body(privacyEn)).not.toMatch(/phone number|Private messages:|Feedback answers after sessions/);
 });
 
 it('names the push processors, the lock screen exposure and the 30-day retention of notifications', () => {
   for (const [text, words] of [
-    [privacyFr, ['Expo', 'Firebase Cloud Messaging', 'Apple Push Notification service', "ne contiennent aucun nom d'activité ni prénom", '30 jours sur nos serveurs']],
-    [privacyEn, ['Expo', 'Firebase Cloud Messaging', 'Apple Push Notification service', 'contain no activity name or first name', '30 days on our servers']],
+    [privacyFr, ['Expo', 'Firebase Cloud Messaging', "ne contiennent aucun nom d'activité ni prénom", '30 jours sur nos serveurs']],
+    [privacyEn, ['Expo', 'Firebase Cloud Messaging', 'contain no activity name or first name', '30 days on our servers']],
   ] as const) {
     for (const w of words) expect(text).toContain(w);
   }
   expect(privacyFr).not.toContain('écran verrouillé');
   expect(privacyEn).not.toContain('lock screen');
   expect(privacyFr).not.toContain("Expo (envoi des notifications) (dès que");
+});
+
+it('matches the code on claims, feedback IP, logs, no ads and no iOS', () => {
+  expect(privacyFr).toContain('supprimée au bout de 1 an');
+  expect(privacyEn).toContain('deleted after 1 year');
+  expect(privacyFr).toContain('envoyée à Cloudflare Turnstile');
+  expect(privacyEn).toContain('sent to Cloudflare Turnstile');
+  expect(privacyFr).toContain("celle de Supabase est d'au plus 90 jours");
+  expect(privacyEn).toContain("Supabase's is at most 90 days");
+  expect(privacyFr).not.toMatch(/Apple|iPhone|publicités personnalisées|annonceurs\./i);
+  expect(privacyEn).not.toMatch(/Apple|iPhone|personalised ads, if/i);
+  expect(privacyFr).toContain("n'affiche aucune publicité");
+  expect(privacyEn).toContain('shows no ads');
 });
 
 it('describes the GPS position as rounded, used to search and find the commune, never stored', () => {
@@ -80,11 +95,9 @@ it('lists geo.api.gouv.fr among the processors in both languages', () => {
   }
 });
 
-it('explains that received private messages are not part of the export (art. 15(4) GDPR)', () => {
-  expect(privacyFr).toContain('messages privés que vous avez reçus');
-  expect(privacyFr).toContain('art. 15, § 4');
-  expect(privacyEn).toContain('private messages you received');
-  expect(privacyEn).toContain('Art. 15(4)');
+it('does not mention received private messages in the export paragraph (not in Release 1)', () => {
+  expect(privacyFr).not.toContain('messages privés que vous avez reçus');
+  expect(privacyEn).not.toContain('private messages you received');
 });
 
 it('names the suggestion form instead of the ambiguous reviews, and mentions the town correction', () => {

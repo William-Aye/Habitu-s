@@ -31,6 +31,12 @@ function appLinks() {
 }
 
 module.exports = ({ config }) => {
+  // The sign-up sheet links to the website's terms of use: a store build without the address would ship a dead link.
+  if (process.env.EAS_BUILD_PROFILE === 'production' && !(process.env.EXPO_PUBLIC_WEB_BASE_URL || '').trim()) {
+    throw new Error(
+      'EXPO_PUBLIC_WEB_BASE_URL is not set for the production build profile. Set it in the EAS environment variables (see README, "Release build").',
+    );
+  }
   const local = path.join(__dirname, 'google-services.json');
   const file = process.env.GOOGLE_SERVICES_JSON || (fs.existsSync(local) ? './google-services.json' : null);
   const links = appLinks();

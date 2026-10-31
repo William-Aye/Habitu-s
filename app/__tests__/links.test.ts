@@ -36,8 +36,8 @@ describe('url builders', () => {
   });
   it('falls back to the app link without a base', () => {
     process.env.EXPO_PUBLIC_WEB_BASE_URL = '';
-    expect(activityUrl(ID, 'Go')).toBe(`friendapp://activites/${ID}`);
-    expect(associationUrl(ID, 'Asso', 'Lyon')).toBe(`friendapp://associations/${ID}`);
+    expect(activityUrl(ID, 'Go')).toBe(`habitues://activites/${ID}`);
+    expect(associationUrl(ID, 'Asso', 'Lyon')).toBe(`habitues://associations/${ID}`);
   });
 });
 
@@ -46,11 +46,11 @@ describe('idFromLink', () => {
     [`https://habitues.example/activites/jeu-${ID}`, 'activity'],
     [`https://habitues.example/activites/${ID}?utm=1`, 'activity'],
     [`https://habitues.example/app/activites/${ID}`, 'activity'],
-    [`friendapp://activites/${ID}`, 'activity'],
+    [`habitues://activites/${ID}`, 'activity'],
     [`/activites/jeu-${ID}`, 'activity'],
     [`/app/activites/${ID}`, 'activity'],
     [`https://habitues.example/associations/club-lyon-${ID}`, 'association'],
-    [`friendapp://associations/${ID}`, 'association'],
+    [`habitues://associations/${ID}`, 'association'],
     [`/app/associations/${ID}#x`, 'association'],
   ])('%s', (url, kind) => {
     expect(idFromLink(url)).toEqual({ kind, id: ID });

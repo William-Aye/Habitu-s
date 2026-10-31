@@ -1,6 +1,8 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
 import { createHandler } from './handler.ts';
 
+const list = (name: string) => (Deno.env.get(name) ?? '').split(',').map((v) => v.trim()).filter(Boolean);
+
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -9,6 +11,8 @@ const supabase = createClient(
 
 Deno.serve(createHandler({
   turnstileSecret: Deno.env.get('TURNSTILE_SECRET') ?? '',
+  turnstileHostnames: list('TURNSTILE_HOSTNAMES'),
+  allowedOrigins: list('ALLOWED_ORIGINS'),
   now: () => new Date(),
   fetch: (input, init) => fetch(input, init),
   async countAnonymousSince(since) {

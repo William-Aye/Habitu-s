@@ -18,7 +18,7 @@ Public pages (server-rendered) and the interactive web app (under `/app/`).
 | `SUPABASE_ANON_KEY` | anon key |
 | `WEB_BASE_URL` | public address, no trailing slash. Falls back to the request origin when unset |
 | `PLAY_STORE_URL` | Play Store listing |
-| `ANDROID_PACKAGE` | Android package for the open-in-app link (default `fr.friendapp.app`) |
+| `ANDROID_PACKAGE` | Android package for the open-in-app link (default `fr.habitues.app`) |
 
 For local runs put them in `web/.dev.vars` (git-ignored, next to this README), one `NAME=value` per line.
 
@@ -47,5 +47,5 @@ Start local Supabase first (`npm run db:start`) so the RPCs answer. Without it t
 
 - `/app/*`: `functions/app/[[path]].ts` returns the app shell (`/app/`) for any path that is not a file, and the file itself for `/app/_expo/*`, `/app/assets/*` and any path with an extension. It sets the security headers, a CSP built at runtime from `SUPABASE_URL` (`ws` or `wss` follows its scheme), `X-Robots-Tag: noindex` and `Cache-Control: no-cache`. `_routes.json` keeps the static files out of the Function (free plan: 100,000 invocations a day).
 - Public pages carry no script (JSON-LD only) and no inline style: `styles.css` is served from `/styles.css`.
-- Sitemaps: `/sitemap.xml` is static and lists `/sitemaps/a-0..15.xml` (activities, 16 buckets) and `/sitemaps/s-0..255.xml` (associations, 256 buckets, small files for the 10 ms CPU limit) split on the first bits of the random id; each file is one `web_sitemap_range` call.
+- Sitemaps: `/sitemap.xml` is static and lists `/sitemaps/a-0..15.xml` (activities, 16 buckets) and `/sitemaps/s-0..255.xml` (associations, 256 buckets, small files for the 10 ms CPU limit) split on the first bits of the random id; each file is one `web_sitemap_range(kind, bucket)` call; the database computes the bucket's id range and refuses any other bucket.
 - Every route is wrapped in `withEdgeCache` (Cache API): 300 s pages, 3600 s sitemaps, 60 s for 404/410, never 503.

@@ -22,20 +22,20 @@ const get = (p: string, method = "GET") => new Request("https://site.test" + p, 
 
 Deno.test("csp is built from SUPABASE_URL: https gives wss, http gives ws", () => {
   const s = appCsp("https://abc.supabase.co/");
-  assertStringIncludes(s, "connect-src 'self' https://abc.supabase.co wss://abc.supabase.co;");
+  assertStringIncludes(s, "connect-src 'self' https://abc.supabase.co wss://abc.supabase.co https://geo.api.gouv.fr https://overpass-api.de;");
   assertStringIncludes(s, "img-src 'self' data: blob: https://abc.supabase.co;");
   assertStringIncludes(s, "script-src 'self' https://challenges.cloudflare.com;");
   assertStringIncludes(s, "frame-src https://challenges.cloudflare.com;");
   assertStringIncludes(s, "frame-ancestors 'none'");
   const l = appCsp("http://127.0.0.1:55321");
-  assertStringIncludes(l, "connect-src 'self' http://127.0.0.1:55321 ws://127.0.0.1:55321;");
+  assertStringIncludes(l, "connect-src 'self' http://127.0.0.1:55321 ws://127.0.0.1:55321 https://geo.api.gouv.fr https://overpass-api.de;");
   assert(!l.includes("wss://"));
 });
 
 Deno.test("csp with a missing or invalid SUPABASE_URL names no backend", () => {
   for (const v of ["", "nope", undefined]) {
     const s = appCsp(v as string);
-    assertStringIncludes(s, "connect-src 'self';");
+    assertStringIncludes(s, "connect-src 'self' https://geo.api.gouv.fr https://overpass-api.de;");
     assert(!s.includes("undefined"));
   }
 });
@@ -54,7 +54,7 @@ Deno.test("deep links get the shell, with headers", async () => {
     assertEquals(r.headers.get("X-Content-Type-Options"), "nosniff");
     assertStringIncludes(r.headers.get("Strict-Transport-Security")!, "max-age=");
     assertEquals(r.headers.get("Referrer-Policy"), "strict-origin-when-cross-origin");
-    assertStringIncludes(r.headers.get("Permissions-Policy")!, "camera=()");
+    assertEquals(r.headers.get("Permissions-Policy"), "camera=(), microphone=(), geolocation=(self)");
     assertStringIncludes(r.headers.get("Content-Security-Policy")!, "connect-src 'self' https://abc.supabase.co wss://abc.supabase.co");
     assertEquals(r.headers.get("Content-Type"), "text/html");
   }
@@ -85,6 +85,12 @@ Deno.test("expo files, assets and any file extension go to ASSETS as asked", asy
     assertEquals(a.seen, [p], p);
     assertEquals(r.headers.get("X-Robots-Tag"), null, p);
   }
+});
+
+Deno.test("assets under /app keep geolocation denied; only the shell allows it", async () => {
+  const a = assets({ "/app/_expo/static/js/web/entry.js": { body: "js", headers: { "Content-Type": "text/javascript" } } });
+  const r = await handleApp(get("/app/_expo/static/js/web/entry.js"), env(a));
+  assertEquals(r.headers.get("Permissions-Policy"), "camera=(), microphone=(), geolocation=()");
 });
 
 Deno.test("a missing asset stays a 404, never the shell", async () => {
@@ -144,4 +150,29 @@ Deno.test("web/public/favicon.ico is a valid 16x16 icon", async () => {
   assertEquals([b[0], b[1], b[2], b[3]], [0, 0, 1, 0]); // ICONDIR, type icon
   assertEquals(b[4], 1); // one image
   assertEquals([b[6], b[7]], [16, 16]);
+});
+
+Deno.test("WEB-3: the 405 carries the security headers", async () => {
+  const r = await handleApp(get("/app/x", "POST"), env(assets()));
+  assertEquals(r.status, 405);
+  assertEquals(r.headers.get("Allow"), "GET, HEAD");
+  assertEquals(r.headers.get("X-Content-Type-Options"), "nosniff");
+  assertEquals(r.headers.get("X-Frame-Options"), "DENY");
+  assertStringIncludes(r.headers.get("Strict-Transport-Security") ?? "", "max-age=");
+  assertStringIncludes(r.headers.get("Content-Security-Policy") ?? "", "frame-ancestors 'none'");
+});
+
+Deno.test("WEB-4: assets and missing assets answered by the Function carry the security headers", async () => {
+  const a = assets({ "/app/some/file.txt": { body: "txt", headers: { "Content-Type": "text/plain", "Cache-Control": "max-age=5" } } });
+  for (const [p, status] of [["/app/some/file.txt", 200], ["/app/nope.js", 404]] as const) {
+    const r = await handleApp(get(p), env(a));
+    assertEquals(r.status, status, p);
+    assertEquals(r.headers.get("X-Content-Type-Options"), "nosniff", p);
+    assertEquals(r.headers.get("X-Frame-Options"), "DENY", p);
+    assertStringIncludes(r.headers.get("Strict-Transport-Security") ?? "", "max-age=", p);
+    assertStringIncludes(r.headers.get("Content-Security-Policy") ?? "", "default-src", p);
+  }
+  const ok = await handleApp(get("/app/some/file.txt"), env(a));
+  assertEquals(ok.headers.get("Content-Type"), "text/plain");
+  assertEquals(ok.headers.get("Cache-Control"), "max-age=5");
 });

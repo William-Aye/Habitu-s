@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { decideReport, listReports, type AdminReport, type ReportDecision } from './api';
@@ -84,7 +84,35 @@ function ReportCard({
 
 export function ReportsQueue() {
   const { t } = useTranslation();
-  const q = useQueue<AdminReport>(listReports);
+  const cursor = useRef<{ createdAt: string; id: string } | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [paging, setPaging] = useState(false);
+  const firstPage = useCallback(async () => {
+    const r = await listReports();
+    if (r.ok) {
+      const last = r.items[r.items.length - 1];
+      cursor.current = last ? { createdAt: last.createdAt, id: last.id } : null;
+      setHasMore(r.hasMore);
+    }
+    return r;
+  }, []);
+  const q = useQueue<AdminReport>(firstPage);
+
+  const more = async () => {
+    if (paging) return;
+    setPaging(true);
+    try {
+      const r = await listReports(cursor.current);
+      if (!r.ok) return void (await q.fail(r.error));
+      const last = r.items[r.items.length - 1];
+      if (last) cursor.current = { createdAt: last.createdAt, id: last.id };
+      setHasMore(r.hasMore);
+      q.append(r.items);
+    } finally {
+      setPaging(false);
+    }
+  };
+
   return (
     <>
       <ErrorText code={q.error} />
@@ -102,6 +130,9 @@ export function ReportsQueue() {
           ))
         }
       </QueueState>
+      {q.load.state === 'ready' && hasMore ? (
+        <AdminButton label={t('admin.reports.more')} onPress={() => void more()} disabled={paging || !!q.busyId} />
+      ) : null}
     </>
   );
 }

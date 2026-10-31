@@ -8,7 +8,7 @@ select tests.create_user('plain@sc.fr', 'Paul') as plain \gset
 select tests.create_user('blk@sc.fr', 'Bob') as blk \gset
 select tests.create_user('blkd@sc.fr', 'Bea') as blkd \gset
 update profiles set age_confirmed = true, created_at = now() - interval '2 days';
-update profiles set photo_url = 'https://example.org/rose.jpg' where id = :'resp';
+update profiles set photo_url = :'resp' || '/' || md5('rose') || '.jpg' where id = :'resp';
 insert into categories (id, slug, name_fr, name_en, icon) values ('00000000-0000-0000-0000-0000000000c1', 'go', 'Jeu de go', 'Go', 'grid-3x3');
 
 -- Superuser inserts: the guards only apply to API roles.
@@ -90,7 +90,7 @@ select tests.act_as(:'plain');
 select is((select array_agg(o->>'first_name' order by o->>'first_name') from jsonb_array_elements(public.get_collectif('00000000-0000-0000-0000-00000000c0a1')->'organisers') o),
           array['Oscar', 'Rose'], 'signed in: first names');
 select is((select o from jsonb_array_elements(public.get_collectif('00000000-0000-0000-0000-00000000c0a1')->'organisers') o where o->>'first_name' = 'Rose'),
-          '{"first_name":"Rose","photo_url":"https://example.org/rose.jpg","role":"responsable"}'::jsonb, 'signed in: only first name, photo and role');
+          jsonb_build_object('first_name', 'Rose', 'photo_url', :'resp' || '/' || md5('rose') || '.jpg', 'role', 'responsable'), 'signed in: only first name, photo and role');
 select tests.act_as_anon();
 select is((select jsonb_array_length(public.get_collectif('00000000-0000-0000-0000-00000000c0a1')->'activities')), 2,
           'non-archived activities only');

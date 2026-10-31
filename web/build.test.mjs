@@ -47,6 +47,14 @@ test("assetlinks.json is generated from env vars", () => {
   assert.deepEqual(j[0].target.sha256_cert_fingerprints, ["AA:BB"]);
 });
 
+test("assetlinks.json defaults the package to fr.habitues.app", () => {
+  const s = setup();
+  const r = run(s, { ...base, ANDROID_SHA256_CERT: "AA:BB" });
+  assert.equal(r.status, 0, r.stderr);
+  const j = JSON.parse(fs.readFileSync(path.join(s.out, ".well-known", "assetlinks.json"), "utf8"));
+  assert.equal(j[0].target.package_name, "fr.habitues.app");
+});
+
 test("assetlinks.json is skipped with a warning when env is missing", () => {
   const s = setup();
   const r = run(s, base);
@@ -87,4 +95,19 @@ test("build accepts matching origins (trailing slash and path ignored)", () => {
 
 test("build writes into web/dist by default", () => {
   assert.match(fs.readFileSync(build, "utf8"), /path\.join\(here, "dist"\)/);
+});
+
+const jwt = (payload) => {
+  const b = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
+  return `${b({ alg: "HS256", typ: "JWT" })}.${b(payload)}.c2lnbmF0dXJlLXNpZ25hdHVyZQ`;
+};
+
+test("WEB-5: a legacy service_role JWT or a private key fails the build; an anon JWT passes", () => {
+  for (const bad of [jwt({ iss: "supabase", role: "service_role" }), jwt({ role: "supabase_admin" }), "-----BEGIN RSA PRIVATE KEY----- abc"]) {
+    const r = run(setup({ "index.html": "x", "a.js": `var k="${bad}"` }), base);
+    assert.notEqual(r.status, 0, bad);
+    assert.match(r.stderr, /secret/i);
+  }
+  const ok = run(setup({ "index.html": "x", "a.js": `var k="${jwt({ iss: "supabase", role: "anon" })}"` }), base);
+  assert.equal(ok.status, 0, ok.stderr);
 });
