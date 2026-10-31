@@ -82,7 +82,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@v7
 
       - name: Sync and run unit tests
         run: cd importer && uv sync && uv run pytest
@@ -108,7 +108,7 @@ jobs:
       - name: Start local Supabase
         run: npx supabase start
 
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@v7
 
       - name: Cache the embedding model
         uses: actions/cache@v4
@@ -173,7 +173,7 @@ jobs:
         with:
           node-version: 22
 
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@v7
 
       - name: npm audit (root)
         run: |
