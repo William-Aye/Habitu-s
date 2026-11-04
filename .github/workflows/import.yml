@@ -16,7 +16,32 @@ permissions:
   contents: read
 
 jobs:
+  # Until the hosted database exists, the monthly run is skipped instead of failing.
+  # A manual run without the secret still fails, with a clear message.
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      configured: ${{ steps.secret.outputs.configured }}
+    steps:
+      - id: secret
+        env:
+          IMPORTER_DB_URL: ${{ secrets.IMPORTER_DB_URL }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ -n "${IMPORTER_DB_URL:-}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT" = "schedule" ]; then
+            echo "::notice::IMPORTER_DB_URL is not set: monthly import skipped."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::IMPORTER_DB_URL is not set. Add it in Settings, Secrets and variables, Actions."
+            exit 1
+          fi
+
   import:
+    needs: check
+    if: ${{ needs.check.outputs.configured == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 350
     steps:
