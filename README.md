@@ -79,7 +79,10 @@ Sign-up asks for a first name and an 18+ confirmation, nothing else.
    `challenges.cloudflare.com`. The app's Turnstile WebView loads its page from
    `https://challenges.cloudflare.com` (`BASE_URL` in `app/src/features/account/Turnstile.tsx`),
    and the code expects that hostname to be allowed for the site key.
-3. Put the site key in `EXPO_PUBLIC_TURNSTILE_SITE_KEY` (`app/.env`).
+3. The site key is public. The widget for `habituer.org` has the site key `0x4AAAAAAGG5usYrYayC7ffC`.
+   It is already set for the EAS builds (`env` in `app/eas.json`). Also put it in the Cloudflare Pages
+   variable `EXPO_PUBLIC_TURNSTILE_SITE_KEY`. Leave it empty in `app/.env` for local development
+   (CAPTCHA is off locally, and the widget does not accept `127.0.0.1`).
 4. Put the secret key in the Supabase dashboard: Authentication → Attack protection → CAPTCHA,
    provider Turnstile. The secret never goes in the repo or in the app.
 
