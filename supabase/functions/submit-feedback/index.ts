@@ -1,11 +1,12 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
 import { createHandler } from './handler.ts';
+import { serverKey } from '../_shared/keys.ts';
 
 const list = (name: string) => (Deno.env.get(name) ?? '').split(',').map((v) => v.trim()).filter(Boolean);
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  serverKey(),
   { auth: { persistSession: false } },
 );
 

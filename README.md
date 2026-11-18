@@ -207,12 +207,13 @@ The `drain-outbox` job wakes the `send-push` Edge Function using two Vault secre
 nothing, so local runs never fail. Set them in the SQL editor of the hosted project:
 
 ```sql
-select vault.create_secret('<service-role key>', 'send_push_key');
+select vault.create_secret('<secret key>', 'send_push_key');
 select vault.create_secret('https://<project-ref>.supabase.co/functions/v1/send-push', 'send_push_url');
 ```
 
-`send_push_key` **must equal the project's service-role key** (the function checks it as the bearer
-token). Locally the URL is `http://host.docker.internal:55321/functions/v1/send-push`. To change a
+`send_push_key` **must equal the project's secret key** (`sb_secret_...`, the `default` one in
+Settings, API Keys; on a project with only the legacy keys, the service-role key). The function checks
+it as the bearer token, see [Keys and `verify_jwt`](#deploying-the-functions-and-their-secrets). Locally the URL is `http://host.docker.internal:55321/functions/v1/send-push`. To change a
 secret later, update the existing Vault row instead of creating a second one.
 
 Deploy the function:
@@ -344,15 +345,16 @@ npx supabase functions deploy storage-cleanup
 
   Until `storage_cleanup_url` exists the job does nothing, so queued files stay in Storage; locally
   nothing needs setting.
-- **Keys and `verify_jwt`.** `send-push` and `storage-cleanup` are called by the database jobs with the
-  Vault key (`send_push_key`, the service-role key) as bearer token, and compare it with the
-  `SUPABASE_SERVICE_ROLE_KEY` that Supabase injects into every function. `submit-feedback` is called
-  by the app with the public (anon/publishable) key, optionally with the user's session token, and
-  uses `SUPABASE_SERVICE_ROLE_KEY` only to write the row. If the project uses the new
-  `sb_secret_...` API keys, those are not JWTs: test the cron calls (`send-push`, `storage-cleanup`)
-  and an anonymous and a signed-in call to `submit-feedback` after deploying, and, if the gateway
-  answers 401 to the cron calls, deploy those two with `--no-verify-jwt` (they check their own
-  credentials).
+- **Keys and `verify_jwt`.** The functions use the project's server key (`supabase/functions/_shared/keys.ts`):
+  the `default` entry of `SUPABASE_SECRET_KEYS` (the `sb_secret_...` key shown in Settings, API Keys), or,
+  on a project with only the legacy keys, `SUPABASE_SERVICE_ROLE_KEY`. Supabase injects both variables.
+  `send-push` and `storage-cleanup` are called by the database jobs with the Vault key `send_push_key`
+  as bearer token and compare it with that server key, so `send_push_key` must be the same key. Those
+  two run with `verify_jwt = false` (set in `supabase/config.toml`, since `sb_secret_...` keys are not
+  JWTs) and check the key themselves. `submit-feedback` is called by the app with the publishable key,
+  optionally with the user's session token, and uses the server key only to write the row. After
+  deploying, test the cron calls (`send-push`, `storage-cleanup`) and an anonymous and a signed-in call
+  to `submit-feedback`.
 
 ### Storage buckets
 
