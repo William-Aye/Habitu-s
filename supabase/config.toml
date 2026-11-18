@@ -406,6 +406,14 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Called only by the pg_cron jobs with the project's secret key as bearer token, which they check
+# themselves (exact match). The new sb_secret_ keys are not JWTs, so the gateway JWT check is off.
+[functions.send-push]
+verify_jwt = false
+
+[functions.storage-cleanup]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 55327
