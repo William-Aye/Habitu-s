@@ -116,10 +116,10 @@ export interface RenderOpts {
   playStore?: string;
   androidPackage?: string;
 }
-export const DEFAULT_ANDROID_PACKAGE = "fr.habitues.app";
+export const DEFAULT_ANDROID_PACKAGE = "fr.habituer.app";
 
 function intentUrl(route: string, playStore: string, pkg: string): string {
-  return `intent://${route}#Intent;scheme=habitues;package=${pkg};S.browser_fallback_url=${encodeURIComponent(playStore)};end`;
+  return `intent://${route}#Intent;scheme=habituer;package=${pkg};S.browser_fallback_url=${encodeURIComponent(playStore)};end`;
 }
 
 function actions(o: { webPath?: string; intent: string; playStore: string; map: string | null }): string {

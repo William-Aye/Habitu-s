@@ -1,11 +1,11 @@
 // Post-deploy smoke check: security headers, indexing rules, Android App Links and anonymous access.
 // Usage: SMOKE_WEB_BASE_URL=... SMOKE_SUPABASE_URL=... SMOKE_SUPABASE_ANON_KEY=... npm run smoke
-// Optional: SMOKE_ANDROID_PACKAGE (default fr.habitues.app), SMOKE_ALLOW_HTTP=1 (local runs only: allows
+// Optional: SMOKE_ANDROID_PACKAGE (default fr.habituer.app), SMOKE_ALLOW_HTTP=1 (local runs only: allows
 // http://127.0.0.1 and http://localhost). The anon key is sent only to SMOKE_SUPABASE_URL and is never printed.
 import { pathToFileURL } from "node:url";
 
 const TIMEOUT_MS = 10_000;
-const DEFAULT_PACKAGE = "fr.habitues.app";
+const DEFAULT_PACKAGE = "fr.habituer.app";
 const UNKNOWN_ID = "00000000-0000-4000-8000-000000000000";
 const REQUIRED_HEADERS = [
   "Content-Security-Policy",

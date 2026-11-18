@@ -54,11 +54,11 @@ export function buildIcs(
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Habitues//Public web//FR',
+    'PRODID:-//Habituer//Public web//FR',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',
-    `UID:${session.id}@habitues`,
+    `UID:${session.id}@habituer`,
     `DTSTAMP:${utc(now)}`,
     `DTSTART:${utc(start)}`,
     `DTEND:${utc(end)}`,

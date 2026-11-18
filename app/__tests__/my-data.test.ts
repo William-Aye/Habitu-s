@@ -95,7 +95,7 @@ describe('exportMyData', () => {
     expect(rpc).toHaveBeenCalledWith('export_my_data');
     expect(res.ok).toBe(true);
     expect(mockWrites).toHaveLength(1);
-    expect(mockWrites[0].uri).toContain('habitues-mes-donnees-2026-10-22.json');
+    expect(mockWrites[0].uri).toContain('habituer-mes-donnees-2026-10-22.json');
     expect(JSON.parse(mockWrites[0].content)).toEqual(data);
     expect(Sharing.shareAsync).toHaveBeenCalledWith(mockWrites[0].uri, expect.anything());
     expect(mockDeleted).toEqual([]); // the receiving app may still be reading it
@@ -103,15 +103,15 @@ describe('exportMyData', () => {
 
   it('removes old export files at the start of the next export and keeps unrelated ones', async () => {
     rpc.mockResolvedValue({ data: { a: 1 }, error: null });
-    mockCache.push('habitues-mes-donnees-2026-10-01.json', 'other.json');
+    mockCache.push('habituer-mes-donnees-2026-10-01.json', 'other.json');
     await exportMyData();
-    expect(mockDeleted).toEqual(['habitues-mes-donnees-2026-10-01.json']);
+    expect(mockDeleted).toEqual(['habituer-mes-donnees-2026-10-01.json']);
   });
 
   it('cleanupExportFiles removes leftover exports', () => {
-    mockCache.push('habitues-mes-donnees-2026-10-01.json', 'photo.jpg');
+    mockCache.push('habituer-mes-donnees-2026-10-01.json', 'photo.jpg');
     cleanupExportFiles();
-    expect(mockDeleted).toEqual(['habitues-mes-donnees-2026-10-01.json']);
+    expect(mockDeleted).toEqual(['habituer-mes-donnees-2026-10-01.json']);
   });
 
   it('keeps the cached file when sharing fails (the chooser may have handed it out)', async () => {
@@ -211,9 +211,9 @@ describe('deleteMyAccount', () => {
   });
 
   it('removes leftover export files when the account is deleted', async () => {
-    mockCache.push('habitues-mes-donnees-2026-10-01.json');
+    mockCache.push('habituer-mes-donnees-2026-10-01.json');
     await deleteMyAccount();
-    expect(mockDeleted).toContain('habitues-mes-donnees-2026-10-01.json');
+    expect(mockDeleted).toContain('habituer-mes-donnees-2026-10-01.json');
   });
 
   it('clears the local session as a fallback even when the full sign-out fails', async () => {

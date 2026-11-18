@@ -1,4 +1,4 @@
-# Habitués
+# Habituer
 
 Une application francaise pour se faire des amis grace a des activites recurrentes (Expo Android + Supabase).
 
@@ -54,7 +54,7 @@ Sign-up asks for a first name and an 18+ confirmation, nothing else.
 ### 1. Google sign-in (free, no billing account)
 
 1. Create a Google Cloud project.
-2. Configure the OAuth consent screen: app name "Habitués", support e-mail set to yours.
+2. Configure the OAuth consent screen: app name "Habituer", support e-mail set to yours.
 3. Create a **Web** OAuth client id. In Supabase, go to Authentication → Providers → Google and
    enter this client id and its secret. Turn on **Skip nonce check** (the native Android sign-in
    sends a nonce Supabase cannot check; `supabase/config.toml` already sets it). This is accepted
@@ -62,7 +62,7 @@ Sign-up asks for a first name and an 18+ confirmation, nothing else.
    (custom nonces exist only in its paid "Universal" edition). A stolen Google ID token could be replayed
    until it expires (about an hour), but Google only issues one for the app's Web client id to an Android
    app registered with the package name and SHA-1 of step 4. Revisit if the Credential Manager API is adopted.
-4. Create an **Android** OAuth client id with package name `fr.habitues.app` and the SHA-1
+4. Create an **Android** OAuth client id with package name `fr.habituer.app` and the SHA-1
    fingerprint of the signing key. For local builds, run `npx expo prebuild` in `app/`, then
    `cd android && ./gradlew signingReport` and copy the SHA-1 of the debug variant. Add the
    Google Play signing SHA-1 as well before release.
@@ -75,7 +75,7 @@ Sign-up asks for a first name and an 18+ confirmation, nothing else.
 
 1. In the Cloudflare dashboard, open Turnstile and add a widget. Choose the widget mode
    **Invisible** (this is a property of the site key, not a code option).
-2. Allowed domains: add your app domain (`habitues.app`, or the domain you chose) and
+2. Allowed domains: add your app domain (`habituer.org`, or the domain you chose) and
    `challenges.cloudflare.com`. The app's Turnstile WebView loads its page from
    `https://challenges.cloudflare.com` (`BASE_URL` in `app/src/features/account/Turnstile.tsx`),
    and the code expects that hostname to be allowed for the site key.
@@ -108,7 +108,7 @@ Then set:
   a distributed guess hopeless. The app's code field is 8 digits.
 - Email templates, French, no link: BOTH the **Magic Link** template (existing users) and the
   **Confirm signup** template (new users) must contain `{{ .Token }}`. Use the text
-  `Votre code Habitués : {{ .Token }}` and no link in either, otherwise new users receive a link
+  `Votre code Habituer : {{ .Token }}` and no link in either, otherwise new users receive a link
   instead of a code. (`supabase/templates/code.html` does the same locally.)
 - **Rate limits** (Authentication, Rate Limits), below the defaults like `config.toml`: token verifications
   **10** per 5 minutes per IP, sign-ups and sign-ins **15**, token refreshes **100**.
@@ -170,7 +170,7 @@ below is free (Firebase and Expo's push service need no card).
 ### Firebase and `google-services.json` (Android push)
 
 1. Create a Firebase project (console.firebase.google.com) and add an Android app with the package
-   name `fr.habitues.app`.
+   name `fr.habituer.app`.
 2. Download `google-services.json` from the Firebase console into `app/google-services.json`
    before any Android build. The file is **gitignored on purpose**: the repository is public, so it
    is never committed.
@@ -233,7 +233,7 @@ Created by the migrations; nothing to schedule by hand:
 
 `EXPO_PUBLIC_WEB_BASE_URL` (in `app/.env`, see `app/.env.example`) is the public website address.
 Shared links are readable: `EXPO_PUBLIC_WEB_BASE_URL/activites/<slug>-<uuid>` (and `/associations/...`),
-built by `app/src/lib/links.ts`. Without it the app falls back to `habitues://activites/<id>`.
+built by `app/src/lib/links.ts`. Without it the app falls back to `habituer://activites/<id>`.
 See "Public web pages" below.
 
 ### Finding new activities by meaning
@@ -548,7 +548,7 @@ The website has two parts, both on Cloudflare Pages (free plan):
 | `SUPABASE_ANON_KEY` | anon key, read by the Worker |
 | `WEB_BASE_URL` | public address without trailing slash (canonical links, sitemaps). Until a domain is bought, the `*.pages.dev` address |
 | `PLAY_STORE_URL` | Play Store listing, used by the Worker pages |
-| `ANDROID_PACKAGE` | Android package (`fr.habitues.app`), used for `/.well-known/assetlinks.json` |
+| `ANDROID_PACKAGE` | Android package (`fr.habituer.app`), used for `/.well-known/assetlinks.json` |
 | `ANDROID_SHA256_CERT` | SHA-256 fingerprint of the app signing certificate (Play Console, App integrity). Without it `assetlinks.json` is skipped and Android App Links are not verified |
 | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` | read by the app export |
 | `EXPO_PUBLIC_WEB_BASE_URL` | same value as `WEB_BASE_URL`; also adds the Android App Links intent filters (`app/app.config.js`) |
@@ -610,14 +610,14 @@ Submit `<WEB_BASE_URL>/sitemap.xml` in Google Search Console (add the domain pro
 ### 5b. After the first deploy
 
 - Link preview: paste an activity link (`<WEB_BASE_URL>/activites/<slug>-<id>`) in a WhatsApp chat with yourself and check that
-  the card shows the title, description and the Habitués image. If it does not, the WAF or a challenge rule is blocking the crawler.
+  the card shows the title, description and the Habituer image. If it does not, the WAF or a challenge rule is blocking the crawler.
 - Android App Links: open
   `https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=<WEB_BASE_URL>&relation=delegate_permission/common.handle_all_urls`
-  and check that the answer lists your package (`fr.habitues.app`) and the SHA-256 of the signing certificate.
+  and check that the answer lists your package (`fr.habituer.app`) and the SHA-256 of the signing certificate.
 - Smoke check: run `npm run smoke` with `SMOKE_WEB_BASE_URL` (the site), `SMOKE_SUPABASE_URL` and
   `SMOKE_SUPABASE_ANON_KEY` set in your shell. It prints one line per check (`ok` or `FAIL <reason>`) and exits 1 if any fails.
   It checks HTTPS, the security headers, no cookies, the sitemap, 404 + noindex for unknown ids, `assetlinks.json`
-  (package from `SMOKE_ANDROID_PACKAGE`, default `fr.habitues.app`), that anonymous users cannot read `profiles` or call
+  (package from `SMOKE_ANDROID_PACKAGE`, default `fr.habituer.app`), that anonymous users cannot read `profiles` or call
   `admin_reports` (only 401/403 count as denied; 404 or 5xx fails), and that the Supabase URL answers (auth health). Password sign-in is not checked here: it is covered by pgTAP test 42 and `scripts/auth-live.mjs`. For a local run only, set `SMOKE_ALLOW_HTTP=1` to accept
   `http://127.0.0.1` / `localhost` for the HTTPS check. The anon key is sent only to `SMOKE_SUPABASE_URL` and never printed.
 
@@ -647,7 +647,7 @@ d'utilisation" pages (`web/src/legal.ts`).
 The full ordered owner checklist (hosted settings, legal steps, Play Console, build, closed test, rollback) is in
 [`docs/launch/checklist.md`](docs/launch/checklist.md).
 
-The Android app is Habitués, package `fr.habitues.app`, scheme `habitues`, first store version `1.0.0`
+The Android app is Habituer, package `fr.habituer.app`, scheme `habituer`, first store version `1.0.0`
 (`versionCode` 1; later codes are incremented by EAS). Build profiles are in `app/eas.json`.
 
 1. From `app/`, build the store bundle (an Android App Bundle, `.aab`):

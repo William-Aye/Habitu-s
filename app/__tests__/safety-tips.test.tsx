@@ -109,14 +109,14 @@ describe('shareMyPlans', () => {
     const r = await shareMyPlans(session({ startsAt: '2026-07-15T17:00:00Z' }), activity());
     expect(r).toBe('shared');
     expect(spy).toHaveBeenCalledWith({
-      message: 'Jeux de société — mercredi 15 juillet à 19:00, Café des Arts. Je vous préviens au cas où. (Habitués)',
+      message: 'Jeux de société — mercredi 15 juillet à 19:00, Café des Arts. Je vous préviens au cas où. (Habituer)',
     });
   });
   it('uses UTC+1 in winter', async () => {
     const spy = share().mockResolvedValue({ action: 'sharedAction' } as never);
     await shareMyPlans(session({ startsAt: '2026-01-14T18:00:00Z' }), activity());
     expect(spy.mock.calls[0][0]).toEqual({
-      message: 'Jeux de société — mercredi 14 janvier à 19:00, Café des Arts. Je vous préviens au cas où. (Habitués)',
+      message: 'Jeux de société — mercredi 14 janvier à 19:00, Café des Arts. Je vous préviens au cas où. (Habituer)',
     });
   });
   it('is right on the day the clocks change (2026-03-29, 02:00 becomes 03:00)', async () => {

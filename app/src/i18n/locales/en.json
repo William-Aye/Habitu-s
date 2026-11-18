@@ -185,12 +185,12 @@
     "discussion": "Discussion"
   },
   "web": {
-    "siteName": "Habitués",
+    "siteName": "Habituer",
     "account": "My account",
     "download": "Download the app",
     "unavailable": {
       "title": "Available in the app",
-      "body": "This part of Habitués is not available on the website. Install the app to use it."
+      "body": "This part of Habituer is not available on the website. Install the app to use it."
     },
     "notFound": "This page does not exist or is no longer available.",
     "home": "Back to home",
@@ -328,7 +328,7 @@
       "onDays": "On {{days}} at {{time}}"
     },
     "share": {
-      "message": "{{titre}} on Habitués: {{url}}"
+      "message": "{{titre}} on Habituer: {{url}}"
     }
   },
   "create": {
@@ -642,7 +642,7 @@
     "sharePlans": "Share my plans",
     "sharePlansTip": "Share my plans for this session",
     "sharePlansAria": "Share my plans for {{date}}",
-    "shareMessage": "{{titre}} — {{date}} at {{heure}}, {{lieu}}. Letting you know just in case. (Habitués)",
+    "shareMessage": "{{titre}} — {{date}} at {{heure}}, {{lieu}}. Letting you know just in case. (Habituer)",
     "tips": {
       "first_session": {
         "a": "For a first meeting, stay in the public place and arrange your own way there and back.",

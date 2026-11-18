@@ -11,7 +11,7 @@ export const privacyEn = `Version to be reviewed by a qualified person before pu
 
 # Privacy policy
 
-Habitués helps you meet people around regular activities. This page explains, in plain words, what data we collect, why, how long we keep it and how you stay in control.
+Habituer helps you meet people around regular activities. This page explains, in plain words, what data we collect, why, how long we keep it and how you stay in control.
 
 # What we collect
 

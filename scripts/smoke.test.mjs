@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { runChecks } from "./smoke.mjs";
 
-const WEB = "https://habitues.example";
+const WEB = "https://habituer.example";
 const SB = "https://abc.supabase.example";
 const ENV = {
   SMOKE_WEB_BASE_URL: WEB,
@@ -18,7 +18,7 @@ const SEC = {
 };
 const GOOD_LINK = {
   relation: ["delegate_permission/common.handle_all_urls"],
-  target: { namespace: "android_app", package_name: "fr.habitues.app", sha256_cert_fingerprints: ["AA:BB"] },
+  target: { namespace: "android_app", package_name: "fr.habituer.app", sha256_cert_fingerprints: ["AA:BB"] },
 };
 const UNKNOWN = "GET /activites/smoke-00000000-0000-4000-8000-000000000000";
 
@@ -171,7 +171,7 @@ test("missing Supabase variables fail the three Supabase checks", async () => {
 });
 
 test("a non-HTTPS base URL fails https", async () => {
-  const f = await runChecks({ ...ENV, SMOKE_WEB_BASE_URL: "http://habitues.example" }, async () => new Response(""));
+  const f = await runChecks({ ...ENV, SMOKE_WEB_BASE_URL: "http://habituer.example" }, async () => new Response(""));
   assert.equal(f.find((r) => r.name === "https").ok, false);
 });
 
