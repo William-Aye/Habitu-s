@@ -1,46 +1,52 @@
+# One monthly round, at most two pull requests per area: minor and patch updates together,
+# major updates together. Security updates are separate and still arrive as soon as needed.
 version: 2
 updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       timezone: "Europe/Paris"
     open-pull-requests-limit: 5
     groups:
       npm-root-minor-patch:
         update-types: ["minor", "patch"]
+      npm-root-major:
+        update-types: ["major"]
 
   - package-ecosystem: "npm"
     directory: "/app"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       timezone: "Europe/Paris"
     open-pull-requests-limit: 5
     groups:
       npm-app-minor-patch:
         update-types: ["minor", "patch"]
+      npm-app-major:
+        update-types: ["major"]
 
   # The importer is locked with uv (importer/uv.lock), so use the uv ecosystem.
   - package-ecosystem: "uv"
     directory: "/importer"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       timezone: "Europe/Paris"
     open-pull-requests-limit: 5
     groups:
       uv-minor-patch:
         update-types: ["minor", "patch"]
+      uv-major:
+        update-types: ["major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       timezone: "Europe/Paris"
     open-pull-requests-limit: 5
     groups:
       actions-minor-patch:
         update-types: ["minor", "patch"]
+      actions-major:
+        update-types: ["major"]
