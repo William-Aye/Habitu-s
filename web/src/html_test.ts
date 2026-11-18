@@ -2,7 +2,7 @@ import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import { escapeHtml, formatParisDate, jsonLd, renderActivityPage, renderAssociationPage, renderNotFound, renderUnavailable } from "./html.ts";
 import { activityFixture, associationFixture, EVIL } from "./fixtures.ts";
 
-const BASE = "https://habitues.test";
+const BASE = "https://habituer.test";
 
 Deno.test("escapeHtml escapes the five characters", () => {
   assertEquals(escapeHtml(`<a href="x">'&'</a>`), "&lt;a href=&quot;x&quot;&gt;&#39;&amp;&#39;&lt;/a&gt;");
@@ -36,7 +36,7 @@ Deno.test("evil title is escaped in title, OG and body, and the JSON-LD stays in
 
 Deno.test("activity page content", () => {
   const html = renderActivityPage(activityFixture(), BASE);
-  assertStringIncludes(html, "<title>Jeu de go · Habitués</title>");
+  assertStringIncludes(html, "<title>Jeu de go · Habituer</title>");
   assertStringIncludes(html, `<link rel="canonical" href="${BASE}/activites/jeu-de-go-11111111-1111-4111-8111-111111111111">`);
   for (const k of ["og:title", "og:description", "og:url", "og:image", "og:type", "og:locale"]) {
     assertStringIncludes(html, `property="${k}"`);
@@ -107,11 +107,11 @@ Deno.test("open-in-app is an Android intent link with the Play Store fallback", 
   const store = "https://play.google.com/store/apps/details?id=fr.x";
   const html = renderActivityPage(activityFixture(), BASE, { playStore: store, androidPackage: "fr.test.app" });
   const href = html.match(/href="(intent:[^"]+)"/)![1].replaceAll("&amp;", "&");
-  assertStringIncludes(href, "intent://activites/11111111-1111-4111-8111-111111111111#Intent;scheme=habitues;package=fr.test.app;");
+  assertStringIncludes(href, "intent://activites/11111111-1111-4111-8111-111111111111#Intent;scheme=habituer;package=fr.test.app;");
   assertStringIncludes(href, "S.browser_fallback_url=" + encodeURIComponent(store));
   assert(href.endsWith(";end"));
   const def = renderActivityPage(activityFixture(), BASE);
-  assertStringIncludes(def, "package=fr.habitues.app;");
+  assertStringIncludes(def, "package=fr.habituer.app;");
 });
 
 Deno.test("label and map pin both come from the activity, whatever the session says", () => {

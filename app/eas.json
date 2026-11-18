@@ -6,6 +6,9 @@
   "build": {
     "production": {
       "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAGG5usYrYayC7ffC"
+      },
       "autoIncrement": true,
       "distribution": "store",
       "android": {
@@ -14,6 +17,9 @@
     },
     "preview": {
       "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAGG5usYrYayC7ffC"
+      },
       "distribution": "internal",
       "android": {
         "buildType": "apk"

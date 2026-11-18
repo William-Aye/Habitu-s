@@ -15,7 +15,7 @@ export async function addSessionToCalendar(
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `habitues-${new Date(session.startsAt).toISOString().slice(0, 10)}.ics`;
+    link.download = `habituer-${new Date(session.startsAt).toISOString().slice(0, 10)}.ics`;
     document.body.appendChild(link);
     link.click();
     link.remove();

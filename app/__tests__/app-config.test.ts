@@ -3,7 +3,7 @@ const makeConfig = require('../app.config.js');
 const fs = require('node:fs');
 const path = require('node:path');
 const appJson = JSON.parse(fs.readFileSync(path.join(__dirname, '../app.json'), 'utf8'));
-const base = { android: { package: 'fr.habitues.app' } };
+const base = { android: { package: 'fr.habituer.app' } };
 
 describe('app.config.js Android App Links', () => {
   const OLD = process.env.EXPO_PUBLIC_WEB_BASE_URL;
@@ -11,15 +11,15 @@ describe('app.config.js Android App Links', () => {
     process.env.EXPO_PUBLIC_WEB_BASE_URL = OLD;
   });
   it('adds verified intent filters for the web host', () => {
-    process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://habitues.example/';
+    process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://habituer.example/';
     const cfg = makeConfig({ config: base });
     expect(cfg.android.intentFilters).toEqual([
       {
         action: 'VIEW',
         autoVerify: true,
         data: [
-          { scheme: 'https', host: 'habitues.example', pathPrefix: '/activites/' },
-          { scheme: 'https', host: 'habitues.example', pathPrefix: '/associations/' },
+          { scheme: 'https', host: 'habituer.example', pathPrefix: '/activites/' },
+          { scheme: 'https', host: 'habituer.example', pathPrefix: '/associations/' },
         ],
         category: ['BROWSABLE', 'DEFAULT'],
       },
@@ -48,7 +48,7 @@ describe('app.config.js production profile', () => {
   });
   it('accepts the production build with the address, and other profiles without it', () => {
     process.env.EAS_BUILD_PROFILE = 'production';
-    process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://habitues.example';
+    process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://habituer.example';
     expect(() => makeConfig({ config: base })).not.toThrow();
     process.env.EAS_BUILD_PROFILE = 'preview';
     delete process.env.EXPO_PUBLIC_WEB_BASE_URL;
@@ -58,9 +58,9 @@ describe('app.config.js production profile', () => {
 
 describe('web shell (Expo public/index.html template)', () => {
   const html = require('node:fs').readFileSync(require('node:path').join(__dirname, '../public/index.html'), 'utf8');
-  it('is French and titled Habitués', () => {
+  it('is French and titled Habituer', () => {
     expect(html).toMatch(/<html lang="fr">/);
-    expect(html).toMatch(/<title>Habitués<\/title>/);
+    expect(html).toMatch(/<title>Habituer<\/title>/);
     expect(html).toContain('<div id="root"></div>');
   });
 });
@@ -78,11 +78,11 @@ describe('final identity and release profile', () => {
   afterEach(() => {
     process.env.EXPO_PUBLIC_WEB_BASE_URL = OLD;
   });
-  it('has the Habitués name, package, scheme and first version code', () => {
+  it('has the Habituer name, package, scheme and first version code', () => {
     const cfg = makeConfig({ config: appJson.expo });
-    expect(cfg.name).toBe('Habitués');
-    expect(cfg.android.package).toBe('fr.habitues.app');
-    expect(cfg.scheme).toBe('habitues');
+    expect(cfg.name).toBe('Habituer');
+    expect(cfg.android.package).toBe('fr.habituer.app');
+    expect(cfg.scheme).toBe('habituer');
     expect(cfg.version).toBe('1.0.0');
     expect(cfg.android.versionCode).toBe(1);
   });
@@ -105,7 +105,7 @@ describe('final identity and release profile', () => {
     expect(blocked).not.toContain('android.permission.POST_NOTIFICATIONS');
   });
   it('keeps App Links with the final package when the web address is set', () => {
-    process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://habitues.example/';
+    process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://habituer.example/';
     const cfg = makeConfig({ config: appJson.expo });
     expect(cfg.android.intentFilters).toHaveLength(1);
     expect(cfg.android.blockedPermissions).toContain('android.permission.RECORD_AUDIO');

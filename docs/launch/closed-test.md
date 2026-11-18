@@ -6,8 +6,8 @@ Google exige, pour un compte développeur personnel créé récemment, un test f
 
 ## 1. Créer la piste de test fermé
 
-1. Play Console, l'application Habitués, « Tests et publication », « Tests », « Test fermé ».
-2. Créer une piste (nom : « Bêta Habitués »).
+1. Play Console, l'application Habituer, « Tests et publication », « Tests », « Test fermé ».
+2. Créer une piste (nom : « Bêta Habituer »).
 3. Onglet « Testeurs » : créer une liste d'adresses e-mail (des comptes Google, un par testeur) ou un groupe Google. Enregistrer.
 4. Copier le lien d'inscription (« Copier le lien ») : c'est lui que les testeurs ouvrent pour s'inscrire.
 5. Onglet « Versions » : « Créer une version », envoyer le fichier `.aab` fabriqué avec le profil EAS `production` (voir `docs/launch/checklist.md`), remplir les notes de version en français, puis « Envoyer pour examen ». Le premier examen peut prendre plusieurs jours.
@@ -28,11 +28,11 @@ Google exige, pour un compte développeur personnel créé récemment, un test f
 
 ## 3. Message d'invitation (à envoyer aux testeurs)
 
-Objet : Testez Habitués avant tout le monde (2 minutes pour vous inscrire)
+Objet : Testez Habituer avant tout le monde (2 minutes pour vous inscrire)
 
 Bonjour,
 
-Je prépare Habitués, une application gratuite pour trouver des activités régulières et des associations près de chez soi, et se faire des amis en se retrouvant chaque semaine au même endroit. Avant de la publier, j'ai besoin de testeurs sur Android, pendant 14 jours.
+Je prépare Habituer, une application gratuite pour trouver des activités régulières et des associations près de chez soi, et se faire des amis en se retrouvant chaque semaine au même endroit. Avant de la publier, j'ai besoin de testeurs sur Android, pendant 14 jours.
 
 Ce que je vous demande : installer l'application, l'ouvrir de temps en temps, et me dire ce qui ne va pas ou ce qui manque. Quelques minutes par semaine suffisent.
 

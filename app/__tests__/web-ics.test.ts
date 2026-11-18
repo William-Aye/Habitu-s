@@ -7,24 +7,24 @@ it('writes the start and the end (2 h) in UTC for a summer (DST) Paris date', ()
   const ics = buildIcs(
     { id: 's1', startsAt: '2026-07-14T19:30:00+02:00', placeLabel: 'Café des Arts, Lyon' },
     activity,
-    'https://habitues.example/activites/jeux-act1',
+    'https://habituer.example/activites/jeux-act1',
     NOW,
   );
   expect(ics).toBe(
     [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
-      'PRODID:-//Habitues//Public web//FR',
+      'PRODID:-//Habituer//Public web//FR',
       'CALSCALE:GREGORIAN',
       'METHOD:PUBLISH',
       'BEGIN:VEVENT',
-      'UID:s1@habitues',
+      'UID:s1@habituer',
       'DTSTAMP:20260701T080000Z',
       'DTSTART:20260714T173000Z',
       'DTEND:20260714T193000Z',
       'SUMMARY:Jeux\\, cartes\\; et plus\\nce soir',
       'LOCATION:Café des Arts\\, Lyon',
-      'URL:https://habitues.example/activites/jeux-act1',
+      'URL:https://habituer.example/activites/jeux-act1',
       'END:VEVENT',
       'END:VCALENDAR',
       '',

@@ -4,5 +4,11 @@
     "package": "zod",
     "reason": "zod 3.25.x is pulled in only by @expo/cli, a build-time command line tool that is not part of the shipped app bundle. The flaw is memory exhaustion when validating oversized collections of untrusted input; the CLI only reads our own app.json. No patched 3.x exists and the fix (zod 4.6.6) needs an Expo major downgrade. Re-check when Expo ships a CLI built on zod 4.",
     "review_by": "2027-01-29"
+  },
+  {
+    "id": "GHSA-fc5q-39xc-vjpf",
+    "package": "picomatch",
+    "reason": "picomatch is pulled in only by build and test tooling (Metro's file watcher, Jest, anymatch, micromatch), which match file patterns written by us, never user input; it is not part of the shipped app bundle. The flaw is a ReDoS on crafted extglob patterns. Every release up to the latest (4.0.7) is affected, so no fixed version exists yet. Remove this entry once a patched picomatch is released and the lockfile picks it up.",
+    "review_by": "2027-01-18"
   }
 ]

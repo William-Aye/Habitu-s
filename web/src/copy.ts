@@ -1,6 +1,6 @@
 // All French copy of the public pages lives here.
 export const copy = {
-  siteName: "Habitués",
+  siteName: "Habituer",
   tagline: "Des activités régulières près de chez vous",
   openInApp: "Ouvrir dans l'application",
   downloadApp: "Télécharger l'application",

@@ -49,13 +49,13 @@ beforeEach(() => {
   jest.replaceProperty(Platform, 'OS', 'web');
   local = memoryStorage();
   session = memoryStorage();
-  location = { pathname: '/app/activites/abc', search: '', origin: 'https://habitues.example' };
+  location = { pathname: '/app/activites/abc', search: '', origin: 'https://habituer.example' };
   g.localStorage = local;
   g.sessionStorage = session;
   if (!g.window) g.window = g;
   (g.window as Record<string, unknown>).location = location;
-  process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://habitues.example';
-  process.env.EXPO_PUBLIC_PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=fr.habitues.app';
+  process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://habituer.example';
+  process.env.EXPO_PUBLIC_PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=fr.habituer.app';
 });
 afterEach(() => {
   jest.restoreAllMocks();
@@ -90,7 +90,7 @@ describe('Google on the web', () => {
     expect(res).toEqual({ ok: true });
     expect(mockSupabase.auth.signInWithOAuth).toHaveBeenCalledWith({
       provider: 'google',
-      options: { redirectTo: 'https://habitues.example/app/auth/callback' },
+      options: { redirectTo: 'https://habituer.example/app/auth/callback' },
     });
     expect(session.getItem('auth.returnTo')).toBe('/activites/abc');
   });
@@ -125,12 +125,12 @@ describe('Google on the web', () => {
 
   it('redirects to the origin the page is served from, not the configured base (preview deployments)', async () => {
     process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://production.example';
-    location.origin = 'https://abc123.habitues.pages.dev';
+    location.origin = 'https://abc123.habituer.pages.dev';
     const { signInWithGoogle } = require('../src/features/account/auth');
     await signInWithGoogle();
     expect(mockSupabase.auth.signInWithOAuth).toHaveBeenCalledWith({
       provider: 'google',
-      options: { redirectTo: 'https://abc123.habitues.pages.dev/app/auth/callback' },
+      options: { redirectTo: 'https://abc123.habituer.pages.dev/app/auth/callback' },
     });
   });
 
@@ -221,7 +221,7 @@ describe('screens that are not on the web', () => {
     await render(<Explore />);
     expect(screen.getByText("Disponible dans l'application")).toBeTruthy();
     await fireEvent.press(screen.getByLabelText("Télécharger l'application"));
-    expect(open).toHaveBeenCalledWith('https://play.google.com/store/apps/details?id=fr.habitues.app');
+    expect(open).toHaveBeenCalledWith('https://play.google.com/store/apps/details?id=fr.habituer.app');
   });
 
   it.each([
@@ -256,7 +256,7 @@ describe('notifications on the web', () => {
 });
 
 describe('calendar and share on the web', () => {
-  it('downloads habitues-<date>.ics as text/calendar', async () => {
+  it('downloads habituer-<date>.ics as text/calendar', async () => {
     const created: { blob?: Blob; download?: string; href?: string; click: jest.Mock } = { click: jest.fn() };
     const anchor = {
       set href(v: string) {
@@ -284,7 +284,7 @@ describe('calendar and share on the web', () => {
       { id: 'act1', title: 'Jeux', durationMinutes: 90, timezone: 'Europe/Paris' },
     );
     expect(res).toBe('added');
-    expect(created.download).toBe('habitues-2026-07-14.ics');
+    expect(created.download).toBe('habituer-2026-07-14.ics');
     expect(created.blob?.type).toContain('text/calendar');
     expect(created.click).toHaveBeenCalled();
   });
@@ -294,7 +294,7 @@ describe('calendar and share on the web', () => {
     Object.defineProperty(globalThis, 'navigator', { value: { clipboard: { writeText } }, configurable: true });
     const { shareActivity } = require('../src/features/activities/share.web');
     expect(await shareActivity('abc', 'Go')).toBe('copied');
-    expect(writeText).toHaveBeenCalledWith('Go sur Habitués : https://habitues.example/activites/go-abc');
+    expect(writeText).toHaveBeenCalledWith('Go sur Habituer : https://habituer.example/activites/go-abc');
   });
 
   it('uses navigator.share when it exists', async () => {
@@ -302,6 +302,6 @@ describe('calendar and share on the web', () => {
     Object.defineProperty(globalThis, 'navigator', { value: { share }, configurable: true });
     const { shareActivity } = require('../src/features/activities/share.web');
     expect(await shareActivity('abc', 'Go')).toBe('shared');
-    expect(share).toHaveBeenCalledWith({ text: 'Go sur Habitués : https://habitues.example/activites/go-abc' });
+    expect(share).toHaveBeenCalledWith({ text: 'Go sur Habituer : https://habituer.example/activites/go-abc' });
   });
 });

@@ -1,6 +1,6 @@
-# Habitués (mobile)
+# Habituer (mobile)
 
-Expo / React Native Android app for Habitués. It talks to the Supabase project defined in `../supabase`.
+Expo / React Native Android app for Habituer. It talks to the Supabase project defined in `../supabase`.
 
 ## Setup
 

@@ -2,7 +2,7 @@
 
 Dernière mise à jour : 2026-10-30
 
-Cette analyse suit l'ordre de l'outil PIA de la CNIL : contexte, principes fondamentaux, risques, puis mesures. Elle est faite parce que Habitués combine des données de localisation approximative, des centres d'intérêt qui peuvent révéler des informations sensibles et des rencontres entre personnes qui ne se connaissent pas. Elle porte sur la première version (Android). Elle doit être refaite si un traitement change de nature (publicité, messages privés, vérification de téléphone, application iPhone).
+Cette analyse suit l'ordre de l'outil PIA de la CNIL : contexte, principes fondamentaux, risques, puis mesures. Elle est faite parce qu'Habituer combine des données de localisation approximative, des centres d'intérêt qui peuvent révéler des informations sensibles et des rencontres entre personnes qui ne se connaissent pas. Elle porte sur la première version (Android). Elle doit être refaite si un traitement change de nature (publicité, messages privés, vérification de téléphone, application iPhone).
 
 Responsable : [NOM À COMPLÉTER]. Avis du délégué à la protection des données : aucun délégué désigné. Avis des personnes concernées : à recueillir pendant le test fermé avant le lancement public.
 
@@ -10,7 +10,7 @@ Responsable : [NOM À COMPLÉTER]. Avis du délégué à la protection des donn�
 
 ### Ce que fait le traitement
 
-Habitués aide des adultes à trouver des associations et des activités régulières près de chez eux, à les rejoindre, et à rencontrer des gens autour de ces activités. Les principaux traitements sont décrits dans `registre-des-traitements.md` : comptes, activités et séances, discussion de groupe, sécurité et modération, annuaire public, site web, notifications.
+Habituer aide des adultes à trouver des associations et des activités régulières près de chez eux, à les rejoindre, et à rencontrer des gens autour de ces activités. Les principaux traitements sont décrits dans `registre-des-traitements.md` : comptes, activités et séances, discussion de groupe, sécurité et modération, annuaire public, site web, notifications.
 
 ### Données traitées
 

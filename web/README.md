@@ -1,4 +1,4 @@
-# Habitués web
+# Habituer web
 
 Public pages (server-rendered) and the interactive web app (under `/app/`).
 
@@ -18,7 +18,7 @@ Public pages (server-rendered) and the interactive web app (under `/app/`).
 | `SUPABASE_ANON_KEY` | anon key |
 | `WEB_BASE_URL` | public address, no trailing slash. Falls back to the request origin when unset |
 | `PLAY_STORE_URL` | Play Store listing |
-| `ANDROID_PACKAGE` | Android package for the open-in-app link (default `fr.habitues.app`) |
+| `ANDROID_PACKAGE` | Android package for the open-in-app link (default `fr.habituer.app`) |
 
 For local runs put them in `web/.dev.vars` (git-ignored, next to this README), one `NAME=value` per line.
 

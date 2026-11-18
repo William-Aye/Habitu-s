@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Habitués",
-    "slug": "habitues",
+    "name": "Habituer",
+    "slug": "habituer",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "habitues",
+    "scheme": "habituer",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
@@ -19,7 +19,7 @@
       },
       "allowBackup": false,
       "predictiveBackGestureEnabled": false,
-      "package": "fr.habitues.app",
+      "package": "fr.habituer.app",
       "versionCode": 1,
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO",

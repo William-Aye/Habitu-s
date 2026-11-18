@@ -38,7 +38,7 @@ The biggest risk for an app like this is looking empty on day one. The answer is
 | **Co-organisateur / Co-organiser** | A member the organiser chose (and who accepted) to help run the activity, e.g. while the organiser is away. Fewer rights than the organiser (section 8). |
 | **Club ou association / Club or association** | An organisation listed in the directory (imported from open data, or added by the community). Optional "organised by" label on an activity. |
 | **Collectif / Collective** | An informal group of people who organise activities together, with no legal status (an *association de fait*). Created in the app by a member; shown with the label "Collectif — sans statut juridique" (section 8). |
-| **Habitués / Regulars** | Two users who attended at least 3 sessions of the same activity together. |
+| **Habituer / Regulars** | Two users who attended at least 3 sessions of the same activity together. |
 | **Organisateur de confiance / Trusted organiser** | Pass/fail safety badge earned by organisers (section 9). Not a rating. |
 | **Ambiance** | Descriptive words chosen by participants after a session, shown on the activity page (section 9). |
 

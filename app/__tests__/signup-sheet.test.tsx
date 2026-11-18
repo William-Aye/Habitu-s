@@ -111,7 +111,7 @@ it('shows the reason sentence and the sign-up title', async () => {
 });
 
 it('shows the legal notice with links to the terms and the privacy policy', async () => {
-  process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://habitues.example';
+  process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://habituer.example';
   const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
   const push = (jest.requireMock('expo-router') as { router: { push: jest.Mock } }).router.push;
   await open();
@@ -121,7 +121,7 @@ it('shows the legal notice with links to the terms and the privacy policy', asyn
     ),
   ).toBeTruthy();
   await fireEvent.press(screen.getByLabelText("Conditions d'utilisation"));
-  expect(openURL).toHaveBeenCalledWith('https://habitues.example/conditions');
+  expect(openURL).toHaveBeenCalledWith('https://habituer.example/conditions');
   await fireEvent.press(screen.getByLabelText('Politique de confidentialité'));
   expect(push).toHaveBeenCalledWith('/privacy');
 });
@@ -133,11 +133,11 @@ describe('terms link on a phone', () => {
     else process.env.EXPO_PUBLIC_WEB_BASE_URL = OLD;
   });
   it('opens the website address when it is configured', async () => {
-    process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://habitues.example/';
+    process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://habituer.example/';
     const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
     await open();
     await fireEvent.press(await screen.findByLabelText("Conditions d'utilisation"));
-    expect(openURL).toHaveBeenCalledWith('https://habitues.example/conditions');
+    expect(openURL).toHaveBeenCalledWith('https://habituer.example/conditions');
   });
   it('shows no dead link when the website address is missing', async () => {
     delete process.env.EXPO_PUBLIC_WEB_BASE_URL;

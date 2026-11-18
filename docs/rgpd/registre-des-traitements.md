@@ -2,7 +2,7 @@
 
 Dernière mise à jour : 2026-10-30
 
-Ce registre est la liste des traitements de données personnelles faits par Habitués (article 30 du RGPD). Il décrit la version 1 (Android). Il doit être relu à chaque nouvelle fonction qui touche aux données, et au moins une fois par an.
+Ce registre est la liste des traitements de données personnelles faits par Habituer (article 30 du RGPD). Il décrit la version 1 (Android). Il doit être relu à chaque nouvelle fonction qui touche aux données, et au moins une fois par an.
 
 ## Responsable de traitement
 
