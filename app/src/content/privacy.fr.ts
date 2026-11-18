@@ -10,7 +10,7 @@ export const privacyFr = `Version à faire relire par une personne qualifiée av
 
 # Politique de confidentialité
 
-Habitués vous aide à rencontrer des gens autour d'activités régulières. Cette page explique, simplement, quelles données nous collectons, pourquoi, combien de temps nous les gardons et comment vous gardez la main dessus.
+Habituer vous aide à rencontrer des gens autour d'activités régulières. Cette page explique, simplement, quelles données nous collectons, pourquoi, combien de temps nous les gardons et comment vous gardez la main dessus.
 
 # Ce que nous collectons
 

@@ -9,7 +9,7 @@ import { signOut } from './auth';
 
 const LOCAL_KEYS = ['interests.local', 'explore.location', 'onboarding.done'];
 
-const EXPORT_FILE = /^habitues-mes-donnees-.*\.json$/;
+const EXPORT_FILE = /^habituer-mes-donnees-.*\.json$/;
 
 /** Removes leftover personal-data exports from the cache (the share sheet may still read a fresh one, so this runs later). */
 export function cleanupExportFiles(): void {
@@ -33,7 +33,7 @@ async function exportMyDataWeb(): Promise<{ ok: true; path: string } | { ok: fal
   try {
     const { data, error } = await supabase.rpc('export_my_data');
     if (error) return { ok: false };
-    const name = `habitues-mes-donnees-${new Date().toISOString().slice(0, 10)}.json`;
+    const name = `habituer-mes-donnees-${new Date().toISOString().slice(0, 10)}.json`;
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -58,7 +58,7 @@ export async function exportMyData(): Promise<{ ok: true; path: string } | { ok:
     const { data, error } = await supabase.rpc('export_my_data');
     if (error) return { ok: false };
     const day = new Date().toISOString().slice(0, 10);
-    file = new File(Paths.cache, `habitues-mes-donnees-${day}.json`);
+    file = new File(Paths.cache, `habituer-mes-donnees-${day}.json`);
     file.create({ overwrite: true });
     file.write(JSON.stringify(data, null, 2));
     handedOut = true;

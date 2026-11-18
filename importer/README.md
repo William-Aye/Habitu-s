@@ -1,6 +1,6 @@
 # Association directory importer
 
-Monthly import of French associations (RNA) and OpenStreetMap clubs into the Habitues directory.
+Monthly import of French associations (RNA) and OpenStreetMap clubs into the Habituer directory.
 Run with `uv` from the repo root: `uv run --project importer python -m importer run ...`.
 
 ## Local sample run

@@ -25,32 +25,32 @@ describe('url builders', () => {
     process.env.EXPO_PUBLIC_WEB_BASE_URL = OLD;
   });
   it('builds readable addresses', () => {
-    process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://habitues.example/';
-    expect(activityUrl(ID, 'Jeu de go — le Mardi')).toBe(`https://habitues.example/activites/jeu-de-go-le-mardi-${ID}`);
-    expect(associationUrl(ID, 'Les Échecs', 'Lyon')).toBe(`https://habitues.example/associations/les-echecs-lyon-${ID}`);
-    expect(associationUrl(ID, 'Les Échecs', null)).toBe(`https://habitues.example/associations/les-echecs-${ID}`);
+    process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://habituer.example/';
+    expect(activityUrl(ID, 'Jeu de go — le Mardi')).toBe(`https://habituer.example/activites/jeu-de-go-le-mardi-${ID}`);
+    expect(associationUrl(ID, 'Les Échecs', 'Lyon')).toBe(`https://habituer.example/associations/les-echecs-lyon-${ID}`);
+    expect(associationUrl(ID, 'Les Échecs', null)).toBe(`https://habituer.example/associations/les-echecs-${ID}`);
   });
   it('omits the slug when the title has no Latin letters', () => {
-    process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://habitues.example';
-    expect(activityUrl(ID, '日本語')).toBe(`https://habitues.example/activites/${ID}`);
+    process.env.EXPO_PUBLIC_WEB_BASE_URL = 'https://habituer.example';
+    expect(activityUrl(ID, '日本語')).toBe(`https://habituer.example/activites/${ID}`);
   });
   it('falls back to the app link without a base', () => {
     process.env.EXPO_PUBLIC_WEB_BASE_URL = '';
-    expect(activityUrl(ID, 'Go')).toBe(`habitues://activites/${ID}`);
-    expect(associationUrl(ID, 'Asso', 'Lyon')).toBe(`habitues://associations/${ID}`);
+    expect(activityUrl(ID, 'Go')).toBe(`habituer://activites/${ID}`);
+    expect(associationUrl(ID, 'Asso', 'Lyon')).toBe(`habituer://associations/${ID}`);
   });
 });
 
 describe('idFromLink', () => {
   it.each([
-    [`https://habitues.example/activites/jeu-${ID}`, 'activity'],
-    [`https://habitues.example/activites/${ID}?utm=1`, 'activity'],
-    [`https://habitues.example/app/activites/${ID}`, 'activity'],
-    [`habitues://activites/${ID}`, 'activity'],
+    [`https://habituer.example/activites/jeu-${ID}`, 'activity'],
+    [`https://habituer.example/activites/${ID}?utm=1`, 'activity'],
+    [`https://habituer.example/app/activites/${ID}`, 'activity'],
+    [`habituer://activites/${ID}`, 'activity'],
     [`/activites/jeu-${ID}`, 'activity'],
     [`/app/activites/${ID}`, 'activity'],
-    [`https://habitues.example/associations/club-lyon-${ID}`, 'association'],
-    [`habitues://associations/${ID}`, 'association'],
+    [`https://habituer.example/associations/club-lyon-${ID}`, 'association'],
+    [`habituer://associations/${ID}`, 'association'],
     [`/app/associations/${ID}#x`, 'association'],
   ])('%s', (url, kind) => {
     expect(idFromLink(url)).toEqual({ kind, id: ID });

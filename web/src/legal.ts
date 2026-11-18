@@ -22,13 +22,13 @@ const termsFr = `# Conditions d'utilisation
 
 Dernière mise à jour : 30 octobre 2026
 
-Ces conditions expliquent, simplement, ce que vous pouvez attendre de Habitués et ce que nous attendons de vous. En créant un compte ou en utilisant l'application ou le site, vous les acceptez.
+Ces conditions expliquent, simplement, ce que vous pouvez attendre d'Habituer et ce que nous attendons de vous. En créant un compte ou en utilisant l'application ou le site, vous les acceptez.
 
 # Objet
 
-Habitués est un service gratuit qui aide des adultes à trouver des associations et des activités régulières près de chez eux, à les rejoindre et à rencontrer des gens autour de ces activités. Le service est édité par la personne ou la structure indiquée dans les mentions légales.
+Habituer est un service gratuit qui aide des adultes à trouver des associations et des activités régulières près de chez eux, à les rejoindre et à rencontrer des gens autour de ces activités. Le service est édité par la personne ou la structure indiquée dans les mentions légales.
 
-Habitués met en relation. Nous n'organisons pas les activités publiées par les membres et nous ne sommes pas partie aux rencontres qui en découlent.
+Habituer met en relation. Nous n'organisons pas les activités publiées par les membres et nous ne sommes pas partie aux rencontres qui en découlent.
 
 # Accès au service
 
@@ -50,11 +50,11 @@ Pour que les rencontres se passent bien, vous vous engagez à :
 
 Ces règles sont celles que vous retrouvez dans les motifs de signalement : lieu dangereux ou inadapté, comportement inapproprié, harcèlement, faux ou spam, activité qui n'a pas eu lieu.
 
-Rappel de sécurité pour les rencontres. Habitués ne vérifie pas l'identité des membres. Pour une première rencontre, restez dans le lieu public prévu, organisez votre propre trajet, prévenez un proche de l'endroit où vous allez, et partez si quelque chose vous met mal à l'aise. Si vous êtes en danger, appelez le 17 ou le 112. Vous restez seul responsable de votre décision de rencontrer quelqu'un.
+Rappel de sécurité pour les rencontres. Habituer ne vérifie pas l'identité des membres. Pour une première rencontre, restez dans le lieu public prévu, organisez votre propre trajet, prévenez un proche de l'endroit où vous allez, et partez si quelque chose vous met mal à l'aise. Si vous êtes en danger, appelez le 17 ou le 112. Vous restez seul responsable de votre décision de rencontrer quelqu'un.
 
 # Contenus des utilisateurs
 
-Vous restez propriétaire de ce que vous publiez (présentation, photo, activités, messages). Vous donnez à Habitués le droit, gratuit et limité au fonctionnement du service, de les stocker et de les afficher aux personnes concernées, tant que le contenu existe.
+Vous restez propriétaire de ce que vous publiez (présentation, photo, activités, messages). Vous donnez à Habituer le droit, gratuit et limité au fonctionnement du service, de les stocker et de les afficher aux personnes concernées, tant que le contenu existe.
 
 Vous garantissez avoir le droit de publier ce que vous publiez. Ne publiez pas de photo d'une autre personne sans son accord, ni d'information sur la vie privée de quelqu'un d'autre. Nous pouvons retirer un contenu qui ne respecte pas ces conditions ou la loi.
 
@@ -75,7 +75,7 @@ Pour contester une décision, écrivez à ${PRIVACY_CONTACT} en rappelant votre 
 
 # Responsabilité
 
-Habitués fournit un service de mise en relation. Nous ne contrôlons pas à l'avance les activités, les lieux ni les personnes, et nous ne garantissons pas que les informations publiées par les membres ou par les associations soient exactes, complètes ou à jour. Les données sur les associations viennent de sources publiques.
+Habituer fournit un service de mise en relation. Nous ne contrôlons pas à l'avance les activités, les lieux ni les personnes, et nous ne garantissons pas que les informations publiées par les membres ou par les associations soient exactes, complètes ou à jour. Les données sur les associations viennent de sources publiques.
 
 Chaque personne est responsable de ce qu'elle publie et de son comportement. Nous ne sommes pas responsables des dommages causés par une rencontre, une activité ou un contenu publié par un tiers, sauf dans les cas où la loi l'impose. Cela ne limite pas vos droits de consommateur, ni notre responsabilité en cas de faute de notre part.
 

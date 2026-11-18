@@ -7,7 +7,7 @@ Deno.test("mentions légales: placeholders and hosts", async () => {
   assertEquals(r.status, 200);
   assertEquals(r.headers.get("Content-Security-Policy")?.startsWith("default-src 'none'"), true);
   const t = await r.text();
-  assertStringIncludes(t, "<title>Mentions légales · Habitués</title>");
+  assertStringIncludes(t, "<title>Mentions légales · Habituer</title>");
   assertStringIncludes(t, "Éditeur : [NOM À COMPLÉTER]");
   assertStringIncludes(t, `Contact : ${PRIVACY_CONTACT.replace("<", "&lt;").replace(">", "&gt;")}`);
   assertStringIncludes(t, "Hébergeur : Cloudflare, Inc.");
@@ -23,7 +23,7 @@ Deno.test("conditions: the terms of use, complete and without placeholder", asyn
   const r = legalResponse("terms");
   assertEquals(r.status, 200);
   const t = await r.text();
-  assertStringIncludes(t, "<title>Conditions d&#39;utilisation · Habitués</title>");
+  assertStringIncludes(t, "<title>Conditions d&#39;utilisation · Habituer</title>");
   assertStringIncludes(t, "<h1>Conditions d&#39;utilisation</h1>");
   for (const h of [
     "Objet",
@@ -52,7 +52,7 @@ Deno.test("confidentialité: renders the privacy text", async () => {
   const r = legalResponse("privacy");
   assertEquals(r.status, 200);
   const t = await r.text();
-  assertStringIncludes(t, "<title>Confidentialité · Habitués</title>");
+  assertStringIncludes(t, "<title>Confidentialité · Habituer</title>");
   assertStringIncludes(t, "<h1>Politique de confidentialité</h1>");
   assertStringIncludes(t, "<h2>Ce que nous collectons</h2>");
   assertStringIncludes(t, "<li>Votre prénom");

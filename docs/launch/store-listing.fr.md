@@ -6,8 +6,8 @@ Ce document contient tous les textes à copier dans la Play Console, rubrique «
 
 ## Identité
 
-- Nom de l'application : Habitués
-- Nom du paquet : `fr.habitues.app`
+- Nom de l'application : Habituer
+- Nom du paquet : `fr.habituer.app`
 - Catégorie : Social
 - Langue par défaut : français (France)
 - E-mail de contact (champ obligatoire) : la même adresse que `PRIVACY_CONTACT` dans `app/src/content/contact.ts` (aujourd'hui encore le texte provisoire `confidentialite@<domaine>`, à remplacer avant de remplir la fiche)
@@ -15,14 +15,14 @@ Ce document contient tous les textes à copier dans la Play Console, rubrique «
 - Politique de confidentialité : `<WEB_BASE_URL>/confidentialite`
 - Conditions d'utilisation (à citer dans la description si besoin) : `<WEB_BASE_URL>/conditions`
 - Suppression de compte, adresse demandée par Google : `<WEB_BASE_URL>/app/profile` (version web de l'onglet Profil, section « Mes données », bouton « Supprimer mon compte »). Il faut être connecté pour l'utiliser (une personne déconnectée voit la page Profil avec un bouton « Se connecter », et revient au Profil après la connexion) ; la politique de confidentialité et l'adresse de contact donnent l'autre voie. Dans l'application : Profil, « Mes données », « Supprimer mon compte ».
-- Texte du champ « Supprimer les données » de la Play Console (à coller) : « Pour supprimer votre compte et vos données, ouvrez l'application Habitués, puis Profil, « Mes données », « Supprimer mon compte », et confirmez. La suppression est immédiate et définitive : votre profil, vos activités, vos présences, vos messages de groupe et vos jetons de notification sont effacés. Vous pouvez faire la même chose sur le site, à l'adresse indiquée, après vous être connecté. Les signalements et vos messages « Une idée ? Un problème ? » sont conservés mais ne sont plus rattachés à vous. Une question : écrivez à l'adresse de contact de la fiche. »
+- Texte du champ « Supprimer les données » de la Play Console (à coller) : « Pour supprimer votre compte et vos données, ouvrez l'application Habituer, puis Profil, « Mes données », « Supprimer mon compte », et confirmez. La suppression est immédiate et définitive : votre profil, vos activités, vos présences, vos messages de groupe et vos jetons de notification sont effacés. Vous pouvez faire la même chose sur le site, à l'adresse indiquée, après vous être connecté. Les signalements et vos messages « Une idée ? Un problème ? » sont conservés mais ne sont plus rattachés à vous. Une question : écrivez à l'adresse de contact de la fiche. »
 - Âge : 18 ans et plus (voir `content-rating.md`).
 
 `<WEB_BASE_URL>` est l'adresse publique du site, sans barre oblique finale (la même valeur que la variable `WEB_BASE_URL` de Cloudflare Pages).
 
 ## Titre (30 caractères au plus)
 
-Habitués : activités proches
+Habituer : activités proches
 
 ## Description courte (80 caractères au plus)
 
@@ -30,9 +30,9 @@ Trouvez des activités régulières et des associations près de chez vous.
 
 ## Description complète (4 000 caractères au plus)
 
-Se faire des amis, ce n'est pas un rendez-vous unique : c'est se retrouver, semaine après semaine, au même endroit, avec les mêmes personnes. Habitués vous aide à trouver ce rendez-vous régulier près de chez vous.
+Se faire des amis, ce n'est pas un rendez-vous unique : c'est se retrouver, semaine après semaine, au même endroit, avec les mêmes personnes. Habituer vous aide à trouver ce rendez-vous régulier près de chez vous.
 
-Habitués, c'est trois choses.
+Habituer, c'est trois choses.
 
 1. DES GROUPES QUI SE RETROUVENT RÉGULIÈREMENT
 
@@ -66,9 +66,9 @@ POUR QUI ?
 
 Pour celles et ceux qui viennent d'arriver dans une ville, pour les étudiants et les expatriés, pour les personnes qui ont changé de vie ou de quartier, et pour toutes celles qui ont envie d'avoir enfin « leur » rendez-vous de la semaine.
 
-Habitués est gratuit, sans publicité. Aucune donnée n'est vendue ni donnée à des annonceurs.
+Habituer est gratuit, sans publicité. Aucune donnée n'est vendue ni donnée à des annonceurs.
 
-Une idée, un problème ? Écrivez-nous depuis l'application : Profil, « Une idée ? Un problème ? ». Habitués est en cours de lancement et s'améliore grâce à vos retours.
+Une idée, un problème ? Écrivez-nous depuis l'application : Profil, « Une idée ? Un problème ? ». Habituer est en cours de lancement et s'améliore grâce à vos retours.
 
 ## Captures d'écran à prendre (6)
 

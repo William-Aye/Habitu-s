@@ -49,19 +49,19 @@ Obligatoire quand le risque est élevé. Message en français simple, par e-mail
 
 Modèle de message :
 
-> Objet : Information importante sur la sécurité de votre compte Habitués
+> Objet : Information importante sur la sécurité de votre compte Habituer
 >
 > Bonjour,
 >
-> Le [date], nous avons découvert que [description simple : par exemple « une personne non autorisée a pu consulter une partie de la base de Habitués »]. Cela a concerné [données : par exemple « votre prénom, votre adresse e-mail et les messages de vos groupes »]. Cela n'a pas concerné [ce qui est protégé : par exemple « aucun mot de passe, puisque Habitués n'en utilise pas, ni votre position précise »].
+> Le [date], nous avons découvert que [description simple : par exemple « une personne non autorisée a pu consulter une partie de la base d'Habituer »]. Cela a concerné [données : par exemple « votre prénom, votre adresse e-mail et les messages de vos groupes »]. Cela n'a pas concerné [ce qui est protégé : par exemple « aucun mot de passe, puisque Habituer n'en utilise pas, ni votre position précise »].
 >
 > Ce que nous avons fait : [mesures : par exemple « nous avons fermé l'accès, changé nos clés et prévenu la CNIL »].
 >
-> Ce que vous pouvez faire : [conseils : par exemple « soyez prudent avec les messages inattendus qui prétendent venir de Habitués ; nous ne demandons jamais de code par message »]. Vous pouvez à tout moment télécharger ou supprimer vos données dans Profil, « Mes données ».
+> Ce que vous pouvez faire : [conseils : par exemple « soyez prudent avec les messages inattendus qui prétendent venir d'Habituer ; nous ne demandons jamais de code par message »]. Vous pouvez à tout moment télécharger ou supprimer vos données dans Profil, « Mes données ».
 >
 > Nous sommes désolés. Pour toute question : confidentialite@<domaine>.
 >
-> L'équipe Habitués
+> L'équipe Habituer
 
 ### 5. Enregistrer et corriger
 

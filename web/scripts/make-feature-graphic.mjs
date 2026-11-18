@@ -57,7 +57,7 @@ function drawLine(text, scale, y0) {
   });
 }
 
-drawLine("Habitués", 16, 110);
+drawLine("Habituer", 16, 110);
 drawLine("Des activités régulières", 6, 275);
 drawLine("près de chez vous", 6, 335);
 
