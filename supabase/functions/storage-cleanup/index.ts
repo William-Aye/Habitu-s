@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
 import { createHandler, type QueueRow } from './handler.ts';
-import { serverKey } from '../_shared/keys.ts';
+import { cronBearer, serverKey } from '../_shared/keys.ts';
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -9,7 +9,7 @@ const supabase = createClient(
 );
 
 Deno.serve(createHandler({
-  serviceKey: serverKey(),
+  serviceKey: cronBearer(),
   async fetchQueue(limit) {
     const { data, error } = await supabase
       .from('storage_deletions')

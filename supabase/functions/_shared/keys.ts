@@ -16,3 +16,15 @@ export function serverKey(get: (name: string) => string | undefined = (n) => Den
   }
   return get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 }
+
+/**
+ * The bearer token the cron jobs must send to `send-push` and `storage-cleanup` (TM-6). With the
+ * function secret `CRON_SECRET` set, only that value is accepted, so the server key no longer has to
+ * sit in Vault and in the request log. A value shorter than 32 characters is refused (empty string,
+ * which never matches). Without it, the server key is still accepted, as before.
+ */
+export function cronBearer(get: (name: string) => string | undefined = (n) => Deno.env.get(n)): string {
+  const secret = get('CRON_SECRET');
+  if (secret !== undefined && secret !== '') return secret.length >= 32 ? secret : '';
+  return serverKey(get);
+}

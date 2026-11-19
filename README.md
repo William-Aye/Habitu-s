@@ -352,7 +352,15 @@ npx supabase functions deploy storage-cleanup
   `send-push` and `storage-cleanup` are called by the database jobs with the Vault key `send_push_key`
   as bearer token and compare it with that server key, so `send_push_key` must be the same key. Those
   two run with `verify_jwt = false` (set in `supabase/config.toml`, since `sb_secret_...` keys are not
-  JWTs) and check the key themselves. `submit-feedback` is called by the app with the publishable key,
+  JWTs) and check the key themselves.
+- **Dedicated cron secret (recommended, TM-6).** So that the server key no longer sits in Vault and in the
+  database's HTTP request log, give the two cron functions their own secret. Generate a random value of at
+  least 32 characters with a password manager (never paste it in a file or a chat), then, in this order:
+  set it as the function secret (`npx supabase secrets set CRON_SECRET=<value>`, typed in your own terminal),
+  then put the same value in Vault (`select vault.update_secret((select id from vault.secrets where name =
+  'send_push_key'), '<value>');` in the SQL editor), then check that `drain-outbox` and `storage-cleanup`
+  still succeed in `cron.job_run_details`. Once `CRON_SECRET` is set the functions accept only it; a value
+  shorter than 32 characters makes them refuse every call. `submit-feedback` is called by the app with the publishable key,
   optionally with the user's session token, and uses the server key only to write the row. After
   deploying, test the cron calls (`send-push`, `storage-cleanup`) and an anonymous and a signed-in call
   to `submit-feedback`.

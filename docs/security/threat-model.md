@@ -154,7 +154,7 @@ the technical view.
 | TM-3 | Column grants drift on `activities` and `collectifs` | closed 2026-11-20 | `44_threat_model` fixes the columns signed-out visitors can read |
 | TM-4 | No per-user limit on expensive reads | to verify | 2.5: measure first; add limits only if a query is costly |
 | TM-5 | Realtime leaking `messages` rows | closed 2026-11-20 | Only `messages` is published, with RLS (applied to INSERT events) and the default replica identity (DELETE events carry the id only); pinned in `44_threat_model`. A live two-user check was not run. |
-| TM-6 | Server key used as cron secret | low | 1.2: dedicated secret in Vault and in the two functions |
+| TM-6 | Server key used as cron secret | low, fixed in code 2026-11-20 | `CRON_SECRET` accepted by `send-push` and `storage-cleanup` (`_shared/keys.ts`). **Owner:** set it and update the Vault secret (README, "Dedicated cron secret"). |
 | TM-7 | Importer runs as `postgres` | medium, fixed in code 2026-11-20 | Role `habituer_importer` (migration `20261120000053`, test `45_importer_role`); the importer's integration tests pass under it. **Owner:** push the migrations, set the role's password and switch `IMPORTER_DB_URL` (importer/README.md, "Secret"). |
 | TM-8 | Workflow secrets reachable from untrusted triggers | closed 2026-11-20 | No `pull_request_target`, `workflow_run` or comment triggers; secrets only in the scheduled and manual import and vocabulary jobs; every action pinned to a commit |
 | TM-9 | Malicious or abandoned dependency | partly closed 2026-11-20 | 1.6: no advisory in shipped code, two known install scripts; no per-maintainer review |
