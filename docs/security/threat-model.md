@@ -149,20 +149,20 @@ the technical view.
 
 | id | Threat | Severity | Next step |
 |---|---|---|---|
-| TM-1 | Missing BOLA tests on some tables or RPCs | to verify | 1.4: list every table and RPC, add a pgTAP test per gap |
-| TM-2 | `security definer` function trusting a caller-supplied id | to verify | 1.3: sharp-edges on the `security definer` functions |
-| TM-3 | Column grants drift on `activities` and `collectifs` | low | 1.4: pgTAP test that fixes the list of granted columns |
+| TM-1 | Missing BOLA tests on some tables or RPCs | closed 2026-11-20 | Signed-out surface pinned in `44_threat_model` (9 tables); update grants on `activities` checked: `organiser_id`, dates, moderation, embedding and welcome member are each held by a policy or trigger. Signed-in tables stay covered by the per-feature test files. |
+| TM-2 | `security definer` function trusting a caller-supplied id | closed 2026-11-20 | 1.3 found none; it found DB-9 (unbounded search logs), now fixed |
+| TM-3 | Column grants drift on `activities` and `collectifs` | closed 2026-11-20 | `44_threat_model` fixes the columns signed-out visitors can read |
 | TM-4 | No per-user limit on expensive reads | to verify | 2.5: measure first; add limits only if a query is costly |
-| TM-5 | Realtime leaking `messages` rows | to verify | 1.4: two local users, check the payload |
+| TM-5 | Realtime leaking `messages` rows | closed 2026-11-20 | Only `messages` is published, with RLS (applied to INSERT events) and the default replica identity (DELETE events carry the id only); pinned in `44_threat_model`. A live two-user check was not run. |
 | TM-6 | Server key used as cron secret | low | 1.2: dedicated secret in Vault and in the two functions |
 | TM-7 | Importer runs as `postgres` | medium | 1.7: a dedicated role with only the importer's tables |
 | TM-8 | Workflow secrets reachable from untrusted triggers | to verify | 1.7 |
 | TM-9 | Malicious or abandoned dependency | to verify | 1.6 |
 | TM-10 | Owner dashboards without two-factor sign-in | medium | Phase 0 (owner) |
 | TM-11 | Untested backup restore | low | Phase 0 (owner) |
-| TM-12 | Home location inferable | to verify | 1.4 |
+| TM-12 | Home location inferable | closed 2026-11-20 | `profiles` is readable by the person and admins only; `home_area` is read by no other function than the person's own export; tested in `44_threat_model` |
 | TM-13 | Deleted data in backups not stated | low | privacy text |
-| TM-14 | Silent failure of retention or cleanup jobs | low | 1.2 or a small monitoring query |
+| TM-14 | Silent failure of retention or cleanup jobs | low | a small monitoring query (still open) |
 
 TM-7 is rated medium because the exploit path is concrete: a compromised third-party action or package in the
 importer job reads the connection string and gets full control of the production database. TM-10 is medium
