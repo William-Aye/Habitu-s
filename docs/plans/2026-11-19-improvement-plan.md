@@ -103,3 +103,28 @@ and the drift baseline exists.
    Cloudflare deployment.
 
 Each step is started in its own session or branch, with this file as the reference.
+
+## Progress
+
+Updated 2026-11-20. Branch `security/threat-model`, not yet pushed or deployed.
+
+| Step | State | Where |
+|---|---|---|
+| 0.x owner settings | waiting for the owner | `docs/launch/checklist.md`; add two-factor sign-in on every owner account (TM-10) and one backup restore test on a copy (TM-11) |
+| 1.1 threat model | done | `docs/security/threat-model.md` |
+| 1.2 insecure defaults | done; FN-8 fixed | security review, section 1.2 |
+| 1.3 sharp edges | done; DB-9 fixed (search logs capped, misses kept 180 days) | security review, section 1.3; migration `…052` |
+| 1.4 access tests | done; TM-1, 2, 3, 5, 12 closed | `supabase/tests/44_threat_model.test.sql` |
+| 1.5 semgrep | done; no finding; CI and CodeQL actions pinned | security review, section 1.5 |
+| 1.6 supply chain | done; nothing in shipped code | security review, section 1.6 |
+| 1.7 workflows, importer role | done in code; owner must switch `IMPORTER_DB_URL` | migration `…053`, `importer/README.md` |
+| TM-6 cron secret | done in code; owner must set `CRON_SECRET` and Vault | README, "Dedicated cron secret" |
+| TM-14 job monitoring | open | check `cron.job_run_details` weekly until a monitor exists |
+| 2.x speed | not started: needs a low-end Android release build, the deployed site and real traffic | |
+| 3.2 structured data | done: Event valid for Google (start, end, status, address, coordinates; none without a planned session) | `web/src/html.ts` |
+| 3.1, 3.3 to 3.6 SEO | wait for the deployed site and Search Console | |
+| 4.3 site accessibility | checked: contrast 6:1 and more, focus outline, `lang`, one `h1`, dark mode; nothing to fix | `web/public/styles.css` |
+| 4.1, 4.2, 4.4 UI | not started | |
+
+**Deploy order** when this branch is merged: push the migrations (`supabase db push`) first, then deploy
+`send-push`, `storage-cleanup` and `submit-feedback`, then switch `IMPORTER_DB_URL` and set `CRON_SECRET`.
