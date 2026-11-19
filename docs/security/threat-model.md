@@ -155,9 +155,9 @@ the technical view.
 | TM-4 | No per-user limit on expensive reads | to verify | 2.5: measure first; add limits only if a query is costly |
 | TM-5 | Realtime leaking `messages` rows | closed 2026-11-20 | Only `messages` is published, with RLS (applied to INSERT events) and the default replica identity (DELETE events carry the id only); pinned in `44_threat_model`. A live two-user check was not run. |
 | TM-6 | Server key used as cron secret | low | 1.2: dedicated secret in Vault and in the two functions |
-| TM-7 | Importer runs as `postgres` | medium | 1.7: a dedicated role with only the importer's tables |
-| TM-8 | Workflow secrets reachable from untrusted triggers | to verify | 1.7 |
-| TM-9 | Malicious or abandoned dependency | to verify | 1.6 |
+| TM-7 | Importer runs as `postgres` | medium, fixed in code 2026-11-20 | Role `habituer_importer` (migration `20261120000053`, test `45_importer_role`); the importer's integration tests pass under it. **Owner:** push the migrations, set the role's password and switch `IMPORTER_DB_URL` (importer/README.md, "Secret"). |
+| TM-8 | Workflow secrets reachable from untrusted triggers | closed 2026-11-20 | No `pull_request_target`, `workflow_run` or comment triggers; secrets only in the scheduled and manual import and vocabulary jobs; every action pinned to a commit |
+| TM-9 | Malicious or abandoned dependency | partly closed 2026-11-20 | 1.6: no advisory in shipped code, two known install scripts; no per-maintainer review |
 | TM-10 | Owner dashboards without two-factor sign-in | medium | Phase 0 (owner) |
 | TM-11 | Untested backup restore | low | Phase 0 (owner) |
 | TM-12 | Home location inferable | closed 2026-11-20 | `profiles` is readable by the person and admins only; `home_area` is read by no other function than the person's own export; tested in `44_threat_model` |

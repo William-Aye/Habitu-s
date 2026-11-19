@@ -1,4 +1,5 @@
 """End-to-end `run` against the local Supabase DB (needs `npm run db:start`; `npm run db:reset` first)."""
+import os
 import csv
 import io
 import json
@@ -16,6 +17,8 @@ from importer.geocode import COMMUNES_URL, GEOCODER_CSV_URL
 pytestmark = pytest.mark.integration
 
 URL = "postgresql://postgres:postgres@127.0.0.1:55322/postgres"
+# The importer's own connection; set IMPORTER_TEST_DB_URL to run it as the habituer_importer role.
+IMPORTER_URL = os.environ.get("IMPORTER_TEST_DB_URL", URL)
 FIXTURES = Path(__file__).parent / "fixtures"
 RNA = str(FIXTURES / "rna_sample.csv")
 OSM = str(FIXTURES / "osm_sample.geojsonseq")
@@ -79,7 +82,7 @@ def run(*extra, rna=RNA, dept="69"):
     with respx.mock(assert_all_called=False) as mock:
         mock.get(COMMUNES_URL).respond(json=COMMUNES)
         mock.post(GEOCODER_CSV_URL).mock(side_effect=geocoder_handler)
-        return cli.main(["run", "--db-url", URL, "--departements", dept, "--rna-zip", rna,
+        return cli.main(["run", "--db-url", IMPORTER_URL, "--departements", dept, "--rna-zip", rna,
                          "--osm-geojsonseq", OSM, "--embedder", "fake", *extra])
 
 

@@ -3,9 +3,10 @@
 -- signed-out callers who reach PostgREST directly (not through Cloudflare). Neither table had a
 -- daily cap, and search_misses had no retention, so a script could grow them without limit.
 --
--- Fix: at most 2000 new rows per day in each table (far above real use), then new rows are
--- dropped silently (a search never fails because of logging); search misses are deleted after
--- 180 days by a nightly job.
+-- Fix: at most 2000 new rows per day in each table from API callers (far above real use), then
+-- their new rows are dropped silently (a search never fails because of logging). The session role
+-- is still anon or authenticated inside search_explore, which runs as its owner; jobs, admins in
+-- SQL and tests are not capped. Search misses are deleted after 180 days by a nightly job.
 
 create index if not exists search_misses_day on public.search_misses (day);
 create index if not exists vocab_requests_first_seen on search.vocab_requests (first_seen);
@@ -13,7 +14,8 @@ create index if not exists vocab_requests_first_seen on search.vocab_requests (f
 create or replace function private.cap_search_misses() returns trigger
 language plpgsql set search_path = '' as $$
 begin
-  if (select count(*) from public.search_misses m where m.day = new.day) >= 2000 then
+  if current_setting('role', true) in ('anon', 'authenticated')
+     and (select count(*) from public.search_misses m where m.day = new.day) >= 2000 then
     return null;
   end if;
   return new;
@@ -22,7 +24,8 @@ end $$;
 create or replace function private.cap_vocab_requests() returns trigger
 language plpgsql set search_path = '' as $$
 begin
-  if (select count(*) from search.vocab_requests r where r.first_seen = new.first_seen) >= 2000 then
+  if current_setting('role', true) in ('anon', 'authenticated')
+     and (select count(*) from search.vocab_requests r where r.first_seen = new.first_seen) >= 2000 then
     return null;
   end if;
   return new;
