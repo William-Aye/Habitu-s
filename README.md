@@ -385,6 +385,7 @@ Nightly pg_cron jobs, in UTC (Paris is one or two hours ahead).
 | Claim documents | deleted 1 year after the decision (after submission if never decided); the approved claim itself stays while the association is verified | `retention` |
 | Inactive accounts | notice at 35 months without a visit, deletion at 36 months plus 30 days if still inactive | `inactive-accounts` 03:40 |
 | Rate-limit log (`limit_log`) | 1 day | `hourly-limits` (every hour at :05) |
+| Search misses (anonymised queries with no good result) | 180 days; at most 2000 new rows a day | `prune-search-misses` 04:25 |
 | Queued storage deletions | drained every 10 minutes | `storage-cleanup` |
 
 The inactivity notice is a push notification and a notice in the app (no email yet), so it only
