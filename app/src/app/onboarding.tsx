@@ -10,6 +10,7 @@ import { useExploreLocation } from '../features/explore/useExploreLocation';
 import { InterestPicker } from '../features/interests/InterestPicker';
 import { LANGUAGE_STORAGE_KEY, setLanguage, shouldOfferLanguageChoice } from '../i18n';
 import { colors } from '../lib/theme';
+import { LogoMark } from '../features/brand/LogoMark';
 
 export const ONBOARDING_KEY = 'onboarding.done';
 
@@ -59,6 +60,10 @@ export default function Onboarding() {
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 }]}
       keyboardShouldPersistTaps="handled"
     >
+      <View style={styles.brand}>
+        <LogoMark size={40} />
+        <Text style={styles.brandText}>{t('web.siteName')}</Text>
+      </View>
       {offerLanguage ? (
         <View style={styles.section}>
           <Text accessibilityRole="header" style={styles.title}>
@@ -126,6 +131,8 @@ export default function Onboarding() {
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, gap: 24 },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  brandText: { fontSize: 26, fontWeight: '800', color: colors.accent },
   section: { gap: 8 },
   title: { fontSize: 22, fontWeight: '700' },
   row: { flexDirection: 'row', gap: 12 },
