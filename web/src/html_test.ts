@@ -165,6 +165,29 @@ Deno.test("the organiser's first name and photo are nowhere in the body or the J
   }
 });
 
+Deno.test("JSON-LD Event: complete for Google with a next session, absent without one", () => {
+  const ldOf = (html: string) => html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+  const ev = JSON.parse(ldOf(renderActivityPage(activityFixture(), BASE))![1]);
+  assertEquals(ev.startDate, "2026-10-27T18:00:00.000Z");
+  assertEquals(ev.endDate, "2026-10-27T20:00:00.000Z");
+  assertEquals(ev.eventStatus, "https://schema.org/EventScheduled");
+  assertEquals(ev.location, {
+    "@type": "Place",
+    name: "Café des Arts, Lyon",
+    address: "Café des Arts, Lyon",
+    geo: { "@type": "GeoCoordinates", latitude: 45.764, longitude: 4.8357 },
+  });
+  // A session's own place label never reaches the page, structured data included.
+  const moved = renderActivityPage(activityFixture({
+    next_sessions: [{ id: "s1", starts_at: "2026-10-27T18:00:00Z", place_label: "Autre lieu", status: "scheduled" }],
+  }), BASE);
+  assertEquals(JSON.parse(ldOf(moved)![1]).location.name, "Café des Arts, Lyon");
+  // No upcoming session: an Event without startDate is invalid for Google, so none is emitted.
+  const none = renderActivityPage(activityFixture({ next_sessions: [] }), BASE);
+  assertEquals(ldOf(none), null);
+  assertStringIncludes(none, "<h1>Jeu de go</h1>");
+});
+
 Deno.test("JSON-LD organizer: the organisation when there is one, omitted otherwise", () => {
   const ld = (html: string) => JSON.parse(html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
   const none = ld(renderActivityPage(activityFixture({ organised_by: null }), BASE));

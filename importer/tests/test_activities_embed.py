@@ -1,4 +1,5 @@
 """embed_pending_activities against the local Supabase DB (`npm run db:reset` first)."""
+import os
 import uuid
 
 import psycopg
@@ -11,6 +12,8 @@ from importer.embed import FakeEmbedder
 pytestmark = pytest.mark.integration
 
 URL = "postgresql://postgres:postgres@127.0.0.1:55322/postgres"
+# The importer's own connection; set IMPORTER_TEST_DB_URL to run it as the habituer_importer role.
+IMPORTER_URL = os.environ.get("IMPORTER_TEST_DB_URL", URL)
 TITLE = "AETEST Initiation au go"
 
 
@@ -92,5 +95,5 @@ def test_edited_description_is_embedded_again(conn):
 def test_batches_and_cli(conn, capsys):
     assert embed_pending_activities(conn, FakeEmbedder(), batch_size=1) == 2
     conn.execute("update public.activities set embedding_hash = 'stale' where title = %s", (TITLE,))
-    assert cli.main(["embed-activities", "--db-url", URL, "--embedder", "fake"]) == 0
+    assert cli.main(["embed-activities", "--db-url", IMPORTER_URL, "--embedder", "fake"]) == 0
     assert '"embedded": 1' in capsys.readouterr().out

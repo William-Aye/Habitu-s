@@ -30,7 +30,7 @@ export interface Deps {
   fetch(input: string, init?: RequestInit): Promise<Response>;
   /**
    * Hostnames a Turnstile token may have been solved on (env TURNSTILE_HOSTNAMES, comma-separated: the site's
-   * host, and challenges.cloudflare.com for the app's WebView). Empty: the hostname is not checked.
+   * host, and challenges.cloudflare.com for the app's WebView). Empty: every request is refused as misconfigured (FN-8).
    */
   turnstileHostnames?: string[];
   /** Origins allowed to call from a browser (env ALLOWED_ORIGINS: the site's origin). Empty: none. */
@@ -156,6 +156,10 @@ export function createHandler(deps: Deps): ((req: Request) => Promise<Response>)
       console.error('TURNSTILE_SECRET is not set');
       return reply({ error: 'server_misconfigured' }, 500);
     }
+    if (hostnames.length === 0) {
+      console.error('TURNSTILE_HOSTNAMES is not set');
+      return reply({ error: 'server_misconfigured' }, 500);
+    }
 
     // Type and size are checked before anything is parsed (FN-4). Requiring JSON also forces a CORS preflight.
     if (!(req.headers.get('content-type') ?? '').toLowerCase().startsWith('application/json')) {
@@ -205,8 +209,7 @@ export function createHandler(deps: Deps): ((req: Request) => Promise<Response>)
       const result = res.ok ? await res.json() : null;
       // Cloudflare echoes the widget's action and the host it ran on: refuse a token minted for another form or site.
       verified = result?.success === true && result.action === TURNSTILE_ACTION
-        && (hostnames.length === 0
-          || (typeof result.hostname === 'string' && hostnames.includes(result.hostname.toLowerCase())));
+        && typeof result.hostname === 'string' && hostnames.includes(result.hostname.toLowerCase());
     } catch (e) {
       console.error('turnstile verification failed', e);
       return reply({ error: 'verification_unavailable' }, 502);

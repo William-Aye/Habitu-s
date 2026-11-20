@@ -1,4 +1,5 @@
 """`vocab.build` against the local Supabase DB (`npm run db:reset` first)."""
+import os
 import json
 
 import psycopg
@@ -10,6 +11,8 @@ from importer.embed import FakeEmbedder
 pytestmark = pytest.mark.integration
 
 URL = "postgresql://postgres:postgres@127.0.0.1:55322/postgres"
+# The importer's own connection; set IMPORTER_TEST_DB_URL to run it as the habituer_importer role.
+IMPORTER_URL = os.environ.get("IMPORTER_TEST_DB_URL", URL)
 PREFIX = "VOCABTEST"
 
 
@@ -155,7 +158,7 @@ def test_failed_build_leaves_previous_vocabulary(conn):
 
 def test_cli_vocab_prints_report(conn, monkeypatch, capsys):
     monkeypatch.setattr(cli, "make_embedder", lambda name: FakeEmbedder())
-    assert cli.main(["vocab", "--db-url", URL, "--embedder", "fake", "--cap", "1000"]) == 0
+    assert cli.main(["vocab", "--db-url", IMPORTER_URL, "--embedder", "fake", "--cap", "1000"]) == 0
     out = json.loads(capsys.readouterr().out)
     assert out["phrases_total"] > 0 and out["coverage"]["coder"] == "exact"
 

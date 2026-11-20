@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
 import { createHandler, ExpoRequestError, type ExpoTicket, type OutboxRow } from './handler.ts';
-import { serverKey } from '../_shared/keys.ts';
+import { cronBearer, serverKey } from '../_shared/keys.ts';
 
 const EXPO_URL = 'https://exp.host/--/api/v2/push/send';
 
@@ -11,7 +11,7 @@ const supabase = createClient(
 );
 
 Deno.serve(createHandler({
-  serviceKey: serverKey(),
+  serviceKey: cronBearer(),
   now: () => new Date(),
   async fetchOutbox(limit) {
     const { data, error } = await supabase.rpc('claim_outbox', { p_limit: limit });

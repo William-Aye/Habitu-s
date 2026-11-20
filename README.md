@@ -327,11 +327,12 @@ npx supabase functions deploy storage-cleanup
   `npx supabase secrets set TURNSTILE_SECRET=<secret>`. Without it the function refuses every
   anonymous send. The Turnstile widget in the app must be rendered with the action `feedback`; a
   token minted for another action is rejected. Signed-in senders do not need Turnstile.
-  Two more function secrets (all optional locally, set them in production):
+  Two more function secrets (set them in production; `TURNSTILE_HOSTNAMES` is required wherever feedback must work):
   `npx supabase secrets set ALLOWED_ORIGINS=https://<site>` (the web build's origin; comma-separated for several;
   without it the web build's signed-out feedback is blocked by the browser, the app is not affected) and
   `TURNSTILE_HOSTNAMES=<site host>,challenges.cloudflare.com` (the hosts a token may have been solved on: the
-  site for the web build, Cloudflare's own page for the app's WebView; without it the host is not checked).
+  site for the web build, Cloudflare's own page for the app's WebView; without it every feedback call is refused
+  with `server_misconfigured`, as without `TURNSTILE_SECRET`, see FN-8).
   Limits: 10 attempts per client and hour (counted on a keyed hash of the address that lives only in the
   function's memory for one hour; the address itself is never stored), 200 accepted per hour for everyone together,
   bodies over 16 KB refused. The per-client count is per function instance, so it is a brake rather than an exact limit.
@@ -351,7 +352,15 @@ npx supabase functions deploy storage-cleanup
   `send-push` and `storage-cleanup` are called by the database jobs with the Vault key `send_push_key`
   as bearer token and compare it with that server key, so `send_push_key` must be the same key. Those
   two run with `verify_jwt = false` (set in `supabase/config.toml`, since `sb_secret_...` keys are not
-  JWTs) and check the key themselves. `submit-feedback` is called by the app with the publishable key,
+  JWTs) and check the key themselves.
+- **Dedicated cron secret (recommended, TM-6).** So that the server key no longer sits in Vault and in the
+  database's HTTP request log, give the two cron functions their own secret. Generate a random value of at
+  least 32 characters with a password manager (never paste it in a file or a chat), then, in this order:
+  set it as the function secret (`npx supabase secrets set CRON_SECRET=<value>`, typed in your own terminal),
+  then put the same value in Vault (`select vault.update_secret((select id from vault.secrets where name =
+  'send_push_key'), '<value>');` in the SQL editor), then check that `drain-outbox` and `storage-cleanup`
+  still succeed in `cron.job_run_details`. Once `CRON_SECRET` is set the functions accept only it; a value
+  shorter than 32 characters makes them refuse every call. `submit-feedback` is called by the app with the publishable key,
   optionally with the user's session token, and uses the server key only to write the row. After
   deploying, test the cron calls (`send-push`, `storage-cleanup`) and an anonymous and a signed-in call
   to `submit-feedback`.
@@ -384,7 +393,11 @@ Nightly pg_cron jobs, in UTC (Paris is one or two hours ahead).
 | Claim documents | deleted 1 year after the decision (after submission if never decided); the approved claim itself stays while the association is verified | `retention` |
 | Inactive accounts | notice at 35 months without a visit, deletion at 36 months plus 30 days if still inactive | `inactive-accounts` 03:40 |
 | Rate-limit log (`limit_log`) | 1 day | `hourly-limits` (every hour at :05) |
+| Search misses (anonymised queries with no good result) | 180 days; at most 2000 new rows a day | `prune-search-misses` 04:25 |
 | Queued storage deletions | drained every 10 minutes | `storage-cleanup` |
+
+The `job-health` job (06:50) sends every admin one push notification when any of these jobs failed in the
+last 24 hours; the details are in `cron.job_run_details`.
 
 The inactivity notice is a push notification and a notice in the app (no email yet), so it only
 reaches people who enabled notifications; opening the app clears it. Admins are never deleted for

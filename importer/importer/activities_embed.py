@@ -45,12 +45,12 @@ def _embed_table(conn, embedder: Embedder, table: str, title_col: str, batch_siz
         vectors = embedder.embed([text for _, text, _ in batch])
         with conn.cursor() as cur:
             for (row_id, _, h), vec in zip(batch, vectors, strict=True):
+                # Written through a definer function: the importer role has no update right on these tables.
                 cur.execute(
-                    f"update public.{table} set embedding = %s::extensions.vector, embedding_hash = %s "  # noqa: S608
-                    f"where id = %s",
-                    (_vector(vec), h, row_id),
+                    "select importer.set_embedding(%s, %s, %s::extensions.vector, %s)",
+                    (table, row_id, _vector(vec), h),
                 )
-                done += cur.rowcount
+                done += cur.fetchone()[0]
         conn.commit()
         log.info("%s embedded: %d", table, done)
     return done

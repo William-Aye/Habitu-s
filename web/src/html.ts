@@ -169,9 +169,20 @@ export function renderActivityPage(a: Json, base: string, opts: RenderOpts = {})
     description: desc,
     url,
     eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
-    location: { "@type": "Place", name: place },
+    eventStatus: "https://schema.org/EventScheduled",
   };
-  if (next) ld.startDate = new Date(next.starts_at).toISOString();
+  if (next) {
+    const start = new Date(next.starts_at);
+    ld.startDate = start.toISOString();
+    if (a.duration_minutes) ld.endDate = new Date(start.getTime() + Number(a.duration_minutes) * 60_000).toISOString();
+    // Google requires an address on the place; the label is the only one there is. Like the rest of
+    // the page, it is the activity's own place, never a session's.
+    const loc: Json = { "@type": "Place", name: place, address: place };
+    if (typeof a.lat === "number" && typeof a.lon === "number") {
+      loc.geo = { "@type": "GeoCoordinates", latitude: a.lat, longitude: a.lon };
+    }
+    ld.location = loc;
+  }
   if (a.start_date && a.start_time) {
     const sched: Json = {
       "@type": "Schedule",
@@ -205,7 +216,10 @@ ${next && confirmed ? `<li>${escapeHtml(confirmed)}</li>` : ""}
 </ul>
 ${actions({ webPath: `/app/activites/${a.id}`, intent: intentUrl(`activites/${a.id}`, playStore, pkg), playStore, map: mapUrl })}
 </article>`;
-  return layout({ title: a.title ?? copy.siteName, description: desc || copy.tagline, canonical: url, base, ld, main });
+  // An Event without a start date is invalid for Google: no structured data until a session is planned.
+  return layout({
+    title: a.title ?? copy.siteName, description: desc || copy.tagline, canonical: url, base, ld: next ? ld : undefined, main,
+  });
 }
 
 export function renderAssociationPage(x: Json, base: string, opts: RenderOpts = {}): string {

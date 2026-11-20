@@ -1,5 +1,5 @@
 import { assertEquals } from 'jsr:@std/assert@1.0.13';
-import { serverKey } from './keys.ts';
+import { cronBearer, serverKey } from './keys.ts';
 
 const env = (vars: Record<string, string>) => (name: string) => vars[name];
 
@@ -19,4 +19,15 @@ Deno.test('falls back to the legacy key when the new one is missing or unusable'
 
 Deno.test('no key at all gives an empty string, which never matches a bearer', () => {
   assertEquals(serverKey(env({})), '');
+});
+
+Deno.test('TM-6: CRON_SECRET replaces the server key as the cron bearer once it is set', () => {
+  const long = 'c'.repeat(40);
+  assertEquals(cronBearer(env({ CRON_SECRET: long, SUPABASE_SECRET_KEYS: '{"default":"sb_secret_a"}' })), long);
+  assertEquals(cronBearer(env({ SUPABASE_SECRET_KEYS: '{"default":"sb_secret_a"}' })), 'sb_secret_a');
+  assertEquals(cronBearer(env({ CRON_SECRET: '', SUPABASE_SECRET_KEYS: '{"default":"sb_secret_a"}' })), 'sb_secret_a');
+});
+
+Deno.test('TM-6: a short CRON_SECRET refuses every call instead of falling back', () => {
+  assertEquals(cronBearer(env({ CRON_SECRET: 'short', SUPABASE_SECRET_KEYS: '{"default":"sb_secret_a"}' })), '');
 });
