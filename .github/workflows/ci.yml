@@ -1,7 +1,9 @@
 name: CI
 
 on:
+  # Pull requests run once (no duplicate push run); main is checked again after each merge.
   push:
+    branches: [main]
   pull_request:
 
 concurrency:
