@@ -206,3 +206,16 @@ Deno.test("home page: a welcoming title, three steps, reassurance, and both ways
   assertStringIncludes(html, 'href="/app/"');
   assertStringIncludes(html, '<meta name="description" content="Des activités régulières près de chez vous">');
 });
+
+Deno.test("every page shows the logo mark and links the SVG favicon, which is served as a static file", async () => {
+  for (const h of [renderHome("https://habituer.org"), renderNotFound(404)]) {
+    assertStringIncludes(h, '<link rel="icon" href="/favicon.svg" type="image/svg+xml">');
+    assertStringIncludes(h, '<svg class="logo"');
+    assertStringIncludes(h, 'aria-hidden="true"');
+  }
+  const svg = await Deno.readTextFile("web/public/favicon.svg");
+  assertStringIncludes(svg, "#b4441f");
+  assert(!svg.includes("<script"));
+  const routes = JSON.parse(await Deno.readTextFile("web/public/_routes.json"));
+  assert(routes.exclude.includes("/favicon.svg"));
+});

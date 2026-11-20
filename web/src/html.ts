@@ -12,6 +12,11 @@ export function escapeHtml(s: unknown): string {
     .replace(/'/g, "&#39;");
 }
 
+/** The Habituer mark: two people whose linked arms make the H. Same shapes as web/public/favicon.svg. */
+const LOGO_MARK = '<svg class="logo" viewBox="20 16 60 67" width="27" height="30" aria-hidden="true" focusable="false">'
+  + '<circle cx="29" cy="25" r="9"/><circle cx="71" cy="25" r="9"/><rect x="21" y="39" width="16" height="44" rx="8"/>'
+  + '<rect x="63" y="39" width="16" height="44" rx="8"/><rect x="28" y="53" width="44" height="12" rx="6"/></svg>';
+
 const bs = String.fromCharCode(92);
 const LINE_SEPARATORS = new RegExp("[" + String.fromCharCode(0x2028) + String.fromCharCode(0x2029) + "]", "g");
 
@@ -88,10 +93,11 @@ function layout(m: Meta): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${t}</title>
 <meta name="description" content="${d}">
-${m.noindex ? '<meta name="robots" content="noindex">\n' : ""}${og}<link rel="stylesheet" href="/styles.css">
+${m.noindex ? '<meta name="robots" content="noindex">\n' : ""}${og}<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
 ${m.ld ? `<script type="application/ld+json">${jsonLd(m.ld)}</script>\n` : ""}</head>
 <body>
-<header class="site-header"><a href="/">${escapeHtml(copy.siteName)}</a></header>
+<header class="site-header"><a href="/">${LOGO_MARK}${escapeHtml(copy.siteName)}</a></header>
 <main>
 ${m.main}
 </main>

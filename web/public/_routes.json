@@ -6,6 +6,7 @@
     "/app/assets/*",
     "/app/favicon.ico",
     "/favicon.ico",
+    "/favicon.svg",
     "/styles.css",
     "/og-default.png",
     "/.well-known/*"
