@@ -46,7 +46,19 @@ export function formatParisDate(iso: string): string {
   return `${p.weekday} ${p.day} ${p.month} à ${p.hour}:${p.minute}`;
 }
 
-const first = (s: string, n: number) => Array.from(s).slice(0, n).join("");
+/**
+ * A search snippet of at most n characters: line breaks become spaces, and a longer text is cut at the
+ * last word that fits, ending with "…", instead of in the middle of a word.
+ */
+export function snippet(s: string, n: number): string {
+  const flat = s.replace(/\s+/g, " ").trim();
+  const chars = Array.from(flat);
+  if (chars.length <= n) return flat;
+  const cut = chars.slice(0, n - 1).join("");
+  const space = cut.lastIndexOf(" ");
+  const head = space >= n * 0.6 ? cut.slice(0, space) : cut;
+  return head.replace(/[\s,;:.!?-]+$/u, "") + "…";
+}
 
 // deno-lint-ignore no-explicit-any
 type Json = any;
@@ -72,7 +84,7 @@ function footer(): string {
 function layout(m: Meta): string {
   // The home page title already leads with the promise; every other page ends with the name.
   const t = escapeHtml(m.title.includes(copy.siteName) ? m.title : `${m.title} · ${copy.siteName}`);
-  const d = escapeHtml(first(m.description, 155));
+  const d = escapeHtml(snippet(m.description, 155));
   const og = m.canonical
     ? `<link rel="canonical" href="${escapeHtml(m.canonical)}">
 <meta property="og:title" content="${escapeHtml(m.title)}">

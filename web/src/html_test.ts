@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
-import { escapeHtml, formatParisDate, jsonLd, renderActivityPage, renderAssociationPage, renderHome, renderNotFound, renderUnavailable } from "./html.ts";
+import { escapeHtml, snippet, formatParisDate, jsonLd, renderActivityPage, renderAssociationPage, renderHome, renderNotFound, renderUnavailable } from "./html.ts";
 import { activityFixture, associationFixture, EVIL } from "./fixtures.ts";
 
 const BASE = "https://habituer.test";
@@ -60,9 +60,16 @@ Deno.test("activity page content", () => {
   assert(!html.includes("Bob"));
 });
 
-Deno.test("meta description is the first 155 characters", () => {
+Deno.test("meta description: at most 155 characters, cut between words with an ellipsis", () => {
   const html = renderActivityPage(activityFixture({ description: "x".repeat(400) }), BASE);
-  assertStringIncludes(html, `<meta name="description" content="${"x".repeat(155)}">`);
+  assertStringIncludes(html, `<meta name="description" content="${"x".repeat(154)}…">`);
+  const words = "Partie de go tous les mardis soir, débutants bienvenus.\nOn prête les plateaux. ".repeat(4);
+  const d = /<meta name="description" content="([^"]*)">/.exec(renderActivityPage(activityFixture({ description: words }), BASE))![1];
+  assert(Array.from(d).length <= 155, `${Array.from(d).length} characters`);
+  assert(d.endsWith("…") && !d.includes("\n"));
+  assert(words.replace(/\s+/g, " ").startsWith(d.slice(0, -1)), "cut at a word boundary");
+  assertEquals(snippet("Court.", 155), "Court.");
+  assertEquals(snippet("un deux trois quatre", 16), "un deux trois…");
 });
 
 Deno.test("the organising association or collectif is named, a member never is", () => {
