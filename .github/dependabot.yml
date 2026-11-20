@@ -30,6 +30,14 @@ updates:
       - dependency-name: "react-dom"
       - dependency-name: "react-native"
       - dependency-name: "react-native-*"
+      - dependency-name: "@react-native-async-storage/*"
+      - dependency-name: "@react-native-community/*"
+      # Native modules the SDK does not pin: CI cannot build them natively, so majors wait for a manual
+      # upgrade with a device build.
+      - dependency-name: "@react-native-google-signin/google-signin"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@maplibre/maplibre-react-native"
+        update-types: ["version-update:semver-major"]
     groups:
       npm-app-minor-patch:
         update-types: ["minor", "patch"]
