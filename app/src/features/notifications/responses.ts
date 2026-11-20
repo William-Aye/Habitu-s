@@ -34,7 +34,7 @@ function payload(response: Notifications.NotificationResponse) {
 }
 
 const MODERATION_KINDS = ['report_handled', 'moderation_notice'];
-const ACCOUNT_KINDS = [...MODERATION_KINDS, 'claim_decided', 'category_decided', 'inactivity_notice'];
+const ACCOUNT_KINDS = [...MODERATION_KINDS, 'claim_decided', 'category_decided', 'inactivity_notice', 'job_failed'];
 
 /** The association a claim was about. The notification carries only the claim id; null when it cannot be read. */
 async function claimAssociationId(claimId: string): Promise<string | null> {
@@ -66,6 +66,9 @@ async function openAccountNotice(kind: string | null, claimId: string | null): P
     router.push('/interests' as Href);
   } else if (kind === 'inactivity_notice') {
     router.navigate('/(tabs)/profile' as Href);
+  } else if (kind === 'job_failed') {
+    // Sent to admins only (TM-14); the admin area asks for the second factor itself.
+    router.push('/admin' as Href);
   } else {
     return false;
   }

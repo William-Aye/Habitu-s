@@ -162,7 +162,7 @@ the technical view.
 | TM-11 | Untested backup restore | low | Phase 0 (owner) |
 | TM-12 | Home location inferable | closed 2026-11-20 | `profiles` is readable by the person and admins only; `home_area` is read by no other function than the person's own export; tested in `44_threat_model` |
 | TM-13 | Deleted data in backups not stated | low | privacy text |
-| TM-14 | Silent failure of retention or cleanup jobs | low | a small monitoring query (still open) |
+| TM-14 | Silent failure of retention or cleanup jobs | closed 2026-11-20 | Daily `job-health` job notifies admins of failed pg_cron runs (migration `…054`, test `46_job_health`); it cannot report a broken `send-push` or a failed Edge Function call |
 
 TM-7 is rated medium because the exploit path is concrete: a compromised third-party action or package in the
 importer job reads the connection string and gets full control of the production database. TM-10 is medium

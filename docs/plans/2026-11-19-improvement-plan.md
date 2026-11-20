@@ -119,12 +119,13 @@ Updated 2026-11-20. Branch `security/threat-model`, not yet pushed or deployed.
 | 1.6 supply chain | done; nothing in shipped code | security review, section 1.6 |
 | 1.7 workflows, importer role | done in code; owner must switch `IMPORTER_DB_URL` | migration `…053`, `importer/README.md` |
 | TM-6 cron secret | done in code; owner must set `CRON_SECRET` and Vault | README, "Dedicated cron secret" |
-| TM-14 job monitoring | open | check `cron.job_run_details` weekly until a monitor exists |
+| TM-14 job monitoring | done: admins get a push when a scheduled job failed | migration `…054` |
 | 2.x speed | not started: needs a low-end Android release build, the deployed site and real traffic | |
 | 3.2 structured data | done: Event valid for Google (start, end, status, address, coordinates; none without a planned session) | `web/src/html.ts` |
 | 3.1, 3.3 to 3.6 SEO | wait for the deployed site and Search Console | |
 | 4.3 site accessibility | checked: contrast 6:1 and more, focus outline, `lang`, one `h1`, dark mode; nothing to fix | `web/public/styles.css` |
-| 4.1, 4.2, 4.4 UI | not started | |
+| 4.4 app accessibility | checked: every tappable element has a label or text, except modal backdrops (hidden on purpose) | |
+| 4.1, 4.2 UI | not started: needs the owner's choice of design direction | |
 
 **Deploy order** when this branch is merged: push the migrations (`supabase db push`) first, then deploy
 `send-push`, `storage-cleanup` and `submit-feedback`, then switch `IMPORTER_DB_URL` and set `CRON_SECRET`.

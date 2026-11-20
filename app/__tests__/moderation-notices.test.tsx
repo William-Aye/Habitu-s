@@ -180,6 +180,11 @@ describe('notification taps', () => {
     expect(router.push).toHaveBeenCalledWith('/interests');
   });
 
+  it('job_failed opens the admin area (TM-14)', async () => {
+    await handleNotificationResponse(response({ kind: 'job_failed' }));
+    expect(router.push).toHaveBeenCalledWith('/admin');
+  });
+
   it('inactivity_notice opens Profil', async () => {
     await handleNotificationResponse(response({ kind: 'inactivity_notice' }));
     expect(router.navigate).toHaveBeenCalledWith('/(tabs)/profile');

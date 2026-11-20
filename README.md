@@ -396,6 +396,9 @@ Nightly pg_cron jobs, in UTC (Paris is one or two hours ahead).
 | Search misses (anonymised queries with no good result) | 180 days; at most 2000 new rows a day | `prune-search-misses` 04:25 |
 | Queued storage deletions | drained every 10 minutes | `storage-cleanup` |
 
+The `job-health` job (06:50) sends every admin one push notification when any of these jobs failed in the
+last 24 hours; the details are in `cron.job_run_details`.
+
 The inactivity notice is a push notification and a notice in the app (no email yet), so it only
 reaches people who enabled notifications; opening the app clears it. Admins are never deleted for
 inactivity.
