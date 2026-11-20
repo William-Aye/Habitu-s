@@ -11,8 +11,7 @@ export function LogoMark({ size = 32, color = colors.accent }: { size?: number; 
       width={(size * 60) / 67}
       height={size}
       viewBox="20 16 60 67"
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
+      aria-hidden
       testID="logo-mark"
     >
       <Circle cx={29} cy={25} r={9} fill={color} />
