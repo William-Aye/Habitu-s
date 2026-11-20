@@ -1,6 +1,7 @@
 import { Camera, GeoJSONSource, Layer, Map } from '@maplibre/maplibre-react-native';
 import { StyleSheet, Text, View } from 'react-native';
 import { ATTRIBUTION, MAP_STYLE_URL, kmToPixels } from '../map';
+import { colors } from '../../../lib/theme';
 
 const ZOOM = 12;
 const TOWN_RADIUS_KM = 1;
@@ -39,9 +40,9 @@ export function TownMap({ lon, lat, label }: Props) {
             type="circle"
             paint={{
               'circle-radius': kmToPixels(TOWN_RADIUS_KM, ZOOM, lat),
-              'circle-color': '#1a56db',
+              'circle-color': colors.accent,
               'circle-opacity': 0.25,
-              'circle-stroke-color': '#1a56db',
+              'circle-stroke-color': colors.accent,
               'circle-stroke-width': 1,
             }}
           />

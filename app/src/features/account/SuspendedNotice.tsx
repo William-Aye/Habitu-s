@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PRIVACY_CONTACT } from '../../content/contact';
 import { signOut } from './auth';
 import { useSession } from './useSession';
+import { colors } from '../../lib/theme';
 
 /**
  * Full-screen notice for a suspended account: it cannot sign in, so this is where the person learns why
@@ -85,8 +86,8 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 22, fontWeight: '700', textAlign: 'center' },
   body: { fontSize: 16, textAlign: 'center', lineHeight: 22 },
-  link: { color: '#1a56db', textDecorationLine: 'underline' },
-  button: { minHeight: 48, borderRadius: 24, backgroundColor: '#1a56db', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+  link: { color: colors.accent, textDecorationLine: 'underline' },
+  button: { minHeight: 48, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   dim: { opacity: 0.5 },
 });

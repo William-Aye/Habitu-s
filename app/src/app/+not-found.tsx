@@ -1,6 +1,7 @@
 import { Link } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { colors } from '../lib/theme';
 
 export default function NotFound() {
   const { t } = useTranslation();
@@ -17,5 +18,5 @@ export default function NotFound() {
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },
   text: { fontSize: 18, textAlign: 'center' },
-  link: { color: '#1a56db', fontWeight: '600', minHeight: 44 },
+  link: { color: colors.accent, fontWeight: '600', minHeight: 44 },
 });

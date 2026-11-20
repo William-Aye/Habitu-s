@@ -139,7 +139,7 @@ export function ClaimForm({
             style={styles.iconButton}
             onPress={() => setDoc(null)}
           >
-            <X size={20} color="#1a56db" />
+            <X size={20} color={colors.accent} />
           </Pressable>
         </View>
       ) : (
@@ -152,7 +152,7 @@ export function ClaimForm({
           style={[styles.outline, styles.withIcon]}
           onPress={pick}
         >
-          <Paperclip size={18} color="#1a56db" />
+          <Paperclip size={18} color={colors.accent} />
           <Text style={styles.outlineText}>{t('claim.attach')}</Text>
         </Pressable>
       )}
@@ -192,14 +192,14 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   withIcon: { flexDirection: 'row', gap: 8 },
-  outline: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: '#1a56db', alignItems: 'center', justifyContent: 'center' },
-  outlineText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
-  primary: { minHeight: 48, borderRadius: 24, backgroundColor: '#1a56db', alignItems: 'center', justifyContent: 'center' },
+  outline: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
+  outlineText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
+  primary: { minHeight: 48, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   link: { minHeight: 44, justifyContent: 'center', alignItems: 'center' },
-  linkText: { color: '#1a56db', fontWeight: '600' },
-  ok: { color: '#15803d', fontSize: 16 },
+  linkText: { color: colors.accent, fontWeight: '600' },
+  ok: { color: colors.success, fontSize: 16 },
   notice: { fontSize: 12, color: '#555' },
-  error: { color: '#b91c1c' },
+  error: { color: colors.danger },
   dim: { opacity: 0.5 },
 });

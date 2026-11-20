@@ -1,6 +1,7 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { DisplayMessage } from './useChat';
+import { colors } from '../../lib/theme';
 
 interface Props {
   target: DisplayMessage | null;
@@ -54,6 +55,6 @@ const styles = StyleSheet.create({
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 12, gap: 4 },
   title: { fontSize: 16, fontWeight: '700', padding: 8 },
   item: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 8 },
-  itemText: { fontSize: 16, color: '#1a56db', fontWeight: '600' },
-  destructive: { fontSize: 16, color: '#b91c1c', fontWeight: '600' },
+  itemText: { fontSize: 16, color: colors.accent, fontWeight: '600' },
+  destructive: { fontSize: 16, color: colors.danger, fontWeight: '600' },
 });

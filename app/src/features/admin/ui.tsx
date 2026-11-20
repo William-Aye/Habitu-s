@@ -23,7 +23,7 @@ export function AdminScreen({ title, children }: { title: string; children: Reac
           style={styles.iconButton}
           onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
         >
-          <ChevronLeft size={24} color="#1a56db" />
+          <ChevronLeft size={24} color={colors.accent} />
         </Pressable>
         <Text accessibilityRole="header" style={styles.title}>{title}</Text>
       </View>
@@ -173,7 +173,7 @@ export const adminStyles = StyleSheet.create({
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   label: { fontWeight: '600' },
   choice: { borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 18, paddingHorizontal: 12, minHeight: 44, justifyContent: 'center' },
-  chosen: { backgroundColor: '#dbeafe', borderColor: '#1a56db' },
+  chosen: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
 });
 
 const styles = StyleSheet.create({
@@ -184,6 +184,6 @@ const styles = StyleSheet.create({
   container: { paddingHorizontal: 16, paddingBottom: 48, gap: 12 },
   center: { marginTop: 60, padding: 16, alignItems: 'center', gap: 12 },
   empty: { color: '#4b5563', marginTop: 24 },
-  error: { color: '#b91c1c' },
+  error: { color: colors.danger },
   done: { color: '#166534' },
 });

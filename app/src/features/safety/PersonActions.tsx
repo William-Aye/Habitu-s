@@ -1,3 +1,4 @@
+import { colors } from '../../lib/theme';
 import { Ban, Flag } from "lucide-react-native";
 import { useRef, useState, type ReactNode } from "react";
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from "react-native";
@@ -79,7 +80,7 @@ export function usePersonActions({ effectOf, onBlocked }: Options = {}): {
               <>
                 <Item
                   label={t("safety.reportPerson")}
-                  icon={<Flag size={18} color="#1a56db" />}
+                  icon={<Flag size={18} color={colors.accent} />}
                   onPress={() => {
                     const p = person;
                     setPerson(null);
@@ -89,7 +90,7 @@ export function usePersonActions({ effectOf, onBlocked }: Options = {}): {
                 />
                 <Item
                   label={t("safety.block")}
-                  icon={<Ban size={18} color="#b91c1c" />}
+                  icon={<Ban size={18} color={colors.danger} />}
                   destructive
                   onPress={() => blockPerson(person)}
                 />
@@ -158,6 +159,6 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 8,
   },
-  itemText: { fontSize: 16, color: "#1a56db", fontWeight: "600" },
-  destructive: { fontSize: 16, color: "#b91c1c", fontWeight: "600" },
+  itemText: { fontSize: 16, color: colors.accent, fontWeight: "600" },
+  destructive: { fontSize: 16, color: colors.danger, fontWeight: "600" },
 });

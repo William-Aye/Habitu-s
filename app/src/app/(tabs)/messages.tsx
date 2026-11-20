@@ -7,6 +7,7 @@ import { useSession } from '../../features/account/useSession';
 import { myChats } from '../../features/chat/api';
 import { formatMessageTime } from '../../features/chat/formatTime';
 import type { ChatSummary } from '../../features/chat/types';
+import { colors } from '../../lib/theme';
 
 type Load = { state: 'loading' } | { state: 'error' } | { state: 'ready'; chats: ChatSummary[] };
 
@@ -163,12 +164,12 @@ const styles = StyleSheet.create({
   time: { color: '#6b7280', fontSize: 12 },
   preview: { color: '#4b5563' },
   mutedText: { color: '#6b7280', fontSize: 12 },
-  badge: { minWidth: 24, height: 24, borderRadius: 12, paddingHorizontal: 6, backgroundColor: '#1a56db', alignItems: 'center', justifyContent: 'center' },
+  badge: { minWidth: 24, height: 24, borderRadius: 12, paddingHorizontal: 6, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   badgeMuted: { backgroundColor: '#6b7280' },
   badgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  primary: { minHeight: 48, borderRadius: 24, backgroundColor: '#1a56db', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 20 },
+  primary: { minHeight: 48, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 20 },
   primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  outline: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: '#1a56db', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 20 },
-  outlineText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
-  error: { color: '#b91c1c' },
+  outline: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: colors.accent, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 20 },
+  outlineText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
+  error: { color: colors.danger },
 });

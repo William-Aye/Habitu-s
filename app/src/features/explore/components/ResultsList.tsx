@@ -2,6 +2,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { ExploreResponse, ExploreResult, Radius } from '../types';
 import { ResultCard } from './ResultCard';
+import { colors } from '../../../lib/theme';
 
 type Row = { type: 'card'; result: ExploreResult } | { type: 'divider' };
 
@@ -107,10 +108,10 @@ export function ResultsList({
 }
 
 const styles = StyleSheet.create({
-  banner: { backgroundColor: '#eef3ff', borderRadius: 12, padding: 12, marginBottom: 8, gap: 8 },
+  banner: { backgroundColor: colors.accentSoft, borderRadius: 12, padding: 12, marginBottom: 8, gap: 8 },
   bannerText: { fontSize: 14 },
   bannerButton: { minHeight: 44, justifyContent: 'center' },
-  bannerAction: { fontSize: 14, fontWeight: '600', color: '#1a56db' },
+  bannerAction: { fontSize: 14, fontWeight: '600', color: colors.accent },
   footer: { paddingVertical: 12, gap: 4 },
   divider: { fontSize: 13, color: '#555', paddingTop: 16, paddingBottom: 4 },
 });

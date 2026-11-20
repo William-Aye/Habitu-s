@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 16,
   },
-  send: { flexDirection: 'row', gap: 6, minHeight: 44, borderRadius: 22, paddingHorizontal: 14, backgroundColor: '#1a56db', alignItems: 'center', justifyContent: 'center' },
+  send: { flexDirection: 'row', gap: 6, minHeight: 44, borderRadius: 22, paddingHorizontal: 14, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   sendText: { color: '#fff', fontWeight: '600' },
   count: { alignSelf: 'flex-end', fontSize: 12, color: '#6b7280' },
   dim: { opacity: 0.5 },

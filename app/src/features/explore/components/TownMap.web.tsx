@@ -1,6 +1,7 @@
 import { MapPin } from 'lucide-react-native';
 import { Linking, Pressable, StyleSheet, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { colors } from '../../../lib/theme';
 
 interface Props {
   lon: number;
@@ -20,7 +21,7 @@ export function TownMap({ lon, lat, label }: Props) {
       style={styles.link}
       onPress={() => void Linking.openURL(url)}
     >
-      <MapPin size={18} color="#1a56db" />
+      <MapPin size={18} color={colors.accent} />
       <Text style={styles.text}>{t('activity.mapLink')}</Text>
     </Pressable>
   );
@@ -28,5 +29,5 @@ export function TownMap({ lon, lat, label }: Props) {
 
 const styles = StyleSheet.create({
   link: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44 },
-  text: { color: '#1a56db', fontWeight: '600' },
+  text: { color: colors.accent, fontWeight: '600' },
 });

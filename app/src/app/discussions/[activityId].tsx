@@ -23,6 +23,7 @@ import { useChat, type DisplayMessage } from '../../features/chat/useChat';
 import { block } from '../../features/safety/blocks';
 import { afterModalClosed, confirmBlock } from '../../features/safety/confirmBlock';
 import { useReportSheet } from '../../features/safety/ReportSheet';
+import { colors } from '../../lib/theme';
 
 export default function DiscussionScreen() {
   const { t } = useTranslation();
@@ -169,7 +170,7 @@ export default function DiscussionScreen() {
           style={styles.iconButton}
           onPress={() => router.back()}
         >
-          <ChevronLeft size={24} color="#1a56db" />
+          <ChevronLeft size={24} color={colors.accent} />
         </Pressable>
         <Text accessibilityRole="header" numberOfLines={1} style={styles.headerTitle}>
           {chat.title ?? t('chat.title')}
@@ -182,7 +183,7 @@ export default function DiscussionScreen() {
           style={[styles.iconButton, chat.muteBusy && styles.dim]}
           onPress={() => void chat.toggleMute()}
         >
-          <MuteIcon size={22} color="#1a56db" />
+          <MuteIcon size={22} color={colors.accent} />
         </Pressable>
       </View>
 
@@ -239,11 +240,11 @@ const styles = StyleSheet.create({
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   list: { flex: 1 },
   empty: { textAlign: 'center', padding: 24, color: '#6b7280', transform: [{ scaleY: -1 }] },
-  notice: { backgroundColor: '#eef2ff', color: '#1a3a9e', padding: 10, textAlign: 'center' },
+  notice: { backgroundColor: colors.accentSoft, color: colors.accentDark, padding: 10, textAlign: 'center' },
   archived: { backgroundColor: '#f3f4f6', color: '#374151', padding: 14, textAlign: 'center' },
   link: { minHeight: 44, justifyContent: 'center' },
-  linkText: { color: '#1a56db', fontWeight: '600' },
-  primary: { minHeight: 48, borderRadius: 24, backgroundColor: '#1a56db', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  linkText: { color: colors.accent, fontWeight: '600' },
+  primary: { minHeight: 48, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
   primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   dim: { opacity: 0.5 },
 });

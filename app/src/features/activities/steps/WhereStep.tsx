@@ -9,6 +9,7 @@ import { ATTRIBUTION, MAP_STYLE_URL } from '../../explore/map';
 import type { Town } from '../../explore/types';
 import { PLACE_LABEL_MAX } from '../form';
 import { stepStyles as s, type StepProps } from './styles';
+import { colors } from '../../../lib/theme';
 
 const ZOOM = 14;
 
@@ -31,7 +32,7 @@ export function WhereStep({ form, set }: StepProps) {
   return (
     <View style={s.container}>
       <View style={styles.tip} accessibilityRole="summary">
-        <ShieldAlert size={20} color="#92400e" />
+        <ShieldAlert size={20} color={colors.warningText} />
         <Text style={styles.tipText}>{t('create.where.homeTip')}</Text>
       </View>
 
@@ -87,9 +88,9 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 12,
     borderRadius: 12,
-    backgroundColor: '#fef3c7',
+    backgroundColor: colors.warningSoft,
   },
-  tipText: { flex: 1, fontSize: 14, color: '#92400e' },
+  tipText: { flex: 1, fontSize: 14, color: colors.warningText },
   map: { height: 260, borderRadius: 12, overflow: 'hidden' },
   attribution: { fontSize: 11, color: '#555' },
 });

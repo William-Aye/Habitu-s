@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { playStoreUrl } from '../../lib/playStore';
 import { signOut } from '../account/auth';
 import { useSession } from '../account/useSession';
+import { colors } from '../../lib/theme';
 
 /** Slim bar above every web page: the name, the account links when signed in, and a way to the Play Store. */
 export function WebHeader() {
@@ -49,7 +50,7 @@ export function WebHeader() {
           style={styles.download}
           onPress={() => void Linking.openURL(url)}
         >
-          <Download size={16} color="#1a56db" />
+          <Download size={16} color={colors.accent} />
           <Text style={styles.downloadText}>{t('web.download')}</Text>
         </Pressable>
       ) : null}
@@ -60,9 +61,9 @@ export function WebHeader() {
 const styles = StyleSheet.create({
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, minHeight: 48, flexWrap: 'wrap', gap: 4, borderBottomWidth: 1, borderBottomColor: '#e5e7eb', backgroundColor: '#fff' },
   name: { minHeight: 44, justifyContent: 'center' },
-  nameText: { fontSize: 18, fontWeight: '700', color: '#1a3a9e' },
+  nameText: { fontSize: 18, fontWeight: '700', color: colors.accentDark },
   account: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
   accountLink: { minHeight: 44, justifyContent: 'center' },
   download: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44 },
-  downloadText: { color: '#1a56db', fontWeight: '600' },
+  downloadText: { color: colors.accent, fontWeight: '600' },
 });

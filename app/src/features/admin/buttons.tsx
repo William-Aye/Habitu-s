@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
+import { colors } from '../../lib/theme';
 
 export function AdminButton({
   label,
@@ -29,10 +30,10 @@ export function AdminButton({
 }
 
 const styles = StyleSheet.create({
-  btn: { minHeight: 44, borderRadius: 22, borderWidth: 1, borderColor: '#1a56db', paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
-  primary: { backgroundColor: '#1a56db' },
-  danger: { backgroundColor: '#b91c1c', borderColor: '#b91c1c' },
-  btnText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
+  btn: { minHeight: 44, borderRadius: 22, borderWidth: 1, borderColor: colors.accent, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  primary: { backgroundColor: colors.accent },
+  danger: { backgroundColor: colors.danger, borderColor: colors.danger },
+  btnText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
   btnTextOn: { color: '#fff' },
   dim: { opacity: 0.5 },
 });

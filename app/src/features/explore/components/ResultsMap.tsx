@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { ATTRIBUTION, MAP_STYLE_URL, boundsAround } from '../map';
 import type { ExploreResult, Radius } from '../types';
 import { ResultCard } from './ResultCard';
+import { colors } from '../../../lib/theme';
 
 interface Props {
   results: ExploreResult[];
@@ -32,7 +33,7 @@ export function ResultsMap({ results, center, radiusKm, onOpen }: Props) {
                 accessibilityState={{ selected: on }}
                 onPress={() => setSelected(r)}
               >
-                <MapPin size={28} color={on ? '#1a56db' : '#c2410c'} />
+                <MapPin size={28} color={on ? colors.accent : '#c2410c'} />
               </Marker>
             );
           })}

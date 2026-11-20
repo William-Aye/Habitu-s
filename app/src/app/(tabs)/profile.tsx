@@ -336,7 +336,7 @@ function SafetyEntries() {
             <Text style={styles.badgeText}>{String(count)}</Text>
           </View>
         ) : null}
-        <ChevronRight size={18} color="#1a56db" />
+        <ChevronRight size={18} color={colors.accent} />
       </Pressable>
       {role === 'admin' ? (
         <Pressable
@@ -346,7 +346,7 @@ function SafetyEntries() {
           onPress={() => router.push('/admin' as Href)}
         >
           <Text style={styles.linkText}>{t('admin.title')}</Text>
-          <ChevronRight size={18} color="#1a56db" />
+          <ChevronRight size={18} color={colors.accent} />
         </Pressable>
       ) : null}
     </>
@@ -630,21 +630,21 @@ const styles = StyleSheet.create({
   label: { fontWeight: '600' },
   input: { borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 8, padding: 10, fontSize: 16, minHeight: 44 },
   bio: { minHeight: 88, textAlignVertical: 'top' },
-  chip: { minHeight: 44, paddingHorizontal: 16, borderRadius: 22, borderWidth: 1, borderColor: '#1a56db', justifyContent: 'center' },
-  chipOn: { backgroundColor: '#1a56db' },
-  chipText: { color: '#1a56db', fontWeight: '600' },
+  chip: { minHeight: 44, paddingHorizontal: 16, borderRadius: 22, borderWidth: 1, borderColor: colors.accent, justifyContent: 'center' },
+  chipOn: { backgroundColor: colors.accent },
+  chipText: { color: colors.accent, fontWeight: '600' },
   chipOnText: { color: '#fff', fontWeight: '600' },
-  primary: { minHeight: 48, borderRadius: 24, backgroundColor: '#1a56db', alignItems: 'center', justifyContent: 'center' },
+  primary: { minHeight: 48, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  outline: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: '#1a56db', paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
-  outlineText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
-  danger: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: '#b91c1c', alignItems: 'center', justifyContent: 'center' },
-  dangerText: { color: '#b91c1c', fontSize: 16, fontWeight: '600' },
+  outline: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: colors.accent, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
+  outlineText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
+  danger: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: colors.danger, alignItems: 'center', justifyContent: 'center' },
+  dangerText: { color: colors.danger, fontSize: 16, fontWeight: '600' },
   link: { minHeight: 44, justifyContent: 'center' },
   linkRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  badge: { minWidth: 22, height: 22, borderRadius: 11, backgroundColor: '#b91c1c', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  badge: { minWidth: 22, height: 22, borderRadius: 11, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
   badgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  linkText: { color: '#1a56db', fontWeight: '600' },
-  error: { color: '#b91c1c' },
-  ok: { color: '#15803d' },
+  linkText: { color: colors.accent, fontWeight: '600' },
+  error: { color: colors.danger },
+  ok: { color: colors.success },
 });

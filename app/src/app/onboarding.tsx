@@ -9,6 +9,7 @@ import { LocationPicker } from '../features/explore/components/LocationPicker';
 import { useExploreLocation } from '../features/explore/useExploreLocation';
 import { InterestPicker } from '../features/interests/InterestPicker';
 import { LANGUAGE_STORAGE_KEY, setLanguage, shouldOfferLanguageChoice } from '../i18n';
+import { colors } from '../lib/theme';
 
 export const ONBOARDING_KEY = 'onboarding.done';
 
@@ -133,23 +134,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#1a56db',
+    borderColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  choiceOn: { backgroundColor: '#1a56db' },
-  choiceText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
+  choiceOn: { backgroundColor: colors.accent },
+  choiceText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
   choiceOnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   chosen: { fontSize: 14, color: '#333' },
   primary: {
     minHeight: 48,
     borderRadius: 24,
-    backgroundColor: '#1a56db',
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   disabled: { opacity: 0.4 },
   primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   skip: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  skipText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
+  skipText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
 });

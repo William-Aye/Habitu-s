@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { linkCollectifToAssociation, myVerifiedAssociations, type ClaimedAssociation } from '../claims/api';
+import { colors } from '../../lib/theme';
 
 /**
  * "Rattacher le collectif à cette association": for a responsable who has a verified association (an
@@ -103,7 +104,7 @@ export function LinkToAssociation({ collectifId, onLinked }: { collectifId: stri
             setOpen(true);
           }}
         >
-          <Link2 size={18} color="#1a56db" />
+          <Link2 size={18} color={colors.accent} />
           <Text style={styles.outlineText}>{t('collectif.link')}</Text>
         </Pressable>
       )}
@@ -114,16 +115,16 @@ export function LinkToAssociation({ collectifId, onLinked }: { collectifId: stri
 const styles = StyleSheet.create({
   box: { gap: 8 },
   withIcon: { flexDirection: 'row', gap: 8 },
-  choice: { minHeight: 48, borderRadius: 12, borderWidth: 1, borderColor: '#1a56db', justifyContent: 'center', paddingHorizontal: 12 },
-  choiceOn: { backgroundColor: '#1a56db' },
-  choiceText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
+  choice: { minHeight: 48, borderRadius: 12, borderWidth: 1, borderColor: colors.accent, justifyContent: 'center', paddingHorizontal: 12 },
+  choiceOn: { backgroundColor: colors.accent },
+  choiceText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
   choiceOnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  primary: { minHeight: 48, borderRadius: 24, backgroundColor: '#1a56db', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  primary: { minHeight: 48, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  outline: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: '#1a56db', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
-  outlineText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
+  outline: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: colors.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  outlineText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
   link: { minHeight: 44, justifyContent: 'center', alignItems: 'center' },
-  linkText: { color: '#1a56db', fontWeight: '600' },
+  linkText: { color: colors.accent, fontWeight: '600' },
   disabled: { opacity: 0.4 },
-  error: { color: '#b91c1c' },
+  error: { color: colors.danger },
 });

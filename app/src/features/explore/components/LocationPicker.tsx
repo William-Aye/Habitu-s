@@ -99,15 +99,15 @@ const styles = StyleSheet.create({
   button: {
     minHeight: 48,
     borderRadius: 24,
-    backgroundColor: '#1a56db',
+    backgroundColor: colors.accent,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  secondary: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#1a56db' },
-  secondaryText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
+  secondary: { backgroundColor: '#fff', borderWidth: 1, borderColor: colors.accent },
+  secondaryText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
   note: { fontSize: 13, color: '#a00' },
   input: {
     height: 48,

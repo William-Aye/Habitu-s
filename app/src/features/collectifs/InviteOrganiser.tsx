@@ -6,6 +6,7 @@ import { PersonAvatar } from '../activities/PersonAvatar';
 import type { ApiError, Candidate } from '../activities/types';
 import { inviteOrganiser, listCandidates } from './api';
 import { useCollectifErrorText } from './errors';
+import { colors } from '../../lib/theme';
 
 type Load = { state: 'loading' } | { state: 'ready'; candidates: Candidate[] } | { state: 'error'; error: ApiError };
 
@@ -65,7 +66,7 @@ export function InviteOrganiser({ collectifId, onClose }: { collectifId: string;
                 style={[styles.invite, busy && styles.disabled]}
                 onPress={() => invite(c)}
               >
-                <UserPlus size={16} color="#1a56db" />
+                <UserPlus size={16} color={colors.accent} />
                 <Text style={styles.inviteText}>{t('collectif.inviteAction')}</Text>
               </Pressable>
             </View>
@@ -90,15 +91,15 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#1a56db',
+    borderColor: colors.accent,
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  inviteText: { color: '#1a56db', fontWeight: '600' },
+  inviteText: { color: colors.accent, fontWeight: '600' },
   disabled: { opacity: 0.4 },
-  error: { color: '#b91c1c' },
+  error: { color: colors.danger },
   link: { minHeight: 44, justifyContent: 'center' },
-  linkText: { color: '#1a56db', fontWeight: '600' },
+  linkText: { color: colors.accent, fontWeight: '600' },
 });

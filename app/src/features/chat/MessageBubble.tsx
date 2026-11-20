@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { PersonAvatar } from '../activities/PersonAvatar';
 import { formatMessageTime } from './formatTime';
 import type { DisplayMessage } from './useChat';
+import { colors } from '../../lib/theme';
 
 interface Props {
   message: DisplayMessage;
@@ -66,11 +67,11 @@ const styles = StyleSheet.create({
   rowMine: { justifyContent: 'flex-end' },
   bubble: { maxWidth: '78%', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8, gap: 2 },
   bubbleOther: { backgroundColor: '#f3f4f6' },
-  bubbleMine: { backgroundColor: '#1a56db' },
-  name: { fontSize: 12, fontWeight: '700', color: '#1a3a9e' },
+  bubbleMine: { backgroundColor: colors.accent },
+  name: { fontSize: 12, fontWeight: '700', color: colors.accentDark },
   body: { fontSize: 16, color: '#111827' },
   bodyMine: { fontSize: 16, color: '#fff' },
   meta: { fontSize: 11, color: '#6b7280', alignSelf: 'flex-end' },
-  metaMine: { fontSize: 11, color: '#dbeafe', alignSelf: 'flex-end' },
-  metaError: { color: '#b91c1c', fontWeight: '600' },
+  metaMine: { fontSize: 11, color: colors.accentSoft, alignSelf: 'flex-end' },
+  metaError: { color: colors.danger, fontWeight: '600' },
 });

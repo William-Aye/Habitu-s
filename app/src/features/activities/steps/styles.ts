@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native';
 import type { FormState } from '../form';
+import { colors } from '../../../lib/theme';
 
 export interface StepProps {
   form: FormState;
@@ -31,13 +32,13 @@ export const stepStyles = StyleSheet.create({
     paddingHorizontal: 16,
     justifyContent: 'center',
   },
-  optionOn: { borderColor: '#1a56db', backgroundColor: '#eef2ff' },
+  optionOn: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
   optionText: { fontSize: 16 },
-  optionTextOn: { color: '#1a3a9e', fontWeight: '600' },
+  optionTextOn: { color: colors.accentDark, fontWeight: '600' },
   button: {
     minHeight: 48,
     borderRadius: 24,
-    backgroundColor: '#1a56db',
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
@@ -47,12 +48,12 @@ export const stepStyles = StyleSheet.create({
     minHeight: 48,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#1a56db',
+    borderColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
   },
-  outlineText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
+  outlineText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
   disabled: { opacity: 0.4 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 48 },
 });

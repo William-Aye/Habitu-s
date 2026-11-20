@@ -7,6 +7,7 @@ import { listCategoryRequests, listClaims, listClubs, listFeedback, listReports,
 import { BannedWords } from '../../features/admin/BannedWords';
 import { useAdminLock } from '../../features/admin/MfaGate';
 import { AdminScreen } from '../../features/admin/ui';
+import { colors } from '../../lib/theme';
 
 const QUEUES = ['reports', 'claims', 'clubs', 'categories', 'feedback'] as const;
 type QueueName = (typeof QUEUES)[number];
@@ -98,5 +99,5 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 52, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#d1d5db' },
   label: { fontSize: 17, fontWeight: '600' },
   right: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  count: { fontSize: 16, color: '#1a56db', fontWeight: '700' },
+  count: { fontSize: 16, color: colors.accent, fontWeight: '700' },
 });

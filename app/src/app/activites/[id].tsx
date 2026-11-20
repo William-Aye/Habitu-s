@@ -15,6 +15,7 @@ import { KNOWN_ERRORS } from '../../features/activities/errors';
 import type { ActivityPage, ApiError } from '../../features/activities/types';
 import { TownMap } from '../../features/explore/components/TownMap';
 import { useReportSheet } from '../../features/safety/ReportSheet';
+import { colors } from '../../lib/theme';
 
 type Load = { state: 'loading' } | { state: 'error' } | { state: 'ready'; activity: ActivityPage | null };
 
@@ -146,7 +147,7 @@ export default function ActivityScreen() {
               style={[styles.link, styles.row]}
               onPress={() => void openReport({ type: 'user', id: organiserId })}
             >
-              <Flag size={16} color="#1a56db" />
+              <Flag size={16} color={colors.accent} />
               <Text style={styles.linkText}>{t('safety.reportPerson')}</Text>
             </Pressable>
           ) : null}
@@ -211,7 +212,7 @@ export default function ActivityScreen() {
                 .catch(() => {});
             }}
           >
-            <Share2 size={18} color="#1a56db" />
+            <Share2 size={18} color={colors.accent} />
             <Text style={styles.outlineText}>{t('activity.share')}</Text>
           </Pressable>
           {notice ? <Text accessibilityLiveRegion="polite">{notice}</Text> : null}
@@ -226,7 +227,7 @@ export default function ActivityScreen() {
           style={styles.outline}
           onPress={() => router.push(`/discussions/${a.id}` as Href)}
         >
-          <MessageCircle size={18} color="#1a56db" />
+          <MessageCircle size={18} color={colors.accent} />
           <Text style={styles.outlineText}>{t('activity.discussion')}</Text>
         </Pressable>
       ) : null}
@@ -238,7 +239,7 @@ export default function ActivityScreen() {
           style={[styles.link, styles.row]}
           onPress={() => void openReport({ type: 'activity', id: a.id })}
         >
-          <Flag size={16} color="#1a56db" />
+          <Flag size={16} color={colors.accent} />
           <Text style={styles.linkText}>{t('safety.reportActivity')}</Text>
         </Pressable>
       ) : null}
@@ -275,14 +276,14 @@ const styles = StyleSheet.create({
   block: { gap: 8 },
   person: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  badge: { alignSelf: 'flex-start', backgroundColor: '#eef2ff', color: '#1a3a9e', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, overflow: 'hidden' },
-  notice: { backgroundColor: '#fef2f2', color: '#b91c1c', padding: 12, borderRadius: 8 },
+  badge: { alignSelf: 'flex-start', backgroundColor: colors.accentSoft, color: colors.accentDark, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, overflow: 'hidden' },
+  notice: { backgroundColor: '#fef2f2', color: colors.danger, padding: 12, borderRadius: 8 },
   link: { minHeight: 44, justifyContent: 'center' },
-  linkText: { color: '#1a56db', fontWeight: '600' },
-  primary: { minHeight: 48, borderRadius: 24, backgroundColor: '#1a56db', alignItems: 'center', justifyContent: 'center' },
+  linkText: { color: colors.accent, fontWeight: '600' },
+  primary: { minHeight: 48, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  outline: { flexDirection: 'row', gap: 8, minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: '#1a56db', alignItems: 'center', justifyContent: 'center' },
-  outlineText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
+  outline: { flexDirection: 'row', gap: 8, minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
+  outlineText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
   dim: { opacity: 0.5 },
-  error: { color: '#b91c1c' },
+  error: { color: colors.danger },
 });

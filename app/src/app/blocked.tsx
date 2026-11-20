@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRequireAccount } from '../features/account/AccountGate';
 import { useSession } from '../features/account/useSession';
 import { BlockedList } from '../features/safety/BlockedList';
+import { colors } from '../lib/theme';
 
 export default function BlockedScreen() {
   const { t } = useTranslation();
@@ -32,7 +33,7 @@ export default function BlockedScreen() {
           style={styles.iconButton}
           onPress={() => router.back()}
         >
-          <ChevronLeft size={24} color="#1a56db" />
+          <ChevronLeft size={24} color={colors.accent} />
         </Pressable>
         <Text accessibilityRole="header" style={styles.title}>{t('safety.blockedTitle')}</Text>
       </View>

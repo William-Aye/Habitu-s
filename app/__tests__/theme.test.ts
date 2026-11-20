@@ -36,6 +36,24 @@ describe('design tokens (plan step 4.1)', () => {
     expect(root).toContain(`--text: ${colors.text};`);
   });
 
+  it('accent text reads on the soft accent background, and soft text on the accent (chat bubbles)', () => {
+    expect(contrast(colors.accent, colors.accentSoft)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(colors.accentDark, colors.accentSoft)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(colors.accentSoft, colors.accent)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('no screen goes back to the old blue palette (step 4.2, warm and welcoming)', () => {
+    const src = path.join(__dirname, '../src');
+    const hits: string[] = [];
+    const walk = (d: string) => fs.readdirSync(d, { withFileTypes: true }).forEach((e) => {
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (/\.tsx?$/.test(p) && /#(1a56db|1a3a9e|eef2ff|eef3ff|dbeafe)\b/i.test(fs.readFileSync(p, 'utf8'))) hits.push(path.relative(src, p));
+    });
+    walk(src);
+    expect(hits).toEqual([]);
+  });
+
   it('no text field or control goes back to a border lighter than 3:1', () => {
     const src = path.join(__dirname, '../src');
     const files: string[] = [];

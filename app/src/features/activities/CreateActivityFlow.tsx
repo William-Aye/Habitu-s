@@ -15,6 +15,7 @@ import { WhenStep } from './steps/WhenStep';
 import { WhereStep } from './steps/WhereStep';
 import { WhoStep } from './steps/WhoStep';
 import type { ApiError } from './types';
+import { colors } from '../../lib/theme';
 
 const STEP_KEYS = ['who', 'what', 'where', 'when', 'settings'] as const;
 const STEPS = [WhoStep, WhatStep, WhereStep, WhenStep, SettingsStep];
@@ -196,6 +197,6 @@ const styles = StyleSheet.create({
   footer: { flexDirection: 'row', gap: 12, paddingVertical: 12 },
   footerButton: { flex: 1 },
   inline: { flexDirection: 'row', gap: 8 },
-  warning: { gap: 8, padding: 12, borderRadius: 12, backgroundColor: '#fef3c7' },
-  warningText: { color: '#92400e', fontWeight: '600' },
+  warning: { gap: 8, padding: 12, borderRadius: 12, backgroundColor: colors.warningSoft },
+  warningText: { color: colors.warningText, fontWeight: '600' },
 });

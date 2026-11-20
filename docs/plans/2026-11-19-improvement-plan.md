@@ -126,8 +126,8 @@ Updated 2026-11-20. Branch `security/threat-model`, not yet pushed or deployed.
 | 3.1, 3.3 to 3.6 SEO | wait for the deployed site and Search Console | |
 | 4.3 site accessibility | checked: contrast 6:1 and more, focus outline, `lang`, one `h1`, dark mode; nothing to fix | `web/public/styles.css` |
 | 4.4 app accessibility | checked: every tappable element has a label or text, except modal backdrops (hidden on purpose); 14 text fields, toggles and chips had borders under 3:1 (WCAG 1.4.11), now 4.8:1 | `app/src/lib/theme.ts` |
-| 4.1 design tokens | started: `app/src/lib/theme.ts` holds the colours, sizes and touch target already in use, tested for contrast and kept equal to the site's colours; 53 files still use hex literals and move over screen by screen | `app/__tests__/theme.test.ts` |
-| 4.2 UI rework | not started: needs the owner's choice of design direction | |
+| 4.1 design tokens | done for colours: every screen uses `colors.*` from `app/src/lib/theme.ts` for the accent, danger, success and warning colours; neutral greys and white are still literals | `app/__tests__/theme.test.ts` |
+| 4.2 UI rework | started: owner chose warm and welcoming (2026-11-20); site style and home page reworked; logo (two people whose arms make the H) on the site, favicon and app icons; app screens moved from blue to terracotta and peach, with a test against the old blue | `web/public/styles.css`, `app/assets/`, `app/src/lib/theme.ts` |
 
 **Deploy order** when this branch is merged: push the migrations (`supabase db push`) first, outside the
 monthly import run (the `association_tags` index briefly blocks writes to that table), then deploy

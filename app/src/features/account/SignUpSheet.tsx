@@ -228,7 +228,7 @@ export function SignUpSheet({
               style={styles.close}
               onPress={() => close(false)}
             >
-              <X size={18} color="#1a56db" />
+              <X size={18} color={colors.accent} />
               <Text style={styles.linkText}>{t('account.close')}</Text>
             </Pressable>
 
@@ -470,19 +470,19 @@ const styles = StyleSheet.create({
   button: {
     minHeight: 48,
     borderRadius: 24,
-    backgroundColor: '#1a56db',
+    backgroundColor: colors.accent,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     paddingHorizontal: 16,
   },
-  secondary: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#1a56db' },
+  secondary: { backgroundColor: '#fff', borderWidth: 1, borderColor: colors.accent },
   disabled: { opacity: 0.5 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  secondaryText: { color: '#1a56db' },
+  secondaryText: { color: colors.accent },
   linkButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  linkText: { color: '#1a56db', fontSize: 15, fontWeight: '600' },
+  linkText: { color: colors.accent, fontSize: 15, fontWeight: '600' },
   error: { color: '#a00', fontSize: 14 },
   legalNotice: { fontSize: 13, color: '#555', textAlign: 'center' },
   checkRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -491,10 +491,10 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#1a56db',
+    borderColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  boxChecked: { backgroundColor: '#1a56db' },
+  boxChecked: { backgroundColor: colors.accent },
   checkText: { fontSize: 16 },
 });

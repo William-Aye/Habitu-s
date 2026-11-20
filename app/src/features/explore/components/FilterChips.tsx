@@ -87,7 +87,7 @@ function Sheet({
               style={styles.option}
             >
               <Text style={styles.optionText}>{o.label}</Text>
-              {o.selected ? <Check size={18} color="#1a56db" /> : null}
+              {o.selected ? <Check size={18} color={colors.accent} /> : null}
             </Pressable>
           ))}
         </View>
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
     borderColor: colors.controlBorder,
     backgroundColor: '#fff',
   },
-  chipOn: { backgroundColor: '#1a56db', borderColor: '#1a56db' },
+  chipOn: { backgroundColor: colors.accent, borderColor: colors.accent },
   chipOff: { opacity: 0.5 },
   chipText: { fontSize: 14, color: '#222' },
   chipTextOn: { color: '#fff' },

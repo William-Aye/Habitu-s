@@ -117,7 +117,7 @@ export function OrganiserPanel({ activity, onChanged, onArchived }: PanelProps) 
               style={[styles.small, busy && styles.dim]}
               onPress={() => run(() => decideJoinRequest(activity.id, p.userId, true))}
             >
-              <Check size={16} color="#1a56db" />
+              <Check size={16} color={colors.accent} />
               <Text style={styles.smallText}>{t('activity.organiser.accept')}</Text>
             </Pressable>
             <Pressable
@@ -128,7 +128,7 @@ export function OrganiserPanel({ activity, onChanged, onArchived }: PanelProps) 
               style={[styles.small, busy && styles.dim]}
               onPress={() => run(() => decideJoinRequest(activity.id, p.userId, false))}
             >
-              <X size={16} color="#1a56db" />
+              <X size={16} color={colors.accent} />
               <Text style={styles.smallText}>{t('activity.organiser.refuse')}</Text>
             </Pressable>
           </View>
@@ -155,7 +155,7 @@ export function OrganiserPanel({ activity, onChanged, onArchived }: PanelProps) 
             style={[styles.chip, busy && styles.dim]}
             onPress={() => run(() => setWelcomeMember(activity.id, o.id))}
           >
-            <UserCheck size={14} color="#1a56db" />
+            <UserCheck size={14} color={colors.accent} />
             <Text style={styles.smallText}>{o.name}</Text>
           </Pressable>
         ))}
@@ -214,7 +214,7 @@ export function OrganiserPanel({ activity, onChanged, onArchived }: PanelProps) 
           style={styles.outline}
           onPress={() => setConfirmArchive(true)}
         >
-          <Archive size={18} color="#b91c1c" />
+          <Archive size={18} color={colors.danger} />
           <Text style={styles.dangerOutlineText}>{t('activity.organiser.archive')}</Text>
         </Pressable>
       )}
@@ -297,7 +297,7 @@ export function SessionTools({ session, activity, onChanged }: SessionToolsProps
             setError(null);
           }}
         >
-          <Pencil size={16} color="#1a56db" />
+          <Pencil size={16} color={colors.accent} />
           <Text style={styles.smallText}>{t('activity.organiser.editSession')}</Text>
         </Pressable>
         <Pressable
@@ -381,7 +381,7 @@ export function SessionTools({ session, activity, onChanged }: SessionToolsProps
           style={styles.small}
           onPress={() => setConfirmCancel(true)}
         >
-          <X size={16} color="#b91c1c" />
+          <X size={16} color={colors.danger} />
           <Text style={styles.dangerOutlineText}>{t('activity.organiser.cancelSession')}</Text>
         </Pressable>
       )}
@@ -400,19 +400,19 @@ const styles = StyleSheet.create({
   grow: { flex: 1 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   small: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44, paddingHorizontal: 8 },
-  smallText: { color: '#1a56db', fontWeight: '600' },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44, paddingHorizontal: 12, borderRadius: 22, borderWidth: 1, borderColor: '#1a56db' },
-  chipOn: { backgroundColor: '#1a56db' },
+  smallText: { color: colors.accent, fontWeight: '600' },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44, paddingHorizontal: 12, borderRadius: 22, borderWidth: 1, borderColor: colors.accent },
+  chipOn: { backgroundColor: colors.accent },
   chipOnText: { color: '#fff' },
   dim: { opacity: 0.5 },
   form: { gap: 8 },
   input: { borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 8, paddingHorizontal: 12, minHeight: 44 },
-  primary: { minHeight: 48, borderRadius: 24, backgroundColor: '#1a56db', alignItems: 'center', justifyContent: 'center' },
+  primary: { minHeight: 48, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  outline: { flexDirection: 'row', gap: 8, minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: '#b91c1c', alignItems: 'center', justifyContent: 'center' },
-  dangerOutlineText: { color: '#b91c1c', fontWeight: '600' },
-  danger: { minHeight: 44, borderRadius: 22, backgroundColor: '#b91c1c', paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
+  outline: { flexDirection: 'row', gap: 8, minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: colors.danger, alignItems: 'center', justifyContent: 'center' },
+  dangerOutlineText: { color: colors.danger, fontWeight: '600' },
+  danger: { minHeight: 44, borderRadius: 22, backgroundColor: colors.danger, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
   dangerText: { color: '#fff', fontWeight: '600' },
   confirm: { gap: 8 },
-  error: { color: '#b91c1c' },
+  error: { color: colors.danger },
 });
