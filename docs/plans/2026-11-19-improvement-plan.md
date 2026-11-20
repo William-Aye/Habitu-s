@@ -116,7 +116,7 @@ Updated 2026-11-20. Branch `security/threat-model`, not yet pushed or deployed.
 | 1.3 sharp edges | done; DB-9 fixed (search logs capped, misses kept 180 days) | security review, section 1.3; migration `…052` |
 | 1.4 access tests | done; TM-1, 2, 3, 5, 12 closed | `supabase/tests/44_threat_model.test.sql` |
 | 1.5 semgrep | done; no finding; CI and CodeQL actions pinned | security review, section 1.5 |
-| 1.6 supply chain | done; nothing in shipped code | security review, section 1.6 |
+| 1.6 supply chain | done; nothing in shipped code. Rechecked 2026-11-20: root npm clean, importer clean (pip-audit), app: minimatch fixed (Dependabot #9); zod and glob advisories only in lint and test tools | security review, section 1.6 |
 | 1.7 workflows, importer role | done in code; owner must switch `IMPORTER_DB_URL` | migration `…053`, `importer/README.md` |
 | TM-6 cron secret | done in code; owner must set `CRON_SECRET` and Vault | README, "Dedicated cron secret" |
 | TM-14 job monitoring | done: admins get a push when a scheduled job failed | migration `…054` |
