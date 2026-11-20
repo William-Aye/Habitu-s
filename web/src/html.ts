@@ -94,6 +94,7 @@ function layout(m: Meta): string {
 <title>${t}</title>
 <meta name="description" content="${d}">
 ${m.noindex ? '<meta name="robots" content="noindex">\n' : ""}${og}<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/styles.css">
 ${m.ld ? `<script type="application/ld+json">${jsonLd(m.ld)}</script>\n` : ""}</head>
 <body>

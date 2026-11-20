@@ -218,4 +218,11 @@ Deno.test("every page shows the logo mark and links the SVG favicon, which is se
   assert(!svg.includes("<script"));
   const routes = JSON.parse(await Deno.readTextFile("web/public/_routes.json"));
   assert(routes.exclude.includes("/favicon.svg"));
+  for (const h of [renderHome("https://habituer.org"), renderNotFound(404)]) {
+    assertStringIncludes(h, '<link rel="apple-touch-icon" href="/apple-touch-icon.png">');
+  }
+  assert(routes.exclude.includes("/apple-touch-icon.png"));
+  const png = await Deno.readFile("web/public/apple-touch-icon.png");
+  assertEquals([png[1], png[2], png[3]], [0x50, 0x4e, 0x47]); // "PNG"
+  assertEquals((png[16] << 24 | png[17] << 16 | png[18] << 8 | png[19]), 180); // width
 });
