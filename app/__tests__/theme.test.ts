@@ -33,11 +33,14 @@ describe('design tokens (plan step 4.1)', () => {
     expect(contrast(colors.controlBorder, colors.background)).toBeGreaterThanOrEqual(3);
   });
 
-  it('the app and the public site use the same accent and text colours', () => {
+  it('the app and the public site use the same accent, text, muted, border and card colours', () => {
     const css = fs.readFileSync(path.join(__dirname, '../../web/public/styles.css'), 'utf8');
     const root = css.slice(css.indexOf(':root'), css.indexOf('}'));
     expect(root).toContain(`--accent: ${colors.accent};`);
     expect(root).toContain(`--text: ${colors.text};`);
+    expect(root).toContain(`--muted: ${colors.muted};`);
+    expect(root).toContain(`--border: ${colors.divider};`);
+    expect(root).toContain(`--card: ${colors.surface};`);
   });
 
   it('accent text reads on the soft accent background, and soft text on the accent (chat bubbles)', () => {

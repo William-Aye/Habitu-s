@@ -13,6 +13,7 @@ import {
 } from "./pages.ts";
 import type { Deps, Env } from "./pages.ts";
 import { ACT_ID, activityFixture, ASSO_ID, associationFixture, EVIL } from "./fixtures.ts";
+import { renderLegalPage } from "./legal.ts";
 
 const env: Env = { SUPABASE_URL: "http://sb", SUPABASE_ANON_KEY: "k", WEB_BASE_URL: "https://habituer.test/", PLAY_STORE_URL: "https://play.google.com/store/apps/details?id=x" };
 const CANON_A = `/activites/jeu-de-go-${ACT_ID}`;
@@ -396,15 +397,16 @@ Deno.test("WEB-1: turning a cached 200 into a 301 drops the body headers", () =>
   assertEquals(r.headers.get("Location"), `https://habituer.test${CANON_A}`);
 });
 
-Deno.test("static sitemap: the home page and the legal pages, no RPC", async () => {
+Deno.test("static sitemap: the home page only (the legal pages are noindex), no RPC", async () => {
   const calls: { name: string; args: Record<string, unknown> }[] = [];
   const r = await handleSitemap(req("/sitemaps/pages.xml"), env, deps({}, calls), "pages.xml");
   assertEquals(r.status, 200);
   assertEquals(calls.length, 0);
   const xml = await r.text();
-  for (const p of ["/", "/mentions-legales", "/conditions", "/confidentialite"]) {
-    assertStringIncludes(xml, `<loc>https://habituer.test${p}</loc>`);
+  assertStringIncludes(xml, "<loc>https://habituer.test/</loc>");
+  assertEquals((xml.match(/<url>/g) ?? []).length, 1);
+  for (const kind of ["mentions", "terms", "privacy"] as const) {
+    assertStringIncludes(renderLegalPage(kind), '<meta name="robots" content="noindex">');
   }
-  assertEquals((xml.match(/<url>/g) ?? []).length, 4);
   assertSecurity(r);
 });

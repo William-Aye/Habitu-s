@@ -13,8 +13,8 @@ export const colors = {
   /** Light accent background (selected chips, highlights). */
   accentSoft: '#fde8dc',
   text: '#2b2118',
-  /** Secondary text, a warm grey. 8:1 on white. */
-  muted: '#5e4d42',
+  /** Secondary text, a warm grey. Same as the site's --muted. 6.6:1 on white. */
+  muted: '#6b5a4e',
   /**
    * Border of text fields, toggles and chips: WCAG 2.2 (1.4.11) asks 3:1 against the background for
    * the edge that shows where a control is. 4.3:1 on white.

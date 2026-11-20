@@ -1,5 +1,5 @@
 import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
-import { legalResponse, parseHeadersFile } from "./legal.ts";
+import { legalResponse, parseHeadersFile, renderLegalPage } from "./legal.ts";
 import { PRIVACY_CONTACT } from "../../app/src/content/contact.ts";
 
 Deno.test("mentions légales: placeholders and hosts", async () => {
@@ -74,4 +74,13 @@ Deno.test("_headers file: every required header and the public CSP", async () =>
     "default-src 'none'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
   );
   assertEquals(blocks.has("/app/*"), false); // the /app CSP is built at runtime (spa.ts)
+});
+
+Deno.test("legal pages share the header logo and the icons with the other pages", () => {
+  for (const kind of ["mentions", "terms", "privacy"] as const) {
+    const t = renderLegalPage(kind);
+    assertStringIncludes(t, '<svg class="logo"');
+    assertStringIncludes(t, '<link rel="icon" href="/favicon.svg" type="image/svg+xml">');
+    assertStringIncludes(t, '<link rel="apple-touch-icon" href="/apple-touch-icon.png">');
+  }
 });

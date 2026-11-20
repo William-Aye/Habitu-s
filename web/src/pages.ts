@@ -246,10 +246,10 @@ export function handleSitemapIndex(req: Request, env: Env, _deps?: Deps): Promis
   return Promise.resolve(respond(body, 200, XML, { "Cache-Control": CACHE_LONG }));
 }
 
-/** `file` is the last path segment, e.g. "s-3.xml". One RPC per file. */
-/** The pages that are not in the database: the home page and the legal pages. */
-export const STATIC_PAGES = ["/", "/mentions-legales", "/conditions", "/confidentialite"] as const;
+/** Indexable pages that are not in the database. The legal pages are noindex, so they stay out. */
+export const STATIC_PAGES = ["/"] as const;
 
+/** `file` is the last path segment, e.g. "s-3.xml": one RPC per bucket file; "pages.xml" is static. */
 export async function handleSitemap(req: Request, env: Env, deps: Deps, file: string): Promise<Response> {
   if (file === "pages.xml") {
     const base = baseUrl(env, req);

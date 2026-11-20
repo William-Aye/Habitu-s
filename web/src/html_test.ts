@@ -261,3 +261,8 @@ Deno.test("3.4: an association title names its town, so clubs with the same name
   assertStringIncludes(renderAssociationPage(associationFixture(), BASE), "<title>Club de go, Lyon · Habituer</title>");
   assertStringIncludes(renderAssociationPage({ ...associationFixture(), city: null }, BASE), "<title>Club de go · Habituer</title>");
 });
+
+Deno.test("the site name is added to every title except the home page, whatever the title says", () => {
+  const html = renderActivityPage(activityFixture({ title: "Les habitués de Habituer" }), BASE);
+  assertStringIncludes(html, "<title>Les habitués de Habituer · Habituer</title>");
+});

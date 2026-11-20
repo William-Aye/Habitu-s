@@ -17,6 +17,14 @@ const LOGO_MARK = '<svg class="logo" viewBox="20 16 60 67" width="27" height="30
   + '<circle cx="29" cy="25" r="9"/><circle cx="71" cy="25" r="9"/><rect x="21" y="39" width="16" height="44" rx="8"/>'
   + '<rect x="63" y="39" width="16" height="44" rx="8"/><rect x="28" y="53" width="44" height="12" rx="6"/></svg>';
 
+/** Icons and stylesheet, shared by every page (legal.ts too). */
+export const HEAD_LINKS = `<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/styles.css">`;
+
+/** The header with the logo and the name, shared by every page (legal.ts too). */
+export const SITE_HEADER = `<header class="site-header"><a href="/">${LOGO_MARK}${escapeHtml(copy.siteName)}</a></header>`;
+
 const bs = String.fromCharCode(92);
 const LINE_SEPARATORS = new RegExp("[" + String.fromCharCode(0x2028) + String.fromCharCode(0x2029) + "]", "g");
 
@@ -70,6 +78,8 @@ interface Meta {
   base: string;
   ld?: unknown;
   noindex?: boolean;
+  /** The title is complete as given (the home page); otherwise " · Habituer" is added. */
+  fullTitle?: boolean;
   main: string;
 }
 
@@ -82,8 +92,7 @@ function footer(): string {
 }
 
 function layout(m: Meta): string {
-  // The home page title already leads with the promise; every other page ends with the name.
-  const t = escapeHtml(m.title.includes(copy.siteName) ? m.title : `${m.title} · ${copy.siteName}`);
+  const t = escapeHtml(m.fullTitle ? m.title : `${m.title} · ${copy.siteName}`);
   const d = escapeHtml(snippet(m.description, 155));
   const og = m.canonical
     ? `<link rel="canonical" href="${escapeHtml(m.canonical)}">
@@ -106,12 +115,10 @@ function layout(m: Meta): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${t}</title>
 <meta name="description" content="${d}">
-${m.noindex ? '<meta name="robots" content="noindex">\n' : ""}${og}<link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="stylesheet" href="/styles.css">
+${m.noindex ? '<meta name="robots" content="noindex">\n' : ""}${og}${HEAD_LINKS}
 ${m.ld ? `<script type="application/ld+json">${jsonLd(m.ld)}</script>\n` : ""}</head>
 <body>
-<header class="site-header"><a href="/">${LOGO_MARK}${escapeHtml(copy.siteName)}</a></header>
+${SITE_HEADER}
 <main>
 ${m.main}
 </main>
@@ -305,6 +312,7 @@ export function renderUnavailable(): string {
 export function renderHome(base: string, playStore: string = DEFAULT_PLAY_STORE): string {
   return layout({
     title: `${copy.siteName} · ${copy.home.title}`,
+    fullTitle: true,
     description: copy.home.description,
     canonical: base + "/",
     base,
