@@ -1,4 +1,4 @@
-import { UserRoundCheck } from 'lucide-react-native';
+import UserRoundCheck from 'lucide-react-native/icons/user-round-check';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';

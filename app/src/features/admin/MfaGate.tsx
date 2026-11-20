@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SvgXml } from 'react-native-svg';
-import { ShieldCheck } from 'lucide-react-native';
+import ShieldCheck from 'lucide-react-native/icons/shield-check';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { AdminButton } from './buttons';

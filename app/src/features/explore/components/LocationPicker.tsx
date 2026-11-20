@@ -1,4 +1,4 @@
-import { MapPin } from 'lucide-react-native';
+import MapPin from 'lucide-react-native/icons/map-pin';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';

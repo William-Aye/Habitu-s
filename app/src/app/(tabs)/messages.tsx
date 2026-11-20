@@ -1,5 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
-import { BellOff, Compass, MessageCircle } from 'lucide-react-native';
+import BellOff from 'lucide-react-native/icons/bell-off';
+import Compass from 'lucide-react-native/icons/compass';
+import MessageCircle from 'lucide-react-native/icons/message-circle';
 import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';

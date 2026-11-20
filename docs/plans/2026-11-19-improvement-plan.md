@@ -121,7 +121,8 @@ Updated 2026-11-20. Branch `security/threat-model`, not yet pushed or deployed.
 | TM-6 cron secret | done in code; owner must set `CRON_SECRET` and Vault | README, "Dedicated cron secret" |
 | TM-14 job monitoring | done: admins get a push when a scheduled job failed | migration `…054` |
 | 2.5 database | started: 15 indexes for foreign keys on read paths and account deletion; the rest needs real traffic | migration `…055`, test `47_foreign_key_indexes` |
-| 2.1 to 2.4 speed | not started: needs a low-end Android release build and the deployed site | |
+| 2.2 bundle | started: the Android JS bundle went from 4,931 KB to 2,845 KB (-42%) by importing each lucide icon from its own file (the barrel import shipped all ~1,500 icons; a test keeps it out). Cold-start timing still needs a low-end Android release build | `app/__tests__/bundle-size.test.ts` |
+| 2.1, 2.3, 2.4 speed | not started: needs a low-end Android release build and the deployed site | |
 | 3.2 structured data | done: Event valid for Google (start, end, status, address, coordinates, image; none without a planned session); WebSite and Organization on the home page. No breadcrumbs: there are no listing pages between the home page and an activity | `web/src/html.ts` |
 | 3.4 titles and descriptions | started: no title repeats the name any more (the home page and 404 were "Habituer · Habituer"); the home page has a 135-character description; association titles name the town; long descriptions are cut between words with "…". Activity titles would need the town from the database | `web/src/html.ts`, `web/src/copy.ts` |
 | 3.1 technical | checked in code: robots blocks non-production hosts and /app/, canonical 301s, bucketed sitemaps with lastmod, 503 with Retry-After; the home and legal pages were in no sitemap, now in `sitemaps/pages.xml`. The live audit waits for the deployed site | `web/src/pages.ts` |

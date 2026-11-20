@@ -1,4 +1,4 @@
-import { X } from 'lucide-react-native';
+import X from 'lucide-react-native/icons/x';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';

@@ -1,5 +1,6 @@
 import { colors } from '../../lib/theme';
-import { Ban, Flag } from "lucide-react-native";
+import Ban from 'lucide-react-native/icons/ban';
+import Flag from 'lucide-react-native/icons/flag';
 import { useRef, useState, type ReactNode } from "react";
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";

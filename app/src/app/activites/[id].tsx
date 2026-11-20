@@ -1,5 +1,7 @@
 import { router, useLocalSearchParams, type Href } from 'expo-router';
-import { Flag, MessageCircle, Share2 } from 'lucide-react-native';
+import Flag from 'lucide-react-native/icons/flag';
+import MessageCircle from 'lucide-react-native/icons/message-circle';
+import Share2 from 'lucide-react-native/icons/share-2';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';

@@ -1,5 +1,7 @@
 import { router, type Href } from 'expo-router';
-import { List, Map, Plus } from 'lucide-react-native';
+import List from 'lucide-react-native/icons/list';
+import Map from 'lucide-react-native/icons/map';
+import Plus from 'lucide-react-native/icons/plus';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';

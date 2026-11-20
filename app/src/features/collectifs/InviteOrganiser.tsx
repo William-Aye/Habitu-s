@@ -1,4 +1,4 @@
-import { UserPlus } from 'lucide-react-native';
+import UserPlus from 'lucide-react-native/icons/user-plus';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';

@@ -1,4 +1,4 @@
-import { Flag } from 'lucide-react-native';
+import Flag from 'lucide-react-native/icons/flag';
 import { useRef, useState, type ReactNode } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';

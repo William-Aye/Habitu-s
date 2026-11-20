@@ -1,5 +1,6 @@
 import { Camera, Map, Marker } from '@maplibre/maplibre-react-native';
-import { MapPin, ShieldAlert } from 'lucide-react-native';
+import MapPin from 'lucide-react-native/icons/map-pin';
+import ShieldAlert from 'lucide-react-native/icons/shield-alert';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';

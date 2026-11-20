@@ -1,6 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import { ImagePlus, X } from 'lucide-react-native';
+import ImagePlus from 'lucide-react-native/icons/image-plus';
+import X from 'lucide-react-native/icons/x';
 import { useCallback, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';

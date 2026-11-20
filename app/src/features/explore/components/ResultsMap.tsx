@@ -1,5 +1,5 @@
 import { Camera, Map, Marker } from '@maplibre/maplibre-react-native';
-import { MapPin } from 'lucide-react-native';
+import MapPin from 'lucide-react-native/icons/map-pin';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { ATTRIBUTION, MAP_STYLE_URL, boundsAround } from '../map';

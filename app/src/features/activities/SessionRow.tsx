@@ -1,4 +1,9 @@
-import { CalendarPlus, Check, Flag, Share2, Square, SquareCheck } from 'lucide-react-native';
+import CalendarPlus from 'lucide-react-native/icons/calendar-plus';
+import Check from 'lucide-react-native/icons/check';
+import Flag from 'lucide-react-native/icons/flag';
+import Share2 from 'lucide-react-native/icons/share-2';
+import Square from 'lucide-react-native/icons/square';
+import SquareCheck from 'lucide-react-native/icons/square-check';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';

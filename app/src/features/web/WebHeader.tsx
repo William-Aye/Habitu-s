@@ -1,5 +1,5 @@
 import { router, type Href } from 'expo-router';
-import { Download } from 'lucide-react-native';
+import Download from 'lucide-react-native/icons/download';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { playStoreUrl } from '../../lib/playStore';

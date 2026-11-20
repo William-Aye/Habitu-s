@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
-import { ChevronRight } from 'lucide-react-native';
+import ChevronRight from 'lucide-react-native/icons/chevron-right';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

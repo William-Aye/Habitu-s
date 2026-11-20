@@ -1,4 +1,4 @@
-import { Link2 } from 'lucide-react-native';
+import Link2 from 'lucide-react-native/icons/link-2';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';

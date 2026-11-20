@@ -1,19 +1,17 @@
-import {
-  Baby,
-  BookOpen,
-  ChefHat,
-  Cpu,
-  Dice5,
-  Dumbbell,
-  Footprints,
-  HandHeart,
-  Languages,
-  Leaf,
-  Music,
-  Palette,
-  Tag,
-  Trees,
-} from 'lucide-react-native';
+import Baby from 'lucide-react-native/icons/baby';
+import BookOpen from 'lucide-react-native/icons/book-open';
+import ChefHat from 'lucide-react-native/icons/chef-hat';
+import Cpu from 'lucide-react-native/icons/cpu';
+import Dice5 from 'lucide-react-native/icons/dice-5';
+import Dumbbell from 'lucide-react-native/icons/dumbbell';
+import Footprints from 'lucide-react-native/icons/footprints';
+import HandHeart from 'lucide-react-native/icons/hand-heart';
+import Languages from 'lucide-react-native/icons/languages';
+import Leaf from 'lucide-react-native/icons/leaf';
+import Music from 'lucide-react-native/icons/music';
+import Palette from 'lucide-react-native/icons/palette';
+import Tag from 'lucide-react-native/icons/tag';
+import Trees from 'lucide-react-native/icons/trees';
 import type { ComponentType } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';

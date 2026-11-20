@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { ChevronLeft } from 'lucide-react-native';
+import ChevronLeft from 'lucide-react-native/icons/chevron-left';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

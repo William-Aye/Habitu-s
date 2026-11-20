@@ -1,4 +1,8 @@
-import { Archive, Check, Pencil, UserCheck, X } from 'lucide-react-native';
+import Archive from 'lucide-react-native/icons/archive';
+import Check from 'lucide-react-native/icons/check';
+import Pencil from 'lucide-react-native/icons/pencil';
+import UserCheck from 'lucide-react-native/icons/user-check';
+import X from 'lucide-react-native/icons/x';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';

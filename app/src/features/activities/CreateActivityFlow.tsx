@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Share2 } from 'lucide-react-native';
+import Share2 from 'lucide-react-native/icons/share-2';
 import { useCallback, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';

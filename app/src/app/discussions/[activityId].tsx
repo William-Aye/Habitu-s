@@ -1,5 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { Bell, BellOff, ChevronLeft } from 'lucide-react-native';
+import Bell from 'lucide-react-native/icons/bell';
+import BellOff from 'lucide-react-native/icons/bell-off';
+import ChevronLeft from 'lucide-react-native/icons/chevron-left';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,

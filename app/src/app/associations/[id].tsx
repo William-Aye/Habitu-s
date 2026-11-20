@@ -1,5 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Globe, Mail, Phone } from 'lucide-react-native';
+import Globe from 'lucide-react-native/icons/globe';
+import Mail from 'lucide-react-native/icons/mail';
+import Phone from 'lucide-react-native/icons/phone';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';

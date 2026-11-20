@@ -1,4 +1,6 @@
-import { Flag, Share2, ShieldAlert } from 'lucide-react-native';
+import Flag from 'lucide-react-native/icons/flag';
+import Share2 from 'lucide-react-native/icons/share-2';
+import ShieldAlert from 'lucide-react-native/icons/shield-alert';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';

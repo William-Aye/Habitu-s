@@ -1,5 +1,10 @@
 import { router, useLocalSearchParams, type Href } from 'expo-router';
-import { CalendarPlus, Flag, LogOut, Pencil, Trash2, UserPlus } from 'lucide-react-native';
+import CalendarPlus from 'lucide-react-native/icons/calendar-plus';
+import Flag from 'lucide-react-native/icons/flag';
+import LogOut from 'lucide-react-native/icons/log-out';
+import Pencil from 'lucide-react-native/icons/pencil';
+import Trash2 from 'lucide-react-native/icons/trash-2';
+import UserPlus from 'lucide-react-native/icons/user-plus';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';

@@ -1,4 +1,4 @@
-import { MapPin } from 'lucide-react-native';
+import MapPin from 'lucide-react-native/icons/map-pin';
 import { Linking, Pressable, StyleSheet, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { ExploreResult, Radius } from '../types';

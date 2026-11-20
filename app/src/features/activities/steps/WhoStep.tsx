@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react-native';
+import Check from 'lucide-react-native/icons/check';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';

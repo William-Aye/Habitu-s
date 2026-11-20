@@ -1,5 +1,7 @@
 import { router, type Href } from 'expo-router';
-import { Check, Mail, X } from 'lucide-react-native';
+import Check from 'lucide-react-native/icons/check';
+import Mail from 'lucide-react-native/icons/mail';
+import X from 'lucide-react-native/icons/x';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,

@@ -1,5 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
-import { Check, Compass, Plus } from 'lucide-react-native';
+import Check from 'lucide-react-native/icons/check';
+import Compass from 'lucide-react-native/icons/compass';
+import Plus from 'lucide-react-native/icons/plus';
 import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
