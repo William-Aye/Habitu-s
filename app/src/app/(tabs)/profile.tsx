@@ -506,7 +506,7 @@ function SignedInProfile({ userId, profile }: { userId: string; profile: Session
       </Pressable>
       {notice ? (
         <Text accessibilityLiveRegion="polite" style={notice.kind === 'error' ? styles.error : styles.ok}>
-          {t(notice.key, notice.params)}
+          {t(notice.key, { ...notice.params })}
         </Text>
       ) : null}
 
