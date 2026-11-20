@@ -20,6 +20,16 @@ updates:
       interval: "monthly"
       timezone: "Europe/Paris"
     open-pull-requests-limit: 5
+    # The Expo SDK pins these; update them with `npx expo install --fix` when moving SDK, not one by one
+    # (CI's "Expo SDK versions" step fails on a mismatch). Security updates still arrive.
+    ignore:
+      - dependency-name: "expo"
+      - dependency-name: "expo-*"
+      - dependency-name: "jest-expo"
+      - dependency-name: "react"
+      - dependency-name: "react-dom"
+      - dependency-name: "react-native"
+      - dependency-name: "react-native-*"
     groups:
       npm-app-minor-patch:
         update-types: ["minor", "patch"]
