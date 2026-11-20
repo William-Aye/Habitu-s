@@ -42,7 +42,7 @@ export function SuspendedNotice() {
       accessibilityViewIsModal
       style={[styles.cover, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}
     >
-      <ShieldAlert size={40} color="#a00" />
+      <ShieldAlert size={40} color={colors.danger} />
       <Text accessibilityRole="header" style={styles.title}>{t('banned.title')}</Text>
       <Text accessibilityRole="alert" style={styles.body}>
         {before}

@@ -237,10 +237,10 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
   block: { gap: 8 },
   badge: { backgroundColor: colors.accentSoft, color: colors.accentDark, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, overflow: 'hidden' },
-  tag: { borderWidth: 1, borderColor: '#ccc', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  tag: { borderWidth: 1, borderColor: colors.controlBorder, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   link: { minHeight: 44, justifyContent: 'center' },
   linkText: { color: colors.accent, fontWeight: '600' },
   outline: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   outlineText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
-  source: { fontSize: 12, color: '#555' },
+  source: { fontSize: 12, color: colors.muted },
 });

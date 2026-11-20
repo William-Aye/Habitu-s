@@ -57,7 +57,7 @@ export function ReportSheet({ target, visible, onClose }: Props) {
         <View accessibilityViewIsModal style={styles.sheet} onStartShouldSetResponder={() => true}>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
             <View style={styles.titleRow}>
-              <Flag size={18} color="#111" />
+              <Flag size={18} color={colors.text} />
               <Text accessibilityRole="header" style={styles.title}>{t('safety.report')}</Text>
             </View>
             {outcome === 'sent' ? (

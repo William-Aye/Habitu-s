@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
   heading: { fontSize: 18, fontWeight: '600' },
   row: { minHeight: 48, justifyContent: 'center' },
   linkText: { color: colors.accent, fontWeight: '600' },
-  hint: { fontSize: 13, color: '#555' },
+  hint: { fontSize: 13, color: colors.muted },
   error: { color: colors.danger },
   outline: {
     minHeight: 48,

@@ -92,5 +92,5 @@ const styles = StyleSheet.create({
   },
   tipText: { flex: 1, fontSize: 14, color: colors.warningText },
   map: { height: 260, borderRadius: 12, overflow: 'hidden' },
-  attribution: { fontSize: 11, color: '#555' },
+  attribution: { fontSize: 11, color: colors.muted },
 });

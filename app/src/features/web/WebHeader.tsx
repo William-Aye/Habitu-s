@@ -59,7 +59,7 @@ export function WebHeader() {
 }
 
 const styles = StyleSheet.create({
-  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, minHeight: 48, flexWrap: 'wrap', gap: 4, borderBottomWidth: 1, borderBottomColor: '#e5e7eb', backgroundColor: '#fff' },
+  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, minHeight: 48, flexWrap: 'wrap', gap: 4, borderBottomWidth: 1, borderBottomColor: colors.divider, backgroundColor: '#fff' },
   name: { minHeight: 44, justifyContent: 'center' },
   nameText: { fontSize: 18, fontWeight: '700', color: colors.accentDark },
   account: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },

@@ -25,7 +25,7 @@ export function PersonAvatar({ name, photoUrl, size = 36 }: { name: string; phot
 }
 
 const styles = StyleSheet.create({
-  photo: { backgroundColor: '#e5e7eb' },
+  photo: { backgroundColor: colors.surface },
   fallback: { backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   initial: { color: colors.accentDark, fontWeight: '700' },
 });

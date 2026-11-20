@@ -455,9 +455,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   title: { fontSize: 22, fontWeight: '700' },
-  reason: { fontSize: 15, color: '#444' },
+  reason: { fontSize: 15, color: colors.muted },
   group: { gap: 12 },
-  or: { textAlign: 'center', color: '#666' },
+  or: { textAlign: 'center', color: colors.muted },
   label: { fontSize: 15, fontWeight: '600' },
   input: {
     height: 48,
@@ -483,8 +483,8 @@ const styles = StyleSheet.create({
   secondaryText: { color: colors.accent },
   linkButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   linkText: { color: colors.accent, fontSize: 15, fontWeight: '600' },
-  error: { color: '#a00', fontSize: 14 },
-  legalNotice: { fontSize: 13, color: '#555', textAlign: 'center' },
+  error: { color: colors.danger, fontSize: 14 },
+  legalNotice: { fontSize: 13, color: colors.muted, textAlign: 'center' },
   checkRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12 },
   box: {
     width: 24,

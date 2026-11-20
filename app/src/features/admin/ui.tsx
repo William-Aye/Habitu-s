@@ -165,9 +165,9 @@ export function QueueState<T>({
 }
 
 export const adminStyles = StyleSheet.create({
-  card: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 12, padding: 12, gap: 8 },
+  card: { borderWidth: 1, borderColor: colors.divider, borderRadius: 12, padding: 12, gap: 8 },
   cardTitle: { fontSize: 16, fontWeight: '700' },
-  meta: { color: '#4b5563' },
+  meta: { color: colors.muted },
   input: { borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 8, padding: 10, minHeight: 44, fontSize: 16 },
   multiline: { minHeight: 80, textAlignVertical: 'top' },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: '700', flexShrink: 1 },
   container: { paddingHorizontal: 16, paddingBottom: 48, gap: 12 },
   center: { marginTop: 60, padding: 16, alignItems: 'center', gap: 12 },
-  empty: { color: '#4b5563', marginTop: 24 },
+  empty: { color: colors.muted, marginTop: 24 },
   error: { color: colors.danger },
   done: { color: '#166534' },
 });

@@ -55,5 +55,5 @@ export function TownMap({ lon, lat, label }: Props) {
 
 const styles = StyleSheet.create({
   map: { height: 180, borderRadius: 12, overflow: 'hidden' },
-  attribution: { fontSize: 11, color: '#555', paddingVertical: 4 },
+  attribution: { fontSize: 11, color: colors.muted, paddingVertical: 4 },
 });

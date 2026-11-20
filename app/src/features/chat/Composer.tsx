@@ -63,7 +63,7 @@ export function Composer({
 }
 
 const styles = StyleSheet.create({
-  wrap: { padding: 8, borderTopWidth: 1, borderTopColor: '#e5e7eb', backgroundColor: '#fff', gap: 4 },
+  wrap: { padding: 8, borderTopWidth: 1, borderTopColor: colors.divider, backgroundColor: '#fff', gap: 4 },
   row: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
   input: {
     flex: 1,
@@ -78,6 +78,6 @@ const styles = StyleSheet.create({
   },
   send: { flexDirection: 'row', gap: 6, minHeight: 44, borderRadius: 22, paddingHorizontal: 14, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   sendText: { color: '#fff', fontWeight: '600' },
-  count: { alignSelf: 'flex-end', fontSize: 12, color: '#6b7280' },
+  count: { alignSelf: 'flex-end', fontSize: 12, color: colors.muted },
   dim: { opacity: 0.5 },
 });

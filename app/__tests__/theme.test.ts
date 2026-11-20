@@ -23,6 +23,10 @@ describe('design tokens (plan step 4.1)', () => {
     }
     expect(contrast('#ffffff', colors.accent)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(colors.warningText, colors.warningSoft)).toBeGreaterThanOrEqual(4.5);
+    for (const c of [colors.text, colors.muted, colors.accent]) {
+      expect(contrast(c, colors.surface)).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(contrast('#ffffff', colors.muted)).toBeGreaterThanOrEqual(4.5);
   });
 
   it('control borders reach 3:1 on the background (WCAG 1.4.11)', () => {
@@ -59,10 +63,10 @@ describe('design tokens (plan step 4.1)', () => {
     const files: string[] = [];
     const walk = (d: string) => fs.readdirSync(d, { withFileTypes: true }).forEach((e) => {
       const p = path.join(d, e.name);
-      if (e.isDirectory()) walk(p); else if (p.endsWith('.tsx')) files.push(p);
+      if (e.isDirectory()) walk(p); else if (/\.tsx?$/.test(p)) files.push(p);
     });
     walk(src);
-    const light = /\b(input|search|chip|choice|seg)[A-Za-z]*: \{[^}]*borderColor: '#(ccc|9ca3af|d1d5db|e5e7eb|eee)'/;
+    const light = /\b(input|search|chip|choice|seg|option|tile|tag)[A-Za-z]*: \{[^}]*borderColor: '#(ccc|888|9ca3af|d1d5db|e5e7eb|eee)'/;
     expect(files.filter((f) => light.test(fs.readFileSync(f, 'utf8'))).map((f) => path.relative(src, f))).toEqual([]);
   });
 });

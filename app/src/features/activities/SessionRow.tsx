@@ -242,7 +242,7 @@ export function SessionRow({ session, activity, showWelcome, showFirstTip = fals
 }
 
 const styles = StyleSheet.create({
-  row: { gap: 6, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, padding: 12 },
+  row: { gap: 6, borderWidth: 1, borderColor: colors.divider, borderRadius: 12, padding: 12 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   date: { fontWeight: '600', fontSize: 16 },
   badge: { backgroundColor: colors.accentSoft, color: colors.accentDark, paddingHorizontal: 10, paddingVertical: 2, borderRadius: 12, overflow: 'hidden' },

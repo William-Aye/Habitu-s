@@ -113,5 +113,5 @@ const styles = StyleSheet.create({
   bannerButton: { minHeight: 44, justifyContent: 'center' },
   bannerAction: { fontSize: 14, fontWeight: '600', color: colors.accent },
   footer: { paddingVertical: 12, gap: 4 },
-  divider: { fontSize: 13, color: '#555', paddingTop: 16, paddingBottom: 4 },
+  divider: { fontSize: 13, color: colors.muted, paddingTop: 16, paddingBottom: 4 },
 });

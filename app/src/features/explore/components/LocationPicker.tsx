@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   secondary: { backgroundColor: '#fff', borderWidth: 1, borderColor: colors.accent },
   secondaryText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
-  note: { fontSize: 13, color: '#a00' },
+  note: { fontSize: 13, color: colors.danger },
   input: {
     height: 48,
     borderWidth: 1,
@@ -117,5 +117,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   cancel: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  town: { minHeight: 48, justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: '#eee' },
+  town: { minHeight: 48, justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: colors.divider },
 });

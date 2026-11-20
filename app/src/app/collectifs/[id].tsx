@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   bannerText: { fontWeight: '600' },
   rowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   activity: { minHeight: 48, justifyContent: 'center' },
-  hint: { fontSize: 13, color: '#555' },
+  hint: { fontSize: 13, color: colors.muted },
   tools: { gap: 8 },
   withIcon: { flexDirection: 'row', gap: 8 },
   primary: {

@@ -53,5 +53,5 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { flex: 1 },
   card: { paddingHorizontal: 12, backgroundColor: '#fff' },
-  attribution: { fontSize: 11, color: '#555', paddingVertical: 4 },
+  attribution: { fontSize: 11, color: colors.muted, paddingVertical: 4 },
 });

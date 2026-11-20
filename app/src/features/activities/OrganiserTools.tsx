@@ -391,11 +391,11 @@ export function SessionTools({ session, activity, onChanged }: SessionToolsProps
 }
 
 const styles = StyleSheet.create({
-  panel: { gap: 8, borderTopWidth: 1, borderTopColor: '#e5e7eb', paddingTop: 16 },
-  tools: { gap: 8, borderTopWidth: 1, borderTopColor: '#e5e7eb', paddingTop: 8 },
+  panel: { gap: 8, borderTopWidth: 1, borderTopColor: colors.divider, paddingTop: 16 },
+  tools: { gap: 8, borderTopWidth: 1, borderTopColor: colors.divider, paddingTop: 8 },
   heading: { fontSize: 18, fontWeight: '600' },
   subheading: { fontSize: 16, fontWeight: '600', marginTop: 8 },
-  hint: { fontSize: 13, color: '#555' },
+  hint: { fontSize: 13, color: colors.muted },
   line: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
   grow: { flex: 1 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },

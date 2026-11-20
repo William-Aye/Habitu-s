@@ -73,7 +73,7 @@ function Sheet({
               onPress={onClose}
               style={styles.close}
             >
-              <X size={18} color="#222" />
+              <X size={18} color={colors.text} />
               <Text style={styles.chipText}>{t('explore.filters.close')}</Text>
             </Pressable>
           </View>
@@ -212,9 +212,9 @@ const styles = StyleSheet.create({
   },
   chipOn: { backgroundColor: colors.accent, borderColor: colors.accent },
   chipOff: { opacity: 0.5 },
-  chipText: { fontSize: 14, color: '#222' },
+  chipText: { fontSize: 14, color: colors.text },
   chipTextOn: { color: '#fff' },
-  hint: { fontSize: 12, color: '#555', paddingBottom: 4 },
+  hint: { fontSize: 12, color: colors.muted, paddingBottom: 4 },
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16 },
   sheetHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

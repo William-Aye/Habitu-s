@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: '700' },
   group: { gap: 10 },
   heading: { fontSize: 18, fontWeight: '600' },
-  card: { gap: 6, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, padding: 12 },
+  card: { gap: 6, borderWidth: 1, borderColor: colors.divider, borderRadius: 12, padding: 12 },
   cardTitle: { fontSize: 16, fontWeight: '600', minHeight: 44, textAlignVertical: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   badge: { alignSelf: 'flex-start', backgroundColor: colors.accentSoft, color: colors.accentDark, paddingHorizontal: 10, paddingVertical: 2, borderRadius: 12, overflow: 'hidden' },

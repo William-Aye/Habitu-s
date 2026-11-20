@@ -76,7 +76,7 @@ export default function AdminHome() {
             <Text style={styles.label}>{label}</Text>
             <View style={styles.right}>
               <Text style={styles.count}>{count ?? ''}</Text>
-              <ChevronRight size={20} color="#4b5563" />
+              <ChevronRight size={20} color={colors.muted} />
             </View>
           </Pressable>
         );
@@ -88,7 +88,7 @@ export default function AdminHome() {
         onPress={() => router.push('/admin/lift-ban')}
       >
         <Text style={styles.label}>{t('admin.liftBan.title')}</Text>
-        <ChevronRight size={20} color="#4b5563" />
+        <ChevronRight size={20} color={colors.muted} />
       </Pressable>
       <BannedWords />
     </AdminScreen>
@@ -96,7 +96,7 @@ export default function AdminHome() {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 52, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#d1d5db' },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 52, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
   label: { fontSize: 17, fontWeight: '600' },
   right: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   count: { fontSize: 16, color: colors.accent, fontWeight: '700' },

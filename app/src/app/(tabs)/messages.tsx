@@ -80,7 +80,7 @@ export default function Messages() {
   if (load.chats.length === 0) {
     return (
       <View style={styles.center}>
-        <MessageCircle size={32} color="#6b7280" />
+        <MessageCircle size={32} color={colors.muted} />
         <Text accessibilityRole="header" style={styles.title}>{t('messages.empty')}</Text>
         <Text style={styles.hint}>{t('messages.emptyHint')}</Text>
         <Pressable
@@ -134,7 +134,7 @@ export default function Messages() {
               <Text numberOfLines={1} style={styles.preview}>{preview}</Text>
               {c.muted ? (
                 <View style={styles.line}>
-                  <BellOff size={14} color="#6b7280" />
+                  <BellOff size={14} color={colors.muted} />
                   <Text style={styles.mutedText}>{t('messages.muted')}</Text>
                 </View>
               ) : null}
@@ -155,17 +155,17 @@ const styles = StyleSheet.create({
   page: { padding: 16, gap: 10 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 16 },
   title: { fontSize: 24, fontWeight: '700' },
-  hint: { textAlign: 'center', color: '#4b5563' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 64, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, padding: 12 },
+  hint: { textAlign: 'center', color: colors.muted },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 64, borderWidth: 1, borderColor: colors.divider, borderRadius: 12, padding: 12 },
   body: { flex: 1, gap: 2 },
   line: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   rowTitle: { flex: 1, fontSize: 16, fontWeight: '600' },
   bold: { fontWeight: '800' },
-  time: { color: '#6b7280', fontSize: 12 },
-  preview: { color: '#4b5563' },
-  mutedText: { color: '#6b7280', fontSize: 12 },
+  time: { color: colors.muted, fontSize: 12 },
+  preview: { color: colors.muted },
+  mutedText: { color: colors.muted, fontSize: 12 },
   badge: { minWidth: 24, height: 24, borderRadius: 12, paddingHorizontal: 6, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  badgeMuted: { backgroundColor: '#6b7280' },
+  badgeMuted: { backgroundColor: colors.muted },
   badgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   primary: { minHeight: 48, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 20 },
   primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },

@@ -185,7 +185,7 @@ export function ClaimForm({
 }
 
 const styles = StyleSheet.create({
-  box: { gap: 12, borderWidth: 1, borderColor: '#ccc', borderRadius: 12, padding: 12 },
+  box: { gap: 12, borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 12, padding: 12 },
   title: { fontSize: 18, fontWeight: '600' },
   input: { borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 8, padding: 10, fontSize: 16, minHeight: 48 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   link: { minHeight: 44, justifyContent: 'center', alignItems: 'center' },
   linkText: { color: colors.accent, fontWeight: '600' },
   ok: { color: colors.success, fontSize: 16 },
-  notice: { fontSize: 12, color: '#555' },
+  notice: { fontSize: 12, color: colors.muted },
   error: { color: colors.danger },
   dim: { opacity: 0.5 },
 });

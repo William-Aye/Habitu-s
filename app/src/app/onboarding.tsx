@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   choiceOn: { backgroundColor: colors.accent },
   choiceText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
   choiceOnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  chosen: { fontSize: 14, color: '#333' },
+  chosen: { fontSize: 14, color: colors.text },
   primary: {
     minHeight: 48,
     borderRadius: 24,

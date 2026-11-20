@@ -13,15 +13,17 @@ export const colors = {
   /** Light accent background (selected chips, highlights). */
   accentSoft: '#fde8dc',
   text: '#2b2118',
-  /** Secondary text. 7.6:1 on white. */
-  muted: '#4b5563',
+  /** Secondary text, a warm grey. 8:1 on white. */
+  muted: '#5e4d42',
   /**
    * Border of text fields, toggles and chips: WCAG 2.2 (1.4.11) asks 3:1 against the background for
-   * the edge that shows where a control is. 4.8:1 on white.
+   * the edge that shows where a control is. 4.3:1 on white.
    */
-  controlBorder: '#6b7280',
-  /** Decorative dividers and card edges (no contrast requirement). */
-  divider: '#d1d5db',
+  controlBorder: '#8a776b',
+  /** Decorative dividers and card edges (no contrast requirement). Same as the site's --border. */
+  divider: '#ecd5c4',
+  /** Quiet panels and placeholders, a warm off-white. Same as the site's --card. */
+  surface: '#fff3ea',
   danger: '#b91c1c',
   success: '#15803d',
   warningText: '#92400e',

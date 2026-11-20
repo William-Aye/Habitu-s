@@ -626,7 +626,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 8 },
   photoRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   photo: { width: 72, height: 72, borderRadius: 36 },
-  photoEmpty: { backgroundColor: '#e5e7eb' },
+  photoEmpty: { backgroundColor: colors.surface },
   label: { fontWeight: '600' },
   input: { borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 8, padding: 10, fontSize: 16, minHeight: 44 },
   bio: { minHeight: 88, textAlignVertical: 'top' },
