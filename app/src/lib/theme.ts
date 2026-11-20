@@ -1,17 +1,18 @@
 /**
- * Shared design tokens (improvement plan, step 4.1). The values are the ones the app already uses;
- * `accent`, `text` and `muted` match the public site's `web/public/styles.css` (checked by a test).
+ * Shared design tokens (improvement plan, step 4.1), in the warm and welcoming direction chosen on
+ * 2026-11-20. Screens still using the old blue hex literals move over as they are reworked;
+ * `accent` and `text` match the public site's `web/public/styles.css` (checked by a test).
  * New styles should use these instead of hex literals; existing screens move over as they are
  * reworked (step 4.2).
  */
 export const colors = {
-  /** Links, primary buttons, selected states. 6.2:1 on white. */
-  accent: '#1a56db',
+  /** Links, primary buttons, selected states (terracotta, warm and welcoming). 5.5:1 on white. */
+  accent: '#b4441f',
   /** Pressed or emphasised accent. */
-  accentDark: '#1a3a9e',
+  accentDark: '#8a3216',
   /** Light accent background (selected chips, highlights). */
-  accentSoft: '#eef2ff',
-  text: '#1a1a1a',
+  accentSoft: '#fde8dc',
+  text: '#2b2118',
   /** Secondary text. 7.6:1 on white. */
   muted: '#4b5563',
   /**
