@@ -1,10 +1,11 @@
-import { Flag } from 'lucide-react-native';
+import Flag from 'lucide-react-native/icons/flag';
 import { useRef, useState, type ReactNode } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRequireAccount } from '../account/AccountGate';
 import { reportTarget } from './reports';
 import { MAX_DETAILS, reasonsFor, type ReportReason, type ReportTarget } from './types';
+import { colors } from '../../lib/theme';
 
 interface Props {
   target: ReportTarget;
@@ -56,7 +57,7 @@ export function ReportSheet({ target, visible, onClose }: Props) {
         <View accessibilityViewIsModal style={styles.sheet} onStartShouldSetResponder={() => true}>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
             <View style={styles.titleRow}>
-              <Flag size={18} color="#111" />
+              <Flag size={18} color={colors.text} />
               <Text accessibilityRole="header" style={styles.title}>{t('safety.report')}</Text>
             </View>
             {outcome === 'sent' ? (
@@ -145,16 +146,16 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   title: { fontSize: 18, fontWeight: '700' },
   group: { gap: 8 },
-  choice: { minHeight: 48, borderRadius: 12, borderWidth: 1, borderColor: '#1a56db', justifyContent: 'center', paddingHorizontal: 12 },
-  choiceOn: { backgroundColor: '#1a56db' },
-  choiceText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
+  choice: { minHeight: 48, borderRadius: 12, borderWidth: 1, borderColor: colors.accent, justifyContent: 'center', paddingHorizontal: 12 },
+  choiceOn: { backgroundColor: colors.accent },
+  choiceText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
   choiceOnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, fontSize: 16, minHeight: 88, textAlignVertical: 'top' },
-  primary: { minHeight: 48, borderRadius: 24, backgroundColor: '#1a56db', alignItems: 'center', justifyContent: 'center' },
+  input: { borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 8, padding: 10, fontSize: 16, minHeight: 88, textAlignVertical: 'top' },
+  primary: { minHeight: 48, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   link: { minHeight: 44, justifyContent: 'center', alignItems: 'center' },
-  linkText: { color: '#1a56db', fontWeight: '600' },
-  ok: { color: '#15803d', fontSize: 16 },
-  error: { color: '#b91c1c' },
+  linkText: { color: colors.accent, fontWeight: '600' },
+  ok: { color: colors.success, fontSize: 16 },
+  error: { color: colors.danger },
   dim: { opacity: 0.5 },
 });

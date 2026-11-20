@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { PersonAvatar } from '../activities/PersonAvatar';
 import { formatMessageTime } from './formatTime';
 import type { DisplayMessage } from './useChat';
+import { colors } from '../../lib/theme';
 
 interface Props {
   message: DisplayMessage;
@@ -65,12 +66,12 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginVertical: 4, paddingHorizontal: 12 },
   rowMine: { justifyContent: 'flex-end' },
   bubble: { maxWidth: '78%', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8, gap: 2 },
-  bubbleOther: { backgroundColor: '#f3f4f6' },
-  bubbleMine: { backgroundColor: '#1a56db' },
-  name: { fontSize: 12, fontWeight: '700', color: '#1a3a9e' },
-  body: { fontSize: 16, color: '#111827' },
+  bubbleOther: { backgroundColor: colors.surface },
+  bubbleMine: { backgroundColor: colors.accent },
+  name: { fontSize: 12, fontWeight: '700', color: colors.accentDark },
+  body: { fontSize: 16, color: colors.text },
   bodyMine: { fontSize: 16, color: '#fff' },
-  meta: { fontSize: 11, color: '#6b7280', alignSelf: 'flex-end' },
-  metaMine: { fontSize: 11, color: '#dbeafe', alignSelf: 'flex-end' },
-  metaError: { color: '#b91c1c', fontWeight: '600' },
+  meta: { fontSize: 11, color: colors.muted, alignSelf: 'flex-end' },
+  metaMine: { fontSize: 11, color: colors.accentSoft, alignSelf: 'flex-end' },
+  metaError: { color: colors.danger, fontWeight: '600' },
 });

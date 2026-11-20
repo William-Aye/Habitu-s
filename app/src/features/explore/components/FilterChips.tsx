@@ -1,8 +1,10 @@
-import { Check, X } from 'lucide-react-native';
+import Check from 'lucide-react-native/icons/check';
+import X from 'lucide-react-native/icons/x';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { ExploreKind, ExploreParams, Radius, Weekday } from '../types';
+import { colors, minTouch } from '../../../lib/theme';
 
 export type FilterState = Pick<ExploreParams, 'kinds' | 'weekday' | 'radiusKm' | 'newcomerFriendly' | 'discoveryOnly'>;
 
@@ -72,7 +74,7 @@ function Sheet({
               onPress={onClose}
               style={styles.close}
             >
-              <X size={18} color="#222" />
+              <X size={18} color={colors.text} />
               <Text style={styles.chipText}>{t('explore.filters.close')}</Text>
             </Pressable>
           </View>
@@ -86,7 +88,7 @@ function Sheet({
               style={styles.option}
             >
               <Text style={styles.optionText}>{o.label}</Text>
-              {o.selected ? <Check size={18} color="#1a56db" /> : null}
+              {o.selected ? <Check size={18} color={colors.accent} /> : null}
             </Pressable>
           ))}
         </View>
@@ -201,19 +203,19 @@ export function FilterChips({
 const styles = StyleSheet.create({
   row: { gap: 8, paddingVertical: 8 },
   chip: {
-    minHeight: 40,
+    minHeight: minTouch,
     justifyContent: 'center',
     paddingHorizontal: 14,
-    borderRadius: 20,
+    borderRadius: minTouch / 2,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.controlBorder,
     backgroundColor: '#fff',
   },
-  chipOn: { backgroundColor: '#1a56db', borderColor: '#1a56db' },
+  chipOn: { backgroundColor: colors.accent, borderColor: colors.accent },
   chipOff: { opacity: 0.5 },
-  chipText: { fontSize: 14, color: '#222' },
+  chipText: { fontSize: 14, color: colors.text },
   chipTextOn: { color: '#fff' },
-  hint: { fontSize: 12, color: '#555', paddingBottom: 4 },
+  hint: { fontSize: 12, color: colors.muted, paddingBottom: 4 },
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16 },
   sheetHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

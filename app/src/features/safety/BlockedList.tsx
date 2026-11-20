@@ -1,8 +1,9 @@
-import { UserRoundCheck } from 'lucide-react-native';
+import UserRoundCheck from 'lucide-react-native/icons/user-round-check';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { listBlocked, unblock, type BlockedPerson } from './blocks';
+import { colors } from '../../lib/theme';
 
 type Load = { state: 'loading' } | { state: 'error' } | { state: 'ready'; people: BlockedPerson[] };
 
@@ -72,7 +73,7 @@ export function BlockedList() {
             style={[styles.outline, !!busyId && styles.dim]}
             onPress={() => remove(p)}
           >
-            <UserRoundCheck size={18} color="#1a56db" />
+            <UserRoundCheck size={18} color={colors.accent} />
             <Text style={styles.outlineText}>{t('safety.unblock')}</Text>
           </Pressable>
         </View>
@@ -86,10 +87,10 @@ const styles = StyleSheet.create({
   container: { paddingHorizontal: 16, paddingBottom: 32, gap: 12 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 48 },
   name: { fontSize: 16, fontWeight: '600', flexShrink: 1 },
-  outline: { flexDirection: 'row', gap: 6, minHeight: 44, borderRadius: 22, borderWidth: 1, borderColor: '#1a56db', paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
-  outlineText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
+  outline: { flexDirection: 'row', gap: 6, minHeight: 44, borderRadius: 22, borderWidth: 1, borderColor: colors.accent, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  outlineText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
   link: { minHeight: 44, justifyContent: 'center' },
-  linkText: { color: '#1a56db', fontWeight: '600' },
-  error: { color: '#b91c1c' },
+  linkText: { color: colors.accent, fontWeight: '600' },
+  error: { color: colors.danger },
   dim: { opacity: 0.5 },
 });

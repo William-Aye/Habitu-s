@@ -1,5 +1,7 @@
 import { router, type Href } from 'expo-router';
-import { List, Map, Plus } from 'lucide-react-native';
+import List from 'lucide-react-native/icons/list';
+import Map from 'lucide-react-native/icons/map';
+import Plus from 'lucide-react-native/icons/plus';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +18,7 @@ import {
 } from '../../features/explore/useExploreLocation';
 import { useExploreSearch } from '../../features/explore/useExploreSearch';
 import { useInterests, type Level } from '../../features/interests/store';
+import { colors, minTouch } from '../../lib/theme';
 
 const LEVEL_RANK: Record<Level, number> = { curious: 1, like: 2, love: 3 };
 
@@ -210,7 +213,7 @@ export default function Explore() {
                     style={[styles.seg, on && styles.segOn]}
                     onPress={() => setView(v)}
                   >
-                    <Icon size={16} color={on ? '#fff' : '#222'} />
+                    <Icon size={16} color={on ? '#fff' : colors.text} />
                     <Text style={on ? styles.segTextOn : undefined}>{t(`explore.view.${v}`)}</Text>
                   </Pressable>
                 );
@@ -254,18 +257,18 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   place: { fontSize: 14, flexShrink: 1 },
   link: { minHeight: 44, justifyContent: 'center' },
-  linkText: { color: '#1a56db', fontWeight: '600' },
+  linkText: { color: colors.accent, fontWeight: '600' },
   seg: {
-    minHeight: 40,
+    minHeight: minTouch,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 12,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.controlBorder,
   },
-  segOn: { backgroundColor: '#1a56db', borderColor: '#1a56db' },
+  segOn: { backgroundColor: colors.accent, borderColor: colors.accent },
   segTextOn: { color: '#fff' },
   heading: { fontSize: 18, fontWeight: '600', paddingVertical: 8 },
   empty: { gap: 12, paddingVertical: 16 },
@@ -273,14 +276,14 @@ const styles = StyleSheet.create({
     minHeight: 48,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#1a56db',
+    borderColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   create: {
     minHeight: 48,
     borderRadius: 24,
-    backgroundColor: '#1a56db',
+    backgroundColor: colors.accent,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -288,7 +291,7 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   createText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  launch: { backgroundColor: '#eef3ff', borderRadius: 12, padding: 12, marginVertical: 4 },
+  launch: { backgroundColor: colors.accentSoft, borderRadius: 12, padding: 12, marginVertical: 4 },
   launchBody: { fontSize: 14 },
-  outlineText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
+  outlineText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
 });

@@ -6,6 +6,8 @@
     "/app/assets/*",
     "/app/favicon.ico",
     "/favicon.ico",
+    "/favicon.svg",
+    "/apple-touch-icon.png",
     "/styles.css",
     "/og-default.png",
     "/.well-known/*"

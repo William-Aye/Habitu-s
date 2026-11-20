@@ -1,10 +1,11 @@
-import { X } from 'lucide-react-native';
+import X from 'lucide-react-native/icons/x';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { listBannedWords, setBannedWord, type AdminError } from './api';
 import { adminStyles as s, AdminButton, ErrorText, useFailure } from './ui';
 import { useAdminLock } from './MfaGate';
+import { colors } from '../../lib/theme';
 
 export function BannedWords() {
   const { t } = useTranslation();
@@ -82,7 +83,7 @@ export function BannedWords() {
             onPress={() => void change(w, false)}
           >
             <Text>{w}</Text>
-            <X size={16} color="#4b5563" />
+            <X size={16} color={colors.muted} />
           </Pressable>
         ))}
       </View>

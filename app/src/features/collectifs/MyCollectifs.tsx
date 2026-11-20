@@ -1,11 +1,12 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Plus } from 'lucide-react-native';
+import Plus from 'lucide-react-native/icons/plus';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { MyCollectif } from '../activities/types';
 import { CreateCollectifForm } from './CreateCollectifForm';
 import { myCollectifInvitations, myCollectifs } from './api';
+import { colors } from '../../lib/theme';
 
 /** Profil section: the collectifs I organise, and a way to create one. */
 export function MyCollectifs() {
@@ -91,7 +92,7 @@ export function MyCollectifs() {
           style={styles.outline}
           onPress={() => setCreating(true)}
         >
-          <Plus size={18} color="#1a56db" />
+          <Plus size={18} color={colors.accent} />
           <Text style={styles.outlineText}>{t('profile.collectifs.create')}</Text>
         </Pressable>
       )}
@@ -103,19 +104,19 @@ const styles = StyleSheet.create({
   group: { gap: 8 },
   heading: { fontSize: 18, fontWeight: '600' },
   row: { minHeight: 48, justifyContent: 'center' },
-  linkText: { color: '#1a56db', fontWeight: '600' },
-  hint: { fontSize: 13, color: '#555' },
-  error: { color: '#b91c1c' },
+  linkText: { color: colors.accent, fontWeight: '600' },
+  hint: { fontSize: 13, color: colors.muted },
+  error: { color: colors.danger },
   outline: {
     minHeight: 48,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#1a56db',
+    borderColor: colors.accent,
     paddingHorizontal: 16,
     flexDirection: 'row',
     gap: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  outlineText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
+  outlineText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
 });

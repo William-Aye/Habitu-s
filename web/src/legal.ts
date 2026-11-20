@@ -3,7 +3,7 @@
 import { privacyFr } from "../../app/src/content/privacy.fr.ts";
 import { PRIVACY_CONTACT } from "../../app/src/content/contact.ts";
 import { copy } from "./copy.ts";
-import { escapeHtml } from "./html.ts";
+import { escapeHtml, HEAD_LINKS, SITE_HEADER } from "./html.ts";
 import { SECURITY_HEADERS } from "./pages.ts";
 
 export type LegalKind = "mentions" | "terms" | "privacy";
@@ -150,10 +150,10 @@ export function renderLegalPage(kind: LegalKind): string {
 <title>${escapeHtml(`${title} · ${copy.siteName}`)}</title>
 <meta name="description" content="${escapeHtml(copy.tagline)}">
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="/styles.css">
+${HEAD_LINKS}
 </head>
 <body>
-<header class="site-header"><a href="/">${escapeHtml(copy.siteName)}</a></header>
+${SITE_HEADER}
 <main class="legal">
 ${mainFor(kind)}
 </main>

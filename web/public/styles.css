@@ -1,13 +1,21 @@
+/* Warm and welcoming (improvement plan, step 4.2): warm off-white, terracotta accent, peach cards,
+   rounded shapes. Contrast: text 15:1, muted 6.4:1, accent 5.4:1 on the background (WCAG AA).
+   --accent and --text are kept equal to app/src/lib/theme.ts (checked by app/__tests__/theme.test.ts). */
 :root {
-  --bg: #ffffff;
-  --text: #1a1a1a;
-  --muted: #4a4a4a;
-  --accent: #1a56db;
-  --border: #d0d5dd;
-  --card: #f5f7fa;
+  --bg: #fffaf5;
+  --text: #2b2118;
+  --muted: #6b5a4e;
+  --accent: #b4441f;
+  --accent-soft: #fde8dc;
+  --border: #ecd5c4;
+  --card: #fff3ea;
+  --radius: 1rem;
 }
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #101418; --text: #f2f4f7; --muted: #c0c6cf; --accent: #8ab4ff; --border: #3a424d; --card: #1a2028; }
+  :root {
+    --bg: #1c1512; --text: #f7ede4; --muted: #d4c3b5; --accent: #f4a77f;
+    --accent-soft: #3a2a22; --border: #4a3a30; --card: #2a201b;
+  }
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -15,44 +23,69 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 1.0625rem/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font: 1.0625rem/1.65 ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 .site-header, main, .site-footer { max-width: 42rem; margin: 0 auto; padding: 1rem; }
-.site-header { font-weight: 700; font-size: 1.25rem; }
-.site-header a { text-decoration: none; }
-a { color: var(--accent); }
-a:focus-visible, .button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-h1 { font-size: 1.75rem; line-height: 1.25; margin: 0.5rem 0 1rem; }
+.site-header { font-weight: 800; font-size: 1.375rem; letter-spacing: -0.01em; padding-top: 1.25rem; }
+.site-header a { text-decoration: none; color: var(--accent); display: inline-flex; align-items: center; gap: 0.5rem; }
+.site-header .logo { fill: currentColor; flex: none; }
+a { color: var(--accent); text-underline-offset: 0.15em; }
+a:focus-visible, .button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 0.5rem; }
+h1 { font-size: 1.875rem; line-height: 1.2; margin: 0.5rem 0 0.75rem; letter-spacing: -0.015em; }
 h2 { font-size: 1.25rem; margin: 1.75rem 0 0.5rem; }
 p, ul { margin: 0 0 1rem; }
 ul { padding-left: 1.25rem; }
 li { margin-bottom: 0.5rem; }
-.tagline, .meta { color: var(--muted); }
+.meta { color: var(--muted); }
 .description { white-space: pre-line; }
-.actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 1.5rem 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 1.5rem 0 0.5rem; }
 .button {
   display: inline-block;
-  padding: 0.75rem 1.25rem;
+  min-height: 2.75rem;
+  padding: 0.7rem 1.4rem;
   border: 2px solid var(--accent);
-  border-radius: 0.5rem;
+  border-radius: 999px;
   background: transparent;
   color: var(--accent);
-  font-weight: 600;
+  font-weight: 700;
   text-decoration: none;
 }
 .button.primary { background: var(--accent); color: #fff; }
-@media (prefers-color-scheme: dark) { .button.primary { color: #101418; } }
+@media (prefers-color-scheme: dark) { .button.primary { color: #1c1512; } }
 .card, article {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  padding: 1rem;
+  border-radius: var(--radius);
+  padding: 1.25rem;
   margin: 0 0 1rem;
 }
 .site-footer { display: flex; flex-wrap: wrap; gap: 1rem; border-top: 1px solid var(--border); margin-top: 2rem; font-size: 0.9375rem; }
-@media (min-width: 48rem) { body { font-size: 1.125rem; } h1 { font-size: 2.25rem; } }
+@media (min-width: 48rem) { body { font-size: 1.125rem; } h1 { font-size: 2.375rem; } }
 .activity, .association, .activities > li { list-style: none; }
 .activities { padding-left: 0; }
-.facts { color: var(--muted); }
-.category, .city { color: var(--muted); font-size: 0.9375rem; }
+.facts { color: var(--muted); padding-left: 0; list-style: none; }
+.facts li { padding-left: 1.4rem; position: relative; }
+.facts li::before { content: ""; position: absolute; left: 0.25rem; top: 0.65em; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--accent); }
+.category, .city {
+  display: inline-block;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 0.1rem 0.75rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
 .in-app { color: var(--muted); font-style: italic; }
+.hero { padding: 1.5rem 0 0.5rem; }
+.kicker { color: var(--accent); font-weight: 700; margin-bottom: 0.25rem; }
+.lead { font-size: 1.1875rem; color: var(--text); }
+.steps { counter-reset: step; list-style: none; padding-left: 0; }
+.steps li { counter-increment: step; position: relative; padding-left: 3rem; min-height: 2.25rem; margin-bottom: 0.9rem; }
+.steps li::before {
+  content: counter(step); position: absolute; left: 0; top: -0.1rem;
+  width: 2.25rem; height: 2.25rem; border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent); font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+.welcome { margin-top: 2rem; }
+.welcome h2 { margin-top: 0; }

@@ -1,6 +1,9 @@
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
-import { CalendarDays, MessageCircle, Search, User } from 'lucide-react-native';
+import CalendarDays from 'lucide-react-native/icons/calendar-days';
+import MessageCircle from 'lucide-react-native/icons/message-circle';
+import Search from 'lucide-react-native/icons/search';
+import User from 'lucide-react-native/icons/user';
 import { useTranslation } from 'react-i18next';
 import { useUnreadCount } from '../../features/chat/useUnreadCount';
 

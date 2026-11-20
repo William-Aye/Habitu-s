@@ -1,4 +1,9 @@
-import { CalendarPlus, Check, Flag, Share2, Square, SquareCheck } from 'lucide-react-native';
+import CalendarPlus from 'lucide-react-native/icons/calendar-plus';
+import Check from 'lucide-react-native/icons/check';
+import Flag from 'lucide-react-native/icons/flag';
+import Share2 from 'lucide-react-native/icons/share-2';
+import Square from 'lucide-react-native/icons/square';
+import SquareCheck from 'lucide-react-native/icons/square-check';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +21,7 @@ import { addSessionToCalendar } from './calendar';
 import { formatSessionDate } from './recurrence';
 import { KNOWN_ERRORS } from './errors';
 import type { ActivityPage, SessionInfo } from './types';
+import { colors } from '../../lib/theme';
 
 
 interface Props {
@@ -171,7 +177,7 @@ export function SessionRow({ session, activity, showWelcome, showFirstTip = fals
                 style={[styles.link, busy && styles.dim]}
                 onPress={() => attend('confirmed', guest ? 0 : 1)}
               >
-                {guest ? <SquareCheck size={18} color="#1a56db" /> : <Square size={18} color="#1a56db" />}
+                {guest ? <SquareCheck size={18} color={colors.accent} /> : <Square size={18} color={colors.accent} />}
                 <Text style={styles.linkText}>{t('activity.session.guest')}</Text>
               </Pressable>
               <Pressable
@@ -180,7 +186,7 @@ export function SessionRow({ session, activity, showWelcome, showFirstTip = fals
                 style={styles.link}
                 onPress={addToCalendar}
               >
-                <CalendarPlus size={18} color="#1a56db" />
+                <CalendarPlus size={18} color={colors.accent} />
                 <Text style={styles.linkText}>{t('activity.session.addToCalendar')}</Text>
               </Pressable>
               <Pressable
@@ -191,7 +197,7 @@ export function SessionRow({ session, activity, showWelcome, showFirstTip = fals
                 style={[styles.link, sharing && styles.dim]}
                 onPress={sharePlans}
               >
-                <Share2 size={18} color="#1a56db" />
+                <Share2 size={18} color={colors.accent} />
                 <Text style={styles.linkText}>{t('safety.sharePlans')}</Text>
               </Pressable>
               {showWelcome && activity.welcomeFirstName ? (
@@ -224,7 +230,7 @@ export function SessionRow({ session, activity, showWelcome, showFirstTip = fals
         style={styles.link}
         onPress={() => void openReport({ type: 'session', id: session.id })}
       >
-        <Flag size={16} color="#1a56db" />
+        <Flag size={16} color={colors.accent} />
         <Text style={styles.linkText}>{t('safety.reportSession')}</Text>
       </Pressable>
       {personSheet}
@@ -241,18 +247,18 @@ export function SessionRow({ session, activity, showWelcome, showFirstTip = fals
 }
 
 const styles = StyleSheet.create({
-  row: { gap: 6, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, padding: 12 },
+  row: { gap: 6, borderWidth: 1, borderColor: colors.divider, borderRadius: 12, padding: 12 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   date: { fontWeight: '600', fontSize: 16 },
-  badge: { backgroundColor: '#eef2ff', color: '#1a3a9e', paddingHorizontal: 10, paddingVertical: 2, borderRadius: 12, overflow: 'hidden' },
-  badgeWarn: { backgroundColor: '#fef2f2', color: '#b91c1c', paddingHorizontal: 10, paddingVertical: 2, borderRadius: 12, overflow: 'hidden' },
+  badge: { backgroundColor: colors.accentSoft, color: colors.accentDark, paddingHorizontal: 10, paddingVertical: 2, borderRadius: 12, overflow: 'hidden' },
+  badgeWarn: { backgroundColor: '#fef2f2', color: colors.danger, paddingHorizontal: 10, paddingVertical: 2, borderRadius: 12, overflow: 'hidden' },
   person: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   actions: { gap: 4 },
   confirmed: { color: '#047857', fontWeight: '600' },
-  primary: { minHeight: 48, borderRadius: 24, backgroundColor: '#1a56db', alignItems: 'center', justifyContent: 'center' },
+  primary: { minHeight: 48, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   link: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44 },
-  linkText: { color: '#1a56db', fontWeight: '600' },
+  linkText: { color: colors.accent, fontWeight: '600' },
   dim: { opacity: 0.5 },
-  error: { color: '#b91c1c' },
+  error: { color: colors.danger },
 });

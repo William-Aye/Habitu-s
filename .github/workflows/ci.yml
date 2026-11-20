@@ -1,7 +1,9 @@
 name: CI
 
 on:
+  # Pull requests run once (no duplicate push run); main is checked again after each merge.
   push:
+    branches: [main]
   pull_request:
 
 concurrency:
@@ -75,6 +77,14 @@ jobs:
       - name: Typecheck
         working-directory: app
         run: npx tsc --noEmit
+
+      # React, React Native and the expo-* packages must match the versions the Expo SDK was tested
+      # with; a Dependabot round once moved react to 19.3.1 while the renderer is 19.3.0.
+      - name: Expo SDK versions
+        working-directory: app
+        env:
+          EXPO_OFFLINE: "1"
+        run: npx expo install --check
 
   importer:
     name: Importer (pytest)

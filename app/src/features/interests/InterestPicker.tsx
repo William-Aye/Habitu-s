@@ -1,19 +1,17 @@
-import {
-  Baby,
-  BookOpen,
-  ChefHat,
-  Cpu,
-  Dice5,
-  Dumbbell,
-  Footprints,
-  HandHeart,
-  Languages,
-  Leaf,
-  Music,
-  Palette,
-  Tag,
-  Trees,
-} from 'lucide-react-native';
+import Baby from 'lucide-react-native/icons/baby';
+import BookOpen from 'lucide-react-native/icons/book-open';
+import ChefHat from 'lucide-react-native/icons/chef-hat';
+import Cpu from 'lucide-react-native/icons/cpu';
+import Dice5 from 'lucide-react-native/icons/dice-5';
+import Dumbbell from 'lucide-react-native/icons/dumbbell';
+import Footprints from 'lucide-react-native/icons/footprints';
+import HandHeart from 'lucide-react-native/icons/hand-heart';
+import Languages from 'lucide-react-native/icons/languages';
+import Leaf from 'lucide-react-native/icons/leaf';
+import Music from 'lucide-react-native/icons/music';
+import Palette from 'lucide-react-native/icons/palette';
+import Tag from 'lucide-react-native/icons/tag';
+import Trees from 'lucide-react-native/icons/trees';
 import type { ComponentType } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -22,6 +20,7 @@ import { useRequireAccount } from '../account/AccountGate';
 import { requestCategory } from './categoryRequest';
 import { fetchCategories, filterCategories, type Category } from './categories';
 import { nextTapLevel, useInterests, type Level } from './store';
+import { colors } from '../../lib/theme';
 
 type IconComponent = ComponentType<{ size?: number; color?: string }>;
 
@@ -154,7 +153,7 @@ export function InterestPicker({ compact = false }: { compact?: boolean }) {
                 onPress={() => setLevel(c.id, nextTapLevel(level))}
                 onLongPress={() => setLevel(c.id, level === 'curious' ? null : 'curious')}
               >
-                <Icon size={20} color={on ? '#fff' : '#222'} />
+                <Icon size={20} color={on ? '#fff' : colors.text} />
                 <Text style={[styles.tileText, on && styles.tileTextOn]}>{label}</Text>
                 {level ? (
                   <Text style={[styles.level, styles.tileTextOn]}>{levelText(level)}</Text>
@@ -215,12 +214,12 @@ const styles = StyleSheet.create({
   input: {
     minHeight: 48,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.controlBorder,
     borderRadius: 8,
     paddingHorizontal: 12,
     fontSize: 16,
   },
-  hint: { color: '#555', fontSize: 14 },
+  hint: { color: colors.muted, fontSize: 14 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tile: {
     minHeight: 48,
@@ -230,29 +229,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.controlBorder,
   },
-  parent: { borderColor: '#888' },
-  tileOn: { backgroundColor: '#1a56db', borderColor: '#1a56db' },
+  parent: { borderColor: colors.controlBorder },
+  tileOn: { backgroundColor: colors.accent, borderColor: colors.accent },
   tileText: { fontSize: 15 },
   tileTextOn: { color: '#fff' },
   level: { fontSize: 12, fontWeight: '600' },
   block: { gap: 8 },
   link: { minHeight: 48, justifyContent: 'center' },
-  linkText: { color: '#1a56db', fontWeight: '600', fontSize: 16 },
+  linkText: { color: colors.accent, fontWeight: '600', fontSize: 16 },
   outline: {
     minHeight: 48,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#1a56db',
+    borderColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  outlineText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
+  outlineText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
   primary: {
     minHeight: 48,
     borderRadius: 24,
-    backgroundColor: '#1a56db',
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },

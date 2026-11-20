@@ -1,5 +1,6 @@
 import { StyleSheet, TextInput } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { colors } from '../../../lib/theme';
 
 export function SearchBar({ value, onChange }: { value: string; onChange(v: string): void }) {
   const { t } = useTranslation();
@@ -23,7 +24,7 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.controlBorder,
     paddingHorizontal: 16,
   },
 });

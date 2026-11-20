@@ -1,10 +1,12 @@
 import { router, type Href } from 'expo-router';
-import { Download } from 'lucide-react-native';
+import Download from 'lucide-react-native/icons/download';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { playStoreUrl } from '../../lib/playStore';
 import { signOut } from '../account/auth';
 import { useSession } from '../account/useSession';
+import { colors } from '../../lib/theme';
+import { LogoMark } from '../brand/LogoMark';
 
 /** Slim bar above every web page: the name, the account links when signed in, and a way to the Play Store. */
 export function WebHeader() {
@@ -20,6 +22,7 @@ export function WebHeader() {
         style={styles.name}
         onPress={() => router.push('/' as Href)}
       >
+        <LogoMark size={24} />
         <Text style={styles.nameText}>{t('web.siteName')}</Text>
       </Pressable>
       {signedIn ? (
@@ -49,7 +52,7 @@ export function WebHeader() {
           style={styles.download}
           onPress={() => void Linking.openURL(url)}
         >
-          <Download size={16} color="#1a56db" />
+          <Download size={16} color={colors.accent} />
           <Text style={styles.downloadText}>{t('web.download')}</Text>
         </Pressable>
       ) : null}
@@ -58,11 +61,11 @@ export function WebHeader() {
 }
 
 const styles = StyleSheet.create({
-  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, minHeight: 48, flexWrap: 'wrap', gap: 4, borderBottomWidth: 1, borderBottomColor: '#e5e7eb', backgroundColor: '#fff' },
-  name: { minHeight: 44, justifyContent: 'center' },
-  nameText: { fontSize: 18, fontWeight: '700', color: '#1a3a9e' },
+  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, minHeight: 48, flexWrap: 'wrap', gap: 4, borderBottomWidth: 1, borderBottomColor: colors.divider, backgroundColor: '#fff' },
+  name: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  nameText: { fontSize: 18, fontWeight: '800', color: colors.accent },
   account: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
   accountLink: { minHeight: 44, justifyContent: 'center' },
   download: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44 },
-  downloadText: { color: '#1a56db', fontWeight: '600' },
+  downloadText: { color: colors.accent, fontWeight: '600' },
 });

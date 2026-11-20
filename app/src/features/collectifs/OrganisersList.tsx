@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { PersonAvatar } from '../activities/PersonAvatar';
 import type { CollectifPage } from '../activities/types';
+import { colors } from '../../lib/theme';
 
 /** First names and photos of the active organisers, the responsable first. */
 export function OrganisersList({ organisers }: { organisers: CollectifPage['organisers'] }) {
@@ -27,5 +28,5 @@ const styles = StyleSheet.create({
   list: { gap: 8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 },
   name: { fontSize: 16, fontWeight: '600' },
-  role: { fontSize: 13, color: '#555' },
+  role: { fontSize: 13, color: colors.muted },
 });

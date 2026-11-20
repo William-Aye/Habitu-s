@@ -1,5 +1,10 @@
 import { router, useLocalSearchParams, type Href } from 'expo-router';
-import { CalendarPlus, Flag, LogOut, Pencil, Trash2, UserPlus } from 'lucide-react-native';
+import CalendarPlus from 'lucide-react-native/icons/calendar-plus';
+import Flag from 'lucide-react-native/icons/flag';
+import LogOut from 'lucide-react-native/icons/log-out';
+import Pencil from 'lucide-react-native/icons/pencil';
+import Trash2 from 'lucide-react-native/icons/trash-2';
+import UserPlus from 'lucide-react-native/icons/user-plus';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +24,7 @@ import { LinkToAssociation } from '../../features/collectifs/LinkToAssociation';
 import { OrganisersList } from '../../features/collectifs/OrganisersList';
 import { TownMap } from '../../features/explore/components/TownMap';
 import { useReportSheet } from '../../features/safety/ReportSheet';
+import { colors } from '../../lib/theme';
 
 type Load =
   | { state: 'loading' }
@@ -209,7 +215,7 @@ export default function CollectifScreen() {
             style={[styles.outline, styles.withIcon]}
             onPress={() => setInviting(true)}
           >
-            <UserPlus size={18} color="#1a56db" />
+            <UserPlus size={18} color={colors.accent} />
             <Text style={styles.outlineText}>{t('collectif.invite')}</Text>
           </Pressable>
         )
@@ -242,7 +248,7 @@ export default function CollectifScreen() {
           style={[styles.link, styles.withIcon]}
           onPress={() => void openReport({ type: 'collectif', id: c.id })}
         >
-          <Flag size={16} color="#1a56db" />
+          <Flag size={16} color={colors.accent} />
           <Text style={styles.linkText}>{t('safety.reportCollectif')}</Text>
         </Pressable>
       ) : null}
@@ -267,7 +273,7 @@ export default function CollectifScreen() {
               style={[styles.outline, styles.withIcon]}
               onPress={() => setEditing(true)}
             >
-              <Pencil size={18} color="#1a56db" />
+              <Pencil size={18} color={colors.accent} />
               <Text style={styles.outlineText}>{t('collectif.edit')}</Text>
             </Pressable>
           ) : null}
@@ -279,7 +285,7 @@ export default function CollectifScreen() {
             style={[styles.outline, styles.withIcon, busy && styles.disabled]}
             onPress={confirmLeave}
           >
-            <LogOut size={18} color="#1a56db" />
+            <LogOut size={18} color={colors.accent} />
             <Text style={styles.outlineText}>{t('collectif.leave')}</Text>
           </Pressable>
           {isResponsable ? (
@@ -291,7 +297,7 @@ export default function CollectifScreen() {
               style={[styles.danger, styles.withIcon, busy && styles.disabled]}
               onPress={confirmDelete}
             >
-              <Trash2 size={18} color="#b91c1c" />
+              <Trash2 size={18} color={colors.danger} />
               <Text style={styles.dangerText}>{t('collectif.delete')}</Text>
             </Pressable>
           ) : null}
@@ -310,24 +316,24 @@ const styles = StyleSheet.create({
   heading: { fontSize: 18, fontWeight: '600' },
   badge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#eef2ff',
-    color: '#1a3a9e',
+    backgroundColor: colors.accentSoft,
+    color: colors.accentDark,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
     overflow: 'hidden',
   },
-  banner: { borderWidth: 1, borderColor: '#1a56db', borderRadius: 12, padding: 12, gap: 8 },
+  banner: { borderWidth: 1, borderColor: colors.accent, borderRadius: 12, padding: 12, gap: 8 },
   bannerText: { fontWeight: '600' },
   rowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   activity: { minHeight: 48, justifyContent: 'center' },
-  hint: { fontSize: 13, color: '#555' },
+  hint: { fontSize: 13, color: colors.muted },
   tools: { gap: 8 },
   withIcon: { flexDirection: 'row', gap: 8 },
   primary: {
     minHeight: 48,
     borderRadius: 24,
-    backgroundColor: '#1a56db',
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
@@ -337,24 +343,24 @@ const styles = StyleSheet.create({
     minHeight: 48,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#1a56db',
+    borderColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
   },
-  outlineText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
+  outlineText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
   danger: {
     minHeight: 48,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#b91c1c',
+    borderColor: colors.danger,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
   },
-  dangerText: { color: '#b91c1c', fontSize: 16, fontWeight: '600' },
+  dangerText: { color: colors.danger, fontSize: 16, fontWeight: '600' },
   disabled: { opacity: 0.4 },
   link: { minHeight: 44, justifyContent: 'center' },
-  linkText: { color: '#1a56db', fontWeight: '600' },
-  error: { color: '#b91c1c' },
+  linkText: { color: colors.accent, fontWeight: '600' },
+  error: { color: colors.danger },
 });

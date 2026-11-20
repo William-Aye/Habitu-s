@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
-import { escapeHtml, formatParisDate, jsonLd, renderActivityPage, renderAssociationPage, renderNotFound, renderUnavailable } from "./html.ts";
+import { escapeHtml, snippet, formatParisDate, jsonLd, renderActivityPage, renderAssociationPage, renderHome, renderNotFound, renderUnavailable } from "./html.ts";
 import { activityFixture, associationFixture, EVIL } from "./fixtures.ts";
 
 const BASE = "https://habituer.test";
@@ -60,9 +60,16 @@ Deno.test("activity page content", () => {
   assert(!html.includes("Bob"));
 });
 
-Deno.test("meta description is the first 155 characters", () => {
+Deno.test("meta description: at most 155 characters, cut between words with an ellipsis", () => {
   const html = renderActivityPage(activityFixture({ description: "x".repeat(400) }), BASE);
-  assertStringIncludes(html, `<meta name="description" content="${"x".repeat(155)}">`);
+  assertStringIncludes(html, `<meta name="description" content="${"x".repeat(154)}…">`);
+  const words = "Partie de go tous les mardis soir, débutants bienvenus.\nOn prête les plateaux. ".repeat(4);
+  const d = /<meta name="description" content="([^"]*)">/.exec(renderActivityPage(activityFixture({ description: words }), BASE))![1];
+  assert(Array.from(d).length <= 155, `${Array.from(d).length} characters`);
+  assert(d.endsWith("…") && !d.includes("\n"));
+  assert(words.replace(/\s+/g, " ").startsWith(d.slice(0, -1)), "cut at a word boundary");
+  assertEquals(snippet("Court.", 155), "Court.");
+  assertEquals(snippet("un deux trois quatre", 16), "un deux trois…");
 });
 
 Deno.test("the organising association or collectif is named, a member never is", () => {
@@ -171,6 +178,7 @@ Deno.test("JSON-LD Event: complete for Google with a next session, absent withou
   assertEquals(ev.startDate, "2026-10-27T18:00:00.000Z");
   assertEquals(ev.endDate, "2026-10-27T20:00:00.000Z");
   assertEquals(ev.eventStatus, "https://schema.org/EventScheduled");
+  assertEquals(ev.image, [`${BASE}/og-default.png`]);
   assertEquals(ev.location, {
     "@type": "Place",
     name: "Café des Arts, Lyon",
@@ -195,4 +203,66 @@ Deno.test("JSON-LD organizer: the organisation when there is one, omitted otherw
   assertStringIncludes(renderActivityPage(activityFixture({ organised_by: null }), BASE), "Organisé par un membre");
   const asso = ld(renderActivityPage(activityFixture({ organised_by: { kind: "association", id: "a", name: "Les Joueurs" } }), BASE));
   assertEquals(asso.organizer, { "@type": "Organization", name: "Les Joueurs" });
+});
+
+Deno.test("home page: a welcoming title, three steps, reassurance, and both ways in", () => {
+  const html = renderHome("https://x.test", "https://play.test/app");
+  assertStringIncludes(html, "<h1>Retrouvez les mêmes visages, chaque semaine</h1>");
+  assertEquals((html.match(/<ol class="steps">([\s\S]*?)<\/ol>/)![1].match(/<li>/g) ?? []).length, 3);
+  assertStringIncludes(html, "Venez comme vous êtes");
+  assertStringIncludes(html, 'class="button primary" href="https://play.test/app"');
+  assertStringIncludes(html, 'href="/app/"');
+  assertStringIncludes(html, '<p class="kicker">Des activités régulières près de chez vous</p>');
+});
+
+Deno.test("every page shows the logo mark and links the SVG favicon, which is served as a static file", async () => {
+  for (const h of [renderHome("https://habituer.org"), renderNotFound(404)]) {
+    assertStringIncludes(h, '<link rel="icon" href="/favicon.svg" type="image/svg+xml">');
+    assertStringIncludes(h, '<svg class="logo"');
+    assertStringIncludes(h, 'aria-hidden="true"');
+  }
+  const svg = await Deno.readTextFile("web/public/favicon.svg");
+  assertStringIncludes(svg, "#b4441f");
+  assert(!svg.includes("<script"));
+  const routes = JSON.parse(await Deno.readTextFile("web/public/_routes.json"));
+  assert(routes.exclude.includes("/favicon.svg"));
+  for (const h of [renderHome("https://habituer.org"), renderNotFound(404)]) {
+    assertStringIncludes(h, '<link rel="apple-touch-icon" href="/apple-touch-icon.png">');
+  }
+  assert(routes.exclude.includes("/apple-touch-icon.png"));
+  const png = await Deno.readFile("web/public/apple-touch-icon.png");
+  assertEquals([png[1], png[2], png[3]], [0x50, 0x4e, 0x47]); // "PNG"
+  assertEquals((png[16] << 24 | png[17] << 16 | png[18] << 8 | png[19]), 180); // width
+});
+
+Deno.test("3.4: no page title repeats the name; the home page leads with the name and the promise", () => {
+  const home = renderHome("https://habituer.org");
+  assertStringIncludes(home, "<title>Habituer · Retrouvez les mêmes visages, chaque semaine</title>");
+  assert(!home.includes("Habituer · Habituer"));
+  assertStringIncludes(renderNotFound(404), "<title>Page introuvable · Habituer</title>");
+  const d = /<meta name="description" content="([^"]*)">/.exec(home)![1];
+  assert(d.length >= 70 && d.length <= 155, `home description is ${d.length} characters`);
+  assert(!d.includes("…"), "the home description fits without cutting");
+});
+
+Deno.test("3.2: the home page describes the site and its publisher (WebSite and Organization)", () => {
+  const home = renderHome("https://habituer.org");
+  const json = JSON.parse(/<script type="application\/ld\+json">(.*?)<\/script>/s.exec(home)![1]);
+  assertEquals(json["@context"], "https://schema.org");
+  const site = json["@graph"].find((n: { "@type": string }) => n["@type"] === "WebSite");
+  const org = json["@graph"].find((n: { "@type": string }) => n["@type"] === "Organization");
+  assertEquals(site.url, "https://habituer.org/");
+  assertEquals(site.inLanguage, "fr-FR");
+  assertEquals(site.publisher["@id"], org["@id"]);
+  assertEquals(org.logo, "https://habituer.org/apple-touch-icon.png");
+});
+
+Deno.test("3.4: an association title names its town, so clubs with the same name stay apart", () => {
+  assertStringIncludes(renderAssociationPage(associationFixture(), BASE), "<title>Club de go, Lyon · Habituer</title>");
+  assertStringIncludes(renderAssociationPage({ ...associationFixture(), city: null }, BASE), "<title>Club de go · Habituer</title>");
+});
+
+Deno.test("the site name is added to every title except the home page, whatever the title says", () => {
+  const html = renderActivityPage(activityFixture({ title: "Les habitués de Habituer" }), BASE);
+  assertStringIncludes(html, "<title>Les habitués de Habituer · Habituer</title>");
 });

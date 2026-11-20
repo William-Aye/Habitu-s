@@ -9,6 +9,8 @@ import { LocationPicker } from '../features/explore/components/LocationPicker';
 import { useExploreLocation } from '../features/explore/useExploreLocation';
 import { InterestPicker } from '../features/interests/InterestPicker';
 import { LANGUAGE_STORAGE_KEY, setLanguage, shouldOfferLanguageChoice } from '../i18n';
+import { colors } from '../lib/theme';
+import { LogoMark } from '../features/brand/LogoMark';
 
 export const ONBOARDING_KEY = 'onboarding.done';
 
@@ -58,6 +60,10 @@ export default function Onboarding() {
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 }]}
       keyboardShouldPersistTaps="handled"
     >
+      <View style={styles.brand}>
+        <LogoMark size={40} />
+        <Text style={styles.brandText}>{t('web.siteName')}</Text>
+      </View>
       {offerLanguage ? (
         <View style={styles.section}>
           <Text accessibilityRole="header" style={styles.title}>
@@ -125,6 +131,8 @@ export default function Onboarding() {
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, gap: 24 },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  brandText: { fontSize: 26, fontWeight: '800', color: colors.accent },
   section: { gap: 8 },
   title: { fontSize: 22, fontWeight: '700' },
   row: { flexDirection: 'row', gap: 12 },
@@ -133,23 +141,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#1a56db',
+    borderColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  choiceOn: { backgroundColor: '#1a56db' },
-  choiceText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
+  choiceOn: { backgroundColor: colors.accent },
+  choiceText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
   choiceOnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  chosen: { fontSize: 14, color: '#333' },
+  chosen: { fontSize: 14, color: colors.text },
   primary: {
     minHeight: 48,
     borderRadius: 24,
-    backgroundColor: '#1a56db',
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   disabled: { opacity: 0.4 },
   primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   skip: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  skipText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
+  skipText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
 });

@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { ChevronRight } from 'lucide-react-native';
+import ChevronRight from 'lucide-react-native/icons/chevron-right';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +7,7 @@ import { listCategoryRequests, listClaims, listClubs, listFeedback, listReports,
 import { BannedWords } from '../../features/admin/BannedWords';
 import { useAdminLock } from '../../features/admin/MfaGate';
 import { AdminScreen } from '../../features/admin/ui';
+import { colors } from '../../lib/theme';
 
 const QUEUES = ['reports', 'claims', 'clubs', 'categories', 'feedback'] as const;
 type QueueName = (typeof QUEUES)[number];
@@ -75,7 +76,7 @@ export default function AdminHome() {
             <Text style={styles.label}>{label}</Text>
             <View style={styles.right}>
               <Text style={styles.count}>{count ?? ''}</Text>
-              <ChevronRight size={20} color="#4b5563" />
+              <ChevronRight size={20} color={colors.muted} />
             </View>
           </Pressable>
         );
@@ -87,7 +88,7 @@ export default function AdminHome() {
         onPress={() => router.push('/admin/lift-ban')}
       >
         <Text style={styles.label}>{t('admin.liftBan.title')}</Text>
-        <ChevronRight size={20} color="#4b5563" />
+        <ChevronRight size={20} color={colors.muted} />
       </Pressable>
       <BannedWords />
     </AdminScreen>
@@ -95,8 +96,8 @@ export default function AdminHome() {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 52, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#d1d5db' },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 52, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
   label: { fontSize: 17, fontWeight: '600' },
   right: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  count: { fontSize: 16, color: '#1a56db', fontWeight: '700' },
+  count: { fontSize: 16, color: colors.accent, fontWeight: '700' },
 });

@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react-native';
+import Check from 'lucide-react-native/icons/check';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -8,6 +8,7 @@ import { CreateCollectifForm } from '../../collectifs/CreateCollectifForm';
 import { addCommunityAssociation, searchLinkableAssociations, type LinkableAssociation } from '../associationDirectory';
 import type { ApiError, MyCollectif } from '../types';
 import { stepStyles as s, type StepProps } from './styles';
+import { colors } from '../../../lib/theme';
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -30,7 +31,7 @@ function Option({
       style={[s.option, s.row, selected && s.optionOn]}
       onPress={onPress}
     >
-      {selected ? <Check size={18} color="#1a3a9e" /> : null}
+      {selected ? <Check size={18} color={colors.accentDark} /> : null}
       <View>
         <Text style={[s.optionText, selected && s.optionTextOn]}>{label}</Text>
         {detail ? <Text style={s.hint}>{detail}</Text> : null}

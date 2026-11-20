@@ -1,7 +1,8 @@
-import { Download } from 'lucide-react-native';
+import Download from 'lucide-react-native/icons/download';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { playStoreUrl } from '../../lib/playStore';
+import { colors } from '../../lib/theme';
 
 /** Shown in place of every screen that only exists in the app. */
 export function NotAvailable() {
@@ -30,6 +31,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },
   title: { fontSize: 22, fontWeight: '700', textAlign: 'center' },
   body: { textAlign: 'center', maxWidth: 420 },
-  button: { flexDirection: 'row', gap: 8, minHeight: 48, borderRadius: 24, backgroundColor: '#1a56db', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
+  button: { flexDirection: 'row', gap: 8, minHeight: 48, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

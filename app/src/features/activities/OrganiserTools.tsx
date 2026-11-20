@@ -1,4 +1,8 @@
-import { Archive, Check, Pencil, UserCheck, X } from 'lucide-react-native';
+import Archive from 'lucide-react-native/icons/archive';
+import Check from 'lucide-react-native/icons/check';
+import Pencil from 'lucide-react-native/icons/pencil';
+import UserCheck from 'lucide-react-native/icons/user-check';
+import X from 'lucide-react-native/icons/x';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +21,7 @@ import {
 import { isRealDate, isValidTime, PLACE_LABEL_MAX } from './form';
 import { instantOf, wallTime } from './time';
 import type { ActivityPage, ApiError, ChatHistory, SessionInfo } from './types';
+import { colors } from '../../lib/theme';
 
 const KNOWN: ApiError[] = ['limit_reached', 'not_allowed', 'session_full', 'network', 'association_unavailable'];
 
@@ -116,7 +121,7 @@ export function OrganiserPanel({ activity, onChanged, onArchived }: PanelProps) 
               style={[styles.small, busy && styles.dim]}
               onPress={() => run(() => decideJoinRequest(activity.id, p.userId, true))}
             >
-              <Check size={16} color="#1a56db" />
+              <Check size={16} color={colors.accent} />
               <Text style={styles.smallText}>{t('activity.organiser.accept')}</Text>
             </Pressable>
             <Pressable
@@ -127,7 +132,7 @@ export function OrganiserPanel({ activity, onChanged, onArchived }: PanelProps) 
               style={[styles.small, busy && styles.dim]}
               onPress={() => run(() => decideJoinRequest(activity.id, p.userId, false))}
             >
-              <X size={16} color="#1a56db" />
+              <X size={16} color={colors.accent} />
               <Text style={styles.smallText}>{t('activity.organiser.refuse')}</Text>
             </Pressable>
           </View>
@@ -154,7 +159,7 @@ export function OrganiserPanel({ activity, onChanged, onArchived }: PanelProps) 
             style={[styles.chip, busy && styles.dim]}
             onPress={() => run(() => setWelcomeMember(activity.id, o.id))}
           >
-            <UserCheck size={14} color="#1a56db" />
+            <UserCheck size={14} color={colors.accent} />
             <Text style={styles.smallText}>{o.name}</Text>
           </Pressable>
         ))}
@@ -213,7 +218,7 @@ export function OrganiserPanel({ activity, onChanged, onArchived }: PanelProps) 
           style={styles.outline}
           onPress={() => setConfirmArchive(true)}
         >
-          <Archive size={18} color="#b91c1c" />
+          <Archive size={18} color={colors.danger} />
           <Text style={styles.dangerOutlineText}>{t('activity.organiser.archive')}</Text>
         </Pressable>
       )}
@@ -296,7 +301,7 @@ export function SessionTools({ session, activity, onChanged }: SessionToolsProps
             setError(null);
           }}
         >
-          <Pencil size={16} color="#1a56db" />
+          <Pencil size={16} color={colors.accent} />
           <Text style={styles.smallText}>{t('activity.organiser.editSession')}</Text>
         </Pressable>
         <Pressable
@@ -380,7 +385,7 @@ export function SessionTools({ session, activity, onChanged }: SessionToolsProps
           style={styles.small}
           onPress={() => setConfirmCancel(true)}
         >
-          <X size={16} color="#b91c1c" />
+          <X size={16} color={colors.danger} />
           <Text style={styles.dangerOutlineText}>{t('activity.organiser.cancelSession')}</Text>
         </Pressable>
       )}
@@ -390,28 +395,28 @@ export function SessionTools({ session, activity, onChanged }: SessionToolsProps
 }
 
 const styles = StyleSheet.create({
-  panel: { gap: 8, borderTopWidth: 1, borderTopColor: '#e5e7eb', paddingTop: 16 },
-  tools: { gap: 8, borderTopWidth: 1, borderTopColor: '#e5e7eb', paddingTop: 8 },
+  panel: { gap: 8, borderTopWidth: 1, borderTopColor: colors.divider, paddingTop: 16 },
+  tools: { gap: 8, borderTopWidth: 1, borderTopColor: colors.divider, paddingTop: 8 },
   heading: { fontSize: 18, fontWeight: '600' },
   subheading: { fontSize: 16, fontWeight: '600', marginTop: 8 },
-  hint: { fontSize: 13, color: '#555' },
+  hint: { fontSize: 13, color: colors.muted },
   line: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
   grow: { flex: 1 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   small: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44, paddingHorizontal: 8 },
-  smallText: { color: '#1a56db', fontWeight: '600' },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44, paddingHorizontal: 12, borderRadius: 22, borderWidth: 1, borderColor: '#1a56db' },
-  chipOn: { backgroundColor: '#1a56db' },
+  smallText: { color: colors.accent, fontWeight: '600' },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44, paddingHorizontal: 12, borderRadius: 22, borderWidth: 1, borderColor: colors.accent },
+  chipOn: { backgroundColor: colors.accent },
   chipOnText: { color: '#fff' },
   dim: { opacity: 0.5 },
   form: { gap: 8 },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, paddingHorizontal: 12, minHeight: 44 },
-  primary: { minHeight: 48, borderRadius: 24, backgroundColor: '#1a56db', alignItems: 'center', justifyContent: 'center' },
+  input: { borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 8, paddingHorizontal: 12, minHeight: 44 },
+  primary: { minHeight: 48, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  outline: { flexDirection: 'row', gap: 8, minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: '#b91c1c', alignItems: 'center', justifyContent: 'center' },
-  dangerOutlineText: { color: '#b91c1c', fontWeight: '600' },
-  danger: { minHeight: 44, borderRadius: 22, backgroundColor: '#b91c1c', paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
+  outline: { flexDirection: 'row', gap: 8, minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: colors.danger, alignItems: 'center', justifyContent: 'center' },
+  dangerOutlineText: { color: colors.danger, fontWeight: '600' },
+  danger: { minHeight: 44, borderRadius: 22, backgroundColor: colors.danger, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
   dangerText: { color: '#fff', fontWeight: '600' },
   confirm: { gap: 8 },
-  error: { color: '#b91c1c' },
+  error: { color: colors.danger },
 });

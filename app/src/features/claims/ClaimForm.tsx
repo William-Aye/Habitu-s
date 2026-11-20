@@ -1,11 +1,13 @@
 import * as DocumentPicker from 'expo-document-picker';
-import { Paperclip, X } from 'lucide-react-native';
+import Paperclip from 'lucide-react-native/icons/paperclip';
+import X from 'lucide-react-native/icons/x';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRequireAccount } from '../account/AccountGate';
 import { MAX_CLAIM_DOCUMENT_BYTES } from '../safety/storageError';
 import { CLAIM_DOCUMENT_TYPES, CLAIM_ROLE_MAX, documentMimeType, submitClaim, type ClaimError } from './api';
+import { colors } from '../../lib/theme';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -138,7 +140,7 @@ export function ClaimForm({
             style={styles.iconButton}
             onPress={() => setDoc(null)}
           >
-            <X size={20} color="#1a56db" />
+            <X size={20} color={colors.accent} />
           </Pressable>
         </View>
       ) : (
@@ -151,7 +153,7 @@ export function ClaimForm({
           style={[styles.outline, styles.withIcon]}
           onPress={pick}
         >
-          <Paperclip size={18} color="#1a56db" />
+          <Paperclip size={18} color={colors.accent} />
           <Text style={styles.outlineText}>{t('claim.attach')}</Text>
         </Pressable>
       )}
@@ -184,21 +186,21 @@ export function ClaimForm({
 }
 
 const styles = StyleSheet.create({
-  box: { gap: 12, borderWidth: 1, borderColor: '#ccc', borderRadius: 12, padding: 12 },
+  box: { gap: 12, borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 12, padding: 12 },
   title: { fontSize: 18, fontWeight: '600' },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, fontSize: 16, minHeight: 48 },
+  input: { borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 8, padding: 10, fontSize: 16, minHeight: 48 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   flex: { flex: 1 },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   withIcon: { flexDirection: 'row', gap: 8 },
-  outline: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: '#1a56db', alignItems: 'center', justifyContent: 'center' },
-  outlineText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
-  primary: { minHeight: 48, borderRadius: 24, backgroundColor: '#1a56db', alignItems: 'center', justifyContent: 'center' },
+  outline: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
+  outlineText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
+  primary: { minHeight: 48, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   link: { minHeight: 44, justifyContent: 'center', alignItems: 'center' },
-  linkText: { color: '#1a56db', fontWeight: '600' },
-  ok: { color: '#15803d', fontSize: 16 },
-  notice: { fontSize: 12, color: '#555' },
-  error: { color: '#b91c1c' },
+  linkText: { color: colors.accent, fontWeight: '600' },
+  ok: { color: colors.success, fontSize: 16 },
+  notice: { fontSize: 12, color: colors.muted },
+  error: { color: colors.danger },
   dim: { opacity: 0.5 },
 });

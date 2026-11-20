@@ -1,8 +1,11 @@
-import { Flag, Share2, ShieldAlert } from 'lucide-react-native';
+import Flag from 'lucide-react-native/icons/flag';
+import Share2 from 'lucide-react-native/icons/share-2';
+import ShieldAlert from 'lucide-react-native/icons/shield-alert';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { TIPS, useTipSeen, type TipId } from './tips';
+import { colors } from '../../lib/theme';
 
 /** The text of a tip, with no behaviour (also used by the Conseils de sécurité page). */
 export function TipCard({ id, children }: { id: TipId; children?: ReactNode }) {
@@ -15,7 +18,7 @@ export function TipCard({ id, children }: { id: TipId; children?: ReactNode }) {
       accessibilityLiveRegion="polite"
     >
       <View style={styles.head}>
-        <ShieldAlert size={20} color="#92400e" />
+        <ShieldAlert size={20} color={colors.warningText} />
         <View style={styles.lines}>
           {TIPS[id].map((key) => (
             <Text key={key} style={styles.text}>{t(key)}</Text>
@@ -73,13 +76,13 @@ export function SafetyTip({ id, scope, onReport, onShare }: Props) {
             style={[styles.link, busy && styles.dim]}
             onPress={share}
           >
-            <Share2 size={16} color="#1a56db" />
+            <Share2 size={16} color={colors.accent} />
             <Text style={styles.linkText}>{t('safety.sharePlans')}</Text>
           </Pressable>
         ) : null}
         {onReport ? (
           <Pressable accessibilityRole="link" accessibilityLabel={t('safety.reportSession')} style={styles.link} onPress={onReport}>
-            <Flag size={16} color="#1a56db" />
+            <Flag size={16} color={colors.accent} />
             <Text style={styles.linkText}>{t('safety.reportSession')}</Text>
           </Pressable>
         ) : null}
@@ -102,9 +105,9 @@ const styles = StyleSheet.create({
   tip: { gap: 8, backgroundColor: '#fffbeb', borderRadius: 12, padding: 12 },
   head: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
   lines: { flex: 1, gap: 4 },
-  text: { fontSize: 14, color: '#92400e' },
+  text: { fontSize: 14, color: colors.warningText },
   actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
   link: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44 },
-  linkText: { color: '#1a56db', fontWeight: '600' },
+  linkText: { color: colors.accent, fontWeight: '600' },
   dim: { opacity: 0.5 },
 });

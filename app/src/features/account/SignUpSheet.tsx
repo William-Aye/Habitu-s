@@ -1,5 +1,7 @@
 import { router, type Href } from 'expo-router';
-import { Check, Mail, X } from 'lucide-react-native';
+import Check from 'lucide-react-native/icons/check';
+import Mail from 'lucide-react-native/icons/mail';
+import X from 'lucide-react-native/icons/x';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -30,6 +32,7 @@ import { webBaseUrl } from '../../lib/links';
 import { Turnstile } from './Turnstile';
 import { useSession } from './useSession';
 import type { GateReason } from './AccountGate';
+import { colors } from '../../lib/theme';
 
 type Step = 'choose' | 'code' | 'profile';
 type ErrorKey = AuthError | 'invalidEmail' | 'first_name' | 'age';
@@ -227,7 +230,7 @@ export function SignUpSheet({
               style={styles.close}
               onPress={() => close(false)}
             >
-              <X size={18} color="#1a56db" />
+              <X size={18} color={colors.accent} />
               <Text style={styles.linkText}>{t('account.close')}</Text>
             </Pressable>
 
@@ -454,14 +457,14 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   title: { fontSize: 22, fontWeight: '700' },
-  reason: { fontSize: 15, color: '#444' },
+  reason: { fontSize: 15, color: colors.muted },
   group: { gap: 12 },
-  or: { textAlign: 'center', color: '#666' },
+  or: { textAlign: 'center', color: colors.muted },
   label: { fontSize: 15, fontWeight: '600' },
   input: {
     height: 48,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.controlBorder,
     borderRadius: 24,
     paddingHorizontal: 16,
     fontSize: 16,
@@ -469,31 +472,31 @@ const styles = StyleSheet.create({
   button: {
     minHeight: 48,
     borderRadius: 24,
-    backgroundColor: '#1a56db',
+    backgroundColor: colors.accent,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     paddingHorizontal: 16,
   },
-  secondary: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#1a56db' },
+  secondary: { backgroundColor: '#fff', borderWidth: 1, borderColor: colors.accent },
   disabled: { opacity: 0.5 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  secondaryText: { color: '#1a56db' },
+  secondaryText: { color: colors.accent },
   linkButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  linkText: { color: '#1a56db', fontSize: 15, fontWeight: '600' },
-  error: { color: '#a00', fontSize: 14 },
-  legalNotice: { fontSize: 13, color: '#555', textAlign: 'center' },
+  linkText: { color: colors.accent, fontSize: 15, fontWeight: '600' },
+  error: { color: colors.danger, fontSize: 14 },
+  legalNotice: { fontSize: 13, color: colors.muted, textAlign: 'center' },
   checkRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12 },
   box: {
     width: 24,
     height: 24,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#1a56db',
+    borderColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  boxChecked: { backgroundColor: '#1a56db' },
+  boxChecked: { backgroundColor: colors.accent },
   checkText: { fontSize: 16 },
 });

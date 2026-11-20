@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
+import ChevronLeft from 'lucide-react-native/icons/chevron-left';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { AdminError, AdminResult } from './api';
 import { AdminButton } from './buttons';
 import { useAdminLock } from './MfaGate';
+import { colors } from '../../lib/theme';
 
 export { AdminButton };
 
@@ -22,7 +23,7 @@ export function AdminScreen({ title, children }: { title: string; children: Reac
           style={styles.iconButton}
           onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
         >
-          <ChevronLeft size={24} color="#1a56db" />
+          <ChevronLeft size={24} color={colors.accent} />
         </Pressable>
         <Text accessibilityRole="header" style={styles.title}>{title}</Text>
       </View>
@@ -164,15 +165,15 @@ export function QueueState<T>({
 }
 
 export const adminStyles = StyleSheet.create({
-  card: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 12, padding: 12, gap: 8 },
+  card: { borderWidth: 1, borderColor: colors.divider, borderRadius: 12, padding: 12, gap: 8 },
   cardTitle: { fontSize: 16, fontWeight: '700' },
-  meta: { color: '#4b5563' },
-  input: { borderWidth: 1, borderColor: '#9ca3af', borderRadius: 8, padding: 10, minHeight: 44, fontSize: 16 },
+  meta: { color: colors.muted },
+  input: { borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 8, padding: 10, minHeight: 44, fontSize: 16 },
   multiline: { minHeight: 80, textAlignVertical: 'top' },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   label: { fontWeight: '600' },
-  choice: { borderWidth: 1, borderColor: '#9ca3af', borderRadius: 18, paddingHorizontal: 12, minHeight: 44, justifyContent: 'center' },
-  chosen: { backgroundColor: '#dbeafe', borderColor: '#1a56db' },
+  choice: { borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 18, paddingHorizontal: 12, minHeight: 44, justifyContent: 'center' },
+  chosen: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
 });
 
 const styles = StyleSheet.create({
@@ -182,7 +183,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: '700', flexShrink: 1 },
   container: { paddingHorizontal: 16, paddingBottom: 48, gap: 12 },
   center: { marginTop: 60, padding: 16, alignItems: 'center', gap: 12 },
-  empty: { color: '#4b5563', marginTop: 24 },
-  error: { color: '#b91c1c' },
+  empty: { color: colors.muted, marginTop: 24 },
+  error: { color: colors.danger },
   done: { color: '#166534' },
 });

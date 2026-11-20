@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
+import ChevronLeft from 'lucide-react-native/icons/chevron-left';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PRIVACY_CONTACT } from '../content/contact';
 import { useRequireAccount } from '../features/account/AccountGate';
 import { useSession } from '../features/account/useSession';
+import { colors } from '../lib/theme';
 import {
   fetchModerationNotices,
   markSeen,
@@ -164,7 +165,7 @@ export default function ModerationScreen() {
           style={styles.iconButton}
           onPress={() => router.back()}
         >
-          <ChevronLeft size={24} color="#1a56db" />
+          <ChevronLeft size={24} color={colors.accent} />
         </Pressable>
         <Text accessibilityRole="header" style={styles.title}>{t('moderation.title')}</Text>
       </View>
@@ -181,12 +182,12 @@ const styles = StyleSheet.create({
   center: { marginTop: 80, padding: 16, alignItems: 'center', gap: 12 },
   container: { padding: 16, gap: 12 },
   section: { fontSize: 18, fontWeight: '700', marginTop: 4 },
-  card: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, padding: 12, gap: 4 },
+  card: { borderWidth: 1, borderColor: colors.divider, borderRadius: 12, padding: 12, gap: 4 },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardTitle: { fontSize: 16, fontWeight: '700', flexShrink: 1 },
-  badge: { backgroundColor: '#1a56db', color: '#fff', fontSize: 12, fontWeight: '600', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, overflow: 'hidden' },
-  meta: { color: '#6b7280', fontSize: 13 },
+  badge: { backgroundColor: colors.accent, color: '#fff', fontSize: 12, fontWeight: '600', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, overflow: 'hidden' },
+  meta: { color: colors.muted, fontSize: 13 },
   label: { fontWeight: '600', marginTop: 6 },
   link: { minHeight: 44, justifyContent: 'center' },
-  linkText: { color: '#1a56db', fontWeight: '600' },
+  linkText: { color: colors.accent, fontWeight: '600' },
 });

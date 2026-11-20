@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { ExploreResult } from '../types';
+import { colors } from '../../../lib/theme';
 
 const LABEL_KEY = {
   very_relevant: 'explore.label.veryRelevant',
@@ -48,17 +49,17 @@ export function ResultCard({ result, onPress }: { result: ExploreResult; onPress
 }
 
 const styles = StyleSheet.create({
-  card: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee', minHeight: 48 },
+  card: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.divider, minHeight: 48 },
   weak: { opacity: 0.8 },
   head: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
   title: { flex: 1, fontSize: 16, fontWeight: '600' },
-  meta: { fontSize: 14, color: '#555' },
-  subtitle: { fontSize: 14, color: '#444', marginTop: 2 },
+  meta: { fontSize: 14, color: colors.muted },
+  subtitle: { fontSize: 14, color: colors.muted, marginTop: 2 },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
   badge: {
     fontSize: 12,
-    color: '#333',
-    backgroundColor: '#f0f0f0',
+    color: colors.text,
+    backgroundColor: colors.surface,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,

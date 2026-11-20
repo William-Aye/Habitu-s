@@ -12,6 +12,19 @@ export function escapeHtml(s: unknown): string {
     .replace(/'/g, "&#39;");
 }
 
+/** The Habituer mark: two people whose linked arms make the H. Same shapes as web/public/favicon.svg. */
+const LOGO_MARK = '<svg class="logo" viewBox="20 16 60 67" width="27" height="30" aria-hidden="true" focusable="false">'
+  + '<circle cx="29" cy="25" r="9"/><circle cx="71" cy="25" r="9"/><rect x="21" y="39" width="16" height="44" rx="8"/>'
+  + '<rect x="63" y="39" width="16" height="44" rx="8"/><rect x="28" y="53" width="44" height="12" rx="6"/></svg>';
+
+/** Icons and stylesheet, shared by every page (legal.ts too). */
+export const HEAD_LINKS = `<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/styles.css">`;
+
+/** The header with the logo and the name, shared by every page (legal.ts too). */
+export const SITE_HEADER = `<header class="site-header"><a href="/">${LOGO_MARK}${escapeHtml(copy.siteName)}</a></header>`;
+
 const bs = String.fromCharCode(92);
 const LINE_SEPARATORS = new RegExp("[" + String.fromCharCode(0x2028) + String.fromCharCode(0x2029) + "]", "g");
 
@@ -41,7 +54,19 @@ export function formatParisDate(iso: string): string {
   return `${p.weekday} ${p.day} ${p.month} à ${p.hour}:${p.minute}`;
 }
 
-const first = (s: string, n: number) => Array.from(s).slice(0, n).join("");
+/**
+ * A search snippet of at most n characters: line breaks become spaces, and a longer text is cut at the
+ * last word that fits, ending with "…", instead of in the middle of a word.
+ */
+export function snippet(s: string, n: number): string {
+  const flat = s.replace(/\s+/g, " ").trim();
+  const chars = Array.from(flat);
+  if (chars.length <= n) return flat;
+  const cut = chars.slice(0, n - 1).join("");
+  const space = cut.lastIndexOf(" ");
+  const head = space >= n * 0.6 ? cut.slice(0, space) : cut;
+  return head.replace(/[\s,;:.!?-]+$/u, "") + "…";
+}
 
 // deno-lint-ignore no-explicit-any
 type Json = any;
@@ -53,6 +78,8 @@ interface Meta {
   base: string;
   ld?: unknown;
   noindex?: boolean;
+  /** The title is complete as given (the home page); otherwise " · Habituer" is added. */
+  fullTitle?: boolean;
   main: string;
 }
 
@@ -65,8 +92,8 @@ function footer(): string {
 }
 
 function layout(m: Meta): string {
-  const t = escapeHtml(`${m.title} · ${copy.siteName}`);
-  const d = escapeHtml(first(m.description, 155));
+  const t = escapeHtml(m.fullTitle ? m.title : `${m.title} · ${copy.siteName}`);
+  const d = escapeHtml(snippet(m.description, 155));
   const og = m.canonical
     ? `<link rel="canonical" href="${escapeHtml(m.canonical)}">
 <meta property="og:title" content="${escapeHtml(m.title)}">
@@ -88,10 +115,10 @@ function layout(m: Meta): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${t}</title>
 <meta name="description" content="${d}">
-${m.noindex ? '<meta name="robots" content="noindex">\n' : ""}${og}<link rel="stylesheet" href="/styles.css">
+${m.noindex ? '<meta name="robots" content="noindex">\n' : ""}${og}${HEAD_LINKS}
 ${m.ld ? `<script type="application/ld+json">${jsonLd(m.ld)}</script>\n` : ""}</head>
 <body>
-<header class="site-header"><a href="/">${escapeHtml(copy.siteName)}</a></header>
+${SITE_HEADER}
 <main>
 ${m.main}
 </main>
@@ -170,6 +197,7 @@ export function renderActivityPage(a: Json, base: string, opts: RenderOpts = {})
     url,
     eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
     eventStatus: "https://schema.org/EventScheduled",
+    image: [base + "/og-default.png"],
   };
   if (next) {
     const start = new Date(next.starts_at);
@@ -254,12 +282,14 @@ ${acts.map((t) => `<li><a href="${escapeHtml(activityPath(t.id, t.title ?? ""))}
 <p class="in-app">${escapeHtml(copy.availableInApp)}</p>
 ${actions({ intent: intentUrl(`associations/${x.id}`, playStore, pkg), playStore, map: osmUrl(x.lat, x.lon, 3) })}
 </article>`;
-  return layout({ title: x.name ?? copy.siteName, description: desc || copy.tagline, canonical: url, base, ld, main });
+  // The town tells searchers which club this is when several share a name.
+  const title = x.name ? (x.city ? `${x.name}, ${x.city}` : x.name) : copy.siteName;
+  return layout({ title, description: desc || copy.tagline, canonical: url, base, ld, main });
 }
 
 export function renderNotFound(_status: 404 | 410): string {
   return layout({
-    title: copy.siteName,
+    title: copy.notFoundTitle,
     description: copy.notFound,
     canonical: "",
     base: "",
@@ -281,12 +311,37 @@ export function renderUnavailable(): string {
 
 export function renderHome(base: string, playStore: string = DEFAULT_PLAY_STORE): string {
   return layout({
-    title: copy.siteName,
-    description: copy.tagline,
+    title: `${copy.siteName} · ${copy.home.title}`,
+    fullTitle: true,
+    description: copy.home.description,
     canonical: base + "/",
     base,
-    main: `<h1>${escapeHtml(copy.siteName)}</h1>
-<p class="tagline">${escapeHtml(copy.tagline)}</p>
-<p class="actions"><a class="button primary" href="${escapeHtml(playStore)}">${escapeHtml(copy.downloadApp)}</a></p>`,
+    ld: {
+      "@context": "https://schema.org",
+      "@graph": [
+        { "@type": "WebSite", "@id": base + "/#website", name: copy.siteName, url: base + "/", inLanguage: "fr-FR", publisher: { "@id": base + "/#organization" } },
+        {
+          "@type": "Organization", "@id": base + "/#organization", name: copy.siteName, url: base + "/",
+          logo: base + "/apple-touch-icon.png", description: copy.tagline,
+        },
+      ],
+    },
+    main: `<section class="hero">
+<p class="kicker">${escapeHtml(copy.tagline)}</p>
+<h1>${escapeHtml(copy.home.title)}</h1>
+<p class="lead">${escapeHtml(copy.home.lead)}</p>
+<p class="actions"><a class="button primary" href="${escapeHtml(playStore)}">${escapeHtml(copy.downloadApp)}</a>
+<a class="button" href="/app/">${escapeHtml(copy.home.openWeb)}</a></p>
+</section>
+<h2>${escapeHtml(copy.home.howTitle)}</h2>
+<ol class="steps">
+${copy.home.steps.map((s) => `<li>${escapeHtml(s)}</li>`).join("\n")}
+</ol>
+<section class="card welcome">
+<h2>${escapeHtml(copy.home.welcomeTitle)}</h2>
+<ul class="facts">
+${copy.home.welcome.map((s) => `<li>${escapeHtml(s)}</li>`).join("\n")}
+</ul>
+</section>`,
   });
 }

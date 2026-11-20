@@ -116,17 +116,21 @@ Updated 2026-11-20. Branch `security/threat-model`, not yet pushed or deployed.
 | 1.3 sharp edges | done; DB-9 fixed (search logs capped, misses kept 180 days) | security review, section 1.3; migration `…052` |
 | 1.4 access tests | done; TM-1, 2, 3, 5, 12 closed | `supabase/tests/44_threat_model.test.sql` |
 | 1.5 semgrep | done; no finding; CI and CodeQL actions pinned | security review, section 1.5 |
-| 1.6 supply chain | done; nothing in shipped code | security review, section 1.6 |
+| 1.6 supply chain | done; nothing in shipped code. Rechecked 2026-11-20: root npm clean, importer clean (pip-audit), app: minimatch fixed (Dependabot #9); zod and glob advisories only in lint and test tools | security review, section 1.6 |
 | 1.7 workflows, importer role | done in code; owner must switch `IMPORTER_DB_URL` | migration `…053`, `importer/README.md` |
 | TM-6 cron secret | done in code; owner must set `CRON_SECRET` and Vault | README, "Dedicated cron secret" |
 | TM-14 job monitoring | done: admins get a push when a scheduled job failed | migration `…054` |
 | 2.5 database | started: 15 indexes for foreign keys on read paths and account deletion; the rest needs real traffic | migration `…055`, test `47_foreign_key_indexes` |
-| 2.1 to 2.4 speed | not started: needs a low-end Android release build and the deployed site | |
-| 3.2 structured data | done: Event valid for Google (start, end, status, address, coordinates; none without a planned session) | `web/src/html.ts` |
-| 3.1, 3.3 to 3.6 SEO | wait for the deployed site and Search Console | |
+| 2.2 bundle | started: the Android JS bundle went from 4,931 KB to 2,845 KB (-42%) by importing each lucide icon from its own file (the barrel import shipped all ~1,500 icons; a test keeps it out). Cold-start timing still needs a low-end Android release build | `app/__tests__/bundle-size.test.ts` |
+| 2.1, 2.3, 2.4 speed | not started: needs a low-end Android release build and the deployed site | |
+| 3.2 structured data | done: Event valid for Google (start, end, status, address, coordinates, image; none without a planned session); WebSite and Organization on the home page. No breadcrumbs: there are no listing pages between the home page and an activity | `web/src/html.ts` |
+| 3.4 titles and descriptions | started: no title repeats the name any more (the home page and 404 were "Habituer · Habituer"); the home page has a 135-character description; association titles name the town; long descriptions are cut between words with "…". Activity titles would need the town from the database | `web/src/html.ts`, `web/src/copy.ts` |
+| 3.1 technical | checked in code: robots blocks non-production hosts and /app/, canonical 301s, bucketed sitemaps with lastmod, 503 with Retry-After; the home page was in no sitemap, now in `sitemaps/pages.xml` (the legal pages are noindex, so not listed). The live audit waits for the deployed site | `web/src/pages.ts` |
+| 3.3, 3.5, 3.6 SEO | wait for the deployed site and Search Console | |
 | 4.3 site accessibility | checked: contrast 6:1 and more, focus outline, `lang`, one `h1`, dark mode; nothing to fix | `web/public/styles.css` |
-| 4.4 app accessibility | checked: every tappable element has a label or text, except modal backdrops (hidden on purpose) | |
-| 4.1, 4.2 UI | not started: needs the owner's choice of design direction | |
+| 4.4 app accessibility | checked: every tappable element has a label or text, except modal backdrops (hidden on purpose); 14 text fields, toggles and chips had borders under 3:1 (WCAG 1.4.11), plus the create-activity fields, options and interest tiles found later; all now 4.3:1; filter chips and the list/map toggle grow from 40 to 44 points, count badges grow with the font size, and the app declares a light interface until it has a dark design (dark mode made unstyled text fields light on white) | `app/src/lib/theme.ts` |
+| 4.1 design tokens | done for colours: every screen uses `colors.*` from `app/src/lib/theme.ts` for the accent, danger, success and warning colours, and the greys are warm tokens (`muted`, `controlBorder`, `divider`, `surface`); only white and a few one-off greens and oranges remain literals | `app/__tests__/theme.test.ts` |
+| 4.2 UI rework | started: owner chose warm and welcoming (2026-11-20); site style and home page reworked; logo (two people whose arms make the H) on the site, favicons, social preview image, app icons, web header and onboarding; app screens moved from blue to terracotta and peach, with a test against the old blue | `web/public/styles.css`, `app/assets/`, `app/src/lib/theme.ts` |
 
 **Deploy order** when this branch is merged: push the migrations (`supabase db push`) first, outside the
 monthly import run (the `association_tags` index briefly blocks writes to that table), then deploy

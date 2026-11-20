@@ -1,12 +1,14 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import { ImagePlus, X } from 'lucide-react-native';
+import ImagePlus from 'lucide-react-native/icons/image-plus';
+import X from 'lucide-react-native/icons/x';
 import { useCallback, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Turnstile } from '../account/Turnstile';
 import { useSession } from '../account/useSession';
 import { MAX_FEEDBACK, sendFeedback, type FeedbackType } from './api';
+import { colors } from '../../lib/theme';
 
 const TYPES: FeedbackType[] = ['idea', 'problem', 'other'];
 
@@ -139,7 +141,7 @@ export function FeedbackForm({ onDone }: { onDone?: () => void }) {
               style={styles.iconButton}
               onPress={() => setShot(null)}
             >
-              <X size={20} color="#1a56db" />
+              <X size={20} color={colors.accent} />
             </Pressable>
           </View>
         ) : (
@@ -151,7 +153,7 @@ export function FeedbackForm({ onDone }: { onDone?: () => void }) {
             style={[styles.outline, styles.withIcon]}
             onPress={pickShot}
           >
-            <ImagePlus size={18} color="#1a56db" />
+            <ImagePlus size={18} color={colors.accent} />
             <Text style={styles.outlineText}>{t('feedback.addScreenshot')}</Text>
           </Pressable>
         )
@@ -198,24 +200,24 @@ export function FeedbackForm({ onDone }: { onDone?: () => void }) {
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 12 },
   types: { flexDirection: 'row', gap: 8 },
-  choice: { flex: 1, minHeight: 48, borderRadius: 12, borderWidth: 1, borderColor: '#1a56db', alignItems: 'center', justifyContent: 'center' },
-  choiceOn: { backgroundColor: '#1a56db' },
-  choiceText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
+  choice: { flex: 1, minHeight: 48, borderRadius: 12, borderWidth: 1, borderColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
+  choiceOn: { backgroundColor: colors.accent },
+  choiceText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
   choiceOnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, fontSize: 16, minHeight: 140, textAlignVertical: 'top' },
-  hint: { fontSize: 12, color: '#555', textAlign: 'right' },
-  notice: { fontSize: 12, color: '#555' },
+  input: { borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 8, padding: 10, fontSize: 16, minHeight: 140, textAlignVertical: 'top' },
+  hint: { fontSize: 12, color: colors.muted, textAlign: 'right' },
+  notice: { fontSize: 12, color: colors.muted },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   flex: { flex: 1 },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   withIcon: { flexDirection: 'row', gap: 8 },
-  outline: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: '#1a56db', alignItems: 'center', justifyContent: 'center' },
-  outlineText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
-  primary: { minHeight: 48, borderRadius: 24, backgroundColor: '#1a56db', alignItems: 'center', justifyContent: 'center' },
+  outline: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
+  outlineText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
+  primary: { minHeight: 48, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   link: { minHeight: 44, justifyContent: 'center' },
-  linkText: { color: '#1a56db', fontWeight: '600' },
-  ok: { color: '#15803d', fontSize: 16 },
-  error: { color: '#b91c1c' },
+  linkText: { color: colors.accent, fontWeight: '600' },
+  ok: { color: colors.success, fontSize: 16 },
+  error: { color: colors.danger },
   dim: { opacity: 0.5 },
 });

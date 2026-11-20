@@ -1,5 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
-import { Check, Compass, Plus } from 'lucide-react-native';
+import Check from 'lucide-react-native/icons/check';
+import Compass from 'lucide-react-native/icons/compass';
+import Plus from 'lucide-react-native/icons/plus';
 import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -8,6 +10,7 @@ import { myActivities, setAttendance } from '../../features/activities/api';
 import { formatSessionDate } from '../../features/activities/recurrence';
 import type { MyActivity } from '../../features/activities/types';
 import { askForPush } from '../../features/notifications/registerPush';
+import { colors } from '../../lib/theme';
 
 type Load = { state: 'loading' } | { state: 'error' } | { state: 'ready'; items: MyActivity[] };
 
@@ -115,7 +118,7 @@ export default function MyActivities() {
           style={styles.outline}
           onPress={() => router.replace('/')}
         >
-          <Compass size={18} color="#1a56db" />
+          <Compass size={18} color={colors.accent} />
           <Text style={styles.outlineText}>{t('mine.explore')}</Text>
         </Pressable>
       </View>
@@ -194,15 +197,15 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: '700' },
   group: { gap: 10 },
   heading: { fontSize: 18, fontWeight: '600' },
-  card: { gap: 6, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, padding: 12 },
+  card: { gap: 6, borderWidth: 1, borderColor: colors.divider, borderRadius: 12, padding: 12 },
   cardTitle: { fontSize: 16, fontWeight: '600', minHeight: 44, textAlignVertical: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  badge: { alignSelf: 'flex-start', backgroundColor: '#eef2ff', color: '#1a3a9e', paddingHorizontal: 10, paddingVertical: 2, borderRadius: 12, overflow: 'hidden' },
+  badge: { alignSelf: 'flex-start', backgroundColor: colors.accentSoft, color: colors.accentDark, paddingHorizontal: 10, paddingVertical: 2, borderRadius: 12, overflow: 'hidden' },
   confirmed: { color: '#047857', fontWeight: '600' },
-  primary: { minHeight: 48, borderRadius: 24, backgroundColor: '#1a56db', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 20 },
+  primary: { minHeight: 48, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 20 },
   primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  outline: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: '#1a56db', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 20 },
-  outlineText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
+  outline: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: colors.accent, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 20 },
+  outlineText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
   dim: { opacity: 0.5 },
-  error: { color: '#b91c1c' },
+  error: { color: colors.danger },
 });

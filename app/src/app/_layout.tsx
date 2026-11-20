@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef, useState } from 'react';
 import { Stack, usePathname, useRouter } from 'expo-router';
-import { AppState, Platform, StyleSheet, useColorScheme, View } from 'react-native';
+import { AppState, Platform, StyleSheet, View } from 'react-native';
+import { colors } from '../lib/theme';
 import { I18nextProvider } from 'react-i18next';
 import i18next from 'i18next';
 import { initI18n } from '../i18n';
@@ -46,7 +47,6 @@ const ONBOARDING_KEY = 'onboarding.done';
 function OnboardingGate() {
   const { status, error } = useSession();
   const router = useRouter();
-  const scheme = useColorScheme();
   const pathname = usePathname();
   const [startedOnHome] = useState(() => pathname === '/');
   const [waited, setWaited] = useState(false);
@@ -100,7 +100,7 @@ function OnboardingGate() {
       {settled ? null : <View
           testID="startup-cover"
           pointerEvents="auto"
-          style={[styles.cover, { backgroundColor: scheme === 'dark' ? '#121212' : '#fff' }]}
+          style={[styles.cover, { backgroundColor: colors.background }]}
         />}
     </>
   );
