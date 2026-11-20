@@ -70,7 +70,8 @@ function footer(): string {
 }
 
 function layout(m: Meta): string {
-  const t = escapeHtml(`${m.title} · ${copy.siteName}`);
+  // The home page title already leads with the promise; every other page ends with the name.
+  const t = escapeHtml(m.title.includes(copy.siteName) ? m.title : `${m.title} · ${copy.siteName}`);
   const d = escapeHtml(first(m.description, 155));
   const og = m.canonical
     ? `<link rel="canonical" href="${escapeHtml(m.canonical)}">
@@ -177,6 +178,7 @@ export function renderActivityPage(a: Json, base: string, opts: RenderOpts = {})
     url,
     eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
     eventStatus: "https://schema.org/EventScheduled",
+    image: [base + "/og-default.png"],
   };
   if (next) {
     const start = new Date(next.starts_at);
@@ -261,12 +263,14 @@ ${acts.map((t) => `<li><a href="${escapeHtml(activityPath(t.id, t.title ?? ""))}
 <p class="in-app">${escapeHtml(copy.availableInApp)}</p>
 ${actions({ intent: intentUrl(`associations/${x.id}`, playStore, pkg), playStore, map: osmUrl(x.lat, x.lon, 3) })}
 </article>`;
-  return layout({ title: x.name ?? copy.siteName, description: desc || copy.tagline, canonical: url, base, ld, main });
+  // The town tells searchers which club this is when several share a name.
+  const title = x.name ? (x.city ? `${x.name}, ${x.city}` : x.name) : copy.siteName;
+  return layout({ title, description: desc || copy.tagline, canonical: url, base, ld, main });
 }
 
 export function renderNotFound(_status: 404 | 410): string {
   return layout({
-    title: copy.siteName,
+    title: copy.notFoundTitle,
     description: copy.notFound,
     canonical: "",
     base: "",
@@ -288,10 +292,20 @@ export function renderUnavailable(): string {
 
 export function renderHome(base: string, playStore: string = DEFAULT_PLAY_STORE): string {
   return layout({
-    title: copy.siteName,
-    description: copy.tagline,
+    title: `${copy.siteName} · ${copy.home.title}`,
+    description: copy.home.description,
     canonical: base + "/",
     base,
+    ld: {
+      "@context": "https://schema.org",
+      "@graph": [
+        { "@type": "WebSite", "@id": base + "/#website", name: copy.siteName, url: base + "/", inLanguage: "fr-FR", publisher: { "@id": base + "/#organization" } },
+        {
+          "@type": "Organization", "@id": base + "/#organization", name: copy.siteName, url: base + "/",
+          logo: base + "/apple-touch-icon.png", description: copy.tagline,
+        },
+      ],
+    },
     main: `<section class="hero">
 <p class="kicker">${escapeHtml(copy.tagline)}</p>
 <h1>${escapeHtml(copy.home.title)}</h1>

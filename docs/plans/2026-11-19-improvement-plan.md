@@ -122,8 +122,9 @@ Updated 2026-11-20. Branch `security/threat-model`, not yet pushed or deployed.
 | TM-14 job monitoring | done: admins get a push when a scheduled job failed | migration `…054` |
 | 2.5 database | started: 15 indexes for foreign keys on read paths and account deletion; the rest needs real traffic | migration `…055`, test `47_foreign_key_indexes` |
 | 2.1 to 2.4 speed | not started: needs a low-end Android release build and the deployed site | |
-| 3.2 structured data | done: Event valid for Google (start, end, status, address, coordinates; none without a planned session) | `web/src/html.ts` |
-| 3.1, 3.3 to 3.6 SEO | wait for the deployed site and Search Console | |
+| 3.2 structured data | done: Event valid for Google (start, end, status, address, coordinates, image; none without a planned session); WebSite and Organization on the home page. No breadcrumbs: there are no listing pages between the home page and an activity | `web/src/html.ts` |
+| 3.4 titles and descriptions | started: no title repeats the name any more (the home page and 404 were "Habituer · Habituer"); the home page has a 135-character description; association titles name the town. Activity titles would need the town from the database | `web/src/html.ts`, `web/src/copy.ts` |
+| 3.1, 3.3, 3.5, 3.6 SEO | wait for the deployed site and Search Console | |
 | 4.3 site accessibility | checked: contrast 6:1 and more, focus outline, `lang`, one `h1`, dark mode; nothing to fix | `web/public/styles.css` |
 | 4.4 app accessibility | checked: every tappable element has a label or text, except modal backdrops (hidden on purpose); 14 text fields, toggles and chips had borders under 3:1 (WCAG 1.4.11), plus the create-activity fields, options and interest tiles found later; all now 4.3:1 | `app/src/lib/theme.ts` |
 | 4.1 design tokens | done for colours: every screen uses `colors.*` from `app/src/lib/theme.ts` for the accent, danger, success and warning colours, and the greys are warm tokens (`muted`, `controlBorder`, `divider`, `surface`); only white and a few one-off greens and oranges remain literals | `app/__tests__/theme.test.ts` |

@@ -3,6 +3,8 @@ export const copy = {
   siteName: "Habituer",
   tagline: "Des activités régulières près de chez vous",
   home: {
+    /** Search result snippet: at most 155 characters. */
+    description: "Trouvez une activité régulière près de chez vous, club de jeux, marche, chorale, et revenez chaque semaine retrouver les mêmes visages.",
     title: "Retrouvez les mêmes visages, chaque semaine",
     lead: "Habituer vous aide à trouver une activité régulière près de chez vous, un club de jeux, une marche, une chorale, et à y revenir jusqu'à vous y sentir chez vous.",
     howTitle: "Comment ça marche",
@@ -26,6 +28,7 @@ export const copy = {
   seeOnMap: "Voir sur la carte",
   availableInApp: "Disponible dans l'application",
   notFound: "Cette page n'existe pas ou n'est plus disponible.",
+  notFoundTitle: "Page introuvable",
   unavailableTitle: "Service momentanément indisponible",
   unavailable: "Le service est momentanément indisponible. Merci de réessayer dans quelques instants.",
   nextSession: (date: string) => `Prochaine séance : ${date}`,

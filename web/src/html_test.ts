@@ -171,6 +171,7 @@ Deno.test("JSON-LD Event: complete for Google with a next session, absent withou
   assertEquals(ev.startDate, "2026-10-27T18:00:00.000Z");
   assertEquals(ev.endDate, "2026-10-27T20:00:00.000Z");
   assertEquals(ev.eventStatus, "https://schema.org/EventScheduled");
+  assertEquals(ev.image, [`${BASE}/og-default.png`]);
   assertEquals(ev.location, {
     "@type": "Place",
     name: "Café des Arts, Lyon",
@@ -204,7 +205,7 @@ Deno.test("home page: a welcoming title, three steps, reassurance, and both ways
   assertStringIncludes(html, "Venez comme vous êtes");
   assertStringIncludes(html, 'class="button primary" href="https://play.test/app"');
   assertStringIncludes(html, 'href="/app/"');
-  assertStringIncludes(html, '<meta name="description" content="Des activités régulières près de chez vous">');
+  assertStringIncludes(html, '<p class="kicker">Des activités régulières près de chez vous</p>');
 });
 
 Deno.test("every page shows the logo mark and links the SVG favicon, which is served as a static file", async () => {
@@ -225,4 +226,31 @@ Deno.test("every page shows the logo mark and links the SVG favicon, which is se
   const png = await Deno.readFile("web/public/apple-touch-icon.png");
   assertEquals([png[1], png[2], png[3]], [0x50, 0x4e, 0x47]); // "PNG"
   assertEquals((png[16] << 24 | png[17] << 16 | png[18] << 8 | png[19]), 180); // width
+});
+
+Deno.test("3.4: no page title repeats the name; the home page leads with the name and the promise", () => {
+  const home = renderHome("https://habituer.org");
+  assertStringIncludes(home, "<title>Habituer · Retrouvez les mêmes visages, chaque semaine</title>");
+  assert(!home.includes("Habituer · Habituer"));
+  assertStringIncludes(renderNotFound(404), "<title>Page introuvable · Habituer</title>");
+  const d = /<meta name="description" content="([^"]*)">/.exec(home)![1];
+  assert(d.length >= 70 && d.length <= 155, `home description is ${d.length} characters`);
+  assert(!d.includes("…"), "the home description fits without cutting");
+});
+
+Deno.test("3.2: the home page describes the site and its publisher (WebSite and Organization)", () => {
+  const home = renderHome("https://habituer.org");
+  const json = JSON.parse(/<script type="application\/ld\+json">(.*?)<\/script>/s.exec(home)![1]);
+  assertEquals(json["@context"], "https://schema.org");
+  const site = json["@graph"].find((n: { "@type": string }) => n["@type"] === "WebSite");
+  const org = json["@graph"].find((n: { "@type": string }) => n["@type"] === "Organization");
+  assertEquals(site.url, "https://habituer.org/");
+  assertEquals(site.inLanguage, "fr-FR");
+  assertEquals(site.publisher["@id"], org["@id"]);
+  assertEquals(org.logo, "https://habituer.org/apple-touch-icon.png");
+});
+
+Deno.test("3.4: an association title names its town, so clubs with the same name stay apart", () => {
+  assertStringIncludes(renderAssociationPage(associationFixture(), BASE), "<title>Club de go, Lyon · Habituer</title>");
+  assertStringIncludes(renderAssociationPage({ ...associationFixture(), city: null }, BASE), "<title>Club de go · Habituer</title>");
 });
