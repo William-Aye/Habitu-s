@@ -20,6 +20,7 @@ import { useSession, type SessionProfile } from '../../features/account/useSessi
 import { setLanguage, type AppLanguage } from '../../i18n';
 import { confirmAction } from '../../lib/confirm';
 import { supabase } from '../../lib/supabase';
+import { colors } from '../../lib/theme';
 
 /** The website shows a short profile: the photo, interests, collectives, home area, chat data and safety screens are app-only. */
 const isWeb = () => Platform.OS === 'web';
@@ -627,7 +628,7 @@ const styles = StyleSheet.create({
   photo: { width: 72, height: 72, borderRadius: 36 },
   photoEmpty: { backgroundColor: '#e5e7eb' },
   label: { fontWeight: '600' },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, fontSize: 16, minHeight: 44 },
+  input: { borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 8, padding: 10, fontSize: 16, minHeight: 44 },
   bio: { minHeight: 88, textAlignVertical: 'top' },
   chip: { minHeight: 44, paddingHorizontal: 16, borderRadius: 22, borderWidth: 1, borderColor: '#1a56db', justifyContent: 'center' },
   chipOn: { backgroundColor: '#1a56db' },

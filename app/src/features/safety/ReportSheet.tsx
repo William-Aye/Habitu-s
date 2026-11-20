@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useRequireAccount } from '../account/AccountGate';
 import { reportTarget } from './reports';
 import { MAX_DETAILS, reasonsFor, type ReportReason, type ReportTarget } from './types';
+import { colors } from '../../lib/theme';
 
 interface Props {
   target: ReportTarget;
@@ -149,7 +150,7 @@ const styles = StyleSheet.create({
   choiceOn: { backgroundColor: '#1a56db' },
   choiceText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
   choiceOnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, fontSize: 16, minHeight: 88, textAlignVertical: 'top' },
+  input: { borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 8, padding: 10, fontSize: 16, minHeight: 88, textAlignVertical: 'top' },
   primary: { minHeight: 48, borderRadius: 24, backgroundColor: '#1a56db', alignItems: 'center', justifyContent: 'center' },
   primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   link: { minHeight: 44, justifyContent: 'center', alignItems: 'center' },

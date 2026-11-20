@@ -2,6 +2,7 @@ import { SendHorizontal } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors } from '../../lib/theme';
 
 const MAX = 2000;
 const SHOW_COUNT_FROM = 1800;
@@ -69,7 +70,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     maxHeight: 140,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: colors.controlBorder,
     borderRadius: 22,
     paddingHorizontal: 14,
     paddingVertical: 10,

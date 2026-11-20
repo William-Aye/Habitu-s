@@ -17,6 +17,7 @@ import {
 import { isRealDate, isValidTime, PLACE_LABEL_MAX } from './form';
 import { instantOf, wallTime } from './time';
 import type { ActivityPage, ApiError, ChatHistory, SessionInfo } from './types';
+import { colors } from '../../lib/theme';
 
 const KNOWN: ApiError[] = ['limit_reached', 'not_allowed', 'session_full', 'network', 'association_unavailable'];
 
@@ -405,7 +406,7 @@ const styles = StyleSheet.create({
   chipOnText: { color: '#fff' },
   dim: { opacity: 0.5 },
   form: { gap: 8 },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, paddingHorizontal: 12, minHeight: 44 },
+  input: { borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 8, paddingHorizontal: 12, minHeight: 44 },
   primary: { minHeight: 48, borderRadius: 24, backgroundColor: '#1a56db', alignItems: 'center', justifyContent: 'center' },
   primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   outline: { flexDirection: 'row', gap: 8, minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: '#b91c1c', alignItems: 'center', justifyContent: 'center' },

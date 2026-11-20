@@ -22,6 +22,7 @@ import { useRequireAccount } from '../account/AccountGate';
 import { requestCategory } from './categoryRequest';
 import { fetchCategories, filterCategories, type Category } from './categories';
 import { nextTapLevel, useInterests, type Level } from './store';
+import { colors } from '../../lib/theme';
 
 type IconComponent = ComponentType<{ size?: number; color?: string }>;
 
@@ -215,7 +216,7 @@ const styles = StyleSheet.create({
   input: {
     minHeight: 48,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.controlBorder,
     borderRadius: 8,
     paddingHorizontal: 12,
     fontSize: 16,

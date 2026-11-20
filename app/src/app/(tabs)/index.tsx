@@ -16,6 +16,7 @@ import {
 } from '../../features/explore/useExploreLocation';
 import { useExploreSearch } from '../../features/explore/useExploreSearch';
 import { useInterests, type Level } from '../../features/interests/store';
+import { colors } from '../../lib/theme';
 
 const LEVEL_RANK: Record<Level, number> = { curious: 1, like: 2, love: 3 };
 
@@ -263,7 +264,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.controlBorder,
   },
   segOn: { backgroundColor: '#1a56db', borderColor: '#1a56db' },
   segTextOn: { color: '#fff' },

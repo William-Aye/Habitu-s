@@ -30,6 +30,7 @@ import { webBaseUrl } from '../../lib/links';
 import { Turnstile } from './Turnstile';
 import { useSession } from './useSession';
 import type { GateReason } from './AccountGate';
+import { colors } from '../../lib/theme';
 
 type Step = 'choose' | 'code' | 'profile';
 type ErrorKey = AuthError | 'invalidEmail' | 'first_name' | 'age';
@@ -461,7 +462,7 @@ const styles = StyleSheet.create({
   input: {
     height: 48,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.controlBorder,
     borderRadius: 24,
     paddingHorizontal: 16,
     fontSize: 16,

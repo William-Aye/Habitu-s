@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { AdminError, AdminResult } from './api';
 import { AdminButton } from './buttons';
 import { useAdminLock } from './MfaGate';
+import { colors } from '../../lib/theme';
 
 export { AdminButton };
 
@@ -167,11 +168,11 @@ export const adminStyles = StyleSheet.create({
   card: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 12, padding: 12, gap: 8 },
   cardTitle: { fontSize: 16, fontWeight: '700' },
   meta: { color: '#4b5563' },
-  input: { borderWidth: 1, borderColor: '#9ca3af', borderRadius: 8, padding: 10, minHeight: 44, fontSize: 16 },
+  input: { borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 8, padding: 10, minHeight: 44, fontSize: 16 },
   multiline: { minHeight: 80, textAlignVertical: 'top' },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   label: { fontWeight: '600' },
-  choice: { borderWidth: 1, borderColor: '#9ca3af', borderRadius: 18, paddingHorizontal: 12, minHeight: 44, justifyContent: 'center' },
+  choice: { borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 18, paddingHorizontal: 12, minHeight: 44, justifyContent: 'center' },
   chosen: { backgroundColor: '#dbeafe', borderColor: '#1a56db' },
 });
 

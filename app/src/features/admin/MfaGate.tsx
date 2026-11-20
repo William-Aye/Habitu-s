@@ -6,6 +6,7 @@ import { ShieldCheck } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { AdminButton } from './buttons';
+import { colors } from '../../lib/theme';
 
 /** Resolves true when the admin was sent back to the code screen, false when the session is already at aal2. */
 const AdminLockContext = createContext<() => Promise<boolean>>(async () => false);
@@ -197,6 +198,6 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: '700' },
   qr: { alignSelf: 'center', padding: 8, backgroundColor: '#fff' },
   secret: { fontFamily: 'monospace', fontSize: 16, fontWeight: '600' },
-  input: { borderWidth: 1, borderColor: '#9ca3af', borderRadius: 8, padding: 12, fontSize: 20, letterSpacing: 4, minHeight: 48 },
+  input: { borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 8, padding: 12, fontSize: 20, letterSpacing: 4, minHeight: 48 },
   error: { color: '#b91c1c' },
 });

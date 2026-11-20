@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { Turnstile } from '../account/Turnstile';
 import { useSession } from '../account/useSession';
 import { MAX_FEEDBACK, sendFeedback, type FeedbackType } from './api';
+import { colors } from '../../lib/theme';
 
 const TYPES: FeedbackType[] = ['idea', 'problem', 'other'];
 
@@ -202,7 +203,7 @@ const styles = StyleSheet.create({
   choiceOn: { backgroundColor: '#1a56db' },
   choiceText: { color: '#1a56db', fontSize: 16, fontWeight: '600' },
   choiceOnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, fontSize: 16, minHeight: 140, textAlignVertical: 'top' },
+  input: { borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 8, padding: 10, fontSize: 16, minHeight: 140, textAlignVertical: 'top' },
   hint: { fontSize: 12, color: '#555', textAlign: 'right' },
   notice: { fontSize: 12, color: '#555' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },

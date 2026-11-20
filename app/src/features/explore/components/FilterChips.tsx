@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { ExploreKind, ExploreParams, Radius, Weekday } from '../types';
+import { colors } from '../../../lib/theme';
 
 export type FilterState = Pick<ExploreParams, 'kinds' | 'weekday' | 'radiusKm' | 'newcomerFriendly' | 'discoveryOnly'>;
 
@@ -206,7 +207,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.controlBorder,
     backgroundColor: '#fff',
   },
   chipOn: { backgroundColor: '#1a56db', borderColor: '#1a56db' },

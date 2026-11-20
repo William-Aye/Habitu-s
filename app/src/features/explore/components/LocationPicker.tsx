@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { searchTowns } from '../api';
 import type { Town } from '../types';
+import { colors } from '../../../lib/theme';
 
 export function LocationPicker({
   onGps,
@@ -111,7 +112,7 @@ const styles = StyleSheet.create({
   input: {
     height: 48,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.controlBorder,
     borderRadius: 24,
     paddingHorizontal: 16,
   },

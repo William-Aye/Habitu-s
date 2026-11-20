@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useRequireAccount } from '../account/AccountGate';
 import { MAX_CLAIM_DOCUMENT_BYTES } from '../safety/storageError';
 import { CLAIM_DOCUMENT_TYPES, CLAIM_ROLE_MAX, documentMimeType, submitClaim, type ClaimError } from './api';
+import { colors } from '../../lib/theme';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -186,7 +187,7 @@ export function ClaimForm({
 const styles = StyleSheet.create({
   box: { gap: 12, borderWidth: 1, borderColor: '#ccc', borderRadius: 12, padding: 12 },
   title: { fontSize: 18, fontWeight: '600' },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, fontSize: 16, minHeight: 48 },
+  input: { borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 8, padding: 10, fontSize: 16, minHeight: 48 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   flex: { flex: 1 },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
