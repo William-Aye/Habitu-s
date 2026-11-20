@@ -155,7 +155,7 @@ export function InterestPicker({ compact = false }: { compact?: boolean }) {
                 onPress={() => setLevel(c.id, nextTapLevel(level))}
                 onLongPress={() => setLevel(c.id, level === 'curious' ? null : 'curious')}
               >
-                <Icon size={20} color={on ? '#fff' : '#222'} />
+                <Icon size={20} color={on ? '#fff' : colors.text} />
                 <Text style={[styles.tileText, on && styles.tileTextOn]}>{label}</Text>
                 {level ? (
                   <Text style={[styles.level, styles.tileTextOn]}>{levelText(level)}</Text>

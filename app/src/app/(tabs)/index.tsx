@@ -211,7 +211,7 @@ export default function Explore() {
                     style={[styles.seg, on && styles.segOn]}
                     onPress={() => setView(v)}
                   >
-                    <Icon size={16} color={on ? '#fff' : '#222'} />
+                    <Icon size={16} color={on ? '#fff' : colors.text} />
                     <Text style={on ? styles.segTextOn : undefined}>{t(`explore.view.${v}`)}</Text>
                   </Pressable>
                 );
