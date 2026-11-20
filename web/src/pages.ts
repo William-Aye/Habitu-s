@@ -235,6 +235,7 @@ const xmlEsc = escapeHtml;
 export function handleSitemapIndex(req: Request, env: Env, _deps?: Deps): Promise<Response> {
   const base = baseUrl(env, req);
   const entries: string[] = [];
+  entries.push(`<sitemap><loc>${xmlEsc(`${base}/sitemaps/pages.xml`)}</loc></sitemap>`);
   for (const k of ["a", "s"] as Kind[]) {
     for (let n = 0; n < KINDS[k].buckets; n++) {
       entries.push(`<sitemap><loc>${xmlEsc(`${base}/sitemaps/${k}-${n}.xml`)}</loc></sitemap>`);
@@ -246,7 +247,17 @@ export function handleSitemapIndex(req: Request, env: Env, _deps?: Deps): Promis
 }
 
 /** `file` is the last path segment, e.g. "s-3.xml". One RPC per file. */
+/** The pages that are not in the database: the home page and the legal pages. */
+export const STATIC_PAGES = ["/", "/mentions-legales", "/conditions", "/confidentialite"] as const;
+
 export async function handleSitemap(req: Request, env: Env, deps: Deps, file: string): Promise<Response> {
+  if (file === "pages.xml") {
+    const base = baseUrl(env, req);
+    const urls = STATIC_PAGES.map((p) => `<url><loc>${xmlEsc(base + p)}</loc></url>`);
+    const body =
+      `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`;
+    return respond(body, 200, XML, { "Cache-Control": CACHE_LONG });
+  }
   const m = /^([as])-(0|[1-9][0-9]{0,2})\.xml$/.exec(file);
   if (!m) return gone(404);
   const k = KINDS[m[1] as Kind];
