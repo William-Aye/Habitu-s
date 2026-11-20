@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   time: { color: colors.muted, fontSize: 12 },
   preview: { color: colors.muted },
   mutedText: { color: colors.muted, fontSize: 12 },
-  badge: { minWidth: 24, height: 24, borderRadius: 12, paddingHorizontal: 6, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
+  badge: { minWidth: 24, minHeight: 24, borderRadius: 12, paddingHorizontal: 6, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   badgeMuted: { backgroundColor: colors.muted },
   badgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   primary: { minHeight: 48, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 20 },

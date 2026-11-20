@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { ExploreKind, ExploreParams, Radius, Weekday } from '../types';
-import { colors } from '../../../lib/theme';
+import { colors, minTouch } from '../../../lib/theme';
 
 export type FilterState = Pick<ExploreParams, 'kinds' | 'weekday' | 'radiusKm' | 'newcomerFriendly' | 'discoveryOnly'>;
 
@@ -203,10 +203,10 @@ export function FilterChips({
 const styles = StyleSheet.create({
   row: { gap: 8, paddingVertical: 8 },
   chip: {
-    minHeight: 40,
+    minHeight: minTouch,
     justifyContent: 'center',
     paddingHorizontal: 14,
-    borderRadius: 20,
+    borderRadius: minTouch / 2,
     borderWidth: 1,
     borderColor: colors.controlBorder,
     backgroundColor: '#fff',

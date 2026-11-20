@@ -642,7 +642,7 @@ const styles = StyleSheet.create({
   dangerText: { color: colors.danger, fontSize: 16, fontWeight: '600' },
   link: { minHeight: 44, justifyContent: 'center' },
   linkRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  badge: { minWidth: 22, height: 22, borderRadius: 11, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  badge: { minWidth: 22, minHeight: 22, borderRadius: 11, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
   badgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   linkText: { color: colors.accent, fontWeight: '600' },
   error: { color: colors.danger },

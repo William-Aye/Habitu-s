@@ -61,6 +61,18 @@ describe('design tokens (plan step 4.1)', () => {
     expect(hits).toEqual([]);
   });
 
+  it('no style asks for a minimum height between 30 and 43 (touch targets are at least minTouch)', () => {
+    const src = path.join(__dirname, '../src');
+    const hits: string[] = [];
+    const walk = (d: string) => fs.readdirSync(d, { withFileTypes: true }).forEach((e) => {
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (/\.tsx?$/.test(p) && /minHeight: (3\d|4[0-3])\b/.test(fs.readFileSync(p, 'utf8'))) hits.push(path.relative(src, p));
+    });
+    walk(src);
+    expect(hits).toEqual([]);
+  });
+
   it('no text field or control goes back to a border lighter than 3:1', () => {
     const src = path.join(__dirname, '../src');
     const files: string[] = [];

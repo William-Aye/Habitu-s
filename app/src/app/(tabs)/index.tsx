@@ -18,7 +18,7 @@ import {
 } from '../../features/explore/useExploreLocation';
 import { useExploreSearch } from '../../features/explore/useExploreSearch';
 import { useInterests, type Level } from '../../features/interests/store';
-import { colors } from '../../lib/theme';
+import { colors, minTouch } from '../../lib/theme';
 
 const LEVEL_RANK: Record<Level, number> = { curious: 1, like: 2, love: 3 };
 
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
   link: { minHeight: 44, justifyContent: 'center' },
   linkText: { color: colors.accent, fontWeight: '600' },
   seg: {
-    minHeight: 40,
+    minHeight: minTouch,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
