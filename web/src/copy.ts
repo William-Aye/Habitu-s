@@ -2,6 +2,24 @@
 export const copy = {
   siteName: "Habituer",
   tagline: "Des activités régulières près de chez vous",
+  home: {
+    title: "Retrouvez les mêmes visages, chaque semaine",
+    lead: "Habituer vous aide à trouver une activité régulière près de chez vous, un club de jeux, une marche, une chorale, et à y revenir jusqu'à vous y sentir chez vous.",
+    howTitle: "Comment ça marche",
+    steps: [
+      "Choisissez une activité qui vous ressemble, près de chez vous.",
+      "Dites « Je serai là » pour la prochaine séance.",
+      "Revenez : semaine après semaine, les visages deviennent familiers.",
+    ],
+    welcomeTitle: "Venez comme vous êtes",
+    welcome: [
+      "Des groupes à taille humaine, pour se parler vraiment.",
+      "Aucune pression : vous venez quand vous pouvez.",
+      "Vous pouvez bloquer ou signaler une personne à tout moment.",
+      "Les associations près de chez vous sont aussi dans l'annuaire.",
+    ],
+    openWeb: "Essayer sur le web",
+  },
   openInApp: "Ouvrir dans l'application",
   downloadApp: "Télécharger l'application",
   imThere: "Je serai là",

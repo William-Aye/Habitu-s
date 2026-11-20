@@ -285,8 +285,22 @@ export function renderHome(base: string, playStore: string = DEFAULT_PLAY_STORE)
     description: copy.tagline,
     canonical: base + "/",
     base,
-    main: `<h1>${escapeHtml(copy.siteName)}</h1>
-<p class="tagline">${escapeHtml(copy.tagline)}</p>
-<p class="actions"><a class="button primary" href="${escapeHtml(playStore)}">${escapeHtml(copy.downloadApp)}</a></p>`,
+    main: `<section class="hero">
+<p class="kicker">${escapeHtml(copy.tagline)}</p>
+<h1>${escapeHtml(copy.home.title)}</h1>
+<p class="lead">${escapeHtml(copy.home.lead)}</p>
+<p class="actions"><a class="button primary" href="${escapeHtml(playStore)}">${escapeHtml(copy.downloadApp)}</a>
+<a class="button" href="/app/">${escapeHtml(copy.home.openWeb)}</a></p>
+</section>
+<h2>${escapeHtml(copy.home.howTitle)}</h2>
+<ol class="steps">
+${copy.home.steps.map((s) => `<li>${escapeHtml(s)}</li>`).join("\n")}
+</ol>
+<section class="card welcome">
+<h2>${escapeHtml(copy.home.welcomeTitle)}</h2>
+<ul class="facts">
+${copy.home.welcome.map((s) => `<li>${escapeHtml(s)}</li>`).join("\n")}
+</ul>
+</section>`,
   });
 }

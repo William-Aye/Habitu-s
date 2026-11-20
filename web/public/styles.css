@@ -76,3 +76,16 @@ li { margin-bottom: 0.5rem; }
   font-weight: 600;
 }
 .in-app { color: var(--muted); font-style: italic; }
+.hero { padding: 1.5rem 0 0.5rem; }
+.kicker { color: var(--accent); font-weight: 700; margin-bottom: 0.25rem; }
+.lead { font-size: 1.1875rem; color: var(--text); }
+.steps { counter-reset: step; list-style: none; padding-left: 0; }
+.steps li { counter-increment: step; position: relative; padding-left: 3rem; min-height: 2.25rem; margin-bottom: 0.9rem; }
+.steps li::before {
+  content: counter(step); position: absolute; left: 0; top: -0.1rem;
+  width: 2.25rem; height: 2.25rem; border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent); font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+.welcome { margin-top: 2rem; }
+.welcome h2 { margin-top: 0; }

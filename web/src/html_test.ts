@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
-import { escapeHtml, formatParisDate, jsonLd, renderActivityPage, renderAssociationPage, renderNotFound, renderUnavailable } from "./html.ts";
+import { escapeHtml, formatParisDate, jsonLd, renderActivityPage, renderAssociationPage, renderHome, renderNotFound, renderUnavailable } from "./html.ts";
 import { activityFixture, associationFixture, EVIL } from "./fixtures.ts";
 
 const BASE = "https://habituer.test";
@@ -195,4 +195,14 @@ Deno.test("JSON-LD organizer: the organisation when there is one, omitted otherw
   assertStringIncludes(renderActivityPage(activityFixture({ organised_by: null }), BASE), "Organisé par un membre");
   const asso = ld(renderActivityPage(activityFixture({ organised_by: { kind: "association", id: "a", name: "Les Joueurs" } }), BASE));
   assertEquals(asso.organizer, { "@type": "Organization", name: "Les Joueurs" });
+});
+
+Deno.test("home page: a welcoming title, three steps, reassurance, and both ways in", () => {
+  const html = renderHome("https://x.test", "https://play.test/app");
+  assertStringIncludes(html, "<h1>Retrouvez les mêmes visages, chaque semaine</h1>");
+  assertEquals((html.match(/<ol class="steps">([\s\S]*?)<\/ol>/)![1].match(/<li>/g) ?? []).length, 3);
+  assertStringIncludes(html, "Venez comme vous êtes");
+  assertStringIncludes(html, 'class="button primary" href="https://play.test/app"');
+  assertStringIncludes(html, 'href="/app/"');
+  assertStringIncludes(html, '<meta name="description" content="Des activités régulières près de chez vous">');
 });
