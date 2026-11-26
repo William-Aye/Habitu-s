@@ -268,7 +268,7 @@ Expected: PASS.
 
 - [ ] **Step 1: Write the failing tests**
   - `activity-form.test.ts`: `isFamilyCategory` is true for `family` and its children, false for others and for an unknown id.
-  - `create-activity.test.tsx`: choosing a Parents category sets `withChildren` and shows approval on and locked with one explaining line; for another category, the "Des enfants seront présents" switch sets `withChildren` and locks approval; turning it off unlocks approval. The description step shows the hint not to write the address. A `children_requirements` error from `createActivity` shows "Ajoutez une photo de profil" or the 7-day line according to `children_requirements_missing()` (call it through a new `myChildrenRequirements()` in `api.ts` returning `('photo' | 'account_age')[]`).
+  - `create-activity.test.tsx`: choosing a Parents category sets `withChildren` and shows approval on and locked with one explaining line; for another category, the "Des enfants seront présents" switch sets `withChildren` and locks approval; turning it off unlocks approval. The description step shows the hint not to write the address. A `children_requirements` error from `createActivity` shows "Ajoutez une photo de profil" or the 7-day line according to what `myChildrenRequirements()` returns.
   - `activity-page.test.tsx`: in organiser tools, a pending request shows the requester's bio and "Membre depuis <month year>".
   - `admin.test.tsx`: with `priorityOpenCount > 0`, the reports queue shows a "Prioritaires" section above the others, filled from the `priority: true` call.
 
