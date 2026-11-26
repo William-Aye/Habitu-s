@@ -14,11 +14,14 @@ export const KNOWN_ERRORS: ApiError[] = [
   'network',
   'association_unavailable',
   'content_refused',
+  'children_requirements',
 ];
 
 export function mapError(error: PgError): ApiError {
   const message = error.message ?? '';
   if (error.code === '42501') {
+    // Activities with children: a profile photo and a 7-day account are needed to organise or join.
+    if (message.includes('children_requirements_not_met')) return 'children_requirements';
     if (message.includes('limit_reached')) return 'limit_reached';
     // The guard on activities.organised_by_association_id (the association was verified meanwhile).
     return message.includes('association not linkable') ? 'association_unavailable' : 'not_allowed';

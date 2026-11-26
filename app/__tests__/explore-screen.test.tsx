@@ -33,7 +33,7 @@ function result(id: string, over: Partial<ExploreResult> = {}): ExploreResult {
   return {
     kind: 'activity', id, title: `Titre ${id}`, subtitle: null, snippet: null, lon: 0, lat: 0,
     distanceKm: 1, score: 50, label: null, isWeak: false, isNew: false, sourceLabel: null,
-    tagSlugs: [], ...over,
+    tagSlugs: [], withChildren: false, ...over,
   };
 }
 function response(results: ExploreResult[], over: Partial<ExploreResponse> = {}): ExploreResponse {

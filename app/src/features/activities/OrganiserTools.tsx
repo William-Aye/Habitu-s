@@ -241,7 +241,8 @@ export function SessionTools({ session, activity, onChanged }: SessionToolsProps
   const [editing, setEditing] = useState(false);
   const [date, setDate] = useState(wall.date);
   const [time, setTime] = useState(wall.time);
-  const [place, setPlace] = useState(session.placeLabel);
+  // The organiser always receives the place; '' only satisfies the type.
+  const [place, setPlace] = useState(session.placeLabel ?? '');
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -295,7 +296,7 @@ export function SessionTools({ session, activity, onChanged }: SessionToolsProps
               const w = wallTime(session.startsAt, activity.timezone);
               setDate(w.date);
               setTime(w.time);
-              setPlace(session.placeLabel);
+              setPlace(session.placeLabel ?? '');
             }
             setEditing((v) => !v);
             setError(null);

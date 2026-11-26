@@ -162,3 +162,24 @@ describe('removeWaiter', () => {
     expect(mockEqUser).toHaveBeenCalledWith('user_id', 'u1');
   });
 });
+
+describe('activities with children in search', () => {
+  it('maps with_children, false when absent', async () => {
+    mockRpc.mockResolvedValue({
+      data: {
+        mode: 'browse',
+        results: [
+          { kind: 'activity', id: 'x', title: 'Sortie', subtitle: null, lon: 4.85, lat: 45.77, distance_km: 1, score: null, with_children: true },
+          { kind: 'activity', id: 'y', title: 'Go', subtitle: 'Club', lon: 4.8, lat: 45.7, distance_km: 2, score: null },
+        ],
+      },
+      error: null,
+    });
+    const r = await searchExplore(
+      { center: { lon: 4.85, lat: 45.77 }, radiusKm: 10, query: '', kinds: ['activity'], weekday: null,
+        newcomerFriendly: false, interestCategoryIds: [], discoveryOnly: false, sort: 'best' } as any,
+      { limit: 20, offset: 0 },
+    );
+    expect(r.results.map((x) => x.withChildren)).toEqual([true, false]);
+  });
+});

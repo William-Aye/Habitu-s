@@ -61,7 +61,8 @@ export function SessionRow({ session, activity, showWelcome, showFirstTip = fals
   const guest = (mine?.guestCount ?? 0) === 1;
   const norm = (v: string) => v.trim().replace(/\s+/g, ' ').toLowerCase();
   const movedPlace =
-    !activity.isOrganiser && !!session.placeLabel.trim() && norm(session.placeLabel) !== norm(activity.placeLabel);
+    !activity.isOrganiser && session.placeLabel != null && activity.placeLabel != null &&
+    !!session.placeLabel.trim() && norm(session.placeLabel) !== norm(activity.placeLabel);
   const full = (session.isFull || knownFull) && !isConfirmed;
 
   const attend = async (status: 'confirmed' | 'cancelled', guestCount: 0 | 1) => {

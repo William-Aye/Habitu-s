@@ -22,7 +22,7 @@ function result(id: string, over: Partial<ExploreResult> = {}): ExploreResult {
   return {
     kind: 'activity', id, title: `Titre ${id}`, subtitle: null, snippet: null, lon: 4.8, lat: 45.7,
     distanceKm: 1, score: 50, label: null, isWeak: false, isNew: false, sourceLabel: null,
-    tagSlugs: [], ...over,
+    tagSlugs: [], withChildren: false, ...over,
   };
 }
 const RESULTS = [result('a', { lon: 4.81 }), result('b', { kind: 'association', lat: 45.71 })];

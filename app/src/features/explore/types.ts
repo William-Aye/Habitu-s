@@ -32,6 +32,8 @@ export interface ExploreResult {
   isNew: boolean;
   sourceLabel: 'community' | 'unverified' | 'collectif' | null;
   tagSlugs: string[];
+  /** An activity with children: the point is rounded to about 1 km. */
+  withChildren: boolean;
 }
 
 export interface ExploreResponse {

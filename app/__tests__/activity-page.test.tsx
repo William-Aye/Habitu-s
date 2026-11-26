@@ -66,6 +66,7 @@ function activity(over: Partial<ActivityPage> = {}): ActivityPage {
     id: 'act1', title: 'Jeux de société', description: 'Une soirée conviviale',
     category: { id: 'c', slug: 'jeux', nameFr: 'Jeux', nameEn: 'Games', icon: 'dice' }, tags: [],
     organiser: { firstName: 'Olivier', photoUrl: null }, organisedBy: null, placeLabel: 'Café des Arts',
+    withChildren: false, placeHidden: false, childrenRequirementsMissing: [],
     lon: 4.85, lat: 45.77, recurrence: { kind: 'weekly' }, startDate: '2026-10-20', startTime: '19:00:00',
     durationMinutes: 120, timezone: 'Europe/Paris', maxSize: null, newcomerFriendly: true,
     approvalMode: 'open', publishedAt: '2026-10-01T00:00:00Z', archivedAt: null, isOrganiser: false,

@@ -24,6 +24,8 @@ export interface ActivityDraft {
   approvalMode: 'open' | 'approval';
   /** What new members see of the discussion: everything, or only what follows their arrival. */
   chatHistory: ChatHistory;
+  /** Children will be there: approval is forced and the place is shown to accepted members only. */
+  withChildren: boolean;
 }
 
 export type ApiError =
@@ -33,6 +35,7 @@ export type ApiError =
   | 'invalid_website'
   | 'content_refused'
   | 'session_full'
+  | 'children_requirements'
   | 'network'
   | 'unknown';
 export type ApiResult<T = Record<never, never>> = ({ ok: true } & T) | { ok: false; error: ApiError };
@@ -51,7 +54,8 @@ export interface PersonInfo {
 export interface SessionInfo {
   id: string;
   startsAt: string;
-  placeLabel: string;
+  /** Null when the place is hidden (an activity with children, seen by a non-member). */
+  placeLabel: string | null;
   isDiscovery: boolean;
   status: SessionStatus;
   confirmedCount: number;
@@ -69,9 +73,15 @@ export interface ActivityPage {
   tags: { slug: string; labelFr: string; labelEn: string }[];
   organiser: PersonInfo | null;
   organisedBy: { kind: 'association' | 'collectif'; id: string; name: string } | null;
-  placeLabel: string;
-  lon: number;
-  lat: number;
+  /** Null, like lon and lat, when `placeHidden`. */
+  placeLabel: string | null;
+  lon: number | null;
+  lat: number | null;
+  withChildren: boolean;
+  /** An activity with children seen by someone who is not an accepted member. */
+  placeHidden: boolean;
+  /** What the signed-in viewer still lacks to ask to join an activity with children. */
+  childrenRequirementsMissing: ChildrenRequirement[];
   recurrence: Recurrence;
   startDate: string;
   startTime: string;
@@ -91,10 +101,13 @@ export interface ActivityPage {
   myPastAttendanceCount?: number;
 }
 
+export type ChildrenRequirement = 'photo' | 'account_age';
+
 export interface MyActivity {
   id: string;
   title: string;
-  placeLabel: string;
+  placeLabel: string | null;
+  withChildren: boolean;
   categoryIcon: string;
   isOrganiser: boolean;
   myStatus: MyStatus;

@@ -63,7 +63,8 @@ export function buildIcs(
     `DTSTART:${utc(start)}`,
     `DTEND:${utc(end)}`,
     `SUMMARY:${escapeText(activity.title)}`,
-    `LOCATION:${escapeText(session.placeLabel)}`,
+    // An activity with children seen by a non-member: no place to give.
+    ...(session.placeLabel ? [`LOCATION:${escapeText(session.placeLabel)}`] : []),
     `URL:${publicUrl}`,
     'END:VEVENT',
     'END:VCALENDAR',

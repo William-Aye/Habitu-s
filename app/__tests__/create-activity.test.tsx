@@ -334,6 +334,7 @@ it('publishes the expected draft and offers to share', async () => {
     newcomerFriendly: false,
     approvalMode: 'approval',
     chatHistory: 'all',
+    withChildren: false,
   });
   await fireEvent.press(screen.getByLabelText('Partager'));
   expect(shareActivity).toHaveBeenCalledWith('act1', 'Soirée jeux au bar');

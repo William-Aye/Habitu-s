@@ -144,6 +144,7 @@ export function toDraft(f: FormState, today?: string): ActivityDraft | null {
   }
   return {
     organisedBy,
+    withChildren: false,
     categoryId: f.categoryId,
     title: f.title.trim(),
     description: f.description.trim(),

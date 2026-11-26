@@ -162,7 +162,9 @@ export default function ActivityScreen() {
         {describeRecurrence(a.recurrence, a.startTime, t, { startDate: a.startDate, lang })}
       </Text>
 
-      <TownMap lon={a.lon} lat={a.lat} label={t('activity.mapLabel', { place })} />
+      {a.lon != null && a.lat != null ? (
+        <TownMap lon={a.lon} lat={a.lat} label={t('activity.mapLabel', { place })} />
+      ) : null}
       <Text>{t('activity.place', { place })}</Text>
 
       {!archived ? (

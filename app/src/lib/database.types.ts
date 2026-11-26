@@ -25,14 +25,14 @@ export type Database = {
           Tables: {
             "activities": {
                   Row: {
-                    "approval_mode": string,"archived_at": string | null,"category_id": string,"chat_history": string,"created_at": string,"description": string | null,"duration_minutes": number,"embedding": string | null,"embedding_hash": string | null,"id": string,"max_size": number | null,"min_participants": number | null,"newcomer_friendly": boolean,"organised_by_association_id": string | null,"organised_by_collectif_id": string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at": string,"recurrence_interval_days": number | null,"recurrence_kind": string,"recurrence_weekdays": (number)[] | null,"removed_by_moderation_at": string | null,"search_tsv": unknown,"start_date": string,"start_time": string,"timezone": string,"title": string,"welcome_member_id": string | null
+                    "approval_mode": string,"archived_at": string | null,"category_id": string,"chat_history": string,"created_at": string,"description": string | null,"duration_minutes": number,"embedding": string | null,"embedding_hash": string | null,"id": string,"max_size": number | null,"min_participants": number | null,"newcomer_friendly": boolean,"organised_by_association_id": string | null,"organised_by_collectif_id": string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at": string,"recurrence_interval_days": number | null,"recurrence_kind": string,"recurrence_weekdays": (number)[] | null,"removed_by_moderation_at": string | null,"search_point": unknown,"search_tsv": unknown,"start_date": string,"start_time": string,"timezone": string,"title": string,"welcome_member_id": string | null,"with_children": boolean
                   }
                   ComputedFields: never
                   Insert: {
-                    "approval_mode"?: string,"archived_at"?: string | null,"category_id": string,"chat_history"?: string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"embedding_hash"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organised_by_collectif_id"?: string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind": string,"recurrence_weekdays"?: (number)[] | null,"removed_by_moderation_at"?: string | null,"search_tsv"?: never,"start_date": string,"start_time": string,"timezone"?: string,"title": string,"welcome_member_id"?: string | null
+                    "approval_mode"?: string,"archived_at"?: string | null,"category_id": string,"chat_history"?: string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"embedding_hash"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organised_by_collectif_id"?: string | null,"organiser_id": string,"place": unknown,"place_label": string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind": string,"recurrence_weekdays"?: (number)[] | null,"removed_by_moderation_at"?: string | null,"search_point"?: never,"search_tsv"?: never,"start_date": string,"start_time": string,"timezone"?: string,"title": string,"welcome_member_id"?: string | null,"with_children"?: boolean
                   }
                   Update: {
-                    "approval_mode"?: string,"archived_at"?: string | null,"category_id"?: string,"chat_history"?: string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"embedding_hash"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organised_by_collectif_id"?: string | null,"organiser_id"?: string,"place"?: unknown,"place_label"?: string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind"?: string,"recurrence_weekdays"?: (number)[] | null,"removed_by_moderation_at"?: string | null,"search_tsv"?: never,"start_date"?: string,"start_time"?: string,"timezone"?: string,"title"?: string,"welcome_member_id"?: string | null
+                    "approval_mode"?: string,"archived_at"?: string | null,"category_id"?: string,"chat_history"?: string,"created_at"?: string,"description"?: string | null,"duration_minutes"?: number,"embedding"?: string | null,"embedding_hash"?: string | null,"id"?: string,"max_size"?: number | null,"min_participants"?: number | null,"newcomer_friendly"?: boolean,"organised_by_association_id"?: string | null,"organised_by_collectif_id"?: string | null,"organiser_id"?: string,"place"?: unknown,"place_label"?: string,"published_at"?: string,"recurrence_interval_days"?: number | null,"recurrence_kind"?: string,"recurrence_weekdays"?: (number)[] | null,"removed_by_moderation_at"?: string | null,"search_point"?: never,"search_tsv"?: never,"start_date"?: string,"start_time"?: string,"timezone"?: string,"title"?: string,"welcome_member_id"?: string | null,"with_children"?: boolean
                   }
                   Relationships: [
                     {
@@ -924,7 +924,7 @@ isOneToOne: false
           Views: {
             "organiser_badges": {
                   Row: {
-                    "badge_status": string | null,"distinct_participants": number | null,"sessions_held": number | null,"user_id": string | null
+                    "badge_status": string,"distinct_participants": number,"sessions_held": number,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
@@ -950,7 +950,7 @@ isOneToOne: true
                            },
 "activity_roster":
 { Args: { "p_activity": string }; Returns: {
-              "first_name": string,"photo_url": string,"status": string,"user_id": string
+              "bio": string,"first_name": string,"member_since": string,"photo_url": string,"status": string,"user_id": string
             }[]
                            },
 "admin_audit_page":
@@ -996,7 +996,7 @@ isOneToOne: true
 { Args: { "p_action": string,"p_details"?: Json,"p_target_id": string,"p_target_type": string }; Returns: undefined
                            },
 "admin_reports":
-{ Args: { "p_before_at"?: string,"p_before_id"?: string,"p_limit"?: number,"p_status"?: string }; Returns: Json
+{ Args: { "p_before_at"?: string,"p_before_id"?: string,"p_limit"?: number,"p_priority"?: boolean,"p_status"?: string }; Returns: Json
                            },
 "admin_search_associations":
 { Args: { "p_limit"?: number,"p_query": string }; Returns: Json
@@ -1024,6 +1024,9 @@ isOneToOne: true
                            },
 "chat_visible_since":
 { Args: { "p_activity": string }; Returns: string
+                           },
+"children_requirements_missing":
+{ Args: Record<PropertyKey, never>; Returns: (string)[]
                            },
 "claim_outbox":
 { Args: { "p_limit"?: number }; Returns: Json
@@ -1096,6 +1099,9 @@ isOneToOne: true
 "is_collectif_responsable":
 { Args: { "p_collectif": string }; Returns: boolean
                            },
+"is_family_category":
+{ Args: { "p_category": string }; Returns: boolean
+                           },
 "is_session_member":
 { Args: { "p_session": string }; Returns: boolean
                            },
@@ -1160,6 +1166,9 @@ isOneToOne: true
                            },
 "reminder_still_valid":
 { Args: { "p_session": string,"p_user": string }; Returns: boolean
+                           },
+"report_is_priority":
+{ Args: { "p_reason": string,"p_target_id": string,"p_target_type": string }; Returns: boolean
                            },
 "report_target_owner":
 { Args: { "p_id": string,"p_type": string }; Returns: string

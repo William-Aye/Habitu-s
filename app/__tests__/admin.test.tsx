@@ -628,3 +628,18 @@ describe('lifting a suspension', () => {
     expect(require('expo-router').router.push).toHaveBeenCalledWith('/admin/lift-ban');
   });
 });
+
+describe('priority reports', () => {
+  it('asks for the priority list and maps the count', async () => {
+    const { listReports } = require('../src/features/admin/api');
+    let sent: any = null;
+    rpcHandlers.admin_reports = (args) => {
+      sent = args;
+      return { data: { open_count: 3, priority_open_count: 1, items: [{ ...REPORT, priority: true }] }, error: null };
+    };
+    const r = await listReports(null, { priority: true });
+    expect(sent.p_priority).toBe(true);
+    expect(r).toMatchObject({ ok: true, priorityOpenCount: 1 });
+    expect(r.items[0].priority).toBe(true);
+  });
+});

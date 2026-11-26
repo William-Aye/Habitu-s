@@ -97,6 +97,7 @@ const draft: ActivityDraft = {
   newcomerFriendly: true,
   approvalMode: 'open',
   chatHistory: 'all',
+  withChildren: false,
 };
 
 describe('mapError', () => {
@@ -215,6 +216,7 @@ describe('createActivity', () => {
       newcomer_friendly: true,
       approval_mode: 'open',
       chat_history: 'all',
+      with_children: false,
     });
   });
 
@@ -343,6 +345,7 @@ describe('getActivity', () => {
         organiser: { firstName: 'Ana', photoUrl: null },
         organisedBy: { kind: 'collectif', id: 'c1', name: 'Les Boulistes' },
         placeLabel: 'Parc', lon: 4.8, lat: 45.7,
+        withChildren: false, placeHidden: false, childrenRequirementsMissing: [],
         recurrence: { kind: 'weekdays', weekdays: [1, 4] },
         startDate: '2026-10-27', startTime: '19:00:00', durationMinutes: 120, timezone: 'Europe/Paris',
         maxSize: 10, newcomerFriendly: true, approvalMode: 'approval',
@@ -401,8 +404,8 @@ describe('myActivities', () => {
     const r: any = await myActivities();
     expect(mockRpc).toHaveBeenCalledWith('my_activities');
     expect(r.activities).toEqual([
-      { id: 'a1', title: 'T', placeLabel: 'P', categoryIcon: 'x', isOrganiser: true, myStatus: 'member', nextSession: sessionInfo },
-      { id: 'a2', title: 'U', placeLabel: 'Q', categoryIcon: 'y', isOrganiser: false, myStatus: 'pending', nextSession: null },
+      { id: 'a1', title: 'T', placeLabel: 'P', withChildren: false, categoryIcon: 'x', isOrganiser: true, myStatus: 'member', nextSession: sessionInfo },
+      { id: 'a2', title: 'U', placeLabel: 'Q', withChildren: false, categoryIcon: 'y', isOrganiser: false, myStatus: 'pending', nextSession: null },
     ]);
   });
 });
@@ -643,5 +646,53 @@ describe('writes filtered out by row level security', () => {
     result = { data: [{}], error: null };
     await deleteCollectif('c1');
     expect(lastCall('select')).toBeDefined();
+  });
+});
+
+describe('activities with children', () => {
+  const base = {
+    id: 'a1', title: 'Sortie', description: null, category: null, tags: [], organiser: null, organised_by: null,
+    recurrence_kind: 'weekly', recurrence_interval_days: null, recurrence_weekdays: null,
+    start_date: '2026-12-01', start_time: '10:00:00', duration_minutes: 120, timezone: 'Europe/Paris',
+    max_size: null, newcomer_friendly: false, approval_mode: 'approval', published_at: '2026-11-01T00:00:00Z',
+    archived_at: null, is_organiser: false, my_status: 'none', next_sessions: [],
+  };
+
+  it('maps a hidden place and the missing requirements', async () => {
+    mockRpc.mockResolvedValue({
+      data: { ...base, place_label: null, lon: null, lat: null, with_children: true, place_hidden: true,
+              children_requirements_missing: ['photo'] },
+      error: null,
+    });
+    const r: any = await getActivity('a-hidden');
+    expect(r.activity).toMatchObject({
+      placeLabel: null, lon: null, lat: null, withChildren: true, placeHidden: true, childrenRequirementsMissing: ['photo'],
+    });
+  });
+
+  it('reads an older payload as without children', async () => {
+    mockRpc.mockResolvedValue({ data: { ...base, place_label: 'Parc', lon: 4.8, lat: 45.7 }, error: null });
+    const r: any = await getActivity('a-old');
+    expect(r.activity).toMatchObject({ withChildren: false, placeHidden: false, childrenRequirementsMissing: [] });
+  });
+
+  it('maps a hidden place in my activities', async () => {
+    mockRpc.mockResolvedValue({
+      data: [{ id: 'a1', title: 'Sortie', place_label: null, category_icon: 'baby', is_organiser: false,
+               my_status: 'pending', next_session: null, with_children: true }],
+      error: null,
+    });
+    const r: any = await myActivities();
+    expect(r.activities[0]).toMatchObject({ placeLabel: null, withChildren: true });
+  });
+
+  it('sends with_children when creating', async () => {
+    result = { data: { id: 'a9' }, error: null };
+    await createActivity({ ...draft, withChildren: true });
+    expect(lastCall('insert')?.args[0]).toMatchObject({ with_children: true });
+  });
+
+  it('maps the requirements refusal', () => {
+    expect(mapError({ code: '42501', message: 'children_requirements_not_met' })).toBe('children_requirements');
   });
 });
