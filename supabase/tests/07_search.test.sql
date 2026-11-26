@@ -178,9 +178,9 @@ select ok(count(*) > 3 and bool_and(d >= coalesce(prev, 0)),
 select ok(max(n) filter (where not w) < min(n) filter (where w), 'divider: weak rows come after all others')
   from (select n, (e->>'is_weak')::boolean w
         from jsonb_array_elements(tests.lyon('zorglub')->'results') with ordinality x(e, n)) t;
-select is(tests.item(tests.lyon('zorglub'), '00000000-0000-0000-0000-0000000e0006') - array['id','kind','title','subtitle','snippet','lon','lat','distance_km','is_new','source_label','tag_slugs'],
+select is(tests.item(tests.lyon('zorglub'), '00000000-0000-0000-0000-0000000e0006') - array['id','kind','title','subtitle','snippet','lon','lat','distance_km','is_new','source_label','tag_slugs','with_children'],
           '{"score": 40, "label": "weak", "is_weak": true}'::jsonb, 'divider: score 40 is weak');
-select is(tests.item(tests.lyon('zorglub'), '00000000-0000-0000-0000-0000000e0007') - array['id','kind','title','subtitle','snippet','lon','lat','distance_km','is_new','source_label','tag_slugs'],
+select is(tests.item(tests.lyon('zorglub'), '00000000-0000-0000-0000-0000000e0007') - array['id','kind','title','subtitle','snippet','lon','lat','distance_km','is_new','source_label','tag_slugs','with_children'],
           '{"score": 75, "label": "very_relevant", "is_weak": false}'::jsonb, 'divider: score 75 is very relevant');
 -- penalties
 select ok(tests.pos(r, '00000000-0000-0000-0000-0000000e0008') < tests.pos(r, '00000000-0000-0000-0000-0000000e0009'),
