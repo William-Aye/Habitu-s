@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import NewActivity from '../src/app/activites/new';
-import { createActivity } from '../src/features/activities/api';
+import { createActivity, myChildrenRequirements } from '../src/features/activities/api';
 import { addCommunityAssociation, searchLinkableAssociations } from '../src/features/activities/associationDirectory';
 import { shareActivity } from '../src/features/activities/share';
 import { askForPush } from '../src/features/notifications/registerPush';
@@ -15,7 +15,7 @@ jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: jest.fn(() => true) },
   useLocalSearchParams: jest.fn(() => ({})),
 }));
-jest.mock('../src/features/activities/api', () => ({ createActivity: jest.fn() }));
+jest.mock('../src/features/activities/api', () => ({ createActivity: jest.fn(), myChildrenRequirements: jest.fn() }));
 jest.mock('../src/features/activities/associationDirectory', () => ({
   searchLinkableAssociations: jest.fn(),
   addCommunityAssociation: jest.fn(),
@@ -461,5 +461,96 @@ describe('public place check before publishing', () => {
     await publishFlow();
     await screen.findByText('Partagez-la avec vos amis');
     expect(screen.queryByText(WARNING)).toBeNull();
+  });
+});
+
+describe('activities with children', () => {
+  const CATS = [
+    { id: 'cat1', slug: 'jeux', nameFr: 'Jeux de société', nameEn: 'Board games', icon: 'dice-5', parentId: null },
+    { id: 'fam', slug: 'family', nameFr: 'Parents', nameEn: 'Parents', icon: 'baby', parentId: null },
+    { id: 'fam1', slug: 'family-sorties-parents-enfants', nameFr: 'Sorties parents-enfants', nameEn: 'Outings', icon: 'baby', parentId: 'fam' },
+  ];
+  const NO_ADDRESS = /N'écrivez pas l'adresse dans le titre ni dans la description/;
+  const LOCKED = 'Avec des enfants, vous acceptez chaque demande vous-même : seules les personnes acceptées voient le lieu.';
+  beforeEach(() => {
+    mockCategories.mockResolvedValue(CATS);
+    (myChildrenRequirements as jest.Mock).mockResolvedValue({ ok: true, missing: [] });
+  });
+  const childSwitch = () => screen.getByLabelText('Des enfants seront présents');
+  const radio = (name: string) => screen.getByLabelText(name);
+
+  async function reachSettings(category: string) {
+    await toWhat();
+    await fireEvent.press(await screen.findByLabelText(category));
+    await fireEvent.changeText(screen.getByLabelText('Titre'), 'Sortie au parc');
+    await fireEvent.press(next());
+    await screen.findByText('Étape 3 sur 5');
+    await fillWhere('Square des Enfants');
+    await fireEvent.press(next());
+    await fireEvent.changeText(screen.getByLabelText('Date de début'), '2030-05-14');
+    await fireEvent.changeText(screen.getByLabelText('Heure'), '10:00');
+    await fireEvent.press(next());
+    await screen.findByText('Étape 5 sur 5');
+  }
+
+  it('shows the hint not to write the address under the description for a Parents category', async () => {
+    await toWhat();
+    expect(screen.queryByText(NO_ADDRESS)).toBeNull();
+    await fireEvent.press(await screen.findByLabelText('Sorties parents-enfants'));
+    expect(screen.getByText(NO_ADDRESS)).toBeTruthy();
+  });
+
+  it('a Parents category: children on and fixed, approval on and locked with one line, sent as such', async () => {
+    mockCreate.mockResolvedValue({ ok: true, id: 'act9' });
+    await reachSettings('Sorties parents-enfants');
+    expect(childSwitch().props.value).toBe(true);
+    expect(childSwitch().props.disabled).toBe(true);
+    expect(radio('Sur demande').props.accessibilityState).toMatchObject({ selected: true, disabled: true });
+    expect(radio('Ouvert à tous').props.accessibilityState).toMatchObject({ selected: false, disabled: true });
+    expect(screen.getAllByText(LOCKED)).toHaveLength(1);
+    await fireEvent.press(screen.getByLabelText('Publier'));
+    await screen.findByText('Partagez-la avec vos amis');
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ withChildren: true, approvalMode: 'approval', categoryId: 'fam1' }));
+  });
+
+  it('another category: the switch sets children and locks approval; turning it off unlocks it', async () => {
+    mockCreate.mockResolvedValue({ ok: true, id: 'act9' });
+    await reachSettings('Jeux de société');
+    expect(childSwitch().props.value).toBe(false);
+    expect(radio('Ouvert à tous').props.accessibilityState).toMatchObject({ selected: true });
+    expect(screen.queryByText(LOCKED)).toBeNull();
+
+    await fireEvent(childSwitch(), 'valueChange', true);
+    expect(radio('Sur demande').props.accessibilityState).toMatchObject({ selected: true, disabled: true });
+    expect(screen.getByText(LOCKED)).toBeTruthy();
+
+    await fireEvent(childSwitch(), 'valueChange', false);
+    expect(radio('Ouvert à tous').props.accessibilityState).toMatchObject({ selected: true });
+    expect(radio('Ouvert à tous').props.accessibilityState.disabled).toBeFalsy();
+    expect(screen.queryByText(LOCKED)).toBeNull();
+
+    await fireEvent(childSwitch(), 'valueChange', true);
+    await fireEvent.press(screen.getByLabelText('Publier'));
+    await screen.findByText('Partagez-la avec vos amis');
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ withChildren: true, approvalMode: 'approval', categoryId: 'cat1' }));
+  });
+
+  it.each([
+    [['photo'], 'Ajoutez une photo de profil pour organiser une activité avec des enfants.'],
+    [['account_age'], 'Votre compte doit avoir au moins 7 jours pour organiser une activité avec des enfants.'],
+  ])('explains a refusal by what is missing (%s)', async (missing, line) => {
+    mockCreate.mockResolvedValue({ ok: false, error: 'children_requirements' });
+    (myChildrenRequirements as jest.Mock).mockResolvedValue({ ok: true, missing });
+    await reachSettings('Sorties parents-enfants');
+    await fireEvent.press(screen.getByLabelText('Publier'));
+    expect(await screen.findByText(line)).toBeTruthy();
+  });
+
+  it('falls back to the general line when what is missing cannot be read', async () => {
+    mockCreate.mockResolvedValue({ ok: false, error: 'children_requirements' });
+    (myChildrenRequirements as jest.Mock).mockResolvedValue({ ok: false, error: 'network' });
+    await reachSettings('Sorties parents-enfants');
+    await fireEvent.press(screen.getByLabelText('Publier'));
+    expect(await screen.findByText(/photo de profil et un compte d'au moins 7 jours/)).toBeTruthy();
   });
 });

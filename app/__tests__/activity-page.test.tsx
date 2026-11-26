@@ -532,3 +532,28 @@ describe('activities with children', () => {
     expect(await screen.findByText(/photo de profil et un compte d'au moins 7 jours/)).toBeTruthy();
   });
 });
+
+describe('organiser tools for activities with children', () => {
+  it('shows the bio and the account age of a pending request', async () => {
+    (activityRoster as jest.Mock).mockResolvedValue({
+      ok: true,
+      people: [
+        { userId: 'u9', firstName: 'Paula', photoUrl: null, status: 'pending', bio: 'Maman de deux enfants.', memberSince: '2026-10-17T10:00:00Z' },
+        { userId: 'u8', firstName: 'Mia', photoUrl: null, status: 'member', bio: null, memberSince: null },
+      ],
+    });
+    await open(activity({ isOrganiser: true, approvalMode: 'approval', withChildren: true }));
+    expect(await screen.findByText('Maman de deux enfants.')).toBeTruthy();
+    expect(screen.getByText('Membre depuis octobre 2026')).toBeTruthy();
+    expect(screen.getAllByText(/^Membre depuis/)).toHaveLength(1);
+  });
+
+  it('shows the account age alone when there is no bio', async () => {
+    (activityRoster as jest.Mock).mockResolvedValue({
+      ok: true,
+      people: [{ userId: 'u9', firstName: 'Paula', photoUrl: null, status: 'pending', bio: null, memberSince: '2026-01-05T10:00:00Z' }],
+    });
+    await open(activity({ isOrganiser: true, approvalMode: 'approval' }));
+    expect(await screen.findByText('Membre depuis janvier 2026')).toBeTruthy();
+  });
+});

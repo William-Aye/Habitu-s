@@ -179,7 +179,8 @@
       "archiveAsk": "Archive this activity? Other people will no longer see it and no more sessions will be offered.",
       "archiveYes": "Yes, archive",
       "archiveNo": "No, keep it",
-      "tools": "Organiser tools"
+      "tools": "Organiser tools",
+      "memberSince": "Member since {{date}}"
     },
     "reminderFailed": "Your answer could not be saved. Please give it below.",
     "discussion": "Discussion",
@@ -405,7 +406,8 @@
       "title": "Title",
       "description": "Description",
       "templates": "Ideas to get started",
-      "counter": "{{n}} / {{max}}"
+      "counter": "{{n}} / {{max}}",
+      "noAddress": "Do not write the address in the title or the description: only accepted people will see the place."
     },
     "templates": {
       "games": {
@@ -459,13 +461,20 @@
       "approval": "On request",
       "history": "Discussion history for new members",
       "history_all": "Whole history",
-      "history_since_join": "Only since they joined"
+      "history_since_join": "Only since they joined",
+      "children": "Children will be there",
+      "childrenFamily": "Activities in the Parents category always welcome children.",
+      "childrenApproval": "With children, you accept each request yourself: only accepted people see the place."
     },
     "done": {
       "title": "Share it with your friends",
       "body": "Your activity \"{{title}}\" is published.",
       "share": "Share",
       "view": "View the activity"
+    },
+    "children": {
+      "photo": "Add a profile photo to organise an activity with children.",
+      "account_age": "Your account must be at least 7 days old to organise an activity with children."
     }
   },
   "collectif": {
@@ -738,7 +747,9 @@
         "warn": "Warn",
         "remove": "Remove",
         "ban": "Ban"
-      }
+      },
+      "priority": "Priority ({{n}})",
+      "others": "Other reports"
     },
     "claims": {
       "empty": "No pending claims.",

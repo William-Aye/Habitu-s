@@ -5,6 +5,7 @@ import type {
   ActivityPage,
   ApiResult,
   ChatHistory,
+  ChildrenRequirement,
   MyActivity,
   MyStatus,
   Recurrence,
@@ -147,6 +148,18 @@ export function myActivities(): Promise<ApiResult<{ activities: MyActivity[] }>>
         myStatus: a.my_status,
         nextSession: a.next_session ? mapSession(a.next_session) : null,
       })),
+    }),
+  );
+}
+
+const REQUIREMENTS: ChildrenRequirement[] = ['photo', 'account_age'];
+
+/** What I still lack to organise or join an activity with children (empty when nothing is missing). */
+export function myChildrenRequirements(): Promise<ApiResult<{ missing: ChildrenRequirement[] }>> {
+  return run(
+    () => supabase.rpc('children_requirements_missing'),
+    (data) => ({
+      missing: REQUIREMENTS.filter((r) => Array.isArray(data) && data.includes(r)),
     }),
   );
 }

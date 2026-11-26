@@ -179,7 +179,8 @@
       "archiveAsk": "Archiver cette activité ? Elle ne sera plus visible des autres personnes et plus aucune séance ne sera proposée.",
       "archiveYes": "Oui, archiver",
       "archiveNo": "Non, la garder",
-      "tools": "Outils de l'organisateur"
+      "tools": "Outils de l'organisateur",
+      "memberSince": "Membre depuis {{date}}"
     },
     "reminderFailed": "Votre réponse n'a pas pu être enregistrée. Indiquez-la ci-dessous.",
     "discussion": "Discussion",
@@ -405,7 +406,8 @@
       "title": "Titre",
       "description": "Description",
       "templates": "Des idées pour commencer",
-      "counter": "{{n}} / {{max}}"
+      "counter": "{{n}} / {{max}}",
+      "noAddress": "N'écrivez pas l'adresse dans le titre ni dans la description : seules les personnes acceptées verront le lieu."
     },
     "templates": {
       "games": {
@@ -459,13 +461,20 @@
       "approval": "Sur demande",
       "history": "Historique de la discussion pour les nouveaux membres",
       "history_all": "Tout l'historique",
-      "history_since_join": "Seulement depuis leur arrivée"
+      "history_since_join": "Seulement depuis leur arrivée",
+      "children": "Des enfants seront présents",
+      "childrenFamily": "Les activités de la catégorie Parents accueillent toujours des enfants.",
+      "childrenApproval": "Avec des enfants, vous acceptez chaque demande vous-même : seules les personnes acceptées voient le lieu."
     },
     "done": {
       "title": "Partagez-la avec vos amis",
       "body": "Votre activité « {{title}} » est publiée.",
       "share": "Partager",
       "view": "Voir l'activité"
+    },
+    "children": {
+      "photo": "Ajoutez une photo de profil pour organiser une activité avec des enfants.",
+      "account_age": "Votre compte doit avoir au moins 7 jours pour organiser une activité avec des enfants."
     }
   },
   "collectif": {
@@ -738,7 +747,9 @@
         "warn": "Avertir",
         "remove": "Retirer",
         "ban": "Bannir"
-      }
+      },
+      "priority": "Prioritaires ({{n}})",
+      "others": "Autres signalements"
     },
     "claims": {
       "empty": "Aucune revendication en attente.",

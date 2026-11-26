@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { fetchCategories, filterCategories, type Category } from '../../interests/categories';
-import { DESCRIPTION_MAX, TITLE_MAX } from '../form';
+import { DESCRIPTION_MAX, TITLE_MAX, isFamilyCategory } from '../form';
 import { stepStyles as s, type StepProps } from './styles';
 
 const TEMPLATES = ['games', 'running', 'languages'] as const;
@@ -20,6 +20,14 @@ export function WhatStep({ form, set }: StepProps) {
       .catch(() => setFailed(true));
   }, []);
   useEffect(load, [load]);
+
+  // A category chosen before this step (from Explore) is known only once the list is here.
+  const { categoryId, familyCategory } = form;
+  useEffect(() => {
+    if (!categories || !categoryId) return;
+    const family = isFamilyCategory(categoryId, categories);
+    if (family !== familyCategory) set({ familyCategory: family });
+  }, [categories, categoryId, familyCategory, set]);
 
   const visible = useMemo(() => (categories ? filterCategories(categories, text, lang) : []), [categories, text, lang]);
 
@@ -60,7 +68,7 @@ export function WhatStep({ form, set }: StepProps) {
                   accessibilityLabel={name}
                   accessibilityState={{ selected: on }}
                   style={[s.option, on && s.optionOn]}
-                  onPress={() => set({ categoryId: c.id })}
+                  onPress={() => set({ categoryId: c.id, familyCategory: isFamilyCategory(c.id, categories) })}
                 >
                   <Text style={[s.optionText, on && s.optionTextOn]}>{name}</Text>
                 </Pressable>
@@ -106,6 +114,7 @@ export function WhatStep({ form, set }: StepProps) {
         accessibilityLabel={t('create.what.description')}
       />
       <Text style={s.hint}>{t('create.what.counter', { n: form.description.length, max: DESCRIPTION_MAX })}</Text>
+      {form.familyCategory || form.withChildren ? <Text style={s.hint}>{t('create.what.noAddress')}</Text> : null}
     </View>
   );
 }

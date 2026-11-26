@@ -5,7 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { askForPush } from '../notifications/registerPush';
 import { hasPublicPlaceNearby } from '../safety/publicPlace';
-import { createActivity } from './api';
+import { createActivity, myChildrenRequirements } from './api';
 import { STEP_COUNT, initialForm, stepValid, toDraft, type FormState } from './form';
 import { shareActivity } from './share';
 import { SettingsStep } from './steps/SettingsStep';
@@ -14,7 +14,7 @@ import { WhatStep } from './steps/WhatStep';
 import { WhenStep } from './steps/WhenStep';
 import { WhereStep } from './steps/WhereStep';
 import { WhoStep } from './steps/WhoStep';
-import type { ApiError } from './types';
+import type { ApiError, ChildrenRequirement } from './types';
 import { colors } from '../../lib/theme';
 
 const STEP_KEYS = ['who', 'what', 'where', 'when', 'settings'] as const;
@@ -36,6 +36,8 @@ export function CreateActivityFlow({
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const [error, setError] = useState<ApiError | null>(null);
+  // After a children_requirements refusal: what exactly is missing (empty when it could not be read).
+  const [missing, setMissing] = useState<ChildrenRequirement[]>([]);
   // The place check found nothing public nearby: the organiser must confirm before publishing.
   const [placeWarning, setPlaceWarning] = useState(false);
   const [created, setCreated] = useState<{ id: string; title: string } | null>(null);
@@ -83,6 +85,7 @@ export function CreateActivityFlow({
     busyRef.current = true;
     setBusy(true);
     setError(null);
+    setMissing([]);
     setPlaceWarning(false);
     if (!placeConfirmed) {
       // Only an explicit "nothing public here" stops the flow; an unknown answer (service down, 4 s timeout) never does.
@@ -95,6 +98,10 @@ export function CreateActivityFlow({
       }
     }
     const result = await createActivity(draft);
+    if (!result.ok && result.error === 'children_requirements') {
+      const why = await myChildrenRequirements();
+      if (why.ok) setMissing(why.missing);
+    }
     busyRef.current = false;
     setBusy(false);
     if (!result.ok) return setError(result.error);
@@ -104,6 +111,7 @@ export function CreateActivityFlow({
 
   const go = (to: number) => {
     setError(null);
+    setMissing([]);
     setPlaceWarning(false);
     setStep(to);
   };
@@ -142,7 +150,13 @@ export function CreateActivityFlow({
             </Pressable>
           </View>
         ) : null}
-        {error ? (
+        {error && missing.length > 0 ? (
+          missing.map((m) => (
+            <Text key={m} accessibilityLiveRegion="polite" style={s.error}>
+              {t(`create.children.${m}`)}
+            </Text>
+          ))
+        ) : error ? (
           <Text accessibilityLiveRegion="polite" style={s.error}>
             {t(`create.errors.${error}`)}
           </Text>

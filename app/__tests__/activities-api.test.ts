@@ -7,6 +7,7 @@ import {
   joinActivity,
   leaveActivity,
   myActivities,
+  myChildrenRequirements,
   setAttendance,
   setAttendanceStatus,
   setWelcomeMember,
@@ -694,5 +695,17 @@ describe('activities with children', () => {
 
   it('maps the requirements refusal', () => {
     expect(mapError({ code: '42501', message: 'children_requirements_not_met' })).toBe('children_requirements');
+  });
+});
+
+describe('myChildrenRequirements', () => {
+  it('asks the database what is missing and keeps only the known answers', async () => {
+    mockRpc.mockResolvedValue({ data: ['photo', 'account_age', 'other'], error: null });
+    expect(await myChildrenRequirements()).toEqual({ ok: true, missing: ['photo', 'account_age'] });
+    expect(mockRpc).toHaveBeenCalledWith('children_requirements_missing');
+  });
+  it('gives an empty list for an established account', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null });
+    expect(await myChildrenRequirements()).toEqual({ ok: true, missing: [] });
   });
 });
