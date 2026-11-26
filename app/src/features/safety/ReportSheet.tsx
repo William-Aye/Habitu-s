@@ -65,7 +65,7 @@ export function ReportSheet({ target, visible, onClose }: Props) {
             ) : (
               <>
                 <View accessibilityRole="radiogroup" style={styles.group}>
-                  {reasonsFor(target.type).map((r) => {
+                  {reasonsFor(target.type, { withChildren: target.withChildren }).map((r) => {
                     const label = t(`safety.reasons.${r}`);
                     const selected = reason === r;
                     return (

@@ -22,8 +22,9 @@ export function ResultCard({ result, onPress }: { result: ExploreResult; onPress
   // The server marks collectifs with source_label 'collectif'; their own label below says it better.
   const source = result.sourceLabel && result.kind !== 'collectif' ? t(`explore.source.${result.sourceLabel}`) : null;
   const collectif = result.kind === 'collectif' ? t('activity.collectifLabel') : null;
+  const children = result.withChildren ? t('activity.withChildren') : null;
   // Screen readers read the card as one button: give them every visible text.
-  const a11yLabel = [result.title, result.subtitle, distance, label, isNew, source, collectif]
+  const a11yLabel = [result.title, result.subtitle, distance, label, isNew, source, collectif, children]
     .filter(Boolean)
     .join(', ');
   return (
@@ -43,6 +44,7 @@ export function ResultCard({ result, onPress }: { result: ExploreResult; onPress
         {isNew ? <Text style={styles.badge}>{isNew}</Text> : null}
         {source ? <Text style={styles.badge}>{source}</Text> : null}
         {collectif ? <Text style={styles.badge}>{collectif}</Text> : null}
+        {children ? <Text style={styles.badge}>{children}</Text> : null}
       </View>
     </Pressable>
   );

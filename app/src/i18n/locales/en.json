@@ -182,7 +182,15 @@
       "tools": "Organiser tools"
     },
     "reminderFailed": "Your answer could not be saved. Please give it below.",
-    "discussion": "Discussion"
+    "discussion": "Discussion",
+    "placeHidden": "Place shared with accepted participants",
+    "withChildren": "With children",
+    "requestJoin": "Ask to join",
+    "requirements": {
+      "photo": "Add a profile photo to ask to join an activity with children.",
+      "photoWeb": "Add a profile photo in the Habituer app to ask to join an activity with children.",
+      "account_age": "Your account must be at least 7 days old to ask to join an activity with children."
+    }
   },
   "web": {
     "siteName": "Habituer",
@@ -354,7 +362,8 @@
       "network": "Cannot connect. Check your network and try again.",
       "unknown": "Something went wrong. Try again.",
       "association_unavailable": "This association no longer accepts linked activities. Choose another option.",
-      "content_refused": "This text contains a forbidden word."
+      "content_refused": "This text contains a forbidden word.",
+      "children_requirements": "An activity with children needs a profile photo and an account at least 7 days old."
     },
     "who": {
       "me": "Me",
@@ -614,7 +623,8 @@
       "harassment": "Harassment",
       "fake_or_spam": "Fake or spam",
       "did_not_happen": "Did not happen",
-      "other": "Other"
+      "other": "Other",
+      "child_safety": "Worrying behaviour towards children"
     },
     "details": "Tell us more (optional)",
     "send": "Send report",
@@ -648,7 +658,13 @@
         "a": "For a first meeting, stay in the public place and arrange your own way there and back.",
         "b": "Tell someone close to you where you are going."
       },
-      "moved_place": "Activities must take place in a public place. If this new place seems unsuitable to you, report it."
+      "moved_place": "Activities must take place in a public place. If this new place seems unsuitable to you, report it.",
+      "with_children": {
+        "a": "A child always stays with their parent and is never left with another adult.",
+        "b": "Meet only in the planned public place.",
+        "c": "Do not share photos of children or personal details in the chat.",
+        "d": "Report anything that worries you."
+      }
     }
   },
   "admin": {

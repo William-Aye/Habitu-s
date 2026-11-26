@@ -66,3 +66,16 @@ it('folds lines longer than 75 octets', () => {
   for (const l of lines) expect(enc.encode(l).length).toBeLessThanOrEqual(75);
   expect(ics.replace(/\r\n /g, '')).toContain(`LOCATION:${'é'.repeat(80)}`);
 });
+
+it('leaves out LOCATION when the place is hidden, and stays a valid file', () => {
+  const ics = buildIcs(
+    { id: 's5', startsAt: '2026-03-28T23:00:00Z', placeLabel: null },
+    { title: 'T' },
+    'https://x.example/a',
+    NOW,
+  );
+  expect(ics).not.toContain('LOCATION');
+  expect(ics.startsWith('BEGIN:VCALENDAR\r\n')).toBe(true);
+  expect(ics).toContain('SUMMARY:T\r\nURL:https://x.example/a\r\nEND:VEVENT\r\n');
+  expect(ics.endsWith('END:VCALENDAR\r\n')).toBe(true);
+});

@@ -21,6 +21,7 @@ import { useSession } from '../../features/account/useSession';
 import { Composer } from '../../features/chat/Composer';
 import { MessageActions } from '../../features/chat/MessageActions';
 import { MessageBubble } from '../../features/chat/MessageBubble';
+import { activityWithChildren } from '../../features/chat/api';
 import { useChat, type DisplayMessage } from '../../features/chat/useChat';
 import { block } from '../../features/safety/blocks';
 import { afterModalClosed, confirmBlock } from '../../features/safety/confirmBlock';
@@ -62,6 +63,16 @@ export default function DiscussionScreen() {
   }, [signedOut, requireAccount, retryLoad]);
   const [target, setTarget] = useState<DisplayMessage | null>(null);
   const { openReport, reportSheet } = useReportSheet();
+  const [withChildren, setWithChildren] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void activityWithChildren(activityId).then((v) => {
+      if (active) setWithChildren(v);
+    });
+    return () => {
+      active = false;
+    };
+  }, [activityId]);
   const [notice, setNotice] = useState<string | null>(null);
   const [text, setText] = useState('');
   // A refused message goes back into the composer; text typed since is replaced only after asking.
@@ -118,7 +129,7 @@ export default function DiscussionScreen() {
   const report = (m: DisplayMessage) => {
     setTarget(null);
     // Open the report sheet once the actions menu is gone (iOS drops a modal opened mid-dismiss).
-    afterModalClosed(() => void openReport({ type: 'message', id: m.id }));
+    afterModalClosed(() => void openReport({ type: 'message', id: m.id, withChildren }));
   };
 
   if (chat.state === 'error' || (signedOut && gateDone)) {

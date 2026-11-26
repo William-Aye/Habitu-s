@@ -473,3 +473,52 @@ describe('BlockedList', () => {
     expect(await screen.findByText('Aucune personne bloquée')).toBeTruthy();
   });
 });
+
+describe('activities with children', () => {
+  const CHILD = 'Comportement inquiétant envers des enfants';
+  const kids = (over: Partial<ActivityPage> = {}) =>
+    activity({
+      withChildren: true, placeHidden: true, placeLabel: null, lon: null, lat: null, approvalMode: 'approval',
+      childrenRequirementsMissing: [], nextSessions: [session({ placeLabel: null })], ...over,
+    });
+  const firstReason = async () => (await screen.findAllByRole('radio'))[0].props.accessibilityLabel;
+
+  it('activity page: lists the child-safety reason first and sends it', async () => {
+    await openActivity(kids());
+    await fireEvent.press(screen.getByRole('link', { name: 'Signaler cette activité' }));
+    expect(await firstReason()).toBe(CHILD);
+    await sendReport(CHILD);
+    expect(mReport).toHaveBeenCalledWith('activity', 'act1', 'child_safety', undefined);
+  });
+
+  it('activity page: offers it when reporting the organiser', async () => {
+    await openActivity(kids());
+    await fireEvent.press(screen.getByRole('button', { name: 'Signaler cette personne' }));
+    expect(await firstReason()).toBe(CHILD);
+  });
+
+  it('session row: offers it when reporting a session', async () => {
+    await openActivity(kids());
+    await fireEvent.press(screen.getByRole('link', { name: 'Signaler cette séance' }));
+    expect(await firstReason()).toBe(CHILD);
+  });
+
+  it('session row: offers it when reporting an attendee', async () => {
+    await openActivity(
+      kids({
+        myStatus: 'member', placeLabel: 'Square', lon: 4.85, lat: 45.77, placeHidden: false,
+        nextSessions: [session({ attendees: [{ id: 'u9', firstName: 'Camille', photoUrl: null }] })],
+      }),
+    );
+    await fireEvent(screen.getByLabelText('Camille'), 'longPress');
+    await fireEvent.press(within(screen.getByTestId('person-actions')).getByRole('button', { name: 'Signaler cette personne' }));
+    expect(await firstReason()).toBe(CHILD);
+  });
+
+  it('is not offered on an activity without children', async () => {
+    await openActivity(activity());
+    await fireEvent.press(screen.getByRole('link', { name: 'Signaler cette activité' }));
+    await screen.findAllByRole('radio');
+    expect(screen.queryByRole('radio', { name: CHILD })).toBeNull();
+  });
+});

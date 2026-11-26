@@ -141,7 +141,11 @@ export default function MyActivities() {
         >
           <Text style={styles.cardTitle}>{a.title}</Text>
         </Pressable>
-        <Text>{a.placeLabel}</Text>
+        {a.placeLabel ? (
+          <Text>{a.placeLabel}</Text>
+        ) : a.withChildren ? (
+          <Text>{t('activity.placeHidden')}</Text>
+        ) : null}
         {a.myStatus === 'pending' ? <Text style={styles.badge}>{t('mine.requested')}</Text> : null}
         <Text>{s ? t('mine.next', { date }) : t('mine.noSession')}</Text>
         {confirmed ? (

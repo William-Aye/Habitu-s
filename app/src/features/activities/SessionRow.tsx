@@ -51,6 +51,7 @@ export function SessionRow({ session, activity, showWelcome, showFirstTip = fals
       p.id === activity.organiser?.id ? 'leaves_activity' : activity.isOrganiser ? 'removes_member' : 'plain',
     // Blocking the organiser removes me from the activity: this page is no longer mine to show.
     onBlocked: (_p, effect) => (effect === 'leaves_activity' ? leaveScreen() : onChanged()),
+    withChildren: activity.withChildren,
   });
 
   const date = formatSessionDate(session.startsAt, lang);
@@ -102,7 +103,7 @@ export function SessionRow({ session, activity, showWelcome, showFirstTip = fals
     <View style={styles.row}>
       {showFirstTip && isConfirmed && !cancelled ? <SafetyTip id="first_session" onShare={sharePlans} /> : null}
       {movedPlace && !cancelled ? (
-        <SafetyTip id="moved_place" scope={session.id} onReport={() => void openReport({ type: 'session', id: session.id })} />
+        <SafetyTip id="moved_place" scope={session.id} onReport={() => void openReport({ type: 'session', id: session.id, withChildren: activity.withChildren })} />
       ) : null}
       <View style={styles.wrap}>
         <Text style={styles.date}>{date}</Text>
@@ -110,7 +111,8 @@ export function SessionRow({ session, activity, showWelcome, showFirstTip = fals
         {cancelled ? <Text style={styles.badgeWarn}>{t('activity.session.cancelled')}</Text> : null}
         {full && !cancelled ? <Text style={styles.badgeWarn}>{t('activity.session.full')}</Text> : null}
       </View>
-      <Text>{session.placeLabel}</Text>
+      {/* Hidden from people not yet accepted into an activity with children. */}
+      {session.placeLabel ? <Text>{session.placeLabel}</Text> : null}
       <Text>{t('activity.session.count', { count: session.confirmedCount })}</Text>
 
       {session.attendees && session.attendees.length > 0 ? (
@@ -229,7 +231,7 @@ export function SessionRow({ session, activity, showWelcome, showFirstTip = fals
         accessibilityRole="link"
         accessibilityLabel={t('safety.reportSession')}
         style={styles.link}
-        onPress={() => void openReport({ type: 'session', id: session.id })}
+        onPress={() => void openReport({ type: 'session', id: session.id, withChildren: activity.withChildren })}
       >
         <Flag size={16} color={colors.accent} />
         <Text style={styles.linkText}>{t('safety.reportSession')}</Text>

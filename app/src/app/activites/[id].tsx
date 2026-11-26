@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams, type Href } from 'expo-router';
+import Baby from 'lucide-react-native/icons/baby';
 import Flag from 'lucide-react-native/icons/flag';
 import MessageCircle from 'lucide-react-native/icons/message-circle';
 import Share2 from 'lucide-react-native/icons/share-2';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRequireAccount } from '../../features/account/AccountGate';
 import { useSession } from '../../features/account/useSession';
@@ -17,6 +18,7 @@ import { KNOWN_ERRORS } from '../../features/activities/errors';
 import type { ActivityPage, ApiError } from '../../features/activities/types';
 import { TownMap } from '../../features/explore/components/TownMap';
 import { useReportSheet } from '../../features/safety/ReportSheet';
+import { SafetyTip } from '../../features/safety/SafetyTip';
 import { colors } from '../../lib/theme';
 
 type Load = { state: 'loading' } | { state: 'error' } | { state: 'ready'; activity: ActivityPage | null };
@@ -105,6 +107,11 @@ export default function ActivityScreen() {
   // The organiser's first name and photo are for signed-in people only (the server also withholds them from anon).
   const organiserName = me ? (a.organiser?.firstName ?? '') : '';
   const organiserId = a.organiser?.id;
+  const withChildren = a.withChildren;
+  // What I still lack to ask to join an activity with children (the database refuses the request otherwise).
+  const missing = withChildren && !a.isOrganiser && a.myStatus === 'none' ? a.childrenRequirementsMissing : [];
+  const blocked = missing.length > 0;
+  const joinLabel = t(a.approvalMode === 'approval' ? 'activity.requestJoin' : 'activity.join');
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -147,7 +154,7 @@ export default function ActivityScreen() {
               accessibilityRole="button"
               accessibilityLabel={t('safety.reportPerson')}
               style={[styles.link, styles.row]}
-              onPress={() => void openReport({ type: 'user', id: organiserId })}
+              onPress={() => void openReport({ type: 'user', id: organiserId, withChildren })}
             >
               <Flag size={16} color={colors.accent} />
               <Text style={styles.linkText}>{t('safety.reportPerson')}</Text>
@@ -157,29 +164,54 @@ export default function ActivityScreen() {
       ) : null}
 
       {a.description ? <Text>{a.description}</Text> : null}
-      {category ? <Text style={styles.badge}>{t('activity.category', { name: category })}</Text> : null}
+      {category || withChildren ? (
+        <View style={styles.badges}>
+          {category ? <Text style={styles.badge}>{t('activity.category', { name: category })}</Text> : null}
+          {withChildren ? (
+            <View style={styles.badgeRow}>
+              <Baby size={16} color={colors.accentDark} />
+              <Text style={styles.badgeText}>{t('activity.withChildren')}</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+      {withChildren ? <SafetyTip id="with_children" /> : null}
       <Text>
         {describeRecurrence(a.recurrence, a.startTime, t, { startDate: a.startDate, lang })}
       </Text>
 
-      {a.lon != null && a.lat != null ? (
-        <TownMap lon={a.lon} lat={a.lat} label={t('activity.mapLabel', { place })} />
-      ) : null}
-      <Text>{t('activity.place', { place })}</Text>
+      {a.placeHidden ? (
+        // An activity with children: the place is given once the request is accepted.
+        <Text>{t('activity.placeHidden')}</Text>
+      ) : (
+        <>
+          {a.lon != null && a.lat != null ? (
+            <TownMap lon={a.lon} lat={a.lat} label={t('activity.mapLabel', { place })} />
+          ) : null}
+          {place ? <Text>{t('activity.place', { place })}</Text> : null}
+        </>
+      )}
 
       {!archived ? (
         <View style={styles.block}>
           {a.isOrganiser ? null : a.myStatus === 'none' ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('activity.join')}
-              accessibilityState={{ disabled: busy }}
-              disabled={busy}
-              style={[styles.primary, busy && styles.dim]}
-              onPress={join}
-            >
-              <Text style={styles.primaryText}>{t('activity.join')}</Text>
-            </Pressable>
+            <>
+              {missing.map((m) => (
+                <Text key={m} style={styles.requirement}>
+                  {t(m === 'photo' && Platform.OS === 'web' ? 'activity.requirements.photoWeb' : `activity.requirements.${m}`)}
+                </Text>
+              ))}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={joinLabel}
+                accessibilityState={{ disabled: busy || blocked }}
+                disabled={busy || blocked}
+                style={[styles.primary, (busy || blocked) && styles.dim]}
+                onPress={join}
+              >
+                <Text style={styles.primaryText}>{joinLabel}</Text>
+              </Pressable>
+            </>
           ) : a.myStatus === 'pending' ? (
             <View style={styles.block}>
               <Text style={styles.badge}>{t('activity.requested')}</Text>
@@ -241,7 +273,7 @@ export default function ActivityScreen() {
           accessibilityRole="link"
           accessibilityLabel={t('safety.reportActivity')}
           style={[styles.link, styles.row]}
-          onPress={() => void openReport({ type: 'activity', id: a.id })}
+          onPress={() => void openReport({ type: 'activity', id: a.id, withChildren })}
         >
           <Flag size={16} color={colors.accent} />
           <Text style={styles.linkText}>{t('safety.reportActivity')}</Text>
@@ -281,6 +313,10 @@ const styles = StyleSheet.create({
   person: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   badge: { alignSelf: 'flex-start', backgroundColor: colors.accentSoft, color: colors.accentDark, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, overflow: 'hidden' },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.accentSoft, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  badgeText: { color: colors.accentDark },
+  requirement: { color: colors.warningText },
   notice: { backgroundColor: '#fef2f2', color: colors.danger, padding: 12, borderRadius: 8 },
   link: { minHeight: 44, justifyContent: 'center' },
   linkText: { color: colors.accent, fontWeight: '600' },

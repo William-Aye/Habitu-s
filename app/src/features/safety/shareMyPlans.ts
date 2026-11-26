@@ -21,7 +21,7 @@ export async function shareMyPlans(
     titre: activity.title,
     date,
     heure: wallTime(session.startsAt, 'Europe/Paris').time,
-    lieu: session.placeLabel || activity.placeLabel,
+    lieu: session.placeLabel || activity.placeLabel || '',
     interpolation: { escapeValue: false },
   });
   const r = await Share.share({ message });

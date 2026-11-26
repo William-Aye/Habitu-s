@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { Share } from 'react-native';
+import { Platform, Share } from 'react-native';
 import { createEventInCalendarAsync } from 'expo-calendar/legacy';
 import { initI18n } from '../src/i18n';
 import ActivityScreen from '../src/app/activites/[id]';
@@ -470,5 +470,65 @@ describe('the organiser is named only to signed-in people', () => {
     expect(screen.getByText('Organisé par Les Joueurs')).toBeTruthy();
     expect(screen.queryByText('Organisé par un membre')).toBeNull();
     expect(screen.queryByText(/Olivier/)).toBeNull();
+  });
+});
+
+describe('activities with children', () => {
+  const kids = (over: Partial<ActivityPage> = {}) =>
+    activity({
+      withChildren: true, placeHidden: true, placeLabel: null, lon: null, lat: null, approvalMode: 'approval',
+      nextSessions: [session({ placeLabel: null })], ...over,
+    });
+
+  it('shows the hidden-place line and the children label instead of the place and the map', async () => {
+    await open(kids());
+    expect(screen.getByText('Lieu communiqué aux participants acceptés')).toBeTruthy();
+    expect(screen.getByText('Avec des enfants')).toBeTruthy();
+    expect(screen.queryByText('Voir sur la carte')).toBeNull();
+    expect(screen.queryByText(/Café des Arts/)).toBeNull();
+    expect(screen.queryByText(/^Lieu :/)).toBeNull();
+  });
+
+  it('says what is missing and keeps the request button disabled', async () => {
+    mockGate.mockResolvedValue(true);
+    await open(kids({ childrenRequirementsMissing: ['photo', 'account_age'] }));
+    expect(screen.getByText(/Ajoutez une photo de profil/)).toBeTruthy();
+    expect(screen.getByText(/Votre compte doit avoir au moins 7 jours/)).toBeTruthy();
+    const button = screen.getByRole('button', { name: 'Demander à rejoindre' });
+    expect(button.props.accessibilityState).toMatchObject({ disabled: true });
+    await fireEvent.press(button);
+    expect(joinActivity).not.toHaveBeenCalled();
+  });
+
+  it('on the web, says the photo is added in the app', async () => {
+    jest.replaceProperty(Platform, 'OS', 'web');
+    await open(kids({ childrenRequirementsMissing: ['photo'] }));
+    expect(screen.getByText(/dans l'application Habituer/)).toBeTruthy();
+  });
+
+  it('lets an established account ask to join', async () => {
+    mockGate.mockResolvedValue(true);
+    (joinActivity as jest.Mock).mockResolvedValue({ ok: true, status: 'pending' });
+    await open(kids({ childrenRequirementsMissing: [] }));
+    expect(screen.queryByText(/Ajoutez une photo de profil/)).toBeNull();
+    const button = screen.getByRole('button', { name: 'Demander à rejoindre' });
+    expect(button.props.accessibilityState).toMatchObject({ disabled: false });
+    await fireEvent.press(button);
+    await waitFor(() => expect(joinActivity).toHaveBeenCalledWith('act1'));
+  });
+
+  it('shows the place to an accepted member, still with the children label', async () => {
+    await open(activity({ withChildren: true, approvalMode: 'approval', myStatus: 'member' }));
+    expect(screen.getByText('Lieu : Café des Arts')).toBeTruthy();
+    expect(screen.getByText('Avec des enfants')).toBeTruthy();
+    expect(screen.queryByText('Lieu communiqué aux participants acceptés')).toBeNull();
+  });
+
+  it('turns the refusal of the database into a clear message', async () => {
+    mockGate.mockResolvedValue(true);
+    (joinActivity as jest.Mock).mockResolvedValue({ ok: false, error: 'children_requirements' });
+    await open(kids());
+    await fireEvent.press(screen.getByRole('button', { name: 'Demander à rejoindre' }));
+    expect(await screen.findByText(/photo de profil et un compte d'au moins 7 jours/)).toBeTruthy();
   });
 });

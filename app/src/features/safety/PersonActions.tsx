@@ -23,10 +23,12 @@ interface Options {
   effectOf?: (person: PersonRef) => BlockEffect;
   /** After a block went through. */
   onBlocked?: (person: PersonRef, effect: BlockEffect) => void;
+  /** The person is met in an activity with children: the child-safety reason comes first. */
+  withChildren?: boolean;
 }
 
 /** The long-press menu on a person: report or block. */
-export function usePersonActions({ effectOf, onBlocked }: Options = {}): {
+export function usePersonActions({ effectOf, onBlocked, withChildren }: Options = {}): {
   openPerson: (person: PersonRef) => Promise<void>;
   /** The same two actions, directly (for accessibility actions). */
   reportPerson: (person: PersonRef) => Promise<void>;
@@ -57,7 +59,7 @@ export function usePersonActions({ effectOf, onBlocked }: Options = {}): {
     });
   };
 
-  const reportPerson = (p: PersonRef) => openReport({ type: "user", id: p.id });
+  const reportPerson = (p: PersonRef) => openReport({ type: "user", id: p.id, withChildren });
 
   const personSheet = (
     <>

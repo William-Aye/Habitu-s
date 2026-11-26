@@ -1,4 +1,5 @@
 import {
+  activityWithChildren,
   deleteMessage,
   fetchMessages,
   markRead,
@@ -266,5 +267,25 @@ describe('markRead and setMuted', () => {
   it('maps a refusal', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { code: '42501', message: 'not_allowed' } });
     expect(await markRead('a1')).toEqual({ ok: false, error: 'not_allowed' });
+  });
+});
+
+describe('activityWithChildren', () => {
+  it('reads the flag of the activity', async () => {
+    result = { data: { with_children: true }, error: null };
+    expect(await activityWithChildren('a1')).toBe(true);
+    expect(mockFrom).toHaveBeenCalledWith('activities');
+    expect(calls).toEqual(
+      expect.arrayContaining([
+        { method: 'select', args: ['with_children'] },
+        { method: 'eq', args: ['id', 'a1'] },
+      ]),
+    );
+  });
+  it('is false for an activity without children, and when the read fails', async () => {
+    result = { data: { with_children: false }, error: null };
+    expect(await activityWithChildren('a1')).toBe(false);
+    result = { data: null, error: { message: 'Failed to fetch' } };
+    expect(await activityWithChildren('a1')).toBe(false);
   });
 });

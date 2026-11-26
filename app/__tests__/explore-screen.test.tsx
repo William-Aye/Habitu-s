@@ -367,3 +367,10 @@ it('does not search while interests load with an empty query, then searches once
   expect(params.length).toBeGreaterThan(0);
   expect(params.every((p) => JSON.stringify(p.interestCategoryIds) === '["a","b"]')).toBe(true);
 });
+
+it('labels a result with children, for screen readers too', async () => {
+  setSearch(response([result('a', { title: 'Sortie au parc', distanceKm: 1.2, withChildren: true })]));
+  await render(<Explore />);
+  expect(screen.getByText('Avec des enfants')).toBeTruthy();
+  expect(screen.getByLabelText('Sortie au parc, 1,2 km, Avec des enfants')).toBeTruthy();
+});
