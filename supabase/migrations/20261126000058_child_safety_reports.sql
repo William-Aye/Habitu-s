@@ -96,3 +96,77 @@ revoke all on function public.admin_reports(text, timestamptz, uuid, integer, bo
 grant execute on function public.admin_reports(text, timestamptz, uuid, integer, boolean) to authenticated;
 revoke all on function public.activity_roster(uuid) from public, anon;
 grant execute on function public.activity_roster(uuid) to authenticated;
+
+-- The organiser decides on a request from a bio and a profile: a worrying one must reach the admins,
+-- so the organiser may also report a person who asked to join, or whose request was declined.
+-- Same body as migration 30, with one more case for 'user'.
+create or replace function public.reports_guard() returns trigger
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_uid uuid := auth.uid();
+  v_ok boolean;
+begin
+  if new.target_type not in ('user', 'activity', 'message', 'association', 'collectif', 'session') then
+    return new;  -- the check constraint refuses it
+  end if;
+  -- Automatic reports come from the spam triggers below (nested), never from a client.
+  if new.source = 'auto' and pg_trigger_depth() > 1 then
+    new.reporter_id := null;
+    new.target_owner := public.report_target_owner(new.target_type, new.target_id);
+    return new;
+  end if;
+  if current_setting('role', true) in ('anon', 'authenticated') then
+    if v_uid is null then
+      raise exception 'not_allowed' using errcode = '42501';
+    end if;
+    v_ok := case new.target_type
+      when 'activity' then public.get_activity(new.target_id) is not null
+      when 'session' then exists (select 1 from public.sessions s
+                                   where s.id = new.target_id and public.get_activity(s.activity_id) is not null)
+      when 'message' then exists (select 1 from public.messages m
+                                   where m.id = new.target_id and m.activity_id is not null
+                                     and public.is_activity_member(m.activity_id)
+                                     and m.created_at >= public.chat_visible_since(m.activity_id)
+                                     and not exists (select 1 from public.blocks b where b.blocker_id = m.sender_id and b.blocked_id = v_uid)
+                                     and not public.is_banned(m.sender_id))
+      when 'user' then new.target_id <> v_uid
+                       and exists (select 1 from public.profiles p where p.id = new.target_id)
+                       and not exists (select 1 from public.blocks b where b.blocker_id = new.target_id and b.blocked_id = v_uid)
+                       and (exists (
+                              select 1
+                                from (select a.id as aid, a.organiser_id as uid from public.activities a
+                                      union all
+                                      select m.activity_id, m.user_id from public.activity_members m
+                                       where m.status = 'member') mine
+                                join (select a.id as aid, a.organiser_id as uid from public.activities a
+                                      union all
+                                      select m.activity_id, m.user_id from public.activity_members m
+                                       where m.status = 'member') theirs on theirs.aid = mine.aid
+                               where mine.uid = v_uid and theirs.uid = new.target_id)
+                            or exists (select 1 from public.activities a
+                                        where a.organiser_id = new.target_id and a.archived_at is null
+                                          and public.get_activity(a.id) is not null)
+                            -- the organiser, about a person who asked to join or whose request was declined
+                            or exists (select 1 from public.activities a
+                                         join public.activity_members m on m.activity_id = a.id
+                                        where a.organiser_id = v_uid and m.user_id = new.target_id
+                                          and m.status in ('pending', 'removed')))
+      when 'association' then exists (select 1 from public.associations x
+                                       where x.id = new.target_id and (to_jsonb(x) ->> 'removed_at') is null)
+      when 'collectif' then public.get_collectif(new.target_id) is not null
+    end;
+    if not coalesce(v_ok, false) then
+      raise exception 'not_allowed' using errcode = '42501';
+    end if;
+    -- a client cannot choose who reports, how, or the state
+    if new.reporter_id is null then
+      new.reporter_id := v_uid;
+    end if;
+    new.source := 'user';
+    new.status := 'open';
+    perform public.take_limit('report', 5, interval '1 hour');
+  end if;
+  new.target_owner := public.report_target_owner(new.target_type, new.target_id);
+  return new;
+end $$;
+revoke all on function public.reports_guard() from public, anon, authenticated;

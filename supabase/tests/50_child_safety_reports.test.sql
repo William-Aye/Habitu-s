@@ -2,13 +2,14 @@
 -- organiser sees about a request.
 begin;
 \ir helpers.inc
-select plan(18);
+select plan(22);
 
 select tests.create_user('org@cs.fr', 'Olivier') as org \gset
 select tests.create_user('mem@cs.fr', 'Mia') as mem \gset
 select tests.create_user('pend@cs.fr', 'Paula') as pend \gset
 select tests.create_user('rep@cs.fr', 'Rose') as rep \gset
 select tests.create_user('adm@cs.fr', 'Ada') as adm \gset
+select tests.create_user('dec@cs.fr', 'Denis') as dec \gset
 update profiles set age_confirmed = true, created_at = now() - interval '10 days',
                     photo_url = id::text || '/' || md5(id::text) || '.jpg';
 update profiles set created_at = now() - interval '40 days', bio = 'Maman de deux enfants.' where id = :'pend';
@@ -23,7 +24,8 @@ insert into activities (id, organiser_id, category_id, title, place_label, place
 insert into activity_members (activity_id, user_id, status) values
   ('00000000-0000-0000-0000-0000000000f1', :'mem', 'member'),
   ('00000000-0000-0000-0000-0000000000f1', :'pend', 'pending'),
-  ('00000000-0000-0000-0000-0000000000f1', :'rep', 'member');
+  ('00000000-0000-0000-0000-0000000000f1', :'rep', 'member'),
+  ('00000000-0000-0000-0000-0000000000f1', :'dec', 'removed');
 select id as fsession from sessions where activity_id = '00000000-0000-0000-0000-0000000000f1' order by starts_at limit 1 \gset
 insert into messages (id, activity_id, sender_id, body) values
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000f1', :'mem', 'Rendez-vous au portail.');
@@ -64,6 +66,20 @@ select ok(exists (select 1 from jsonb_array_elements(admin_reports()->'items') i
   'an admin still sees the place of an activity with children in the preview');
 select tests.act_as(:'rep');
 select throws_ok($$ select admin_reports(p_priority => true) $$, '42501', null, 'a user cannot read the priority list');
+
+-- ---- reporting a request ---------------------------------------------------------------------
+-- The organiser decides on a request from a bio and a profile: a worrying one must reach the admins.
+select tests.act_as(:'org');
+select lives_ok(format($$ insert into reports (reporter_id, target_type, target_id, reason) values (auth.uid(), 'user', %L, 'child_safety') $$, :'pend'),
+  'the organiser can report a person asking to join');
+select lives_ok(format($$ insert into reports (reporter_id, target_type, target_id, reason) values (auth.uid(), 'user', %L, 'child_safety') $$, :'dec'),
+  'the organiser can report a person whose request was declined');
+select tests.act_as(:'mem');
+select throws_ok(format($$ insert into reports (reporter_id, target_type, target_id, reason) values (auth.uid(), 'user', %L, 'child_safety') $$, :'pend'),
+  '42501', 'not_allowed', 'a member cannot report a person who only asked to join');
+select tests.act_as(:'pend');
+select throws_ok(format($$ insert into reports (reporter_id, target_type, target_id, reason) values (auth.uid(), 'user', %L, 'other') $$, :'dec'),
+  '42501', 'not_allowed', 'one requester cannot report another');
 
 -- ---- the facts about a request ----------------------------------------------------------------
 select tests.act_as(:'org');

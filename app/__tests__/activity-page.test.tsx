@@ -556,4 +556,19 @@ describe('organiser tools for activities with children', () => {
     await open(activity({ isOrganiser: true, approvalMode: 'approval' }));
     expect(await screen.findByText('Membre depuis janvier 2026')).toBeTruthy();
   });
+
+  it('lets the organiser report a worrying request, with the child safety reason', async () => {
+    mockGate.mockResolvedValue(true);
+    (activityRoster as jest.Mock).mockResolvedValue({
+      ok: true,
+      people: [
+        { userId: 'u9', firstName: 'Paula', photoUrl: null, status: 'pending', bio: null, memberSince: '2026-10-17T10:00:00Z' },
+        { userId: 'u8', firstName: 'Mia', photoUrl: null, status: 'member', bio: null, memberSince: null },
+      ],
+    });
+    await open(activity({ isOrganiser: true, approvalMode: 'approval', withChildren: true }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Signaler la demande de Paula' }));
+    expect(await screen.findByText('Comportement inquiétant envers des enfants')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Signaler la demande de Mia' })).toBeNull();
+  });
 });

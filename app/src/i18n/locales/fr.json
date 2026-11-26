@@ -157,6 +157,7 @@
       "refuse": "Refuser",
       "acceptAria": "Accepter la demande de {{name}}",
       "refuseAria": "Refuser la demande de {{name}}",
+      "reportAria": "Signaler la demande de {{name}}",
       "welcome": "Personne d'accueil",
       "welcomeNow": "Actuellement : {{prenom}}",
       "welcomeNobody": "Personne",

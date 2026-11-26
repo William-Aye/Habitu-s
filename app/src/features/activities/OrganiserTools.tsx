@@ -1,5 +1,6 @@
 import Archive from 'lucide-react-native/icons/archive';
 import Check from 'lucide-react-native/icons/check';
+import Flag from 'lucide-react-native/icons/flag';
 import Pencil from 'lucide-react-native/icons/pencil';
 import UserCheck from 'lucide-react-native/icons/user-check';
 import X from 'lucide-react-native/icons/x';
@@ -7,6 +8,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSession } from '../account/useSession';
+import { useReportSheet } from '../safety/ReportSheet';
 import { PersonAvatar } from './PersonAvatar';
 import {
   activityRoster,
@@ -50,6 +52,7 @@ export function OrganiserPanel({ activity, onChanged, onArchived }: PanelProps) 
   const lang = i18n.language?.startsWith('en') ? 'en' : 'fr';
   const { userId } = useSession();
   const errorText = useErrorText();
+  const { openReport, reportSheet } = useReportSheet();
   const [people, setPeople] = useState<RosterEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const [rosterError, setRosterError] = useState<string | null>(null);
@@ -125,6 +128,15 @@ export function OrganiserPanel({ activity, onChanged, onArchived }: PanelProps) 
               {p.memberSince ? (
                 <Text style={styles.hint}>{t('activity.organiser.memberSince', { date: monthYear(p.memberSince, lang) })}</Text>
               ) : null}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('activity.organiser.reportAria', { name: p.firstName })}
+                style={styles.small}
+                onPress={() => void openReport({ type: 'user', id: p.userId, withChildren: activity.withChildren })}
+              >
+                <Flag size={14} color={colors.accent} />
+                <Text style={styles.smallText}>{t('safety.report')}</Text>
+              </Pressable>
             </View>
             <Pressable
               accessibilityRole="button"
@@ -236,6 +248,7 @@ export function OrganiserPanel({ activity, onChanged, onArchived }: PanelProps) 
         </Pressable>
       )}
       {error ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
+      {reportSheet}
     </View>
   );
 }

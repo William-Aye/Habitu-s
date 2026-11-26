@@ -157,6 +157,7 @@
       "refuse": "Decline",
       "acceptAria": "Accept {{name}}'s request",
       "refuseAria": "Decline {{name}}'s request",
+      "reportAria": "Report {{name}}'s request",
       "welcome": "Welcome person",
       "welcomeNow": "Currently: {{prenom}}",
       "welcomeNobody": "Nobody",
