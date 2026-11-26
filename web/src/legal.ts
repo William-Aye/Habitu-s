@@ -20,7 +20,7 @@ const text = {
 /** The terms of use (CGU), in the same plain format as the privacy text: "# " headings, "- " lists. */
 const termsFr = `# Conditions d'utilisation
 
-Dernière mise à jour : 30 octobre 2026
+Dernière mise à jour : 26 novembre 2026
 
 Ces conditions expliquent, simplement, ce que vous pouvez attendre d'Habituer et ce que nous attendons de vous. En créant un compte ou en utilisant l'application ou le site, vous les acceptez.
 
@@ -48,9 +48,11 @@ Pour que les rencontres se passent bien, vous vous engagez à :
 - ne pas collecter d'informations sur les autres membres, ni utiliser le service pour démarcher ou vendre quoi que ce soit ;
 - ne rien faire d'illégal et ne pas chercher à perturber ou à contourner la sécurité du service.
 
-Ces règles sont celles que vous retrouvez dans les motifs de signalement : lieu dangereux ou inadapté, comportement inapproprié, harcèlement, faux ou spam, activité qui n'a pas eu lieu.
+Ces règles sont celles que vous retrouvez dans les motifs de signalement : lieu dangereux ou inadapté, comportement inapproprié, harcèlement, faux ou spam, activité qui n'a pas eu lieu, comportement inquiétant envers des enfants.
 
 Rappel de sécurité pour les rencontres. Habituer ne vérifie pas l'identité des membres. Pour une première rencontre, restez dans le lieu public prévu, organisez votre propre trajet, prévenez un proche de l'endroit où vous allez, et partez si quelque chose vous met mal à l'aise. Si vous êtes en danger, appelez le 17 ou le 112. Vous restez seul responsable de votre décision de rencontrer quelqu'un.
+
+Activités avec des enfants. Certaines activités, comme les sorties parents-enfants, accueillent des enfants venus avec un parent. Les enfants n'ont pas de compte : pendant toute l'activité, ils sont sous la seule responsabilité de leur parent et ne sont jamais confiés à un autre adulte. Pour organiser une telle activité ou demander à la rejoindre, il faut une photo de profil et un compte créé depuis au moins 7 jours ; l'organisateur accepte chaque demande et le lieu n'est communiqué qu'aux participants acceptés. Habituer ne vérifie ni l'identité des membres ni leurs antécédents judiciaires : ces règles limitent les risques sans les supprimer.
 
 # Contenus des utilisateurs
 

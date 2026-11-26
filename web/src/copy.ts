@@ -26,6 +26,10 @@ export const copy = {
   downloadApp: "Télécharger l'application",
   imThere: "Je serai là",
   seeOnMap: "Voir sur la carte",
+  activity: {
+    placeHidden: "Lieu communiqué aux participants acceptés",
+    withChildren: "Avec des enfants",
+  },
   availableInApp: "Disponible dans l'application",
   notFound: "Cette page n'existe pas ou n'est plus disponible.",
   notFoundTitle: "Page introuvable",
