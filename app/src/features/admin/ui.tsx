@@ -174,6 +174,7 @@ export const adminStyles = StyleSheet.create({
   label: { fontWeight: '600' },
   choice: { borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 18, paddingHorizontal: 12, minHeight: 44, justifyContent: 'center' },
   chosen: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
+  sectionTitle: { fontSize: 17, fontWeight: '700', marginTop: 8 },
 });
 
 const styles = StyleSheet.create({

@@ -1,4 +1,4 @@
-import { initialForm, localDate, stepValid } from '../src/features/activities/form';
+import { initialForm, isFamilyCategory, localDate, stepValid, toDraft } from '../src/features/activities/form';
 
 describe('dates are computed in Europe/Paris', () => {
   it('uses the Paris day when the device is still on the previous day', () => {
@@ -20,5 +20,46 @@ describe('dates are computed in Europe/Paris', () => {
     const form = { ...initialForm(null, now), categoryId: 'c', title: 'abc', pin: { lon: 1, lat: 1 }, placeLabel: 'x' };
     expect(stepValid(3, { ...form, startDate: '2030-01-15' }, localDate(now))).toBe(true);
     expect(stepValid(3, { ...form, startDate: '2030-01-14' }, localDate(now))).toBe(false);
+  });
+});
+
+describe('activities with children', () => {
+  const cats = [
+    { id: 'fam', slug: 'family', parentId: null },
+    { id: 'kids', slug: 'family-sorties-parents-enfants', parentId: 'fam' },
+    { id: 'sport', slug: 'sport', parentId: null },
+    { id: 'yoga', slug: 'yoga', parentId: 'sport' },
+  ];
+
+  it('knows the Parents category and its sub-categories', () => {
+    expect(isFamilyCategory('fam', cats)).toBe(true);
+    expect(isFamilyCategory('kids', cats)).toBe(true);
+  });
+
+  it('is false for other categories and for an unknown id', () => {
+    expect(isFamilyCategory('sport', cats)).toBe(false);
+    expect(isFamilyCategory('yoga', cats)).toBe(false);
+    expect(isFamilyCategory('nope', cats)).toBe(false);
+  });
+
+  const now = new Date('2030-05-10T10:00:00Z');
+  const ready = {
+    ...initialForm(null, now), categoryId: 'c', title: 'Sortie au parc', pin: { lon: 1, lat: 1 }, placeLabel: 'Square',
+  };
+
+  it('starts with no children and no Parents category', () => {
+    expect(initialForm(null, now)).toMatchObject({ withChildren: false, familyCategory: false });
+  });
+
+  it('sends the flag and forces approval when children will be there', () => {
+    expect(toDraft({ ...ready, withChildren: true, approvalMode: 'open' }, localDate(now))).toMatchObject({
+      withChildren: true, approvalMode: 'approval',
+    });
+    expect(toDraft({ ...ready, familyCategory: true, approvalMode: 'open' }, localDate(now))).toMatchObject({
+      withChildren: true, approvalMode: 'approval',
+    });
+    expect(toDraft({ ...ready, approvalMode: 'open' }, localDate(now))).toMatchObject({
+      withChildren: false, approvalMode: 'open',
+    });
   });
 });

@@ -157,6 +157,7 @@
       "refuse": "Decline",
       "acceptAria": "Accept {{name}}'s request",
       "refuseAria": "Decline {{name}}'s request",
+      "reportAria": "Report {{name}}'s request",
       "welcome": "Welcome person",
       "welcomeNow": "Currently: {{prenom}}",
       "welcomeNobody": "Nobody",
@@ -179,10 +180,19 @@
       "archiveAsk": "Archive this activity? Other people will no longer see it and no more sessions will be offered.",
       "archiveYes": "Yes, archive",
       "archiveNo": "No, keep it",
-      "tools": "Organiser tools"
+      "tools": "Organiser tools",
+      "memberSince": "Member since {{date}}"
     },
     "reminderFailed": "Your answer could not be saved. Please give it below.",
-    "discussion": "Discussion"
+    "discussion": "Discussion",
+    "placeHidden": "Place shared with accepted participants",
+    "withChildren": "With children",
+    "requestJoin": "Ask to join",
+    "requirements": {
+      "photo": "Add a profile photo to ask to join an activity with children.",
+      "photoWeb": "Add a profile photo in the Habituer app to ask to join an activity with children.",
+      "account_age": "Your account must be at least 7 days old to ask to join an activity with children."
+    }
   },
   "web": {
     "siteName": "Habituer",
@@ -354,7 +364,8 @@
       "network": "Cannot connect. Check your network and try again.",
       "unknown": "Something went wrong. Try again.",
       "association_unavailable": "This association no longer accepts linked activities. Choose another option.",
-      "content_refused": "This text contains a forbidden word."
+      "content_refused": "This text contains a forbidden word.",
+      "children_requirements": "An activity with children needs a profile photo and an account at least 7 days old."
     },
     "who": {
       "me": "Me",
@@ -396,7 +407,8 @@
       "title": "Title",
       "description": "Description",
       "templates": "Ideas to get started",
-      "counter": "{{n}} / {{max}}"
+      "counter": "{{n}} / {{max}}",
+      "noAddress": "Do not write the address in the title or the description: only accepted people will see the place."
     },
     "templates": {
       "games": {
@@ -450,13 +462,20 @@
       "approval": "On request",
       "history": "Discussion history for new members",
       "history_all": "Whole history",
-      "history_since_join": "Only since they joined"
+      "history_since_join": "Only since they joined",
+      "children": "Children will be there",
+      "childrenFamily": "Activities in the Parents category always welcome children.",
+      "childrenApproval": "With children, you accept each request yourself: only accepted people see the place."
     },
     "done": {
       "title": "Share it with your friends",
       "body": "Your activity \"{{title}}\" is published.",
       "share": "Share",
       "view": "View the activity"
+    },
+    "children": {
+      "photo": "Add a profile photo to organise an activity with children.",
+      "account_age": "Your account must be at least 7 days old to organise an activity with children."
     }
   },
   "collectif": {
@@ -614,7 +633,8 @@
       "harassment": "Harassment",
       "fake_or_spam": "Fake or spam",
       "did_not_happen": "Did not happen",
-      "other": "Other"
+      "other": "Other",
+      "child_safety": "Worrying behaviour towards children"
     },
     "details": "Tell us more (optional)",
     "send": "Send report",
@@ -648,7 +668,13 @@
         "a": "For a first meeting, stay in the public place and arrange your own way there and back.",
         "b": "Tell someone close to you where you are going."
       },
-      "moved_place": "Activities must take place in a public place. If this new place seems unsuitable to you, report it."
+      "moved_place": "Activities must take place in a public place. If this new place seems unsuitable to you, report it.",
+      "with_children": {
+        "a": "A child always stays with their parent and is never left with another adult.",
+        "b": "Meet only in the planned public place.",
+        "c": "Do not share photos of children or personal details in the chat.",
+        "d": "Report anything that worries you."
+      }
     }
   },
   "admin": {
@@ -722,7 +748,9 @@
         "warn": "Warn",
         "remove": "Remove",
         "ban": "Ban"
-      }
+      },
+      "priority": "Priority ({{n}})",
+      "others": "Other reports"
     },
     "claims": {
       "empty": "No pending claims.",

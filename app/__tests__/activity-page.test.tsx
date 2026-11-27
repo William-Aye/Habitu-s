@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { Share } from 'react-native';
+import { Platform, Share } from 'react-native';
 import { createEventInCalendarAsync } from 'expo-calendar/legacy';
 import { initI18n } from '../src/i18n';
 import ActivityScreen from '../src/app/activites/[id]';
@@ -66,6 +66,7 @@ function activity(over: Partial<ActivityPage> = {}): ActivityPage {
     id: 'act1', title: 'Jeux de société', description: 'Une soirée conviviale',
     category: { id: 'c', slug: 'jeux', nameFr: 'Jeux', nameEn: 'Games', icon: 'dice' }, tags: [],
     organiser: { firstName: 'Olivier', photoUrl: null }, organisedBy: null, placeLabel: 'Café des Arts',
+    withChildren: false, placeHidden: false, childrenRequirementsMissing: [],
     lon: 4.85, lat: 45.77, recurrence: { kind: 'weekly' }, startDate: '2026-10-20', startTime: '19:00:00',
     durationMinutes: 120, timezone: 'Europe/Paris', maxSize: null, newcomerFriendly: true,
     approvalMode: 'open', publishedAt: '2026-10-01T00:00:00Z', archivedAt: null, isOrganiser: false,
@@ -469,5 +470,105 @@ describe('the organiser is named only to signed-in people', () => {
     expect(screen.getByText('Organisé par Les Joueurs')).toBeTruthy();
     expect(screen.queryByText('Organisé par un membre')).toBeNull();
     expect(screen.queryByText(/Olivier/)).toBeNull();
+  });
+});
+
+describe('activities with children', () => {
+  const kids = (over: Partial<ActivityPage> = {}) =>
+    activity({
+      withChildren: true, placeHidden: true, placeLabel: null, lon: null, lat: null, approvalMode: 'approval',
+      nextSessions: [session({ placeLabel: null })], ...over,
+    });
+
+  it('shows the hidden-place line and the children label instead of the place and the map', async () => {
+    await open(kids());
+    expect(screen.getByText('Lieu communiqué aux participants acceptés')).toBeTruthy();
+    expect(screen.getByText('Avec des enfants')).toBeTruthy();
+    expect(screen.queryByText('Voir sur la carte')).toBeNull();
+    expect(screen.queryByText(/Café des Arts/)).toBeNull();
+    expect(screen.queryByText(/^Lieu :/)).toBeNull();
+  });
+
+  it('says what is missing and keeps the request button disabled', async () => {
+    mockGate.mockResolvedValue(true);
+    await open(kids({ childrenRequirementsMissing: ['photo', 'account_age'] }));
+    expect(screen.getByText(/Ajoutez une photo de profil/)).toBeTruthy();
+    expect(screen.getByText(/Votre compte doit avoir au moins 7 jours/)).toBeTruthy();
+    const button = screen.getByRole('button', { name: 'Demander à rejoindre' });
+    expect(button.props.accessibilityState).toMatchObject({ disabled: true });
+    await fireEvent.press(button);
+    expect(joinActivity).not.toHaveBeenCalled();
+  });
+
+  it('on the web, says the photo is added in the app', async () => {
+    jest.replaceProperty(Platform, 'OS', 'web');
+    await open(kids({ childrenRequirementsMissing: ['photo'] }));
+    expect(screen.getByText(/dans l'application Habituer/)).toBeTruthy();
+  });
+
+  it('lets an established account ask to join', async () => {
+    mockGate.mockResolvedValue(true);
+    (joinActivity as jest.Mock).mockResolvedValue({ ok: true, status: 'pending' });
+    await open(kids({ childrenRequirementsMissing: [] }));
+    expect(screen.queryByText(/Ajoutez une photo de profil/)).toBeNull();
+    const button = screen.getByRole('button', { name: 'Demander à rejoindre' });
+    expect(button.props.accessibilityState).toMatchObject({ disabled: false });
+    await fireEvent.press(button);
+    await waitFor(() => expect(joinActivity).toHaveBeenCalledWith('act1'));
+  });
+
+  it('shows the place to an accepted member, still with the children label', async () => {
+    await open(activity({ withChildren: true, approvalMode: 'approval', myStatus: 'member' }));
+    expect(screen.getByText('Lieu : Café des Arts')).toBeTruthy();
+    expect(screen.getByText('Avec des enfants')).toBeTruthy();
+    expect(screen.queryByText('Lieu communiqué aux participants acceptés')).toBeNull();
+  });
+
+  it('turns the refusal of the database into a clear message', async () => {
+    mockGate.mockResolvedValue(true);
+    (joinActivity as jest.Mock).mockResolvedValue({ ok: false, error: 'children_requirements' });
+    await open(kids());
+    await fireEvent.press(screen.getByRole('button', { name: 'Demander à rejoindre' }));
+    expect(await screen.findByText(/photo de profil et un compte d'au moins 7 jours/)).toBeTruthy();
+  });
+});
+
+describe('organiser tools for activities with children', () => {
+  it('shows the bio and the account age of a pending request', async () => {
+    (activityRoster as jest.Mock).mockResolvedValue({
+      ok: true,
+      people: [
+        { userId: 'u9', firstName: 'Paula', photoUrl: null, status: 'pending', bio: 'Maman de deux enfants.', memberSince: '2026-10-17T10:00:00Z' },
+        { userId: 'u8', firstName: 'Mia', photoUrl: null, status: 'member', bio: null, memberSince: null },
+      ],
+    });
+    await open(activity({ isOrganiser: true, approvalMode: 'approval', withChildren: true }));
+    expect(await screen.findByText('Maman de deux enfants.')).toBeTruthy();
+    expect(screen.getByText('Membre depuis octobre 2026')).toBeTruthy();
+    expect(screen.getAllByText(/^Membre depuis/)).toHaveLength(1);
+  });
+
+  it('shows the account age alone when there is no bio', async () => {
+    (activityRoster as jest.Mock).mockResolvedValue({
+      ok: true,
+      people: [{ userId: 'u9', firstName: 'Paula', photoUrl: null, status: 'pending', bio: null, memberSince: '2026-01-05T10:00:00Z' }],
+    });
+    await open(activity({ isOrganiser: true, approvalMode: 'approval' }));
+    expect(await screen.findByText('Membre depuis janvier 2026')).toBeTruthy();
+  });
+
+  it('lets the organiser report a worrying request, with the child safety reason', async () => {
+    mockGate.mockResolvedValue(true);
+    (activityRoster as jest.Mock).mockResolvedValue({
+      ok: true,
+      people: [
+        { userId: 'u9', firstName: 'Paula', photoUrl: null, status: 'pending', bio: null, memberSince: '2026-10-17T10:00:00Z' },
+        { userId: 'u8', firstName: 'Mia', photoUrl: null, status: 'member', bio: null, memberSince: null },
+      ],
+    });
+    await open(activity({ isOrganiser: true, approvalMode: 'approval', withChildren: true }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Signaler la demande de Paula' }));
+    expect(await screen.findByText('Comportement inquiétant envers des enfants')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Signaler la demande de Mia' })).toBeNull();
   });
 });

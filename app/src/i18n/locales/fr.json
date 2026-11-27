@@ -157,6 +157,7 @@
       "refuse": "Refuser",
       "acceptAria": "Accepter la demande de {{name}}",
       "refuseAria": "Refuser la demande de {{name}}",
+      "reportAria": "Signaler la demande de {{name}}",
       "welcome": "Personne d'accueil",
       "welcomeNow": "Actuellement : {{prenom}}",
       "welcomeNobody": "Personne",
@@ -179,10 +180,19 @@
       "archiveAsk": "Archiver cette activité ? Elle ne sera plus visible des autres personnes et plus aucune séance ne sera proposée.",
       "archiveYes": "Oui, archiver",
       "archiveNo": "Non, la garder",
-      "tools": "Outils de l'organisateur"
+      "tools": "Outils de l'organisateur",
+      "memberSince": "Membre depuis {{date}}"
     },
     "reminderFailed": "Votre réponse n'a pas pu être enregistrée. Indiquez-la ci-dessous.",
-    "discussion": "Discussion"
+    "discussion": "Discussion",
+    "placeHidden": "Lieu communiqué aux participants acceptés",
+    "withChildren": "Avec des enfants",
+    "requestJoin": "Demander à rejoindre",
+    "requirements": {
+      "photo": "Ajoutez une photo de profil pour demander à rejoindre une activité avec des enfants.",
+      "photoWeb": "Ajoutez une photo de profil dans l'application Habituer pour demander à rejoindre une activité avec des enfants.",
+      "account_age": "Votre compte doit avoir au moins 7 jours pour demander à rejoindre une activité avec des enfants."
+    }
   },
   "web": {
     "siteName": "Habituer",
@@ -354,7 +364,8 @@
       "network": "Connexion impossible. Vérifiez votre réseau et réessayez.",
       "unknown": "Une erreur est survenue. Réessayez.",
       "association_unavailable": "Cette association n'accepte plus de nouvelles activités liées. Choisissez une autre option.",
-      "content_refused": "Ce texte contient un mot interdit."
+      "content_refused": "Ce texte contient un mot interdit.",
+      "children_requirements": "Pour une activité avec des enfants, il faut une photo de profil et un compte d'au moins 7 jours."
     },
     "who": {
       "me": "Moi",
@@ -396,7 +407,8 @@
       "title": "Titre",
       "description": "Description",
       "templates": "Des idées pour commencer",
-      "counter": "{{n}} / {{max}}"
+      "counter": "{{n}} / {{max}}",
+      "noAddress": "N'écrivez pas l'adresse dans le titre ni dans la description : seules les personnes acceptées verront le lieu."
     },
     "templates": {
       "games": {
@@ -450,13 +462,20 @@
       "approval": "Sur demande",
       "history": "Historique de la discussion pour les nouveaux membres",
       "history_all": "Tout l'historique",
-      "history_since_join": "Seulement depuis leur arrivée"
+      "history_since_join": "Seulement depuis leur arrivée",
+      "children": "Des enfants seront présents",
+      "childrenFamily": "Les activités de la catégorie Parents accueillent toujours des enfants.",
+      "childrenApproval": "Avec des enfants, vous acceptez chaque demande vous-même : seules les personnes acceptées voient le lieu."
     },
     "done": {
       "title": "Partagez-la avec vos amis",
       "body": "Votre activité « {{title}} » est publiée.",
       "share": "Partager",
       "view": "Voir l'activité"
+    },
+    "children": {
+      "photo": "Ajoutez une photo de profil pour organiser une activité avec des enfants.",
+      "account_age": "Votre compte doit avoir au moins 7 jours pour organiser une activité avec des enfants."
     }
   },
   "collectif": {
@@ -614,7 +633,8 @@
       "harassment": "Harcèlement",
       "fake_or_spam": "Faux ou spam",
       "did_not_happen": "N'a pas eu lieu",
-      "other": "Autre"
+      "other": "Autre",
+      "child_safety": "Comportement inquiétant envers des enfants"
     },
     "details": "Précisez (facultatif)",
     "send": "Envoyer le signalement",
@@ -648,7 +668,13 @@
         "a": "Pour une première rencontre, restez dans le lieu public et organisez votre propre trajet.",
         "b": "Prévenez un proche de l'endroit où vous allez."
       },
-      "moved_place": "Les activités doivent se dérouler dans un lieu public. Si ce nouveau lieu vous semble inadapté, signalez-le."
+      "moved_place": "Les activités doivent se dérouler dans un lieu public. Si ce nouveau lieu vous semble inadapté, signalez-le.",
+      "with_children": {
+        "a": "L'enfant reste toujours avec son parent et n'est jamais confié à un autre adulte.",
+        "b": "Retrouvez-vous uniquement dans le lieu public prévu.",
+        "c": "Ne partagez ni photo d'enfant ni information personnelle dans la discussion.",
+        "d": "Signalez tout ce qui vous inquiète."
+      }
     }
   },
   "admin": {
@@ -722,7 +748,9 @@
         "warn": "Avertir",
         "remove": "Retirer",
         "ban": "Bannir"
-      }
+      },
+      "priority": "Prioritaires ({{n}})",
+      "others": "Autres signalements"
     },
     "claims": {
       "empty": "Aucune revendication en attente.",

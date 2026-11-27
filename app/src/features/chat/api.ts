@@ -143,3 +143,9 @@ export async function markRead(activityId: string): Promise<ChatResult> {
 export async function setMuted(activityId: string, muted: boolean): Promise<ChatResult> {
   return narrow(await run(() => supabase.rpc('set_chat_muted', { p_activity: activityId, p_muted: muted }), none));
 }
+
+/** Whether the chat belongs to an activity with children (its reports then offer the child-safety reason first). */
+export async function activityWithChildren(activityId: string): Promise<boolean> {
+  const { data, error } = await supabase.from('activities').select('with_children').eq('id', activityId).maybeSingle();
+  return !error && !!data?.with_children;
+}

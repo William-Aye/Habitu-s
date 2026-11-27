@@ -89,14 +89,20 @@ export function ReportsQueue() {
   const [paging, setPaging] = useState(false);
   const firstPage = useCallback(async () => {
     const r = await listReports();
-    if (r.ok) {
-      const last = r.items[r.items.length - 1];
-      cursor.current = last ? { createdAt: last.createdAt, id: last.id } : null;
-      setHasMore(r.hasMore);
-    }
-    return r;
+    if (!r.ok) return r;
+    const last = r.items[r.items.length - 1];
+    cursor.current = last ? { createdAt: last.createdAt, id: last.id } : null;
+    setHasMore(r.hasMore);
+    if (r.priorityOpenCount === 0) return r;
+    // Reports about children (or on an activity with children) come first, from their own list.
+    const p = await listReports(null, { priority: true });
+    if (!p.ok) return r;
+    const first = p.items.map((x) => ({ ...x, priority: true }));
+    const ids = new Set(first.map((x) => x.id));
+    return { ...r, items: [...first, ...r.items.filter((x) => !ids.has(x.id))] };
   }, []);
   const q = useQueue<AdminReport>(firstPage);
+  const seen = (id: string) => q.load.state === 'ready' && q.load.items.some((x) => x.id === id);
 
   const more = async () => {
     if (paging) return;
@@ -107,7 +113,7 @@ export function ReportsQueue() {
       const last = r.items[r.items.length - 1];
       if (last) cursor.current = { createdAt: last.createdAt, id: last.id };
       setHasMore(r.hasMore);
-      q.append(r.items);
+      q.append(r.items.filter((x) => !seen(x.id)));
     } finally {
       setPaging(false);
     }
@@ -118,8 +124,8 @@ export function ReportsQueue() {
       <ErrorText code={q.error} />
       <DoneNotice show={q.done} />
       <QueueState load={q.load} empty={t('admin.reports.empty')} onRetry={q.reload}>
-        {(items) =>
-          items.map((r) => (
+        {(items) => {
+          const card = (r: AdminReport) => (
             <ReportCard
               key={r.id}
               report={r}
@@ -127,8 +133,21 @@ export function ReportsQueue() {
               anyBusy={!!q.busyId}
               onDecide={(d, text) => void q.act(r.id, () => decideReport(r.id, d, text))}
             />
-          ))
-        }
+          );
+          const urgent = items.filter((r) => r.priority);
+          if (urgent.length === 0) return items.map(card);
+          const others = items.filter((r) => !r.priority);
+          return (
+            <>
+              <Text accessibilityRole="header" style={s.sectionTitle}>{t('admin.reports.priority', { n: urgent.length })}</Text>
+              {urgent.map(card)}
+              {others.length > 0 ? (
+                <Text accessibilityRole="header" style={s.sectionTitle}>{t('admin.reports.others')}</Text>
+              ) : null}
+              {others.map(card)}
+            </>
+          );
+        }}
       </QueueState>
       {q.load.state === 'ready' && hasMore ? (
         <AdminButton label={t('admin.reports.more')} onPress={() => void more()} disabled={paging || !!q.busyId} />

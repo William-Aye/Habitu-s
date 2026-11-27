@@ -279,7 +279,7 @@ delete from banned_words;
 
 -- structure
 select is(has_function_privilege('authenticated', 'public.text_has_banned_word(text)', 'execute'), false, 'the word matcher is internal');
-select is(has_function_privilege('anon', 'public.admin_reports(text, timestamptz, uuid, int)', 'execute'), false, 'anon cannot call the queue');
+select is(has_function_privilege('anon', 'public.admin_reports(text, timestamptz, uuid, int, boolean)', 'execute'), false, 'anon cannot call the queue');
 select is(has_function_privilege('authenticated', 'public.my_blocked()', 'execute'), true, 'authenticated can list blocks');
 select * from finish();
 rollback;

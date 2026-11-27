@@ -29,6 +29,10 @@ export interface FormState {
   newcomerFriendly: boolean;
   approvalMode: 'open' | 'approval';
   chatHistory: ChatHistory;
+  /** The organiser said children will be there. */
+  withChildren: boolean;
+  /** The chosen category is Parents or one of its sub-categories: children are always there. */
+  familyCategory: boolean;
 }
 
 const PARIS_DAY = new Intl.DateTimeFormat('en-GB', {
@@ -69,8 +73,24 @@ export function initialForm(collectifId?: string | null, now = new Date()): Form
     newcomerFriendly: false,
     approvalMode: 'open',
     chatHistory: 'all',
+    withChildren: false,
+    familyCategory: false,
   };
 }
+
+/** Parents or a direct sub-category of it, as the database decides (`is_family_category`). */
+export function isFamilyCategory(
+  categoryId: string,
+  categories: { id: string; slug: string; parentId: string | null }[],
+): boolean {
+  const c = categories.find((x) => x.id === categoryId);
+  if (!c) return false;
+  if (c.slug === 'family') return true;
+  return categories.some((p) => p.id === c.parentId && p.slug === 'family');
+}
+
+/** Children will be there: chosen by the organiser, or always for the Parents category. */
+export const hasChildren = (f: Pick<FormState, 'withChildren' | 'familyCategory'>) => f.withChildren || f.familyCategory;
 
 export function isRealDate(s: string): boolean {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
@@ -144,6 +164,7 @@ export function toDraft(f: FormState, today?: string): ActivityDraft | null {
   }
   return {
     organisedBy,
+    withChildren: hasChildren(f),
     categoryId: f.categoryId,
     title: f.title.trim(),
     description: f.description.trim(),
@@ -153,7 +174,8 @@ export function toDraft(f: FormState, today?: string): ActivityDraft | null {
     recurrence,
     maxSize,
     newcomerFriendly: f.newcomerFriendly,
-    approvalMode: f.approvalMode,
+    // With children every request is accepted by the organiser (the database forces it too).
+    approvalMode: hasChildren(f) ? 'approval' : f.approvalMode,
     chatHistory: f.chatHistory,
   };
 }

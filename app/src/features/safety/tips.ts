@@ -3,13 +3,19 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSession } from '../account/useSession';
 import { listSeenTips, markTipsSeen } from './tipsApi';
 
-export type TipId = 'where' | 'first_session' | 'moved_place';
+export type TipId = 'where' | 'first_session' | 'moved_place' | 'with_children';
 
 /** i18n keys of the lines of each tip. */
 export const TIPS: Record<TipId, string[]> = {
   where: ['create.where.homeTip'],
   first_session: ['safety.tips.first_session.a', 'safety.tips.first_session.b'],
   moved_place: ['safety.tips.moved_place'],
+  with_children: [
+    'safety.tips.with_children.a',
+    'safety.tips.with_children.b',
+    'safety.tips.with_children.c',
+    'safety.tips.with_children.d',
+  ],
 };
 
 const STORAGE_KEY = 'tips.seen.v1';

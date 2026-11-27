@@ -16,7 +16,7 @@ export async function addSessionToCalendar(
       title: activity.title,
       startDate: start,
       endDate: end,
-      location: session.placeLabel,
+      location: session.placeLabel ?? undefined,
       timeZone: activity.timezone,
     });
     // Android reports 'done' whatever the user did, so only an explicit cancel is told apart.

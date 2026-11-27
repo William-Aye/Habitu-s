@@ -3,7 +3,7 @@ import { Alert, AppState } from 'react-native';
 import { useEffect as mockUseEffect } from 'react';
 import { initI18n } from '../src/i18n';
 import Discussion from '../src/app/discussions/[activityId]';
-import { deleteMessage, fetchMessages, markRead, sendMessage, setMuted } from '../src/features/chat/api';
+import { activityWithChildren, deleteMessage, fetchMessages, markRead, sendMessage, setMuted } from '../src/features/chat/api';
 import { block as blockUser } from '../src/features/safety/blocks';
 import { reportTarget } from '../src/features/safety/reports';
 import { onUnreadChanged } from '../src/features/chat/unreadEvents';
@@ -58,6 +58,7 @@ jest.mock('../src/features/chat/api', () => ({
   deleteMessage: jest.fn(),
   markRead: jest.fn(),
   setMuted: jest.fn(),
+  activityWithChildren: jest.fn(),
 }));
 jest.mock('../src/features/safety/reports', () => ({ reportTarget: jest.fn() }));
 jest.mock('../src/features/safety/blocks', () => ({ block: jest.fn() }));
@@ -158,6 +159,7 @@ beforeEach(async () => {
   }) as never);
   (markRead as jest.Mock).mockResolvedValue(ok);
   (setMuted as jest.Mock).mockResolvedValue(ok);
+  (activityWithChildren as jest.Mock).mockResolvedValue(false);
   (reportTarget as jest.Mock).mockResolvedValue(ok);
   (blockUser as jest.Mock).mockResolvedValue(ok);
   (deleteMessage as jest.Mock).mockResolvedValue(ok);
@@ -327,6 +329,17 @@ describe('discussion screen', () => {
     expect(deleteMessage).toHaveBeenCalledWith('m2');
     expect(screen.queryByText('Le mien')).toBeNull();
     alert.mockRestore();
+  });
+
+  it('offers the child-safety reason first on a message in the chat of an activity with children', async () => {
+    (activityWithChildren as jest.Mock).mockResolvedValue(true);
+    await open([msg(1, 'Salut')]);
+    await settle();
+    expect(activityWithChildren).toHaveBeenCalledWith('act1');
+    await fireEvent(screen.getByText('Salut'), 'longPress');
+    await fireEvent.press(screen.getByRole('button', { name: 'Signaler' }));
+    const radios = await screen.findAllByRole('radio');
+    expect(radios[0].props.accessibilityLabel).toBe('Comportement inquiétant envers des enfants');
   });
 
   it("offers report and block on someone else's message; report sends the chosen reason", async () => {

@@ -369,6 +369,19 @@ Short plain-text tips shown once at the relevant moment, dismissible, and all co
 | Before a user's first session | "For a first meeting, stay in the public place and arrange your own transport." and "Tell someone where you are going" with a link to Share my plans. |
 | First private message | "Never send money, ID documents or your home address to someone you have just met." |
 | A session is moved to a non-public place | Reminder that activities should meet in public places, with a report link. |
+| First activity with children a person opens | "A child always stays with their parent and is never left with another adult", "Meet only in the planned public place", "Do not share photos of children or personal details in the chat", "Report anything that worries you". |
+
+### Activities with children
+
+Added on 2026-11-26 (design: `docs/superpowers/specs/2026-11-26-child-safety-design.md`). Some activities, such as parent-and-child outings, welcome children who come with a parent. Children never have an account; the service stays 18+.
+
+- **Which activities:** every activity of the Parents category (and its sub-categories), plus any activity whose organiser ticks "Des enfants seront présents". The database sets and keeps the flag.
+- **Always on request:** the organiser accepts each request. The access setting is locked to "Sur demande".
+- **Established accounts only:** organising one, marking an activity as with children, and asking to join one all need a profile photo and an account at least 7 days old. Co-organisers, when they are built, need the same. Admins are exempt. The app says what is missing before "Demander à rejoindre"; on the website it points to the app for the photo.
+- **Place hidden until accepted:** strangers, signed-out visitors and pending requesters see "Lieu communiqué aux participants acceptés" instead of the place and the map, in the app, on the website and in My activities. Search and the map use the place rounded to about 1 km, for the radius too. The website page has no Event structured data and stays in the sitemap. The organiser is asked not to write the address in the title or the description.
+- **Deciding on a request:** the organiser sees the person's bio and since when they have had an account. No score.
+- **Reports:** the reason "Comportement inquiétant envers des enfants" comes first on these activities, their sessions, their members and their chat. Admins see those reports, and any report about these activities, in a "Prioritaires" section first.
+- **Labels and advice:** "Avec des enfants" on the activity page and the explore card, a tip for parents (table above), and one sentence in the terms: children are under the sole responsibility of their parent, and Habituer does not check identities or criminal records.
 
 ## 10. Ads
 

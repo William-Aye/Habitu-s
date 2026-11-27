@@ -266,3 +266,41 @@ Deno.test("the site name is added to every title except the home page, whatever 
   const html = renderActivityPage(activityFixture({ title: "Les habitués de Habituer" }), BASE);
   assertStringIncludes(html, "<title>Les habitués de Habituer · Habituer</title>");
 });
+
+Deno.test("activity with children: the place is nowhere, with no Event and no map, and the page says why", () => {
+  // As get_activity returns it to a signed-out visitor.
+  const hidden = activityFixture({
+    title: "Sortie au square des Lilas",
+    with_children: true,
+    place_hidden: true,
+    place_label: null,
+    lon: null,
+    lat: null,
+    next_sessions: [{ id: "s1", starts_at: "2026-10-27T18:00:00Z", place_label: null, status: "scheduled", confirmed_count: 3 }],
+  });
+  // The same activity if the data still carried its place (an older database, a mistake upstream).
+  const leaky = activityFixture({ title: "Sortie au square des Lilas", with_children: true });
+  for (const html of [renderActivityPage(hidden, BASE), renderActivityPage(leaky, BASE)]) {
+    assertStringIncludes(html, "<h1>Sortie au square des Lilas</h1>");
+    assertStringIncludes(html, "Lieu communiqué aux participants acceptés");
+    assertStringIncludes(html, "Avec des enfants");
+    assertStringIncludes(html, "Prochaine séance : mardi 27 octobre à 19:00");
+    assert(!html.includes("application/ld+json"), "no structured data");
+    assert(!html.includes('"Event"'), "no Event");
+    assert(!html.includes("openstreetmap"), "no map link");
+    assert(!html.includes("Voir sur la carte"), "no map button");
+    assert(!html.includes("Café des Arts"), "no place label");
+    assert(!html.includes("45.764") && !html.includes("4.8357"), "no coordinates");
+    const head = html.slice(0, html.indexOf("</head>"));
+    assert(!head.includes("Café"), "no place in meta or og tags");
+  }
+});
+
+Deno.test("activity without children: the place, the map and the Event stay", () => {
+  const html = renderActivityPage(activityFixture({ with_children: false, place_hidden: false }), BASE);
+  assertStringIncludes(html, "<li>Café des Arts, Lyon</li>");
+  assertStringIncludes(html, "Voir sur la carte");
+  assertStringIncludes(html, '"@type":"Event"');
+  assert(!html.includes("Avec des enfants"));
+  assert(!html.includes("Lieu communiqué aux participants acceptés"));
+});

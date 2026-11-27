@@ -5,6 +5,7 @@ import type {
   ActivityPage,
   ApiResult,
   ChatHistory,
+  ChildrenRequirement,
   MyActivity,
   MyStatus,
   Recurrence,
@@ -24,7 +25,7 @@ export function mapSession(s: any): SessionInfo {
   return {
     id: s.id,
     startsAt: s.starts_at,
-    placeLabel: s.place_label,
+    placeLabel: s.place_label ?? null,
     isDiscovery: !!s.is_discovery,
     status: s.status,
     confirmedCount: s.confirmed_count ?? 0,
@@ -65,9 +66,12 @@ function mapActivity(a: any): ActivityPage {
     organisedBy: a.organised_by
       ? { kind: a.organised_by.kind, id: a.organised_by.id, name: a.organised_by.name }
       : null,
-    placeLabel: a.place_label,
-    lon: a.lon,
-    lat: a.lat,
+    placeLabel: a.place_label ?? null,
+    lon: a.lon ?? null,
+    lat: a.lat ?? null,
+    withChildren: !!a.with_children,
+    placeHidden: !!a.place_hidden,
+    childrenRequirementsMissing: Array.isArray(a.children_requirements_missing) ? a.children_requirements_missing : [],
     recurrence: mapRecurrence(a),
     startDate: a.start_date,
     startTime: a.start_time,
@@ -115,6 +119,7 @@ export function createActivity(d: ActivityDraft): Promise<ApiResult<{ id: string
           newcomer_friendly: d.newcomerFriendly,
           approval_mode: d.approvalMode,
           chat_history: d.chatHistory,
+          with_children: d.withChildren,
         })
         .select('id')
         .single(),
@@ -136,12 +141,25 @@ export function myActivities(): Promise<ApiResult<{ activities: MyActivity[] }>>
       activities: ((data ?? []) as any[]).map((a) => ({
         id: a.id,
         title: a.title,
-        placeLabel: a.place_label,
+        placeLabel: a.place_label ?? null,
+        withChildren: !!a.with_children,
         categoryIcon: a.category_icon,
         isOrganiser: !!a.is_organiser,
         myStatus: a.my_status,
         nextSession: a.next_session ? mapSession(a.next_session) : null,
       })),
+    }),
+  );
+}
+
+const REQUIREMENTS: ChildrenRequirement[] = ['photo', 'account_age'];
+
+/** What I still lack to organise or join an activity with children (empty when nothing is missing). */
+export function myChildrenRequirements(): Promise<ApiResult<{ missing: ChildrenRequirement[] }>> {
+  return run(
+    () => supabase.rpc('children_requirements_missing'),
+    (data) => ({
+      missing: REQUIREMENTS.filter((r) => Array.isArray(data) && data.includes(r)),
     }),
   );
 }
@@ -251,6 +269,9 @@ export interface RosterEntry {
   firstName: string;
   photoUrl: string | null;
   status: 'member' | 'pending';
+  /** Requests only: the neutral facts the organiser decides on. */
+  bio: string | null;
+  memberSince: string | null;
 }
 
 /** Organiser only: members and pending requests with first names (the database refuses anyone else). */
@@ -263,6 +284,8 @@ export function activityRoster(activityId: string): Promise<ApiResult<{ people: 
         firstName: r.first_name as string,
         photoUrl: (r.photo_url ?? null) as string | null,
         status: r.status as 'member' | 'pending',
+        bio: (r.bio ?? null) as string | null,
+        memberSince: (r.member_since ?? null) as string | null,
       })),
     }),
   );

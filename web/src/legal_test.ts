@@ -84,3 +84,10 @@ Deno.test("legal pages share the header logo and the icons with the other pages"
     assertStringIncludes(t, '<link rel="apple-touch-icon" href="/apple-touch-icon.png">');
   }
 });
+
+Deno.test("conditions: activities with children", async () => {
+  const t = await legalResponse("terms").text();
+  assertStringIncludes(t, "sous la seule responsabilité de leur parent");
+  assertStringIncludes(t, "ne vérifie ni l&#39;identité des membres ni leurs antécédents judiciaires");
+  assertStringIncludes(t, "comportement inquiétant envers des enfants");
+});

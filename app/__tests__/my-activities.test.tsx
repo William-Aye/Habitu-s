@@ -152,4 +152,13 @@ describe('Mes activités', () => {
     await fireEvent.press(await screen.findByLabelText('Réessayer'));
     expect(await screen.findByText("Aucune activité pour l'instant")).toBeTruthy();
   });
+
+  it('says the place comes once accepted on a pending request to an activity with children', async () => {
+    mockMy.mockResolvedValue({
+      ok: true,
+      activities: [activity({ myStatus: 'pending', placeLabel: null, withChildren: true, nextSession: null })],
+    });
+    await render(<MyActivities />);
+    expect(await screen.findByText('Lieu communiqué aux participants acceptés')).toBeTruthy();
+  });
 });

@@ -24,10 +24,10 @@ select is((select string_agg(distinct tablename::text, ',' order by tablename::t
 select is((select string_agg(column_name::text, ',' order by column_name::text) from information_schema.column_privileges
              where table_schema = 'public' and table_name = 'activities' and grantee = 'anon' and privilege_type = 'SELECT'),
   ('approval_mode,archived_at,category_id,chat_history,created_at,description,duration_minutes,id,max_size,'
-        || 'min_participants,newcomer_friendly,organised_by_association_id,organised_by_collectif_id,place,'
-        || 'place_label,published_at,recurrence_interval_days,recurrence_kind,recurrence_weekdays,'
-        || 'removed_by_moderation_at,search_tsv,start_date,start_time,timezone,title'),
-  'anon reads only the listed activity columns (no organiser, welcome member or embedding)');
+        || 'min_participants,newcomer_friendly,organised_by_association_id,organised_by_collectif_id,'
+        || 'published_at,recurrence_interval_days,recurrence_kind,recurrence_weekdays,'
+        || 'removed_by_moderation_at,search_tsv,start_date,start_time,timezone,title,with_children'),
+  'anon reads only the listed activity columns (no organiser, welcome member, embedding or place)');
 select is((select string_agg(column_name::text, ',' order by column_name::text) from information_schema.column_privileges
              where table_schema = 'public' and table_name = 'collectifs' and grantee = 'anon' and privilege_type = 'SELECT'),
   ('created_at,description,id,name,search_tsv,town_label,town_point'),

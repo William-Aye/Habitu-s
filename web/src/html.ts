@@ -186,8 +186,11 @@ export function renderActivityPage(a: Json, base: string, opts: RenderOpts = {})
   const org: string | null = a.organised_by?.name ?? null;
   const desc: string = a.description ?? "";
   const rec = recurrenceText(a);
-  const place = a.place_label;
-  const mapUrl = osmUrl(a.lat, a.lon);
+  // An activity with children: its place is for accepted participants only. The public page never shows
+  // it, whatever the data says, and has no Event structured data (an Event needs a location).
+  const hidePlace = !!a.with_children || !!a.place_hidden;
+  const place = hidePlace ? null : a.place_label;
+  const mapUrl = hidePlace ? null : osmUrl(a.lat, a.lon);
 
   const ld: Json = {
     "@context": "https://schema.org",
@@ -234,9 +237,10 @@ export function renderActivityPage(a: Json, base: string, opts: RenderOpts = {})
   const main = `<article class="activity">
 <h1>${escapeHtml(a.title)}</h1>
 ${a.category?.name_fr ? `<p class="category">${escapeHtml(a.category.name_fr)}</p>` : ""}
+${a.with_children ? `<p class="category">${escapeHtml(copy.activity.withChildren)}</p>` : ""}
 ${desc ? `<p class="description">${escapeHtml(desc)}</p>` : ""}
 <ul class="facts">
-${place ? `<li>${escapeHtml(place)}</li>` : ""}
+${hidePlace ? `<li>${escapeHtml(copy.activity.placeHidden)}</li>` : place ? `<li>${escapeHtml(place)}</li>` : ""}
 ${rec ? `<li>${escapeHtml(rec)}</li>` : ""}
 ${next ? `<li>${escapeHtml(copy.nextSession(formatParisDate(next.starts_at)))}</li>` : ""}
 ${next && confirmed ? `<li>${escapeHtml(confirmed)}</li>` : ""}
@@ -246,7 +250,7 @@ ${actions({ webPath: `/app/activites/${a.id}`, intent: intentUrl(`activites/${a.
 </article>`;
   // An Event without a start date is invalid for Google: no structured data until a session is planned.
   return layout({
-    title: a.title ?? copy.siteName, description: desc || copy.tagline, canonical: url, base, ld: next ? ld : undefined, main,
+    title: a.title ?? copy.siteName, description: desc || copy.tagline, canonical: url, base, ld: next && !hidePlace ? ld : undefined, main,
   });
 }
 

@@ -628,3 +628,54 @@ describe('lifting a suspension', () => {
     expect(require('expo-router').router.push).toHaveBeenCalledWith('/admin/lift-ban');
   });
 });
+
+describe('priority reports', () => {
+  it('asks for the priority list and maps the count', async () => {
+    const { listReports } = require('../src/features/admin/api');
+    let sent: any = null;
+    rpcHandlers.admin_reports = (args) => {
+      sent = args;
+      return { data: { open_count: 3, priority_open_count: 1, items: [{ ...REPORT, priority: true }] }, error: null };
+    };
+    const r = await listReports(null, { priority: true });
+    expect(sent.p_priority).toBe(true);
+    expect(r).toMatchObject({ ok: true, priorityOpenCount: 1 });
+    expect(r.items[0].priority).toBe(true);
+  });
+});
+
+describe('priority section of the reports queue', () => {
+  const URGENT = { ...REPORT, id: 'r9', reason: 'child_safety', target_type: 'activity', preview: 'Sortie au square', priority: true };
+  const texts = () =>
+    screen
+      .getAllByText(/^(Prioritaires \(1\)|Autres signalements|Sortie au square|Un message gênant|Spam)$/)
+      .map((n) => n.props.children);
+
+  it('lists the priority reports first, from the priority call, and the others after', async () => {
+    const sent: any[] = [];
+    rpcHandlers.admin_reports = (args) => {
+      sent.push(args);
+      return args.p_priority
+        ? { data: { open_count: 3, priority_open_count: 1, items: [URGENT] }, error: null }
+        : { data: { open_count: 3, priority_open_count: 1, items: [REPORT, URGENT, AUTO] }, error: null };
+    };
+    await render(<AdminQueue />);
+    expect(await screen.findByRole('header', { name: 'Prioritaires (1)' })).toBeTruthy();
+    expect(texts()).toEqual(['Prioritaires (1)', 'Sortie au square', 'Autres signalements', 'Un message gênant', 'Spam']);
+    expect(screen.getByText('Comportement inquiétant envers des enfants')).toBeTruthy();
+    expect(sent.some((a) => a.p_priority === true)).toBe(true);
+  });
+
+  it('shows no priority section and asks nothing more when there is none', async () => {
+    const sent: any[] = [];
+    rpcHandlers.admin_reports = (args) => {
+      sent.push(args);
+      return { data: { open_count: 2, priority_open_count: 0, items: [REPORT, AUTO] }, error: null };
+    };
+    await render(<AdminQueue />);
+    expect(await screen.findByText('Un message gênant')).toBeTruthy();
+    expect(screen.queryByText(/^Prioritaires/)).toBeNull();
+    expect(screen.queryByText('Autres signalements')).toBeNull();
+    expect(sent.every((a) => !a.p_priority)).toBe(true);
+  });
+});

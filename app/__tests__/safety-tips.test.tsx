@@ -53,6 +53,13 @@ const TIP_B = "Prévenez un proche de l'endroit où vous allez.";
 const TIP_MOVED =
   'Les activités doivent se dérouler dans un lieu public. Si ce nouveau lieu vous semble inadapté, signalez-le.';
 
+const TIP_KIDS = [
+  "L'enfant reste toujours avec son parent et n'est jamais confié à un autre adulte.",
+  'Retrouvez-vous uniquement dans le lieu public prévu.',
+  "Ne partagez ni photo d'enfant ni information personnelle dans la discussion.",
+  'Signalez tout ce qui vous inquiète.',
+];
+
 const IN_3_DAYS = new Date(Date.now() + 3 * 86_400_000).toISOString();
 const CONFIRMED = { status: 'confirmed' as const, guestCount: 0 };
 function session(over: Partial<SessionInfo> = {}): SessionInfo {
@@ -94,8 +101,14 @@ beforeEach(async () => {
 });
 
 describe('tips list', () => {
-  it('has the three contextual tips as i18n keys that exist in French', () => {
-    expect(Object.keys(TIPS).sort()).toEqual(['first_session', 'moved_place', 'where']);
+  it('has the four contextual tips as i18n keys that exist in French', () => {
+    expect(Object.keys(TIPS).sort()).toEqual(['first_session', 'moved_place', 'where', 'with_children']);
+    expect(TIPS.with_children).toEqual([
+      'safety.tips.with_children.a',
+      'safety.tips.with_children.b',
+      'safety.tips.with_children.c',
+      'safety.tips.with_children.d',
+    ]);
     expect(TIPS.where).toEqual(['create.where.homeTip']);
     const lookup = (key: string) => key.split('.').reduce<any>((o, k) => o?.[k], fr);
     for (const keys of Object.values(TIPS)) for (const k of keys) expect(typeof lookup(k)).toBe('string');
@@ -249,6 +262,7 @@ describe('Conseils de sécurité page', () => {
     expect(screen.getByText(TIP_A)).toBeTruthy();
     expect(screen.getByText(TIP_B)).toBeTruthy();
     expect(screen.getByText(TIP_MOVED)).toBeTruthy();
+    for (const line of TIP_KIDS) expect(screen.getByText(line)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Compris' })).toBeNull();
     expect(screen.queryByRole('button', { name: /Partager mon programme/ })).toBeNull();
   });
@@ -360,7 +374,61 @@ describe('useTipSeen', () => {
   });
 });
 
+describe('with_children tip', () => {
+  const kids = (over: Partial<ActivityPage> = {}) =>
+    activity({
+      withChildren: true, placeHidden: true, placeLabel: null, lon: null, lat: null, approvalMode: 'approval',
+      myStatus: 'none', childrenRequirementsMissing: [], nextSessions: [session({ placeLabel: null })], ...over,
+    });
+
+  it('shows on the first activity with children, and Compris hides it for good', async () => {
+    await openActivity(kids());
+    expect(await screen.findByText(TIP_KIDS[0])).toBeTruthy();
+    for (const line of TIP_KIDS) expect(screen.getByText(line)).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Compris' }));
+    await waitFor(() => expect(screen.queryByText(TIP_KIDS[0])).toBeNull());
+    expect(mMark).toHaveBeenCalledWith(['with_children']);
+  });
+
+  it('is not shown again once seen', async () => {
+    mList.mockResolvedValue({ ok: true, tips: ['with_children'] });
+    await openActivity(kids());
+    await waitFor(() => expect(mList).toHaveBeenCalled());
+    expect(screen.queryByText(TIP_KIDS[0])).toBeNull();
+  });
+
+  it('is not shown on an activity without children', async () => {
+    await openActivity(activity({ myStatus: 'none' }));
+    await act(async () => {});
+    expect(screen.queryByText(TIP_KIDS[0])).toBeNull();
+  });
+});
+
 describe('SessionRow alone', () => {
+  it('renders a session whose place is hidden, without a place line', async () => {
+    await render(
+      <SessionRow
+        session={session({ placeLabel: null })}
+        activity={activity({ withChildren: true, placeHidden: true, placeLabel: null, lon: null, lat: null, myStatus: 'none' })}
+        showWelcome={false}
+        showFirstTip={false}
+        onChanged={() => {}}
+      />,
+    );
+    expect(screen.getByText('4 confirmés')).toBeTruthy();
+    expect(screen.queryByText('Café des Arts')).toBeNull();
+    // No empty text left where the place was.
+    const empty: unknown[] = [];
+    const walk = (n: any): void => {
+      if (Array.isArray(n)) return n.forEach(walk);
+      if (!n || typeof n !== 'object') return;
+      if (n.type === 'Text' && !(n.children ?? []).length) empty.push(n);
+      (n.children ?? []).forEach(walk);
+    };
+    walk(screen.toJSON());
+    expect(empty).toHaveLength(0);
+  });
+
   it('has no share button for someone who has not confirmed', async () => {
     await render(
       <SessionRow session={session()} activity={activity()} showWelcome={false} showFirstTip={false} onChanged={() => {}} />,

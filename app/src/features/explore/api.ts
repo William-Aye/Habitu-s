@@ -31,6 +31,7 @@ function mapResult(r: any): ExploreResult {
     isNew: !!r.is_new,
     sourceLabel: r.source_label ?? null,
     tagSlugs: r.tag_slugs ?? [],
+    withChildren: !!r.with_children,
   };
 }
 

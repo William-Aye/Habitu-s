@@ -24,6 +24,8 @@ export interface AdminReport {
   preview: string | null;
   ownerFirstName: string | null;
   reporterFirstName: string | null;
+  /** A child-safety report, or any report about an activity with children. */
+  priority: boolean;
 }
 export interface AdminClaim {
   id: string;
@@ -108,16 +110,18 @@ const arr = (d: unknown): any[] => (Array.isArray(d) ? d : []);
 export const REPORTS_PAGE = 50;
 
 /** One page of the open reports, newest first; `before` is the last row of the previous page. */
-export function listReports(before?: { createdAt: string; id: string } | null) {
+export function listReports(before?: { createdAt: string; id: string } | null, opts: { priority?: boolean } = {}) {
   return call(
     () =>
       rpc('admin_reports', {
         p_status: 'open',
         p_limit: REPORTS_PAGE,
         ...(before ? { p_before_at: before.createdAt, p_before_id: before.id } : {}),
+        ...(opts.priority ? { p_priority: true } : {}),
       }),
     (d: any) => ({
       openCount: (d?.open_count ?? 0) as number,
+      priorityOpenCount: (d?.priority_open_count ?? 0) as number,
       hasMore: arr(d?.items).length >= REPORTS_PAGE,
       items: arr(d?.items).map(
         (r): AdminReport => ({
@@ -130,6 +134,7 @@ export function listReports(before?: { createdAt: string; id: string } | null) {
           preview: r.preview ?? null,
           ownerFirstName: r.target_owner?.first_name ?? null,
           reporterFirstName: r.reporter_first_name ?? null,
+          priority: !!r.priority,
         }),
       ),
     }),

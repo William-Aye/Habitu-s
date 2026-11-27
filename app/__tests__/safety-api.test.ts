@@ -1,5 +1,6 @@
 import { block, listBlocked, unblock } from '../src/features/safety/blocks';
 import { reportTarget } from '../src/features/safety/reports';
+import { reasonsFor } from '../src/features/safety/types';
 
 let calls: { method: string; args: unknown[] }[] = [];
 let result: { data: unknown; error: { code?: string; message?: string } | null } = { data: null, error: null };
@@ -107,5 +108,19 @@ describe('blocks', () => {
     mockGetSession.mockResolvedValue({ data: { session: null } });
     expect(await block('u2')).toEqual({ ok: false, error: 'signed_out' });
     expect(await unblock('u2')).toEqual({ ok: false, error: 'signed_out' });
+  });
+});
+
+describe('reasonsFor', () => {
+  it('offers child_safety first in a context with children', () => {
+    expect(reasonsFor('activity', { withChildren: true })[0]).toBe('child_safety');
+    expect(reasonsFor('message', { withChildren: true })[0]).toBe('child_safety');
+    expect(reasonsFor('user', { withChildren: true })[0]).toBe('child_safety');
+    expect(reasonsFor('session', { withChildren: true })[0]).toBe('child_safety');
+  });
+
+  it('does not offer it elsewhere', () => {
+    expect(reasonsFor('activity')).not.toContain('child_safety');
+    expect(reasonsFor('association', { withChildren: true })).not.toContain('child_safety');
   });
 });

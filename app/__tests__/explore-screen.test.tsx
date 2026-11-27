@@ -33,7 +33,7 @@ function result(id: string, over: Partial<ExploreResult> = {}): ExploreResult {
   return {
     kind: 'activity', id, title: `Titre ${id}`, subtitle: null, snippet: null, lon: 0, lat: 0,
     distanceKm: 1, score: 50, label: null, isWeak: false, isNew: false, sourceLabel: null,
-    tagSlugs: [], ...over,
+    tagSlugs: [], withChildren: false, ...over,
   };
 }
 function response(results: ExploreResult[], over: Partial<ExploreResponse> = {}): ExploreResponse {
@@ -366,4 +366,11 @@ it('does not search while interests load with an empty query, then searches once
   const params = mockSearch.mock.calls.map(([p]) => p).filter((p) => p !== null);
   expect(params.length).toBeGreaterThan(0);
   expect(params.every((p) => JSON.stringify(p.interestCategoryIds) === '["a","b"]')).toBe(true);
+});
+
+it('labels a result with children, for screen readers too', async () => {
+  setSearch(response([result('a', { title: 'Sortie au parc', distanceKm: 1.2, withChildren: true })]));
+  await render(<Explore />);
+  expect(screen.getByText('Avec des enfants')).toBeTruthy();
+  expect(screen.getByLabelText('Sortie au parc, 1,2 km, Avec des enfants')).toBeTruthy();
 });

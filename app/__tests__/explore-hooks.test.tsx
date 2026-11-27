@@ -29,7 +29,7 @@ const base: ExploreParams = {
 function result(id: string): ExploreResult {
   return {
     kind: 'activity', id, title: id, subtitle: null, snippet: null, lon: 0, lat: 0,
-    distanceKm: 1, score: 50, label: null, isWeak: false, isNew: false, sourceLabel: null, tagSlugs: [],
+    distanceKm: 1, score: 50, label: null, isWeak: false, isNew: false, sourceLabel: null, tagSlugs: [], withChildren: false,
   };
 }
 function response(ids: string[], hasMore = false): ExploreResponse {
